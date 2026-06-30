@@ -175,27 +175,27 @@ struct SSHProfilesSection: View {
             Button {
                 workspace.openSSH(profile: profile)
             } label: {
-                Image(systemName: profile.jumpHosts.isEmpty ? "network" : "point.3.connected.trianglepath.dotted")
-                    .frame(width: 20)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(profile.displayName)
-                        .font(.caption2.weight(.semibold))
-                        .lineLimit(1)
-                    Text(profile.target)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                HStack(spacing: 7) {
+                    Image(systemName: profile.jumpHosts.isEmpty ? "network" : "point.3.connected.trianglepath.dotted")
+                        .frame(width: 20)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(profile.displayName)
+                            .font(.caption2.weight(.semibold))
+                            .lineLimit(1)
+                        Text(profile.target)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 2)
                 }
-                Spacer(minLength: 2)
+                // 整块名字区域都可点击直接连接，而非仅文字本身。
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .help(L10n.string("ssh.connect"))
 
             Menu {
-                Button {
-                    workspace.openSSH(profile: profile)
-                } label: {
-                    Label(L10n.string("ssh.connect"), systemImage: "bolt.horizontal")
-                }
                 Button {
                     editingProfile = profile
                 } label: {
@@ -210,6 +210,7 @@ struct SSHProfilesSection: View {
             } label: {
                 Image(systemName: "ellipsis")
                     .frame(width: 20, height: 22)
+                    .contentShape(Rectangle())
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)

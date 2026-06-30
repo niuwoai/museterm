@@ -62,10 +62,11 @@ private struct SidebarView: View {
             if preferences.showsTabList {
                 ScrollView {
                     LazyVStack(spacing: 10) {
-                        ForEach(workspace.tabs) { tab in
+                        ForEach(Array(workspace.tabs.enumerated()), id: \.element.id) { index, tab in
                             TabRowView(
                                 tab: tab,
                                 isSelected: workspace.selectedID == tab.id,
+                                shortcutNumber: index < 9 ? index + 1 : nil,
                                 skin: preferences.skin,
                                 closeAction: { workspace.close(tab) }
                             )
@@ -151,6 +152,7 @@ private struct SidebarView: View {
 private struct TabRowView: View {
     @ObservedObject var tab: TerminalSession
     let isSelected: Bool
+    let shortcutNumber: Int?
     let skin: TerminalVisualSkin
     let closeAction: () -> Void
 
@@ -161,9 +163,18 @@ private struct TabRowView: View {
                 .frame(width: 7, height: 7)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text(tab.tabTitle)
-                    .font(.caption.weight(.semibold))
-                    .lineLimit(1)
+                HStack(spacing: 5) {
+                    Text(tab.tabTitle)
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                        .layoutPriority(1)
+                    if let shortcutNumber {
+                        // 稍浅颜色备注 ⌘ 数字，提示 Command+N 可直接切到该标签。
+                        Text(verbatim: "⌘\(shortcutNumber)")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.tertiary)
+                    }
+                }
                 if let subtitle = tab.tabSubtitle {
                     Text(subtitle)
                         .font(.caption2)
