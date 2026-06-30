@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.101.0
+> 当前版本基线：v1.102.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,7 +30,7 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.101.0 已完成九十三条纵向切片：
+v1.102.0 已完成九十四条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
@@ -117,6 +117,7 @@ v1.101.0 已完成九十三条纵向切片：
 - Runbook 回放安全增强：回放脚本可将本机 Home 与工作目录参数化为 `RUNBOOK_HOME` / `RUNBOOK_WORKDIR`，并默认用 `run_step` 逐条确认后再执行命令。
 - Runbook 变量编辑体验：命令搜索面板可编辑 `RUNBOOK_HOME` 与 `RUNBOOK_WORKDIR` 默认值，复制回放、复制 Runbook 和保存 Markdown 共用同一套变量覆盖值。
 - AI Explain 上下文选择：命令搜索面板可在只发命令、当前命令块、当前过滤结果摘要之间切换上下文范围，复制 AI 上下文和直接解释共用同一设置。
+- AI Explain 客户端拆分：Provider 配置校验、OpenAI/Anthropic/Gemini 兼容流式请求、SSE 增量解析和错误映射已从 `ContentView.swift` 拆分到 `AIExplainClient.swift`，并补充本地配置校验测试，让主视图文件降到 2000 行以下。
 - 统计娱乐系统第一版：任务与端口面板显示本次会话命令数、失败数、运行中命令、端口数、最长耗时和轻量成就徽章。
 - 统计持久化第一版：任务与端口面板显示“今天”统计，跨 App 重启累计当天已结束命令数、失败数和最长命令耗时。
 - 统计持久化拆分：每日命令统计的本地 JSON 读写已从 `TaskPortPanel.swift` 拆分到 `PersistentCommandStatsStore.swift`，让任务与端口面板文件降到 2000 行以下。

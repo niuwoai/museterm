@@ -1,6 +1,6 @@
 # Product Overview
 
-> 最后更新：2026-07-01 | 当前版本：v1.101.0
+> 最后更新：2026-07-01 | 当前版本：v1.102.0
 
 ## 项目简介
 
@@ -49,6 +49,7 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 - 终端内核：SwiftTerm
 - 平台：macOS 13.0 及以上（覆盖 macOS 13.7）
 - 本地化：`Localizable.strings`
+- AI Explain 客户端：`AIExplainClient.swift` 独立负责 Provider 配置校验、OpenAI/Anthropic/Gemini 兼容流式请求、SSE 增量解析和错误映射，让主视图文件保持在 2000 行以下。
 - 安全输入分析：`TerminalSafetyInputAnalyzer.swift` 独立承载多行粘贴识别、高危命令规则、自定义文本/正则规则解析和确认预览控件，让终端宿主视图保持在 2000 行以下。
 - 诊断契约：`CommandDiagnosticAction.swift` 独立承载结构化建议排查动作和稳定 action code，`TaskPortPanel.swift` 保留面板、统计与诊断生成逻辑。
 - 统计持久化：`PersistentCommandStatsStore.swift` 独立负责每日命令统计的本地 JSON 读写，让任务与端口面板文件保持在 2000 行以下。

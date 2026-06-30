@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.102.0] - 2026-07-01
+
+### Changed
+- 将 AI Explain Provider 配置校验、OpenAI/Anthropic/Gemini 兼容流式请求和响应解码从 `ContentView.swift` 拆分到 `AIExplainClient.swift`。
+- `ContentView.swift` 行数降到 2000 行以下，主视图文件继续聚焦面板组合、搜索交互和 Runbook 操作编排。
+
+### Added
+- 新增 `AIExplainClientTests`，覆盖 AI Explain 配置缺少模型、缺少 Base URL，以及 Ollama 空 API Key 可用的本地校验路径。
+
 ## [1.101.0] - 2026-07-01
 
 ### Changed
