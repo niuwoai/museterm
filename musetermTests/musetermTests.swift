@@ -51,8 +51,10 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(script.contains("commands_payload"))
         XCTAssertTrue(script.contains("\"schemaVersion\" => state[\"schemaVersion\"]"))
         XCTAssertTrue(script.contains("\"outputTailCharacters\""))
+        XCTAssertTrue(script.contains("\"outputTailReturnedCharacters\""))
         XCTAssertTrue(script.contains("\"outputTailLimit\""))
         XCTAssertTrue(script.contains("\"outputTailTruncated\""))
+        XCTAssertTrue(script.contains("\"outputTailStoredTruncated\""))
         XCTAssertTrue(script.contains("commands_payload(state, tab, chars)"))
         XCTAssertTrue(script.contains("commands_payload(state, tab, args[\"chars\"])"))
         XCTAssertTrue(script.contains("\"diagnostics\" => tab.fetch(\"commandDiagnostics\", {})"))
@@ -93,6 +95,7 @@ final class musetermTests: XCTestCase {
                         [
                             "id": "cmd-1",
                             "command": "make test",
+                            "outputCharacterCount": 10,
                             "outputTail": "abcdef"
                         ]
                     ]
@@ -107,15 +110,19 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(limited["schemaVersion"] as? Int, 1)
         XCTAssertEqual(limitedCommand["outputTail"] as? String, "def")
         XCTAssertEqual(limitedCommand["outputTailCharacters"] as? Int, 6)
+        XCTAssertEqual(limitedCommand["outputTailReturnedCharacters"] as? Int, 3)
         XCTAssertEqual(limitedCommand["outputTailLimit"] as? Int, 3)
         XCTAssertEqual(limitedCommand["outputTailTruncated"] as? Bool, true)
+        XCTAssertEqual(limitedCommand["outputTailStoredTruncated"] as? Bool, true)
 
         let unlimited = try runMuseTermCLIScript(scriptURL, home: root, arguments: ["commands"])
         let unlimitedCommand = try XCTUnwrap((unlimited["commands"] as? [[String: Any]])?.first)
         XCTAssertEqual(unlimitedCommand["outputTail"] as? String, "abcdef")
         XCTAssertEqual(unlimitedCommand["outputTailCharacters"] as? Int, 6)
+        XCTAssertEqual(unlimitedCommand["outputTailReturnedCharacters"] as? Int, 6)
         XCTAssertTrue(unlimitedCommand["outputTailLimit"] is NSNull)
         XCTAssertEqual(unlimitedCommand["outputTailTruncated"] as? Bool, false)
+        XCTAssertEqual(unlimitedCommand["outputTailStoredTruncated"] as? Bool, true)
     }
 
     @MainActor

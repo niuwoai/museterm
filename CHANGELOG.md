@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.59.0] - 2026-07-01
+
+### Added
+- `museterm commands` / MCP `read_commands` 的命令块新增 `outputTailReturnedCharacters` 和 `outputTailStoredTruncated`，区分返回 tail 的长度与 App 内部保存的 tail 是否已相对完整输出截断。
+
 ## [1.58.0] - 2026-07-01
 
 ### Changed
