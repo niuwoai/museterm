@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.49.0] - 2026-07-01
+
+### Added
+- 命令诊断摘要新增 `diagnosticCategoryConfidence`，用 `high` / `medium` / `low` 标记诊断分类的可信度。
+- Runbook、AI 上下文和 CLI/MCP `diagnostics` 会同步暴露诊断分类可信度，便于外部工具区分明确错误命中、上下文推断和保守兜底。
+
 ## [1.48.0] - 2026-07-01
 
 ### Added

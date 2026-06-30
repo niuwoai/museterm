@@ -624,6 +624,7 @@ struct CommandBlockDiagnostics: Equatable {
     let diagnosticSeverity: CommandDiagnosticSeverity
     let diagnosticCategory: CommandDiagnosticCategory
     let diagnosticCategoryEvidence: String?
+    let diagnosticCategoryConfidence: CommandDiagnosticConfidence
 
     init(blocks: [TerminalCommandBlock], redactSensitiveData: Bool = true) {
         let failedBlocks = blocks.filter(Self.isFailed).sorted(by: Self.mostRecentFirst)
@@ -655,6 +656,7 @@ struct CommandBlockDiagnostics: Equatable {
         )
         diagnosticCategory = diagnosticCategoryMatch.category
         diagnosticCategoryEvidence = diagnosticCategoryMatch.evidence
+        diagnosticCategoryConfidence = diagnosticCategoryMatch.confidence
         suggestedNextInspection = Self.suggestedNextInspection(
             failedCommandCount: failedCommandCount,
             latestFailedCommand: latestFailedCommand,
@@ -699,6 +701,9 @@ struct CommandBlockDiagnostics: Equatable {
         }
         if let diagnosticCategoryEvidence {
             lines.append("Diagnostic category evidence: \(diagnosticCategoryEvidence)")
+        }
+        if diagnosticCategoryConfidence != .none {
+            lines.append("Diagnostic category confidence: \(diagnosticCategoryConfidence.rawValue)")
         }
         if let suggestedNextInspection {
             lines.append("Suggested next inspection: \(suggestedNextInspection)")
@@ -841,7 +846,7 @@ struct CommandBlockDiagnostics: Equatable {
         repeatedFailureDiagnostic: RepeatedFailureDiagnostic?
     ) -> DiagnosticCategoryMatch {
         guard failedCommandCount > 0 else {
-            return DiagnosticCategoryMatch(category: .none, evidence: nil)
+            return DiagnosticCategoryMatch(category: .none, evidence: nil, confidence: .none)
         }
         let command = latestFailedCommand?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
         let diagnostic = recentFailureDiagnostic?.lowercased() ?? ""
@@ -849,35 +854,45 @@ struct CommandBlockDiagnostics: Equatable {
             || diagnostic.contains("eaddrinuse")
             || diagnostic.contains("port already")
             || diagnostic.contains("listen tcp") {
-            return DiagnosticCategoryMatch(category: .portConflict, evidence: recentFailureDiagnostic)
+            return DiagnosticCategoryMatch(
+                category: .portConflict,
+                evidence: recentFailureDiagnostic,
+                confidence: .high
+            )
         }
         if diagnostic.contains("permission denied") {
-            return DiagnosticCategoryMatch(category: .permission, evidence: recentFailureDiagnostic)
+            return DiagnosticCategoryMatch(category: .permission, evidence: recentFailureDiagnostic, confidence: .high)
         }
         if diagnostic.contains("command not found") {
-            return DiagnosticCategoryMatch(category: .missingCommand, evidence: recentFailureDiagnostic)
+            return DiagnosticCategoryMatch(
+                category: .missingCommand,
+                evidence: recentFailureDiagnostic,
+                confidence: .high
+            )
         }
         if diagnostic.contains("no such file")
             || diagnostic.contains("not found")
             || diagnostic.contains("cannot find") {
-            return DiagnosticCategoryMatch(category: .missingFile, evidence: recentFailureDiagnostic)
+            return DiagnosticCategoryMatch(category: .missingFile, evidence: recentFailureDiagnostic, confidence: .high)
         }
         if command.hasPrefix("git ")
             || command == "git" {
-            return DiagnosticCategoryMatch(category: .git, evidence: latestFailedCommand)
+            return DiagnosticCategoryMatch(category: .git, evidence: latestFailedCommand, confidence: .medium)
         }
         if diagnostic.contains("fatal:") {
-            return DiagnosticCategoryMatch(category: .git, evidence: recentFailureDiagnostic)
+            return DiagnosticCategoryMatch(category: .git, evidence: recentFailureDiagnostic, confidence: .medium)
         }
         if repeatedFailureDiagnostic != nil {
             return DiagnosticCategoryMatch(
                 category: .repeated,
-                evidence: repeatedFailureDiagnostic?.diagnostic
+                evidence: repeatedFailureDiagnostic?.diagnostic,
+                confidence: .medium
             )
         }
         return DiagnosticCategoryMatch(
             category: .generic,
-            evidence: recentFailureDiagnostic ?? latestFailedCommand
+            evidence: recentFailureDiagnostic ?? latestFailedCommand,
+            confidence: .low
         )
     }
 
@@ -975,6 +990,13 @@ enum CommandDiagnosticCategory: String, Codable, Equatable {
     case generic
 }
 
+enum CommandDiagnosticConfidence: String, Codable, Equatable {
+    case none
+    case low
+    case medium
+    case high
+}
+
 private struct FailureDiagnosticRecord: Equatable {
     let diagnostic: String
     let fingerprint: String
@@ -983,6 +1005,7 @@ private struct FailureDiagnosticRecord: Equatable {
 private struct DiagnosticCategoryMatch: Equatable {
     let category: CommandDiagnosticCategory
     let evidence: String?
+    let confidence: CommandDiagnosticConfidence
 }
 
 private struct PersistentCommandStatsSnapshot: Codable, Equatable {

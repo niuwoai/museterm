@@ -1398,6 +1398,11 @@ enum RunbookMarkdownExporter {
         if let diagnosticCategoryEvidence = diagnostics.diagnosticCategoryEvidence {
             lines.append("- \(L10n.string("runbook.diagnostic_category_evidence")): `\(escapeInline(diagnosticCategoryEvidence))`")
         }
+        if diagnostics.diagnosticCategoryConfidence != .none {
+            lines.append(
+                "- \(L10n.string("runbook.diagnostic_category_confidence")): \(diagnostics.diagnosticCategoryConfidence.rawValue)"
+            )
+        }
         if let latestFailedCommand = diagnostics.latestFailedCommand {
             lines.append("- \(L10n.string("runbook.latest_failed_command")): `\(escapeInline(latestFailedCommand))`")
         }

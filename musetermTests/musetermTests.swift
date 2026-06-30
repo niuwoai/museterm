@@ -90,6 +90,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(encodedDiagnostics["diagnosticSeverity"] as? String, CommandDiagnosticSeverity.repeated.rawValue)
         XCTAssertEqual(encodedDiagnostics["diagnosticCategory"] as? String, CommandDiagnosticCategory.repeated.rawValue)
         XCTAssertEqual(encodedDiagnostics["diagnosticCategoryEvidence"] as? String, diagnostic)
+        XCTAssertEqual(
+            encodedDiagnostics["diagnosticCategoryConfidence"] as? String,
+            CommandDiagnosticConfidence.medium.rawValue
+        )
         XCTAssertEqual(encodedDiagnostics["latestFailedCommand"] as? String, "make test")
         XCTAssertEqual(encodedDiagnostics["recentFailureDiagnostic"] as? String, diagnostic)
         XCTAssertEqual(encodedDiagnostics["recentFailureFingerprint"] as? String, "error database is locked")
@@ -450,6 +454,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.diagnostic_severity")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.diagnostic_category")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.diagnostic_category_evidence")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.diagnostic_category_confidence")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.failure_fingerprint")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_inspection")))
@@ -461,6 +466,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains("3"))
         XCTAssertTrue(markdown.contains(CommandDiagnosticSeverity.repeated.rawValue))
         XCTAssertTrue(markdown.contains(CommandDiagnosticCategory.repeated.rawValue))
+        XCTAssertTrue(markdown.contains(CommandDiagnosticConfidence.medium.rawValue))
         XCTAssertTrue(markdown.contains("make test"))
         XCTAssertTrue(markdown.contains("ERROR token=[REDACTED]"))
         XCTAssertTrue(markdown.contains("Inspect the repeated failure output before rerunning"))
@@ -490,6 +496,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Diagnostic severity: repeated"))
         XCTAssertTrue(context.contains("Diagnostic category: repeated"))
         XCTAssertTrue(context.contains("Diagnostic category evidence: ERROR database is locked"))
+        XCTAssertTrue(context.contains("Diagnostic category confidence: medium"))
         XCTAssertTrue(context.contains("Suggested next inspection: Inspect the repeated failure output before rerunning"))
         XCTAssertTrue(context.contains("Suggested next command: pwd && git status --short --branch 2>/dev/null || true"))
     }
@@ -552,6 +559,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(diagnostics.diagnosticSeverity, .critical)
         XCTAssertEqual(diagnostics.diagnosticCategory, .permission)
         XCTAssertEqual(diagnostics.diagnosticCategoryEvidence, "fatal: permission denied")
+        XCTAssertEqual(diagnostics.diagnosticCategoryConfidence, .high)
         XCTAssertEqual(diagnostics.suggestedNextCommand, "pwd && id && ls -ld .")
     }
 
@@ -604,19 +612,38 @@ final class musetermTests: XCTestCase {
             ],
             redactSensitiveData: false
         )
+        let genericFailure = CommandBlockDiagnostics(
+            blocks: [
+                commandBlock(
+                    command: "make check",
+                    startedAt: 140,
+                    endedAt: 141,
+                    exitCode: 1,
+                    errorLine: "ERROR validation failed"
+                )
+            ],
+            redactSensitiveData: false
+        )
 
         XCTAssertEqual(portConflict.diagnosticCategory, .portConflict)
         XCTAssertEqual(portConflict.diagnosticCategoryEvidence, "Error: listen EADDRINUSE: address already in use :::5173")
+        XCTAssertEqual(portConflict.diagnosticCategoryConfidence, .high)
         XCTAssertEqual(portConflict.suggestedNextCommand, "lsof -nP -iTCP -sTCP:LISTEN")
         XCTAssertEqual(missingCommand.diagnosticCategory, .missingCommand)
         XCTAssertEqual(missingCommand.diagnosticCategoryEvidence, "zsh: command not found: frobnicate")
+        XCTAssertEqual(missingCommand.diagnosticCategoryConfidence, .high)
         XCTAssertEqual(missingCommand.suggestedNextCommand, "echo \"$PATH\"")
         XCTAssertEqual(missingFile.diagnosticCategory, .missingFile)
         XCTAssertEqual(missingFile.diagnosticCategoryEvidence, "cat: config.yml: No such file or directory")
+        XCTAssertEqual(missingFile.diagnosticCategoryConfidence, .high)
         XCTAssertEqual(missingFile.suggestedNextCommand, "pwd && ls -la")
         XCTAssertEqual(gitFailure.diagnosticCategory, .git)
         XCTAssertEqual(gitFailure.diagnosticCategoryEvidence, "git pull")
+        XCTAssertEqual(gitFailure.diagnosticCategoryConfidence, .medium)
         XCTAssertEqual(gitFailure.suggestedNextCommand, "git status --short --branch")
+        XCTAssertEqual(genericFailure.diagnosticCategory, .generic)
+        XCTAssertEqual(genericFailure.diagnosticCategoryEvidence, "ERROR validation failed")
+        XCTAssertEqual(genericFailure.diagnosticCategoryConfidence, .low)
     }
 
     func testSessionCommandStatsTracksRecentRedactedFailureDiagnostic() {
