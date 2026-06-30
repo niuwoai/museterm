@@ -272,6 +272,7 @@
 "stats.ports" = "Ports";
 "stats.longest_duration" = "Longest command: %@";
 "stats.recent_failure" = "Latest failure: %@";
+"stats.repeated_failure" = "Same failure %d times: %@";
 "stats.achievement.ten_commands" = "Ten commands";
 "stats.achievement.clean_run" = "Zero failures";
 "stats.achievement.service_online" = "Service online";

@@ -399,6 +399,35 @@ final class musetermTests: XCTestCase {
         XCTAssertFalse(stats.recentFailureDiagnostic?.contains(latestSecret) ?? true)
     }
 
+    func testSessionCommandStatsTracksRepeatedFailureDiagnostic() throws {
+        let repeated = "ERROR database is locked"
+        let blocks = [
+            commandBlock(command: "make test", startedAt: 100, endedAt: 101, exitCode: 1, errorLine: repeated),
+            commandBlock(command: "make test", startedAt: 110, endedAt: 111, exitCode: 1, errorLine: repeated),
+            commandBlock(command: "make test", startedAt: 120, endedAt: 121, exitCode: 1, errorLine: repeated)
+        ]
+
+        let stats = SessionCommandStats(blocks: blocks, portCount: 0)
+        let repeatedFailure = try XCTUnwrap(stats.repeatedFailureDiagnostic)
+
+        XCTAssertEqual(repeatedFailure.count, 3)
+        XCTAssertEqual(repeatedFailure.diagnostic, repeated)
+    }
+
+    func testSessionCommandStatsDoesNotRepeatAfterLatestSuccess() {
+        let repeated = "ERROR database is locked"
+        let blocks = [
+            commandBlock(command: "make test", startedAt: 100, endedAt: 101, exitCode: 1, errorLine: repeated),
+            commandBlock(command: "make test", startedAt: 110, endedAt: 111, exitCode: 1, errorLine: repeated),
+            commandBlock(command: "make test", startedAt: 120, endedAt: 121, exitCode: 1, errorLine: repeated),
+            commandBlock(command: "make test", startedAt: 130, endedAt: 131, exitCode: 0, errorLine: repeated)
+        ]
+
+        let stats = SessionCommandStats(blocks: blocks, portCount: 0)
+
+        XCTAssertNil(stats.repeatedFailureDiagnostic)
+    }
+
     private func commandBlock(
         command: String,
         startedAt: TimeInterval,

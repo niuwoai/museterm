@@ -296,6 +296,22 @@ struct TaskPortPanelView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 }
+                if let repeatedFailureDiagnostic = stats.repeatedFailureDiagnostic {
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: "repeat")
+                        Text(
+                            L10n.format(
+                                "stats.repeated_failure",
+                                repeatedFailureDiagnostic.count,
+                                repeatedFailureDiagnostic.diagnostic
+                            )
+                        )
+                        .lineLimit(3)
+                        .textSelection(.enabled)
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                }
                 if !stats.achievements.isEmpty {
                     FlowBadgeRow(achievements: stats.achievements, skin: preferences.skin)
                 }
@@ -565,12 +581,12 @@ struct SessionCommandStats {
     let portCount: Int
     let longestDurationMilliseconds: Int?
     let recentFailureDiagnostic: String?
+    let repeatedFailureDiagnostic: RepeatedFailureDiagnostic?
 
     init(blocks: [TerminalCommandBlock], portCount: Int) {
         commandCount = blocks.count
         let failedBlocks = blocks.filter { block in
-            guard block.endedAt != nil, let exitCode = block.exitCode else { return false }
-            return exitCode != 0
+            Self.isFailed(block)
         }
         failureCount = failedBlocks.count
         runningCount = blocks.filter { $0.endedAt == nil }.count
@@ -580,6 +596,7 @@ struct SessionCommandStats {
             .sorted(by: Self.mostRecentFirst)
             .compactMap(Self.failureDiagnostic)
             .first
+        repeatedFailureDiagnostic = Self.repeatedFailureDiagnostic(in: blocks)
     }
 
     var achievements: [String] {
@@ -603,6 +620,11 @@ struct SessionCommandStats {
         (left.endedAt ?? left.startedAt) > (right.endedAt ?? right.startedAt)
     }
 
+    nonisolated private static func isFailed(_ block: TerminalCommandBlock) -> Bool {
+        guard block.endedAt != nil, let exitCode = block.exitCode else { return false }
+        return exitCode != 0
+    }
+
     nonisolated private static func failureDiagnostic(for block: TerminalCommandBlock) -> String? {
         let diagnostic = block.outputSummary?.primaryDiagnosticLine
             ?? TerminalOutputInsightAnalyzer.outputSummary(in: block.outputTail)?.primaryDiagnosticLine
@@ -611,6 +633,35 @@ struct SessionCommandStats {
         guard !cleaned.isEmpty else { return nil }
         return RunbookSensitiveRedactor.redact(cleaned)
     }
+
+    nonisolated private static func repeatedFailureDiagnostic(in blocks: [TerminalCommandBlock]) -> RepeatedFailureDiagnostic? {
+        let endedBlocks = blocks
+            .filter { $0.endedAt != nil }
+            .sorted(by: mostRecentFirst)
+        guard let latest = endedBlocks.first,
+              isFailed(latest),
+              let diagnostic = failureDiagnostic(for: latest) else {
+            return nil
+        }
+
+        var count = 0
+        for block in endedBlocks {
+            guard isFailed(block),
+                  failureDiagnostic(for: block) == diagnostic else {
+                break
+            }
+            count += 1
+        }
+        guard count >= Self.repeatedFailureThreshold else { return nil }
+        return RepeatedFailureDiagnostic(diagnostic: diagnostic, count: count)
+    }
+
+    nonisolated private static let repeatedFailureThreshold = 3
+}
+
+struct RepeatedFailureDiagnostic: Equatable {
+    let diagnostic: String
+    let count: Int
 }
 
 private struct PersistentCommandStatsSnapshot: Codable, Equatable {
