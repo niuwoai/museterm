@@ -361,6 +361,7 @@
 "runbook.suggested_next_action_expected_result_signals" = "Suggested action expected result signals";
 "runbook.suggested_next_action_sensitive_result_fields" = "Suggested action sensitive result fields";
 "runbook.suggested_next_action_result_privacy_level" = "Suggested action result privacy level";
+"runbook.suggested_next_action_result_sharing_policy" = "Suggested action result sharing policy";
 "runbook.suggested_next_action" = "Suggested next action";
 "runbook.suggested_next_action_safety" = "Suggested action safety";
 "runbook.suggested_next_action_execution_mode" = "Suggested action execution mode";

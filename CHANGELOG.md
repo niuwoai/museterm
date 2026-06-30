@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.86.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `resultSharingPolicy`，用稳定 code 声明建议命令结果应直接分享、先脱敏再分享，还是仅本地查看。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露结果分享策略，让外部工具在转发诊断结果前能遵守更明确的隐私边界。
+
 ## [1.85.0] - 2026-07-01
 
 ### Added

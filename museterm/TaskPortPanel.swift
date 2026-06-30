@@ -772,6 +772,7 @@ struct CommandBlockDiagnostics: Equatable {
                 lines.append("Suggested next action sensitive result fields: \(sensitiveResultFields)")
             }
             lines.append("Suggested next action result privacy level: \(suggestedNextAction.resultPrivacyLevel.rawValue)")
+            lines.append("Suggested next action result sharing policy: \(suggestedNextAction.resultSharingPolicy.rawValue)")
             lines.append("Suggested next action title: \(suggestedNextAction.title)")
             lines.append("Suggested next action safety: \(suggestedNextAction.safety.rawValue)")
             lines.append("Suggested next action execution mode: \(suggestedNextAction.executionMode.rawValue)")
@@ -1136,6 +1137,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultSignals: [.targetPortVisible, .ownerProcessVisible],
                 sensitiveResultFields: [.processName, .listenAddress],
                 resultPrivacyLevel: .contextual,
+                resultSharingPolicy: .redactBeforeSharing,
                 title: "List listening TCP ports",
                 rationale: "The latest failure looks like a local port conflict, so inspect listeners before rerunning.",
                 command: "lsof -nP -iTCP -sTCP:LISTEN",
@@ -1181,6 +1183,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultSignals: [.currentUserVisible, .permissionBoundaryVisible],
                 sensitiveResultFields: [.workingDirectory, .currentUser, .directoryPermissions],
                 resultPrivacyLevel: .sensitive,
+                resultSharingPolicy: .localOnly,
                 title: "Inspect current permissions",
                 rationale: "The latest failure mentions permission denied, so check the working directory and current user.",
                 command: "pwd && id && ls -ld .",
@@ -1226,6 +1229,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultSignals: [.pathEntriesVisible],
                 sensitiveResultFields: [.pathEntries],
                 resultPrivacyLevel: .sensitive,
+                resultSharingPolicy: .localOnly,
                 title: "Inspect PATH",
                 rationale: "The latest failure says a command is missing, so check which directories the shell searches.",
                 command: "echo \"$PATH\"",
@@ -1271,6 +1275,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultSignals: [.workingDirectoryVisible, .directoryEntriesVisible],
                 sensitiveResultFields: [.workingDirectory, .visibleEntries, .fileMetadata],
                 resultPrivacyLevel: .sensitive,
+                resultSharingPolicy: .localOnly,
                 title: "Inspect current directory",
                 rationale: "The latest failure references a missing file, so confirm the current directory and visible files.",
                 command: "pwd && ls -la",
@@ -1316,6 +1321,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultSignals: [.gitBranchVisible, .gitDirtyStateVisible],
                 sensitiveResultFields: [.gitBranch, .gitUpstream],
                 resultPrivacyLevel: .contextual,
+                resultSharingPolicy: .redactBeforeSharing,
                 title: "Inspect Git state",
                 rationale: "The latest failed command or diagnostic is Git-related, so inspect branch and dirty state first.",
                 command: "git status --short --branch",
@@ -1361,6 +1367,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultSignals: [.workingDirectoryVisible, .gitStateVisible],
                 sensitiveResultFields: [.workingDirectory, .gitBranch, .gitUpstream],
                 resultPrivacyLevel: .sensitive,
+                resultSharingPolicy: .localOnly,
                 title: "Inspect repeat context",
                 rationale: "The latest failures repeat, so capture location and Git state before another retry.",
                 command: "pwd && git status --short --branch 2>/dev/null || true",
@@ -1406,6 +1413,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultSignals: [.workingDirectoryVisible, .gitStateVisible],
                 sensitiveResultFields: [.workingDirectory, .gitBranch, .gitUpstream],
                 resultPrivacyLevel: .sensitive,
+                resultSharingPolicy: .localOnly,
                 title: "Inspect local context",
                 rationale: "The failure is not specific enough yet, so capture location and Git state as a safe first step.",
                 command: "pwd && git status --short --branch 2>/dev/null || true",
@@ -1556,6 +1564,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let expectedResultSignals: [CommandDiagnosticActionResultSignal]
     let sensitiveResultFields: [CommandDiagnosticActionResultField]
     let resultPrivacyLevel: CommandDiagnosticActionPrivacyLevel
+    let resultSharingPolicy: CommandDiagnosticActionSharingPolicy
     let title: String
     let rationale: String
     let command: String
@@ -1584,6 +1593,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         expectedResultSignals: [CommandDiagnosticActionResultSignal],
         sensitiveResultFields: [CommandDiagnosticActionResultField],
         resultPrivacyLevel: CommandDiagnosticActionPrivacyLevel,
+        resultSharingPolicy: CommandDiagnosticActionSharingPolicy,
         title: String,
         rationale: String,
         command: String,
@@ -1611,6 +1621,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         self.expectedResultSignals = expectedResultSignals
         self.sensitiveResultFields = sensitiveResultFields
         self.resultPrivacyLevel = resultPrivacyLevel
+        self.resultSharingPolicy = resultSharingPolicy
         self.title = title
         self.rationale = rationale
         self.command = command
@@ -1706,6 +1717,12 @@ enum CommandDiagnosticActionPrivacyLevel: String, Codable, Equatable {
     case low
     case contextual
     case sensitive
+}
+
+enum CommandDiagnosticActionSharingPolicy: String, Codable, Equatable {
+    case shareDirectly = "share_directly"
+    case redactBeforeSharing = "redact_before_sharing"
+    case localOnly = "local_only"
 }
 
 enum CommandDiagnosticActionExecutionTarget: String, Codable, Equatable {
