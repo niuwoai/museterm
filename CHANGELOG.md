@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.88.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `resultRedactionHints`，用稳定 code 提示建议命令结果中应优先脱敏的内容类型，例如路径、用户、进程、监听地址、Git 分支和 upstream。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露结果脱敏提示，帮助外部工具在摘要、分享或持久化前选择更准确的脱敏策略。
+
 ## [1.87.0] - 2026-07-01
 
 ### Added

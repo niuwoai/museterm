@@ -360,6 +360,7 @@
 "runbook.suggested_next_action_expected_result_fields" = "Suggested action expected result fields";
 "runbook.suggested_next_action_expected_result_signals" = "Suggested action expected result signals";
 "runbook.suggested_next_action_sensitive_result_fields" = "Suggested action sensitive result fields";
+"runbook.suggested_next_action_result_redaction_hints" = "Suggested action result redaction hints";
 "runbook.suggested_next_action_result_privacy_level" = "Suggested action result privacy level";
 "runbook.suggested_next_action_result_sharing_policy" = "Suggested action result sharing policy";
 "runbook.suggested_next_action_result_retention_policy" = "Suggested action result retention policy";

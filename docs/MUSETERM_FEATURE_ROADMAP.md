@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.87.0
+> 当前版本基线：v1.88.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,7 +30,7 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.87.0 已完成七十九条纵向切片：
+v1.88.0 已完成八十条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
@@ -71,6 +71,7 @@ v1.87.0 已完成七十九条纵向切片：
 - 建议排查动作预期结果字段：`suggestedNextAction` 新增 `expectedResultFields`，用稳定 code 标明建议命令输出里应重点抽取端口、PID、进程名、当前用户、目录权限、PATH 条目、Git 分支、upstream 和 dirty 状态等字段。
 - 建议排查动作预期结果信号：`suggestedNextAction` 新增 `expectedResultSignals`，用稳定 code 标明建议命令输出中哪些信号代表只读检查已经拿到可用证据，便于 AI/MCP 判断是否足够进入下一步。
 - 建议排查动作敏感结果字段：`suggestedNextAction` 新增 `sensitiveResultFields`，用稳定 code 标明建议命令结果中哪些字段可能携带路径、用户、进程、Git 或目录元数据等敏感上下文，便于外部工具优先脱敏。
+- 建议排查动作结果脱敏提示：`suggestedNextAction` 新增 `resultRedactionHints`，用稳定 code 提示建议命令结果中应优先脱敏的内容类型，例如路径、用户、进程、监听地址、Git 分支和 upstream。
 - 建议排查动作结果隐私级别：`suggestedNextAction` 新增 `resultPrivacyLevel`，用稳定 code 汇总建议命令结果的隐私敏感级别，帮助 AI/MCP 工具在解释、转发或记录前选择本地处理或脱敏策略。
 - 建议排查动作结果分享策略：`suggestedNextAction` 新增 `resultSharingPolicy`，用稳定 code 声明建议命令结果应直接分享、先脱敏再分享，还是仅本地查看，让 AI/MCP 工具在转发诊断结果前能遵守更明确的隐私边界。
 - 建议排查动作结果保留策略：`suggestedNextAction` 新增 `resultRetentionPolicy`，用稳定 code 声明建议命令结果可完整保存、只能保存脱敏摘要，还是仅保留在本机会话，帮助外部工具在记录日志或建立索引前遵守更细的隐私边界。
