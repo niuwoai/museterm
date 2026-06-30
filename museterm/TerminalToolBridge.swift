@@ -103,6 +103,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
 }
 
 struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
+    let id: String
     let title: String
     let rationale: String
     let command: String
@@ -110,6 +111,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
     let requiresConfirmation: Bool
 
     init(action: CommandDiagnosticAction) {
+        id = action.id.rawValue
         title = action.title
         rationale = action.rationale
         command = action.command

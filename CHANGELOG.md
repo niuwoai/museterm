@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.51.0] - 2026-07-01
+
+### Added
+- 结构化建议排查动作新增稳定 `id`，例如 `inspect_git_state`、`inspect_repeat_context`，方便 CLI/MCP 和后续 UI 自动化按动作类型消费。
+- Runbook 和 AI 上下文会同步记录建议动作 ID，避免外部工具依赖可变标题文案做判断。
+
 ## [1.50.0] - 2026-07-01
 
 ### Added

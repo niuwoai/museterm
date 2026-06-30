@@ -1439,6 +1439,7 @@ enum RunbookMarkdownExporter {
             lines.append("- \(L10n.string("runbook.suggested_next_command")): `\(escapeInline(suggestedNextCommand))`")
         }
         if let suggestedNextAction = diagnostics.suggestedNextAction {
+            lines.append("- \(L10n.string("runbook.suggested_next_action_id")): \(suggestedNextAction.id.rawValue)")
             lines.append("- \(L10n.string("runbook.suggested_next_action")): \(escapeInline(suggestedNextAction.title))")
             lines.append(
                 "- \(L10n.string("runbook.suggested_next_action_safety")): \(suggestedNextAction.safety.rawValue)"

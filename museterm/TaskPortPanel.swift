@@ -714,6 +714,7 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append("Suggested next command: \(suggestedNextCommand)")
         }
         if let suggestedNextAction {
+            lines.append("Suggested next action id: \(suggestedNextAction.id.rawValue)")
             lines.append("Suggested next action title: \(suggestedNextAction.title)")
             lines.append("Suggested next action safety: \(suggestedNextAction.safety.rawValue)")
             lines.append("Suggested next action rationale: \(suggestedNextAction.rationale)")
@@ -932,6 +933,7 @@ struct CommandBlockDiagnostics: Equatable {
             return nil
         case .portConflict:
             return CommandDiagnosticAction(
+                id: .listListeningPorts,
                 title: "List listening TCP ports",
                 rationale: "The latest failure looks like a local port conflict, so inspect listeners before rerunning.",
                 command: "lsof -nP -iTCP -sTCP:LISTEN",
@@ -939,6 +941,7 @@ struct CommandBlockDiagnostics: Equatable {
             )
         case .permission:
             return CommandDiagnosticAction(
+                id: .inspectPermissions,
                 title: "Inspect current permissions",
                 rationale: "The latest failure mentions permission denied, so check the working directory and current user.",
                 command: "pwd && id && ls -ld .",
@@ -946,6 +949,7 @@ struct CommandBlockDiagnostics: Equatable {
             )
         case .missingCommand:
             return CommandDiagnosticAction(
+                id: .inspectPath,
                 title: "Inspect PATH",
                 rationale: "The latest failure says a command is missing, so check which directories the shell searches.",
                 command: "echo \"$PATH\"",
@@ -953,6 +957,7 @@ struct CommandBlockDiagnostics: Equatable {
             )
         case .missingFile:
             return CommandDiagnosticAction(
+                id: .inspectDirectory,
                 title: "Inspect current directory",
                 rationale: "The latest failure references a missing file, so confirm the current directory and visible files.",
                 command: "pwd && ls -la",
@@ -960,6 +965,7 @@ struct CommandBlockDiagnostics: Equatable {
             )
         case .git:
             return CommandDiagnosticAction(
+                id: .inspectGitState,
                 title: "Inspect Git state",
                 rationale: "The latest failed command or diagnostic is Git-related, so inspect branch and dirty state first.",
                 command: "git status --short --branch",
@@ -967,6 +973,7 @@ struct CommandBlockDiagnostics: Equatable {
             )
         case .repeated:
             return CommandDiagnosticAction(
+                id: .inspectRepeatContext,
                 title: "Inspect repeat context",
                 rationale: "The latest failures repeat, so capture location and Git state before another retry.",
                 command: "pwd && git status --short --branch 2>/dev/null || true",
@@ -974,6 +981,7 @@ struct CommandBlockDiagnostics: Equatable {
             )
         case .generic:
             return CommandDiagnosticAction(
+                id: .inspectLocalContext,
                 title: "Inspect local context",
                 rationale: "The failure is not specific enough yet, so capture location and Git state as a safe first step.",
                 command: "pwd && git status --short --branch 2>/dev/null || true",
@@ -1041,6 +1049,7 @@ enum CommandDiagnosticConfidence: String, Codable, Equatable {
 }
 
 struct CommandDiagnosticAction: Codable, Equatable {
+    let id: CommandDiagnosticActionID
     let title: String
     let rationale: String
     let command: String
@@ -1048,18 +1057,30 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let requiresConfirmation: Bool
 
     nonisolated init(
+        id: CommandDiagnosticActionID,
         title: String,
         rationale: String,
         command: String,
         safety: CommandDiagnosticActionSafety,
         requiresConfirmation: Bool = true
     ) {
+        self.id = id
         self.title = title
         self.rationale = rationale
         self.command = command
         self.safety = safety
         self.requiresConfirmation = requiresConfirmation
     }
+}
+
+enum CommandDiagnosticActionID: String, Codable, Equatable {
+    case listListeningPorts = "list_listening_ports"
+    case inspectPermissions = "inspect_permissions"
+    case inspectPath = "inspect_path"
+    case inspectDirectory = "inspect_directory"
+    case inspectGitState = "inspect_git_state"
+    case inspectRepeatContext = "inspect_repeat_context"
+    case inspectLocalContext = "inspect_local_context"
 }
 
 enum CommandDiagnosticActionSafety: String, Codable, Equatable {
