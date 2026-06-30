@@ -61,25 +61,25 @@ private struct SidebarView: View {
 
             if preferences.showsTabList {
                 ScrollView {
-                    LazyVStack(spacing: 10) {
-                        ForEach(Array(workspace.tabs.enumerated()), id: \.element.id) { index, tab in
-                            TabRowView(
-                                tab: tab,
-                                isSelected: workspace.selectedID == tab.id,
-                                shortcutNumber: index < 9 ? index + 1 : nil,
-                                skin: preferences.skin,
-                                closeAction: { workspace.close(tab) }
-                            )
-                            .onTapGesture {
-                                workspace.select(tab)
+                    LazyVStack(spacing: 8) {
+                        VStack(spacing: 4) {
+                            ForEach(Array(workspace.tabs.enumerated()), id: \.element.id) { index, tab in
+                                TabRowView(
+                                    tab: tab,
+                                    isSelected: workspace.selectedID == tab.id,
+                                    shortcutNumber: index < 9 ? index + 1 : nil,
+                                    skin: preferences.skin,
+                                    closeAction: { workspace.close(tab) }
+                                )
+                                .onTapGesture {
+                                    workspace.select(tab)
+                                }
                             }
                         }
 
                         TerminalShortcutSection(workspace: workspace, skin: preferences.skin)
-                            .padding(.top, 4)
 
                         FileTransferSection(workspace: workspace, skin: preferences.skin)
-                            .padding(.top, 4)
 
                         SSHProfilesSection(
                             workspace: workspace,
@@ -194,7 +194,7 @@ private struct TabRowView: View {
             .help(L10n.string("action.close_tab"))
         }
         .padding(.horizontal, 9)
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
         .background(isSelected ? skin.selectionFill : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay(

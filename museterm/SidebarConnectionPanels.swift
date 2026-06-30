@@ -280,10 +280,12 @@ private struct FileTransferControls: View {
                 .help(L10n.string("file_transfer.download.help"))
             }
 
-            Text(tab.fileTransferStatus?.localizedSummary ?? L10n.string("file_transfer.empty"))
-                .font(.caption2)
-                .foregroundStyle(tab.fileTransferStatus?.phase == .failed ? Color.red : Color.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            if let status = tab.fileTransferStatus {
+                Text(status.localizedSummary)
+                    .font(.caption2)
+                    .foregroundStyle(status.phase == .failed ? Color.red : Color.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             if let status = tab.fileTransferStatus, status.isActive {
                 if let percent = status.progress?.percent {
