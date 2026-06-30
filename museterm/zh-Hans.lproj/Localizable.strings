@@ -1,0 +1,73 @@
+"app.name" = "MuseTerm";
+"app.lightweight" = "轻快终端";
+
+"action.new_tab" = "新建标签";
+"action.settings" = "设置";
+"action.close_tab" = "关闭标签";
+"action.previous_tab" = "上一个标签";
+"action.next_tab" = "下一个标签";
+"action.select_tab" = "选择标签 %d";
+
+"menu.settings" = "设置…";
+"menu.tab" = "标签";
+
+"tab.default_title" = "Shell %d";
+
+"terminal.welcome" = "欢迎使用 MuseTerm\n";
+
+"settings.title" = "终端设置";
+"settings.tab.appearance" = "外观";
+"settings.tab.typography" = "字体";
+"settings.tab.glass" = "毛玻璃";
+"settings.tab.behavior" = "行为";
+"settings.skin" = "皮肤";
+"settings.palette" = "ANSI 字符配色";
+"settings.fonts" = "字体";
+"settings.primary_font" = "主字体";
+"settings.fallback_font" = "回退字体";
+"settings.font_size" = "字号";
+"settings.line_height" = "行高";
+"settings.glass_enabled" = "毛玻璃效果";
+"settings.glass_material" = "材质";
+"settings.glass_opacity" = "玻璃强度";
+"settings.terminal_opacity" = "终端底色透明度";
+"settings.tint_opacity" = "染色强度";
+"settings.glow" = "柔光";
+"settings.behavior" = "行为";
+"settings.option_as_meta" = "Option 作为 Meta 键";
+"settings.mouse_reporting" = "转发鼠标上报";
+"settings.footer" = "字体列表来自 macOS 已安装字体。回退字体会加入 Core Text 级联列表，用于主字体无法显示的字符。";
+
+"glass.material.underWindow" = "窗口";
+"glass.material.hudWindow" = "HUD";
+"glass.material.sidebar" = "侧栏";
+"glass.material.fullScreen" = "全屏";
+"glass.material.menu" = "菜单";
+
+"skin.seaSalt.name" = "海盐晨蓝";
+"skin.seaSalt.summary" = "浅蓝海盐底配暖沙。";
+"skin.mist.name" = "淡雅雾林";
+"skin.mist.summary" = "浅绿、暖白和空气感。";
+"skin.ink.name" = "水墨宣纸";
+"skin.ink.summary" = "宣纸底色，安静有质感。";
+"skin.midnight.name" = "午夜岩蓝";
+"skin.midnight.summary" = "深蓝底，长时间更稳。";
+"skin.aurora.name" = "极光暗夜";
+"skin.aurora.summary" = "黑绿暗底配青绿高光。";
+"skin.ember.name" = "焰火石墨";
+"skin.ember.summary" = "炭黑底配暖橙强调。";
+
+"palette.apple.name" = "Apple";
+"palette.apple.summary" = "macOS 终端经典配色。";
+"palette.tango.name" = "Tango";
+"palette.tango.summary" = "GNOME 时代的平衡终端色。";
+"palette.solarizedLight.name" = "Solarized Light";
+"palette.solarizedLight.summary" = "低对比暖色浅色方案。";
+"palette.solarizedDark.name" = "Solarized Dark";
+"palette.solarizedDark.summary" = "低对比暗色终端方案。";
+"palette.dracula.name" = "Dracula";
+"palette.dracula.summary" = "紫色暗底配高亮强调。";
+"palette.oneDark.name" = "One Dark";
+"palette.oneDark.summary" = "Atom 风格暗色编辑器配色。";
+"palette.nord.name" = "Nord";
+"palette.nord.summary" = "冷调极地蓝终端色。";

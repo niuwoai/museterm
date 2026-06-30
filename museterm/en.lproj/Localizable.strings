@@ -1,0 +1,73 @@
+"app.name" = "MuseTerm";
+"app.lightweight" = "Light terminal";
+
+"action.new_tab" = "New tab";
+"action.settings" = "Settings";
+"action.close_tab" = "Close tab";
+"action.previous_tab" = "Previous tab";
+"action.next_tab" = "Next tab";
+"action.select_tab" = "Select tab %d";
+
+"menu.settings" = "Settings…";
+"menu.tab" = "Tab";
+
+"tab.default_title" = "Shell %d";
+
+"terminal.welcome" = "Welcome to MuseTerm\n";
+
+"settings.title" = "Terminal Settings";
+"settings.tab.appearance" = "Appearance";
+"settings.tab.typography" = "Type";
+"settings.tab.glass" = "Glass";
+"settings.tab.behavior" = "Behavior";
+"settings.skin" = "Skin";
+"settings.palette" = "ANSI colors";
+"settings.fonts" = "Fonts";
+"settings.primary_font" = "Primary font";
+"settings.fallback_font" = "Fallback font";
+"settings.font_size" = "Font size";
+"settings.line_height" = "Line height";
+"settings.glass_enabled" = "Glass effect";
+"settings.glass_material" = "Material";
+"settings.glass_opacity" = "Glass strength";
+"settings.terminal_opacity" = "Terminal opacity";
+"settings.tint_opacity" = "Tint";
+"settings.glow" = "Glow";
+"settings.behavior" = "Behavior";
+"settings.option_as_meta" = "Use Option as Meta";
+"settings.mouse_reporting" = "Forward mouse reporting";
+"settings.footer" = "Fonts are loaded from installed macOS families. The fallback font is added to the Core Text cascade list for characters the primary font cannot draw.";
+
+"glass.material.underWindow" = "Window";
+"glass.material.hudWindow" = "HUD";
+"glass.material.sidebar" = "Sidebar";
+"glass.material.fullScreen" = "Full";
+"glass.material.menu" = "Menu";
+
+"skin.seaSalt.name" = "Sea Salt Dawn";
+"skin.seaSalt.summary" = "Clean pale blues with warm sand.";
+"skin.mist.name" = "Mist Grove";
+"skin.mist.summary" = "Soft greens and warm air.";
+"skin.ink.name" = "Ink Paper";
+"skin.ink.summary" = "Quiet paper and ink tones.";
+"skin.midnight.name" = "Midnight Slate";
+"skin.midnight.summary" = "Calm dark blue contrast.";
+"skin.aurora.name" = "Aurora Night";
+"skin.aurora.summary" = "Dark green with teal light.";
+"skin.ember.name" = "Ember Graphite";
+"skin.ember.summary" = "Charcoal with warm orange.";
+
+"palette.apple.name" = "Apple";
+"palette.apple.summary" = "Classic macOS Terminal colors.";
+"palette.tango.name" = "Tango";
+"palette.tango.summary" = "GNOME-era balanced terminal colors.";
+"palette.solarizedLight.name" = "Solarized Light";
+"palette.solarizedLight.summary" = "Low-contrast warm light palette.";
+"palette.solarizedDark.name" = "Solarized Dark";
+"palette.solarizedDark.summary" = "Low-contrast dark terminal palette.";
+"palette.dracula.name" = "Dracula";
+"palette.dracula.summary" = "Purple dark palette with bright accents.";
+"palette.oneDark.name" = "One Dark";
+"palette.oneDark.summary" = "Atom-style dark editor colors.";
+"palette.nord.name" = "Nord";
+"palette.nord.summary" = "Cool arctic blue terminal colors.";

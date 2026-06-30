@@ -1,0 +1,34 @@
+import AppKit
+import SwiftUI
+
+enum SettingsWindowOpener {
+    private static var windowController: NSWindowController?
+
+    static func open(preferences: TerminalPreferences) {
+        if let window = windowController?.window {
+            window.makeKeyAndOrderFront(nil)
+            activateApp()
+            return
+        }
+
+        let hostingController = NSHostingController(rootView: SettingsView(preferences: preferences))
+        let window = NSWindow(contentViewController: hostingController)
+        window.title = L10n.string("settings.title")
+        window.styleMask = [.titled, .closable, .miniaturizable]
+        window.isReleasedWhenClosed = false
+        window.center()
+
+        let controller = NSWindowController(window: window)
+        windowController = controller
+        controller.showWindow(nil)
+        activateApp()
+    }
+
+    private static func activateApp() {
+        if #available(macOS 14.0, *) {
+            NSApp.activate()
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+        }
+    }
+}

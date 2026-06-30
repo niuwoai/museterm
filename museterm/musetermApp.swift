@@ -6,27 +6,25 @@
 //
 
 import SwiftUI
-import SwiftData
 
 @main
 struct musetermApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    @StateObject private var preferences = TerminalPreferences()
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(preferences: preferences)
         }
-        .modelContainer(sharedModelContainer)
+        .windowStyle(.hiddenTitleBar)
+        .commands {
+            TerminalCommands()
+
+            CommandGroup(replacing: .appSettings) {
+                Button(L10n.string("menu.settings")) {
+                    SettingsWindowOpener.open(preferences: preferences)
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
+        }
     }
 }
