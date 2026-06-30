@@ -1478,6 +1478,14 @@ enum RunbookMarkdownExporter {
                     .joined(separator: ", ")
                 lines.append("- \(L10n.string("runbook.suggested_next_action_preflight_checks")): \(preflightChecks)")
             }
+            if !suggestedNextAction.automationGuardrails.isEmpty {
+                let automationGuardrails = suggestedNextAction.automationGuardrails
+                    .map { "`\(escapeInline($0))`" }
+                    .joined(separator: ", ")
+                lines.append(
+                    "- \(L10n.string("runbook.suggested_next_action_automation_guardrails")): \(automationGuardrails)"
+                )
+            }
             if !suggestedNextAction.expectedSignals.isEmpty {
                 let expectedSignals = suggestedNextAction.expectedSignals
                     .map { "`\(escapeInline($0))`" }

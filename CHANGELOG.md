@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.75.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `automationGuardrails`，用结构化清单声明建议动作不能自动越过的边界。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露自动化护栏，例如禁止自动 `kill`、`sudo/chmod`、安装依赖或执行 Git 破坏性操作。
+
 ## [1.74.0] - 2026-07-01
 
 ### Added
