@@ -359,6 +359,7 @@
 "runbook.suggested_next_action_expected_result_kind" = "Suggested action expected result kind";
 "runbook.suggested_next_action_expected_result_fields" = "Suggested action expected result fields";
 "runbook.suggested_next_action_expected_result_signals" = "Suggested action expected result signals";
+"runbook.suggested_next_action_result_parsing_hints" = "Suggested action result parsing hints";
 "runbook.suggested_next_action_result_interpretation_hints" = "Suggested action result interpretation hints";
 "runbook.suggested_next_action_sensitive_result_fields" = "Suggested action sensitive result fields";
 "runbook.suggested_next_action_result_redaction_hints" = "Suggested action result redaction hints";

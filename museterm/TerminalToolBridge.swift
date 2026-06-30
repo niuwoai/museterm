@@ -139,6 +139,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
     let expectedResultKind: String
     let expectedResultFields: [String]
     let expectedResultSignals: [String]
+    let resultParsingHints: [String]
     let resultInterpretationHints: [String]
     let sensitiveResultFields: [String]
     let resultRedactionHints: [String]
@@ -177,6 +178,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
         expectedResultKind = action.expectedResultKind.rawValue
         expectedResultFields = action.expectedResultFields.map(\.rawValue)
         expectedResultSignals = action.expectedResultSignals.map(\.rawValue)
+        resultParsingHints = action.resultParsingHints.map(\.rawValue)
         resultInterpretationHints = action.resultInterpretationHints.map(\.rawValue)
         sensitiveResultFields = action.sensitiveResultFields.map(\.rawValue)
         resultRedactionHints = action.resultRedactionHints.map(\.rawValue)

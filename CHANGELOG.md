@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.96.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `resultParsingHints`，用稳定 code 描述建议命令输出应如何解析，例如按行文本、空白分隔列、PATH 列表、组合命令输出、目录列表、Git porcelain 状态或可选 Git 输出。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露结果解析提示，帮助外部工具先稳定拆解输出，再应用解释、脱敏和复用策略。
+
 ## [1.95.0] - 2026-07-01
 
 ### Added

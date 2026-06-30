@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.95.0
+> 当前版本基线：v1.96.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,7 +30,7 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.95.0 已完成八十七条纵向切片：
+v1.96.0 已完成八十八条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
@@ -70,6 +70,7 @@ v1.95.0 已完成八十七条纵向切片：
 - 建议排查动作预期结果类型：`suggestedNextAction` 新增 `expectedResultKind`，用稳定 code 标明建议命令预期返回监听端口列表、身份与权限信息、PATH、目录列表、Git 状态或上下文快照，让 AI/MCP 工具更容易按输出形态解释后续结果。
 - 建议排查动作预期结果字段：`suggestedNextAction` 新增 `expectedResultFields`，用稳定 code 标明建议命令输出里应重点抽取端口、PID、进程名、当前用户、目录权限、PATH 条目、Git 分支、upstream 和 dirty 状态等字段。
 - 建议排查动作预期结果信号：`suggestedNextAction` 新增 `expectedResultSignals`，用稳定 code 标明建议命令输出中哪些信号代表只读检查已经拿到可用证据，便于 AI/MCP 判断是否足够进入下一步。
+- 建议排查动作结果解析提示：`suggestedNextAction` 新增 `resultParsingHints`，用稳定 code 描述建议命令输出应如何解析，例如按行文本、空白分隔列、PATH 列表、组合命令输出、目录列表、Git porcelain 状态或可选 Git 输出。
 - 建议排查动作结果解释提示：`suggestedNextAction` 新增 `resultInterpretationHints`，用稳定 code 描述建议命令输出应如何解释，例如空端口列表表示本机无监听者、权限输出需要比较用户与权限位、Git dirty 状态需要用户决策。
 - 建议排查动作敏感结果字段：`suggestedNextAction` 新增 `sensitiveResultFields`，用稳定 code 标明建议命令结果中哪些字段可能携带路径、用户、进程、Git 或目录元数据等敏感上下文，便于外部工具优先脱敏。
 - 建议排查动作结果脱敏提示：`suggestedNextAction` 新增 `resultRedactionHints`，用稳定 code 提示建议命令结果中应优先脱敏的内容类型，例如路径、用户、进程、监听地址、Git 分支和 upstream。

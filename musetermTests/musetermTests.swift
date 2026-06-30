@@ -466,6 +466,13 @@ final class musetermTests: XCTestCase {
             ]
         )
         XCTAssertEqual(
+            suggestedNextAction["resultParsingHints"] as? [String],
+            [
+                CommandDiagnosticActionResultParsingHint.commandSequenceOutput.rawValue,
+                CommandDiagnosticActionResultParsingHint.optionalGitStatusOutput.rawValue
+            ]
+        )
+        XCTAssertEqual(
             suggestedNextAction["resultInterpretationHints"] as? [String],
             [
                 CommandDiagnosticActionResultInterpretationHint.gitOutputOptional.rawValue,
@@ -947,6 +954,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_expected_result_kind")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_expected_result_fields")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_expected_result_signals")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_result_parsing_hints")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_result_interpretation_hints")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_sensitive_result_fields")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_result_redaction_hints")))
@@ -1034,6 +1042,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Suggested next action expected result fields: working_directory; git_branch"))
         XCTAssertTrue(context.contains("git_upstream; git_dirty_state"))
         XCTAssertTrue(context.contains("Suggested next action expected result signals: working_directory_visible; git_state_visible"))
+        XCTAssertTrue(context.contains("Suggested next action result parsing hints: command_sequence_output; optional_git_status_output"))
         XCTAssertTrue(context.contains("Suggested next action result interpretation hints: git_output_optional; compare_against_first_failure"))
         XCTAssertTrue(context.contains("Suggested next action sensitive result fields: working_directory; git_branch; git_upstream"))
         XCTAssertTrue(context.contains("Suggested next action result redaction hints: working_directory; git_branch; git_upstream"))
@@ -1161,6 +1170,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(
             diagnostics.suggestedNextAction?.expectedResultSignals,
             [.currentUserVisible, .permissionBoundaryVisible]
+        )
+        XCTAssertEqual(
+            diagnostics.suggestedNextAction?.resultParsingHints,
+            [.commandSequenceOutput, .lineOrientedText]
         )
         XCTAssertEqual(
             diagnostics.suggestedNextAction?.resultInterpretationHints,
@@ -1300,6 +1313,10 @@ final class musetermTests: XCTestCase {
             [.targetPortVisible, .ownerProcessVisible]
         )
         XCTAssertEqual(
+            portConflict.suggestedNextAction?.resultParsingHints,
+            [.lineOrientedText, .whitespaceSeparatedColumns]
+        )
+        XCTAssertEqual(
             portConflict.suggestedNextAction?.resultInterpretationHints,
             [.emptyOutputMeansNoLocalListener, .rowsIdentifyOwners]
         )
@@ -1350,6 +1367,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(missingCommand.suggestedNextAction?.expectedResultKind, .shellPath)
         XCTAssertEqual(missingCommand.suggestedNextAction?.expectedResultFields, [.pathEntries])
         XCTAssertEqual(missingCommand.suggestedNextAction?.expectedResultSignals, [.pathEntriesVisible])
+        XCTAssertEqual(missingCommand.suggestedNextAction?.resultParsingHints, [.pathList])
         XCTAssertEqual(
             missingCommand.suggestedNextAction?.resultInterpretationHints,
             [.pathEntryPresenceMatters, .missingPathEntryExplainsCommandFailure]
@@ -1399,6 +1417,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(
             missingFile.suggestedNextAction?.expectedResultSignals,
             [.workingDirectoryVisible, .directoryEntriesVisible]
+        )
+        XCTAssertEqual(
+            missingFile.suggestedNextAction?.resultParsingHints,
+            [.commandSequenceOutput, .directoryListingOutput]
         )
         XCTAssertEqual(
             missingFile.suggestedNextAction?.resultInterpretationHints,
@@ -1463,6 +1485,10 @@ final class musetermTests: XCTestCase {
             [.gitBranchVisible, .gitDirtyStateVisible]
         )
         XCTAssertEqual(
+            gitFailure.suggestedNextAction?.resultParsingHints,
+            [.lineOrientedText, .gitStatusPorcelain]
+        )
+        XCTAssertEqual(
             gitFailure.suggestedNextAction?.resultInterpretationHints,
             [.dirtyStateRequiresUserDecision, .upstreamRelationMayExplainFailure]
         )
@@ -1516,6 +1542,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(
             genericFailure.suggestedNextAction?.expectedResultSignals,
             [.workingDirectoryVisible, .gitStateVisible]
+        )
+        XCTAssertEqual(
+            genericFailure.suggestedNextAction?.resultParsingHints,
+            [.commandSequenceOutput, .optionalGitStatusOutput]
         )
         XCTAssertEqual(
             genericFailure.suggestedNextAction?.resultInterpretationHints,

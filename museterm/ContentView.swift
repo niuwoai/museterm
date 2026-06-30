@@ -1486,6 +1486,12 @@ enum RunbookMarkdownExporter {
                     "- \(L10n.string("runbook.suggested_next_action_expected_result_signals")): \(expectedResultSignals)"
                 )
             }
+            if !suggestedNextAction.resultParsingHints.isEmpty {
+                let hints = suggestedNextAction.resultParsingHints.map(\.rawValue).joined(separator: ", ")
+                lines.append(
+                    "- \(L10n.string("runbook.suggested_next_action_result_parsing_hints")): \(hints)"
+                )
+            }
             if !suggestedNextAction.resultInterpretationHints.isEmpty {
                 let hints = suggestedNextAction.resultInterpretationHints.map(\.rawValue).joined(separator: ", ")
                 lines.append(
