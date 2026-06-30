@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.65.0] - 2026-07-01
+
+### Added
+- 工具请求响应新增 `schemaVersion`、App 名称、版本、`snapshotSequence`、`action` 和成功目标 `tabID`，方便直接消费 response 文件的外部工具定位请求处理环境。
+- 新增工具响应编码测试，锁定请求响应元数据契约。
+
 ## [1.64.0] - 2026-07-01
 
 ### Added

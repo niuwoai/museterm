@@ -40,6 +40,32 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(TerminalToolInput.bytes(text: nil, key: nil, rawBytes: [1, 2, 3]), [1, 2, 3])
     }
 
+    @MainActor
+    func testToolResponseEncodesRequestMetadata() throws {
+        let response = TerminalToolResponse(
+            version: "test",
+            id: "request-1",
+            ok: true,
+            snapshotSequence: 42,
+            action: "send_key",
+            tabID: "tab-1",
+            message: "sent",
+            error: nil
+        )
+
+        let data = try JSONEncoder().encode(response)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        XCTAssertEqual(object["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(object["app"] as? String, "MuseTerm")
+        XCTAssertEqual(object["version"] as? String, "test")
+        XCTAssertEqual(object["id"] as? String, "request-1")
+        XCTAssertEqual(object["ok"] as? Bool, true)
+        XCTAssertEqual(object["snapshotSequence"] as? Int, 42)
+        XCTAssertEqual(object["action"] as? String, "send_key")
+        XCTAssertEqual(object["tabID"] as? String, "tab-1")
+    }
+
     func testCliInstallerScriptExposesMCPAndTerminalCommands() {
         let script = MuseTermCLIInstaller.script
 

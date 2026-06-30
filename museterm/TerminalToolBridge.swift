@@ -186,10 +186,40 @@ struct TerminalToolRequest: Codable {
 }
 
 struct TerminalToolResponse: Codable {
+    let schemaVersion: Int
+    let app: String
+    let version: String
     let id: String
     let ok: Bool
+    let snapshotSequence: Int
+    let action: String?
+    let tabID: String?
     let message: String?
     let error: String?
+
+    init(
+        schemaVersion: Int = 1,
+        app: String = "MuseTerm",
+        version: String = AppVersion.value,
+        id: String,
+        ok: Bool,
+        snapshotSequence: Int,
+        action: String? = nil,
+        tabID: String? = nil,
+        message: String?,
+        error: String?
+    ) {
+        self.schemaVersion = schemaVersion
+        self.app = app
+        self.version = version
+        self.id = id
+        self.ok = ok
+        self.snapshotSequence = snapshotSequence
+        self.action = action
+        self.tabID = tabID
+        self.message = message
+        self.error = error
+    }
 }
 
 enum TerminalToolInput {
@@ -327,6 +357,7 @@ final class TerminalToolBridge {
                 response = TerminalToolResponse(
                     id: file.deletingPathExtension().lastPathComponent,
                     ok: false,
+                    snapshotSequence: snapshotSequence,
                     message: nil,
                     error: error.localizedDescription
                 )
@@ -342,6 +373,8 @@ final class TerminalToolBridge {
             return TerminalToolResponse(
                 id: request.id,
                 ok: false,
+                snapshotSequence: snapshotSequence,
+                action: request.action,
                 message: nil,
                 error: L10n.string("tools.error.no_workspace")
             )
@@ -353,6 +386,8 @@ final class TerminalToolBridge {
                 return TerminalToolResponse(
                     id: request.id,
                     ok: false,
+                    snapshotSequence: snapshotSequence,
+                    action: request.action,
                     message: nil,
                     error: L10n.string("tools.error.empty_input")
                 )
@@ -363,6 +398,9 @@ final class TerminalToolBridge {
                 return TerminalToolResponse(
                     id: request.id,
                     ok: true,
+                    snapshotSequence: snapshotSequence,
+                    action: request.action,
+                    tabID: tab.id.uuidString,
                     message: L10n.format("tools.response.input_sent", tab.tabTitle),
                     error: nil
                 )
@@ -370,6 +408,8 @@ final class TerminalToolBridge {
                 return TerminalToolResponse(
                     id: request.id,
                     ok: false,
+                    snapshotSequence: snapshotSequence,
+                    action: request.action,
                     message: nil,
                     error: error.localizedDescription
                 )
@@ -378,6 +418,8 @@ final class TerminalToolBridge {
             return TerminalToolResponse(
                 id: request.id,
                 ok: false,
+                snapshotSequence: snapshotSequence,
+                action: request.action,
                 message: nil,
                 error: L10n.format("tools.error.unknown_action", request.action)
             )
