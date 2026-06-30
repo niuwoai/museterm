@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.78.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `completionCriteria`，用结构化清单说明建议排查动作何时可以收口。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露完成判据，帮助工具和用户判断这一轮排查是否已有足够证据停止或进入下一步。
+
 ## [1.77.0] - 2026-07-01
 
 ### Added

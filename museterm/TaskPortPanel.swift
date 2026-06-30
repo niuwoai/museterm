@@ -756,6 +756,7 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append("Suggested next action preflight checks: \(suggestedNextAction.preflightChecks.joined(separator: "; "))")
             lines.append("Suggested next action automation guardrails: \(suggestedNextAction.automationGuardrails.joined(separator: "; "))")
             lines.append("Suggested next action user decision points: \(suggestedNextAction.userDecisionPoints.joined(separator: "; "))")
+            lines.append("Suggested next action completion criteria: \(suggestedNextAction.completionCriteria.joined(separator: "; "))")
             lines.append("Suggested next action rationale: \(suggestedNextAction.rationale)")
             lines.append("Suggested next action expected signals: \(suggestedNextAction.expectedSignals.joined(separator: "; "))")
             lines.append("Suggested next action fallback steps: \(suggestedNextAction.fallbackNextSteps.joined(separator: "; "))")
@@ -1111,6 +1112,10 @@ struct CommandBlockDiagnostics: Equatable {
                     "Decide whether the owning process can be stopped, restarted, or reconfigured.",
                     "Decide whether the failing service should move to another port instead."
                 ],
+                completionCriteria: [
+                    "The conflicting port owner is identified and the next ownership decision is explicit.",
+                    "The failed service can bind the intended port or has an intentional new port."
+                ],
                 fallbackNextSteps: [
                     "If the port is not listed locally, check whether the failure happened inside a container, VM, or remote host.",
                     "If the owner is unclear, inspect the process details before stopping anything."
@@ -1144,6 +1149,10 @@ struct CommandBlockDiagnostics: Equatable {
                 userDecisionPoints: [
                     "Decide whether elevated privileges are appropriate for this command.",
                     "Decide whether ownership or permissions should change, and on which exact path."
+                ],
+                completionCriteria: [
+                    "The current user, target path, and required permission boundary are understood.",
+                    "Any elevation or permission change is explicit before the failed command is retried."
                 ],
                 fallbackNextSteps: [
                     "If directory permissions look correct, inspect the target file, parent directory, or mounted volume permissions.",
@@ -1179,6 +1188,10 @@ struct CommandBlockDiagnostics: Equatable {
                     "Decide whether to install the missing tool, activate an environment, or switch toolchains.",
                     "Decide whether the project should record the missing dependency in setup documentation."
                 ],
+                completionCriteria: [
+                    "The intended executable resolves in the current shell or the missing dependency decision is recorded.",
+                    "The environment activation or toolchain choice is clear before retrying."
+                ],
                 fallbackNextSteps: [
                     "If PATH contains the expected directory, run a read-only lookup such as command -v for the missing executable.",
                     "If the command exists in another shell, compare login shell startup files and project environment activation."
@@ -1212,6 +1225,10 @@ struct CommandBlockDiagnostics: Equatable {
                 userDecisionPoints: [
                     "Decide whether the missing path should be restored, generated, renamed, or reconfigured.",
                     "Decide whether the command should run from a different working directory."
+                ],
+                completionCriteria: [
+                    "The expected path exists in the intended directory or the command/config now points elsewhere intentionally.",
+                    "Generated-file prerequisites are identified before retrying the failed command."
                 ],
                 fallbackNextSteps: [
                     "If the directory is correct, search the project tree for the expected filename or config equivalent.",
@@ -1247,6 +1264,10 @@ struct CommandBlockDiagnostics: Equatable {
                     "Decide how to handle dirty, conflicted, staged, or untracked files.",
                     "Decide whether the failed Git command should be retried, replaced, or postponed."
                 ],
+                completionCriteria: [
+                    "The branch, upstream relation, and working tree risk are understood.",
+                    "Any retry, stash, merge, rebase, or cleanup decision is explicit."
+                ],
                 fallbackNextSteps: [
                     "If status is clean, inspect the failed Git command output for remote, auth, or repository path clues.",
                     "If conflicts or dirty files are present, resolve or stash intentionally before rerunning."
@@ -1281,6 +1302,10 @@ struct CommandBlockDiagnostics: Equatable {
                     "Decide whether any context changed enough to justify another retry.",
                     "Decide whether to inspect logs, configuration, or the first failure output before continuing."
                 ],
+                completionCriteria: [
+                    "A material context change is captured or the first failure output has been inspected.",
+                    "The next attempt has a different hypothesis than the repeated failing attempts."
+                ],
                 fallbackNextSteps: [
                     "If context is unchanged, inspect the first repeated failure output instead of rerunning immediately.",
                     "If context changed between attempts, capture the changed directory, branch, or environment before comparing results."
@@ -1314,6 +1339,10 @@ struct CommandBlockDiagnostics: Equatable {
                 userDecisionPoints: [
                     "Decide which subsystem or dependency should be inspected next.",
                     "Decide whether there is enough evidence before attempting any mutating fix."
+                ],
+                completionCriteria: [
+                    "The failure is recategorized or enough context is captured for a targeted next check.",
+                    "No mutating fix is attempted while the failure remains generic."
                 ],
                 fallbackNextSteps: [
                     "If local context is inconclusive, inspect the last output lines and the command exit code together.",
@@ -1416,6 +1445,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let preflightChecks: [String]
     let automationGuardrails: [String]
     let userDecisionPoints: [String]
+    let completionCriteria: [String]
     let fallbackNextSteps: [String]
     let safety: CommandDiagnosticActionSafety
     let executionMode: CommandDiagnosticActionExecutionMode
@@ -1436,6 +1466,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         preflightChecks: [String],
         automationGuardrails: [String],
         userDecisionPoints: [String],
+        completionCriteria: [String],
         fallbackNextSteps: [String],
         safety: CommandDiagnosticActionSafety,
         executionMode: CommandDiagnosticActionExecutionMode = .stageOnly,
@@ -1455,6 +1486,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         self.preflightChecks = preflightChecks
         self.automationGuardrails = automationGuardrails
         self.userDecisionPoints = userDecisionPoints
+        self.completionCriteria = completionCriteria
         self.fallbackNextSteps = fallbackNextSteps
         self.safety = safety
         self.executionMode = executionMode
