@@ -8,7 +8,12 @@ enum RemoteShellIntegration {
 
     private static let installCommand = """
         if [ -n "${ZSH_VERSION:-}" ]; then
+          _museterm_remote_emit_start() { local muse_cmd_hex; muse_cmd_hex=$(printf '%s' "$1" | od -An -tx1 | tr -d ' \\n'); printf '\\033]777;MuseTerm;start=%s\\a' "$muse_cmd_hex"; }
+          _museterm_remote_preexec() { _museterm_remote_emit_start "$1"; }
           _museterm_remote_precmd() { local muse_status=$?; printf '\\033]777;MuseTerm;end=%d\\a' "$muse_status"; return "$muse_status"; }
+          typeset -ga preexec_functions
+          preexec_functions=(${preexec_functions:#_museterm_remote_preexec})
+          preexec_functions=(_museterm_remote_preexec $preexec_functions)
           typeset -ga precmd_functions
           precmd_functions=(${precmd_functions:#_museterm_remote_precmd})
           precmd_functions=(_museterm_remote_precmd $precmd_functions)

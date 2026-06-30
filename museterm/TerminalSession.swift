@@ -76,6 +76,23 @@ enum TerminalCommandCompletionSource: String, Codable, Equatable {
     }
 }
 
+enum TerminalCommandStartSource: String, Codable, Equatable {
+    case userInput
+    case shellIntegration
+    case unknown
+
+    var contextLabel: String {
+        switch self {
+        case .userInput:
+            return "userInput"
+        case .shellIntegration:
+            return "shellIntegration"
+        case .unknown:
+            return "unknown"
+        }
+    }
+}
+
 struct TerminalCommandBlock: Codable, Equatable, Identifiable {
     var id: UUID
     var command: String
@@ -86,6 +103,7 @@ struct TerminalCommandBlock: Codable, Equatable, Identifiable {
     var outputTail: String
     var outputCharacterCount: Int
     var isInteractive: Bool
+    var commandStartSource: TerminalCommandStartSource?
     var completionSource: TerminalCommandCompletionSource?
 
     var durationMilliseconds: Int? {
@@ -106,6 +124,7 @@ struct TerminalCommandBlock: Codable, Equatable, Identifiable {
             workingDirectory ?? "",
             outputTail,
             statusText,
+            commandStartSource?.contextLabel ?? "",
             completionSource?.contextLabel ?? ""
         ].joined(separator: "\n")
     }
@@ -123,6 +142,9 @@ struct TerminalCommandBlock: Codable, Equatable, Identifiable {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         lines.append("Started: \(formatter.string(from: startedAt))")
+        if let commandStartSource {
+            lines.append("Command source: \(commandStartSource.contextLabel)")
+        }
         if let endedAt {
             lines.append("Ended: \(formatter.string(from: endedAt))")
         }
@@ -260,6 +282,14 @@ final class TerminalSession: ObservableObject, Identifiable {
                 }
             }
         }
+    }
+
+    func startShellIntegratedCommand(command: String, historySnapshot: String) {
+        startCommand(
+            command: command,
+            startSource: .shellIntegration,
+            historySnapshot: historySnapshot
+        )
     }
 
     func observeProcessOutput(historySnapshot: String) {
@@ -483,7 +513,34 @@ final class TerminalSession: ObservableObject, Identifiable {
             return
         }
 
+        startCommand(
+            command: command,
+            startSource: .userInput,
+            historySnapshot: historySnapshot
+        )
+        pendingCommandBytes.removeAll(keepingCapacity: true)
+    }
+
+    private func startCommand(
+        command: String,
+        startSource: TerminalCommandStartSource,
+        historySnapshot: String
+    ) {
+        let cleanCommand = command.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanCommand.isEmpty else { return }
+
         if activeCommandBlockID != nil {
+            if startSource == .shellIntegration,
+               let index = activeCommandBlockIndex,
+               commandBlocks[index].endedAt == nil,
+               normalizedCommand(commandBlocks[index].command) == normalizedCommand(cleanCommand) {
+                commandBlocks[index].command = String(cleanCommand.prefix(4_000))
+                commandBlocks[index].commandStartSource = .shellIntegration
+                activeCommandOutputStartIndex = historySnapshot.count
+                pendingCommandBytes.removeAll(keepingCapacity: true)
+                return
+            }
+
             finishActiveCommand(
                 exitCode: nil,
                 completionSource: .superseded,
@@ -493,7 +550,7 @@ final class TerminalSession: ObservableObject, Identifiable {
 
         let block = TerminalCommandBlock(
             id: UUID(),
-            command: String(command.prefix(4_000)),
+            command: String(cleanCommand.prefix(4_000)),
             workingDirectory: currentDirectory,
             startedAt: Date(),
             endedAt: nil,
@@ -501,6 +558,7 @@ final class TerminalSession: ObservableObject, Identifiable {
             outputTail: "",
             outputCharacterCount: 0,
             isInteractive: false,
+            commandStartSource: startSource,
             completionSource: nil
         )
         commandBlocks.append(block)
@@ -509,7 +567,17 @@ final class TerminalSession: ObservableObject, Identifiable {
         }
         activeCommandBlockID = block.id
         activeCommandOutputStartIndex = historySnapshot.count
-        pendingCommandBytes.removeAll(keepingCapacity: true)
+    }
+
+    private var activeCommandBlockIndex: Int? {
+        guard let activeCommandBlockID else { return nil }
+        return commandBlocks.firstIndex { $0.id == activeCommandBlockID }
+    }
+
+    private func normalizedCommand(_ command: String) -> String {
+        command
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
     }
 
     private func historySuffix(from startIndex: Int, in historySnapshot: String) -> String {

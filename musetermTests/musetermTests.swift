@@ -211,6 +211,13 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(parser.accept(secondChunk[...]), [.commandFinished(127)])
     }
 
+    func testShellIntegrationParserAcceptsCommandStartMarker() {
+        let parser = TerminalShellIntegrationParser()
+        let marker = "\u{1B}]777;MuseTerm;start=73776966742074657374\u{7}"
+
+        XCTAssertEqual(parser.accept(Array(marker.utf8)[...]), [.commandStarted("swift test")])
+    }
+
     func testCommandBlockStoresCompletionSource() throws {
         let tab = TerminalSession(sequence: 1)
 
@@ -233,6 +240,28 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(block.completionSource, .shellIntegration)
         XCTAssertTrue(block.searchableText.contains("shellIntegration"))
         XCTAssertTrue(block.aiContextText.contains("Completion source: shellIntegration"))
+    }
+
+    func testShellIntegratedStartUpgradesUserInputCommandBlock() throws {
+        let tab = TerminalSession(sequence: 1)
+
+        tab.observeProcessInput(
+            data: Array("swift   test\r".utf8),
+            echoEnabled: true,
+            historySnapshot: "$ swift   test\n"
+        )
+
+        tab.startShellIntegratedCommand(
+            command: "swift test",
+            historySnapshot: "$ swift   test\n"
+        )
+
+        let block = try XCTUnwrap(tab.commandBlocks.first)
+        XCTAssertEqual(tab.commandBlocks.count, 1)
+        XCTAssertEqual(block.command, "swift test")
+        XCTAssertEqual(block.commandStartSource, .shellIntegration)
+        XCTAssertTrue(block.searchableText.contains("shellIntegration"))
+        XCTAssertTrue(block.aiContextText.contains("Command source: shellIntegration"))
     }
 
 }
