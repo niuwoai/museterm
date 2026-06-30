@@ -622,6 +622,7 @@ struct CommandBlockDiagnostics: Equatable {
     let suggestedNextInspection: String?
     let suggestedNextCommand: String?
     let diagnosticSeverity: CommandDiagnosticSeverity
+    let diagnosticCategory: CommandDiagnosticCategory
 
     init(blocks: [TerminalCommandBlock], redactSensitiveData: Bool = true) {
         let failedBlocks = blocks.filter(Self.isFailed).sorted(by: Self.mostRecentFirst)
@@ -645,6 +646,12 @@ struct CommandBlockDiagnostics: Equatable {
             recentFailureDiagnostic: recentFailureDiagnostic,
             repeatedFailureDiagnostic: repeatedFailureDiagnostic
         )
+        diagnosticCategory = Self.diagnosticCategory(
+            failedCommandCount: failedCommandCount,
+            latestFailedCommand: latestFailedCommand,
+            recentFailureDiagnostic: recentFailureDiagnostic,
+            repeatedFailureDiagnostic: repeatedFailureDiagnostic
+        )
         suggestedNextInspection = Self.suggestedNextInspection(
             failedCommandCount: failedCommandCount,
             latestFailedCommand: latestFailedCommand,
@@ -653,9 +660,7 @@ struct CommandBlockDiagnostics: Equatable {
         )
         suggestedNextCommand = Self.suggestedNextCommand(
             failedCommandCount: failedCommandCount,
-            latestFailedCommand: latestFailedCommand,
-            recentFailureDiagnostic: recentFailureDiagnostic,
-            repeatedFailureDiagnostic: repeatedFailureDiagnostic
+            diagnosticCategory: diagnosticCategory
         )
     }
 
@@ -685,6 +690,9 @@ struct CommandBlockDiagnostics: Equatable {
         }
         if diagnosticSeverity != .none {
             lines.append("Diagnostic severity: \(diagnosticSeverity.rawValue)")
+        }
+        if diagnosticCategory != .none {
+            lines.append("Diagnostic category: \(diagnosticCategory.rawValue)")
         }
         if let suggestedNextInspection {
             lines.append("Suggested next inspection: \(suggestedNextInspection)")
@@ -820,6 +828,43 @@ struct CommandBlockDiagnostics: Equatable {
         return .failed
     }
 
+    nonisolated private static func diagnosticCategory(
+        failedCommandCount: Int,
+        latestFailedCommand: String?,
+        recentFailureDiagnostic: String?,
+        repeatedFailureDiagnostic: RepeatedFailureDiagnostic?
+    ) -> CommandDiagnosticCategory {
+        guard failedCommandCount > 0 else { return .none }
+        let command = latestFailedCommand?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        let diagnostic = recentFailureDiagnostic?.lowercased() ?? ""
+        if diagnostic.contains("address already in use")
+            || diagnostic.contains("eaddrinuse")
+            || diagnostic.contains("port already")
+            || diagnostic.contains("listen tcp") {
+            return .portConflict
+        }
+        if diagnostic.contains("permission denied") {
+            return .permission
+        }
+        if diagnostic.contains("command not found") {
+            return .missingCommand
+        }
+        if diagnostic.contains("no such file")
+            || diagnostic.contains("not found")
+            || diagnostic.contains("cannot find") {
+            return .missingFile
+        }
+        if command.hasPrefix("git ")
+            || command == "git"
+            || diagnostic.contains("fatal:") {
+            return .git
+        }
+        if repeatedFailureDiagnostic != nil {
+            return .repeated
+        }
+        return .generic
+    }
+
     nonisolated private static func suggestedNextInspection(
         failedCommandCount: Int,
         latestFailedCommand: String?,
@@ -840,39 +885,27 @@ struct CommandBlockDiagnostics: Equatable {
 
     nonisolated private static func suggestedNextCommand(
         failedCommandCount: Int,
-        latestFailedCommand: String?,
-        recentFailureDiagnostic: String?,
-        repeatedFailureDiagnostic: RepeatedFailureDiagnostic?
+        diagnosticCategory: CommandDiagnosticCategory
     ) -> String? {
         guard failedCommandCount > 0 else { return nil }
-        let command = latestFailedCommand?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
-        let diagnostic = recentFailureDiagnostic?.lowercased() ?? ""
-        if diagnostic.contains("address already in use")
-            || diagnostic.contains("eaddrinuse")
-            || diagnostic.contains("port already")
-            || diagnostic.contains("listen tcp") {
+        switch diagnosticCategory {
+        case .none:
+            return nil
+        case .portConflict:
             return "lsof -nP -iTCP -sTCP:LISTEN"
-        }
-        if diagnostic.contains("permission denied") {
+        case .permission:
             return "pwd && id && ls -ld ."
-        }
-        if diagnostic.contains("command not found") {
+        case .missingCommand:
             return "echo \"$PATH\""
-        }
-        if diagnostic.contains("no such file")
-            || diagnostic.contains("not found")
-            || diagnostic.contains("cannot find") {
+        case .missingFile:
             return "pwd && ls -la"
-        }
-        if command.hasPrefix("git ")
-            || command == "git"
-            || diagnostic.contains("fatal:") {
+        case .git:
             return "git status --short --branch"
-        }
-        if repeatedFailureDiagnostic != nil {
+        case .repeated:
+            return "pwd && git status --short --branch 2>/dev/null || true"
+        case .generic:
             return "pwd && git status --short --branch 2>/dev/null || true"
         }
-        return "pwd && git status --short --branch 2>/dev/null || true"
     }
 
     nonisolated private static func occurrenceDate(for block: TerminalCommandBlock) -> Date {
@@ -913,6 +946,17 @@ enum CommandDiagnosticSeverity: String, Codable, Equatable {
     case failed
     case repeated
     case critical
+}
+
+enum CommandDiagnosticCategory: String, Codable, Equatable {
+    case none
+    case portConflict = "port_conflict"
+    case permission
+    case missingFile = "missing_file"
+    case missingCommand = "missing_command"
+    case git
+    case repeated
+    case generic
 }
 
 private struct FailureDiagnosticRecord: Equatable {
