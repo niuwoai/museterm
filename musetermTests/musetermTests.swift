@@ -457,6 +457,14 @@ final class musetermTests: XCTestCase {
                 CommandDiagnosticActionResultField.gitDirtyState.rawValue
             ]
         )
+        let expectedResultSignals = try XCTUnwrap(suggestedNextAction["expectedResultSignals"] as? [String])
+        XCTAssertEqual(
+            expectedResultSignals,
+            [
+                CommandDiagnosticActionResultSignal.workingDirectoryVisible.rawValue,
+                CommandDiagnosticActionResultSignal.gitStateVisible.rawValue
+            ]
+        )
         XCTAssertEqual(suggestedNextAction["title"] as? String, "Inspect repeat context")
         XCTAssertEqual(
             suggestedNextAction["rationale"] as? String,
@@ -863,6 +871,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_scope")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_expected_result_kind")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_expected_result_fields")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_expected_result_signals")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_safety")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_execution_mode")))
@@ -937,6 +946,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Suggested next action expected result kind: context_snapshot"))
         XCTAssertTrue(context.contains("Suggested next action expected result fields: working_directory; git_branch"))
         XCTAssertTrue(context.contains("git_upstream; git_dirty_state"))
+        XCTAssertTrue(context.contains("Suggested next action expected result signals: working_directory_visible; git_state_visible"))
         XCTAssertTrue(context.contains("Suggested next action title: Inspect repeat context"))
         XCTAssertTrue(context.contains("Suggested next action safety: read_only"))
         XCTAssertTrue(context.contains("Suggested next action execution mode: stage_only"))
@@ -1041,6 +1051,10 @@ final class musetermTests: XCTestCase {
             diagnostics.suggestedNextAction?.expectedResultFields,
             [.workingDirectory, .currentUser, .directoryPermissions]
         )
+        XCTAssertEqual(
+            diagnostics.suggestedNextAction?.expectedResultSignals,
+            [.currentUserVisible, .permissionBoundaryVisible]
+        )
         XCTAssertEqual(diagnostics.suggestedNextAction?.title, "Inspect current permissions")
         XCTAssertEqual(diagnostics.suggestedNextAction?.safety, .readOnly)
         XCTAssertEqual(diagnostics.suggestedNextAction?.executionMode, .stageOnly)
@@ -1144,6 +1158,10 @@ final class musetermTests: XCTestCase {
             portConflict.suggestedNextAction?.expectedResultFields,
             [.localPort, .processID, .processName, .listenAddress]
         )
+        XCTAssertEqual(
+            portConflict.suggestedNextAction?.expectedResultSignals,
+            [.targetPortVisible, .ownerProcessVisible]
+        )
         XCTAssertEqual(portConflict.suggestedNextAction?.title, "List listening TCP ports")
         XCTAssertEqual(portConflict.suggestedNextAction?.safety, .readOnly)
         XCTAssertEqual(portConflict.suggestedNextAction?.executionMode, .stageOnly)
@@ -1173,6 +1191,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(missingCommand.suggestedNextAction?.actionScope, .shellEnvironment)
         XCTAssertEqual(missingCommand.suggestedNextAction?.expectedResultKind, .shellPath)
         XCTAssertEqual(missingCommand.suggestedNextAction?.expectedResultFields, [.pathEntries])
+        XCTAssertEqual(missingCommand.suggestedNextAction?.expectedResultSignals, [.pathEntriesVisible])
         XCTAssertEqual(missingCommand.suggestedNextAction?.title, "Inspect PATH")
         XCTAssertEqual(missingCommand.suggestedNextAction?.executionMode, .stageOnly)
         XCTAssertEqual(missingCommand.suggestedNextAction?.executionTarget, .currentShellEnvironment)
@@ -1203,6 +1222,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(
             missingFile.suggestedNextAction?.expectedResultFields,
             [.workingDirectory, .visibleEntries, .fileMetadata]
+        )
+        XCTAssertEqual(
+            missingFile.suggestedNextAction?.expectedResultSignals,
+            [.workingDirectoryVisible, .directoryEntriesVisible]
         )
         XCTAssertEqual(missingFile.suggestedNextAction?.title, "Inspect current directory")
         XCTAssertEqual(missingFile.suggestedNextAction?.executionMode, .stageOnly)
@@ -1235,6 +1258,10 @@ final class musetermTests: XCTestCase {
             gitFailure.suggestedNextAction?.expectedResultFields,
             [.gitBranch, .gitUpstream, .gitDirtyState]
         )
+        XCTAssertEqual(
+            gitFailure.suggestedNextAction?.expectedResultSignals,
+            [.gitBranchVisible, .gitDirtyStateVisible]
+        )
         XCTAssertEqual(gitFailure.suggestedNextAction?.title, "Inspect Git state")
         XCTAssertEqual(gitFailure.suggestedNextAction?.executionMode, .stageOnly)
         XCTAssertEqual(gitFailure.suggestedNextAction?.executionTarget, .currentGitRepository)
@@ -1264,6 +1291,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(
             genericFailure.suggestedNextAction?.expectedResultFields,
             [.workingDirectory, .gitBranch, .gitUpstream, .gitDirtyState]
+        )
+        XCTAssertEqual(
+            genericFailure.suggestedNextAction?.expectedResultSignals,
+            [.workingDirectoryVisible, .gitStateVisible]
         )
         XCTAssertEqual(genericFailure.suggestedNextAction?.title, "Inspect local context")
         XCTAssertEqual(genericFailure.suggestedNextAction?.executionMode, .stageOnly)

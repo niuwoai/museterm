@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.83.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `expectedResultSignals`，用稳定 code 标明建议命令输出中哪些信号代表只读检查已拿到可用证据。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露预期结果信号，帮助外部工具判断建议命令输出是否足够支撑下一步决策。
+
 ## [1.82.0] - 2026-07-01
 
 ### Added
