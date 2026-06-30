@@ -721,6 +721,7 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append("Suggested next action title: \(suggestedNextAction.title)")
             lines.append("Suggested next action safety: \(suggestedNextAction.safety.rawValue)")
             lines.append("Suggested next action rationale: \(suggestedNextAction.rationale)")
+            lines.append("Suggested next action expected signals: \(suggestedNextAction.expectedSignals.joined(separator: "; "))")
             lines.append("Suggested next action requires confirmation: \(suggestedNextAction.requiresConfirmation)")
         }
         guard !lines.isEmpty else { return nil }
@@ -943,6 +944,10 @@ struct CommandBlockDiagnostics: Equatable {
                 title: "List listening TCP ports",
                 rationale: "The latest failure looks like a local port conflict, so inspect listeners before rerunning.",
                 command: "lsof -nP -iTCP -sTCP:LISTEN",
+                expectedSignals: [
+                    "Look for the conflicting local port.",
+                    "Check the owning PID and process name before deciding whether to stop it."
+                ],
                 safety: .readOnly
             )
         case .permission:
@@ -953,6 +958,10 @@ struct CommandBlockDiagnostics: Equatable {
                 title: "Inspect current permissions",
                 rationale: "The latest failure mentions permission denied, so check the working directory and current user.",
                 command: "pwd && id && ls -ld .",
+                expectedSignals: [
+                    "Confirm the command ran in the expected directory.",
+                    "Compare the current user and directory permissions with the failed operation."
+                ],
                 safety: .readOnly
             )
         case .missingCommand:
@@ -963,6 +972,10 @@ struct CommandBlockDiagnostics: Equatable {
                 title: "Inspect PATH",
                 rationale: "The latest failure says a command is missing, so check which directories the shell searches.",
                 command: "echo \"$PATH\"",
+                expectedSignals: [
+                    "Confirm whether the expected tool directory is present in PATH.",
+                    "If PATH looks correct, inspect whether the command is installed under a different name."
+                ],
                 safety: .readOnly
             )
         case .missingFile:
@@ -973,6 +986,10 @@ struct CommandBlockDiagnostics: Equatable {
                 title: "Inspect current directory",
                 rationale: "The latest failure references a missing file, so confirm the current directory and visible files.",
                 command: "pwd && ls -la",
+                expectedSignals: [
+                    "Confirm the command ran in the directory that should contain the file.",
+                    "Check whether the missing file is absent, renamed, hidden, or has unexpected casing."
+                ],
                 safety: .readOnly
             )
         case .git:
@@ -983,6 +1000,10 @@ struct CommandBlockDiagnostics: Equatable {
                 title: "Inspect Git state",
                 rationale: "The latest failed command or diagnostic is Git-related, so inspect branch and dirty state first.",
                 command: "git status --short --branch",
+                expectedSignals: [
+                    "Check the current branch and upstream relation.",
+                    "Look for dirty, conflicted, staged, or untracked files before retrying Git commands."
+                ],
                 safety: .readOnly
             )
         case .repeated:
@@ -993,6 +1014,10 @@ struct CommandBlockDiagnostics: Equatable {
                 title: "Inspect repeat context",
                 rationale: "The latest failures repeat, so capture location and Git state before another retry.",
                 command: "pwd && git status --short --branch 2>/dev/null || true",
+                expectedSignals: [
+                    "Confirm whether repeated failures are happening in the expected working directory.",
+                    "If this is a Git project, compare branch and dirty state before another rerun."
+                ],
                 safety: .readOnly
             )
         case .generic:
@@ -1003,6 +1028,10 @@ struct CommandBlockDiagnostics: Equatable {
                 title: "Inspect local context",
                 rationale: "The failure is not specific enough yet, so capture location and Git state as a safe first step.",
                 command: "pwd && git status --short --branch 2>/dev/null || true",
+                expectedSignals: [
+                    "Confirm the working directory before deeper inspection.",
+                    "If available, use Git state to correlate the failure with recent local changes."
+                ],
                 safety: .readOnly
             )
         }
@@ -1073,6 +1102,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let title: String
     let rationale: String
     let command: String
+    let expectedSignals: [String]
     let safety: CommandDiagnosticActionSafety
     let requiresConfirmation: Bool
 
@@ -1083,6 +1113,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         title: String,
         rationale: String,
         command: String,
+        expectedSignals: [String],
         safety: CommandDiagnosticActionSafety,
         requiresConfirmation: Bool = true
     ) {
@@ -1092,6 +1123,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         self.title = title
         self.rationale = rationale
         self.command = command
+        self.expectedSignals = expectedSignals
         self.safety = safety
         self.requiresConfirmation = requiresConfirmation
     }

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.53.0] - 2026-07-01
+
+### Added
+- 结构化建议排查动作新增 `expectedSignals`，记录执行只读排查命令后应该重点观察的信号。
+- Runbook、AI 上下文和 CLI/MCP `diagnostics.suggestedNextAction` 会同步暴露观察信号，便于把排查建议沉淀成可复盘步骤。
+
 ## [1.52.0] - 2026-07-01
 
 ### Added
