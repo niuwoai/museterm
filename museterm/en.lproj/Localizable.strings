@@ -212,6 +212,8 @@
 "command_inspector.copied_output" = "Output copied.";
 "command_inspector.copied_redacted_output" = "Redacted output copied.";
 "command_inspector.copied_ai_context" = "AI context copied.";
+"command_inspector.copy_output_summary" = "Copy meaningful output summary";
+"command_inspector.copied_output_summary" = "Output summary copied.";
 "command_inspector.history_match" = "Scrollback Match";
 "command_inspector.history_matches" = "%d matches";
 "command_inspector.copy_history" = "Copy scrollback snippet";
@@ -221,6 +223,14 @@
 "command_inspector.status.ok" = "OK";
 "command_inspector.status.done" = "Done";
 "command_inspector.status.exit" = "Exit %d";
+"output_insight.error" = "Error";
+"output_insight.warning" = "Warning";
+"output_insight.url" = "URL";
+"output_insight.filePath" = "Path";
+"output_insight.json" = "JSON";
+"output_insight.yaml" = "YAML";
+"output_insight.stackTrace" = "Stack";
+"output_insight.commitHash" = "Commit";
 
 "task_panel.title" = "Tasks and Ports";
 "task_panel.subtitle" = "Local services and running commands";

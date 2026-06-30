@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
-> 最后更新：2026-06-30  
-> 当前版本基线：v1.29.0
+> 最后更新：2026-07-01
+> 当前版本基线：v1.30.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,13 +30,14 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.29.0 已完成二十一条纵向切片：
+v1.30.0 已完成二十二条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
 - CLI/MCP 命令块读取：已新增 `museterm commands` 和 MCP `read_commands`。
 - 命令搜索 UI：已提供右侧命令搜索面板，可按命令、目录和输出搜索，并支持失败过滤。
 - 滚屏历史搜索：命令搜索面板会同时搜索当前标签原始滚屏历史，展示脱敏后的命中片段和命中数量，覆盖尚未形成结构化命令块的输出。
+- 输出洞察第一版：命令块会轻量识别错误、警告、URL、文件路径、JSON、YAML、堆栈和 commit hash，并可复制按类型整理的输出摘要；JSON 输出摘要会附带格式化后的 pretty JSON，不改变终端原始渲染。
 - AI Explain 上下文与真实调用：已支持从命令块复制包含 Provider/Model/Base URL 的 AI 上下文，且不包含 API Key；也可直接请求 Provider 解释单条命令块，覆盖 OpenAI 兼容接口、Anthropic、Google Gemini、Azure OpenAI、OpenRouter、Ollama 和自定义端点。
 - AI Explain 流式输出：解释请求使用 Provider SSE 流式接口，结果面板会随响应到达增量显示。
 - 本地 zsh/bash/fish shell integration：zsh 通过 MuseTerm 专用启动文件挂载 `precmd` hook，bash 通过生成 rcfile 挂载 `PROMPT_COMMAND`，fish 通过启动 hook 挂载 `fish_postexec`，均解析不可见 OSC marker 以回填命令真实退出码；其他 shell 暂时降级为保守识别。

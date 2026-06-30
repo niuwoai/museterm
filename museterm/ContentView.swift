@@ -605,6 +605,12 @@ private struct CommandInspectorView: View {
                                 )
                             },
                             copyAIContext: { copy(aiContext(for: block), messageKey: "command_inspector.copied_ai_context") },
+                            copyOutputSummary: {
+                                copy(
+                                    TerminalOutputInsightAnalyzer.summary(in: outputText(for: block)),
+                                    messageKey: "command_inspector.copied_output_summary"
+                                )
+                            },
                             stageCommand: { stageCommand(block.command) },
                             explainCommand: { Task { await explain(block) } },
                             isExplaining: explainingBlockID == block.id
@@ -1630,9 +1636,18 @@ private struct CommandBlockCard: View {
     let copyCommand: () -> Void
     let copyOutput: () -> Void
     let copyAIContext: () -> Void
+    let copyOutputSummary: () -> Void
     let stageCommand: () -> Void
     let explainCommand: () -> Void
     let isExplaining: Bool
+
+    private var outputInsights: [TerminalOutputInsight] {
+        TerminalOutputInsightAnalyzer.insights(in: displayOutput)
+    }
+
+    private var outputSummary: String {
+        TerminalOutputInsightAnalyzer.summary(in: displayOutput)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1668,6 +1683,20 @@ private struct CommandBlockCard: View {
             .font(.caption2)
             .foregroundStyle(.secondary)
 
+            if !outputInsights.isEmpty {
+                HStack(spacing: 5) {
+                    ForEach(outputInsights.prefix(5)) { insight in
+                        Text(L10n.string(insight.kind.labelKey))
+                            .font(.caption2.weight(.medium))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(skin.selectionFill)
+                            .clipShape(Capsule())
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
+
             if !displayOutput.isEmpty {
                 Text(displayOutput)
                     .font(.caption2.monospaced())
@@ -1701,6 +1730,14 @@ private struct CommandBlockCard: View {
                 }
                 .buttonStyle(.plain)
                 .help(L10n.string("command_inspector.copy_ai_context"))
+
+                Button(action: copyOutputSummary) {
+                    Image(systemName: "text.badge.checkmark")
+                        .frame(width: 24, height: 22)
+                }
+                .buttonStyle(.plain)
+                .disabled(outputSummary.isEmpty)
+                .help(L10n.string("command_inspector.copy_output_summary"))
 
                 Button(action: stageCommand) {
                     Image(systemName: "arrow.turn.down.right")

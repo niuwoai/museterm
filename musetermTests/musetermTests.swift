@@ -170,4 +170,35 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(config.contains("ServerAliveInterval 30"))
     }
 
+    func testOutputInsightAnalyzerDetectsCommonSignals() {
+        let output = """
+        ERROR failed to compile Sources/App.swift:42
+        warning: deprecated option
+        See https://example.com/build/123
+        commit abc1234 fixed the issue
+        at Module.run (/srv/app/index.js:10:2)
+        """
+
+        let kinds = Set(TerminalOutputInsightAnalyzer.insights(in: output).map(\.kind))
+
+        XCTAssertTrue(kinds.contains(.error))
+        XCTAssertTrue(kinds.contains(.warning))
+        XCTAssertTrue(kinds.contains(.url))
+        XCTAssertTrue(kinds.contains(.filePath))
+        XCTAssertTrue(kinds.contains(.commitHash))
+        XCTAssertTrue(kinds.contains(.stackTrace))
+    }
+
+    func testOutputInsightAnalyzerFormatsJSONSummary() throws {
+        let output = #"{"z":2,"a":{"ok":true}}"#
+
+        let formatted = try XCTUnwrap(TerminalOutputInsightAnalyzer.formattedJSON(in: output))
+        XCTAssertTrue(formatted.contains(#""a" : {"#))
+        XCTAssertTrue(formatted.contains(#""ok" : true"#))
+
+        let summary = TerminalOutputInsightAnalyzer.summary(in: output)
+        XCTAssertTrue(summary.contains("formattedJSON:"))
+        XCTAssertTrue(summary.contains("json:"))
+    }
+
 }

@@ -212,6 +212,8 @@
 "command_inspector.copied_output" = "已复制输出。";
 "command_inspector.copied_redacted_output" = "已复制脱敏后的输出。";
 "command_inspector.copied_ai_context" = "已复制 AI 上下文。";
+"command_inspector.copy_output_summary" = "复制有意义的输出摘要";
+"command_inspector.copied_output_summary" = "已复制输出摘要。";
 "command_inspector.history_match" = "滚屏历史命中";
 "command_inspector.history_matches" = "%d 处命中";
 "command_inspector.copy_history" = "复制滚屏片段";
@@ -221,6 +223,14 @@
 "command_inspector.status.ok" = "成功";
 "command_inspector.status.done" = "完成";
 "command_inspector.status.exit" = "退出 %d";
+"output_insight.error" = "错误";
+"output_insight.warning" = "警告";
+"output_insight.url" = "URL";
+"output_insight.filePath" = "路径";
+"output_insight.json" = "JSON";
+"output_insight.yaml" = "YAML";
+"output_insight.stackTrace" = "堆栈";
+"output_insight.commitHash" = "提交";
 
 "task_panel.title" = "任务与端口";
 "task_panel.subtitle" = "本机服务与运行中命令";
