@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.58.0] - 2026-07-01
+
+### Changed
+- `museterm commands` / MCP `read_commands` 的 `outputTailLimit` 现在以数字或 `null` 输出，避免外部工具把截断上限当字符串处理。
+- CLI 命令读取新增真实 Ruby 脚本端到端测试，覆盖 `commands --chars` 的输出截断元数据。
+
 ## [1.57.0] - 2026-07-01
 
 ### Added

@@ -61,6 +61,63 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(script.contains("send_key"))
     }
 
+    func testCliCommandsReportsOutputTailTruncationMetadata() throws {
+        let manager = FileManager.default
+        let root = manager.temporaryDirectory
+            .appendingPathComponent("museterm-cli-tests-\(UUID().uuidString)", isDirectory: true)
+        let tools = root
+            .appendingPathComponent("Library/Application Support/MuseTerm/Tools", isDirectory: true)
+        try manager.createDirectory(at: tools, withIntermediateDirectories: true)
+        defer { try? manager.removeItem(at: root) }
+
+        let scriptURL = root.appendingPathComponent("museterm")
+        try MuseTermCLIInstaller.script.write(to: scriptURL, atomically: true, encoding: .utf8)
+
+        let state: [String: Any] = [
+            "schemaVersion": 1,
+            "app": "MuseTerm",
+            "version": "test",
+            "selectedTabID": "tab-1",
+            "tabs": [
+                [
+                    "id": "tab-1",
+                    "index": 1,
+                    "title": "project",
+                    "isSelected": true,
+                    "state": "running",
+                    "commandDiagnostics": [
+                        "schemaVersion": 1,
+                        "failedCommandCount": 0
+                    ],
+                    "commandBlocks": [
+                        [
+                            "id": "cmd-1",
+                            "command": "make test",
+                            "outputTail": "abcdef"
+                        ]
+                    ]
+                ]
+            ]
+        ]
+        let stateData = try JSONSerialization.data(withJSONObject: state, options: [.prettyPrinted])
+        try stateData.write(to: tools.appendingPathComponent("state.json"))
+
+        let limited = try runMuseTermCLIScript(scriptURL, home: root, arguments: ["commands", "--chars", "3"])
+        let limitedCommand = try XCTUnwrap((limited["commands"] as? [[String: Any]])?.first)
+        XCTAssertEqual(limited["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(limitedCommand["outputTail"] as? String, "def")
+        XCTAssertEqual(limitedCommand["outputTailCharacters"] as? Int, 6)
+        XCTAssertEqual(limitedCommand["outputTailLimit"] as? Int, 3)
+        XCTAssertEqual(limitedCommand["outputTailTruncated"] as? Bool, true)
+
+        let unlimited = try runMuseTermCLIScript(scriptURL, home: root, arguments: ["commands"])
+        let unlimitedCommand = try XCTUnwrap((unlimited["commands"] as? [[String: Any]])?.first)
+        XCTAssertEqual(unlimitedCommand["outputTail"] as? String, "abcdef")
+        XCTAssertEqual(unlimitedCommand["outputTailCharacters"] as? Int, 6)
+        XCTAssertTrue(unlimitedCommand["outputTailLimit"] is NSNull)
+        XCTAssertEqual(unlimitedCommand["outputTailTruncated"] as? Bool, false)
+    }
+
     @MainActor
     func testToolTabSnapshotEncodesCommandDiagnostics() throws {
         let diagnostic = "ERROR database is locked"
@@ -844,6 +901,32 @@ final class musetermTests: XCTestCase {
             commandStartSource: .shellIntegration,
             completionSource: .shellIntegration
         )
+    }
+
+    private func runMuseTermCLIScript(
+        _ scriptURL: URL,
+        home: URL,
+        arguments: [String]
+    ) throws -> [String: Any] {
+        let process = Process()
+        let output = Pipe()
+        let errorOutput = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/ruby")
+        process.arguments = [scriptURL.path] + arguments
+        process.environment = ["HOME": home.path, "PATH": "/usr/bin:/bin:/usr/sbin:/sbin"]
+        process.standardOutput = output
+        process.standardError = errorOutput
+
+        try process.run()
+        process.waitUntilExit()
+
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        let errorData = errorOutput.fileHandleForReading.readDataToEndOfFile()
+        if process.terminationStatus != 0 {
+            let message = String(data: errorData, encoding: .utf8) ?? "unknown CLI error"
+            XCTFail("museterm CLI failed: \(message)")
+        }
+        return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
     }
 
 }
