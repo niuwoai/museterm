@@ -30,6 +30,7 @@ struct ContentView: View {
                 )
 
                 TerminalPaneView(workspace: workspace, preferences: preferences)
+                    .ignoresSafeArea(.container, edges: .top)
             }
         }
         .background(WindowConfigurator())

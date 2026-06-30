@@ -299,7 +299,7 @@ def command_mcp
       when "initialize"
         {
           "protocolVersion" => "2024-11-05",
-          "serverInfo" => { "name" => "museterm", "version" => "1.2.0-rc25" },
+          "serverInfo" => { "name" => "museterm", "version" => "1.2.0-rc27" },
           "capabilities" => { "tools" => {} }
         }
       when "tools/list"
