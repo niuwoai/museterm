@@ -585,18 +585,14 @@ struct SessionCommandStats {
 
     init(blocks: [TerminalCommandBlock], portCount: Int) {
         commandCount = blocks.count
-        let failedBlocks = blocks.filter { block in
-            Self.isFailed(block)
-        }
+        let diagnostics = CommandBlockDiagnostics(blocks: blocks)
+        let failedBlocks = blocks.filter(CommandBlockDiagnostics.isFailed)
         failureCount = failedBlocks.count
         runningCount = blocks.filter { $0.endedAt == nil }.count
         self.portCount = portCount
         longestDurationMilliseconds = blocks.compactMap(\.durationMilliseconds).max()
-        recentFailureDiagnostic = failedBlocks
-            .sorted(by: Self.mostRecentFirst)
-            .compactMap(Self.failureDiagnostic)
-            .first
-        repeatedFailureDiagnostic = Self.repeatedFailureDiagnostic(in: blocks)
+        recentFailureDiagnostic = diagnostics.recentFailureDiagnostic
+        repeatedFailureDiagnostic = diagnostics.repeatedFailureDiagnostic
     }
 
     var achievements: [String] {
@@ -616,38 +612,76 @@ struct SessionCommandStats {
         return result
     }
 
-    nonisolated private static func mostRecentFirst(_ left: TerminalCommandBlock, _ right: TerminalCommandBlock) -> Bool {
+}
+
+struct CommandBlockDiagnostics: Equatable {
+    let recentFailureDiagnostic: String?
+    let repeatedFailureDiagnostic: RepeatedFailureDiagnostic?
+
+    init(blocks: [TerminalCommandBlock], redactSensitiveData: Bool = true) {
+        let failedBlocks = blocks.filter(Self.isFailed)
+        recentFailureDiagnostic = failedBlocks
+            .sorted(by: Self.mostRecentFirst)
+            .compactMap { Self.failureDiagnostic(for: $0, redactSensitiveData: redactSensitiveData) }
+            .first
+        repeatedFailureDiagnostic = Self.repeatedFailureDiagnostic(
+            in: blocks,
+            redactSensitiveData: redactSensitiveData
+        )
+    }
+
+    var aiContextText: String? {
+        var lines: [String] = []
+        if let recentFailureDiagnostic {
+            lines.append("Recent failure diagnostic: \(recentFailureDiagnostic)")
+        }
+        if let repeatedFailureDiagnostic {
+            lines.append(
+                "Repeated failure diagnostic: \(repeatedFailureDiagnostic.count)x \(repeatedFailureDiagnostic.diagnostic)"
+            )
+        }
+        guard !lines.isEmpty else { return nil }
+        return (["Session diagnostics:"] + lines).joined(separator: "\n")
+    }
+
+    nonisolated static func mostRecentFirst(_ left: TerminalCommandBlock, _ right: TerminalCommandBlock) -> Bool {
         (left.endedAt ?? left.startedAt) > (right.endedAt ?? right.startedAt)
     }
 
-    nonisolated private static func isFailed(_ block: TerminalCommandBlock) -> Bool {
+    nonisolated static func isFailed(_ block: TerminalCommandBlock) -> Bool {
         guard block.endedAt != nil, let exitCode = block.exitCode else { return false }
         return exitCode != 0
     }
 
-    nonisolated private static func failureDiagnostic(for block: TerminalCommandBlock) -> String? {
+    nonisolated private static func failureDiagnostic(
+        for block: TerminalCommandBlock,
+        redactSensitiveData: Bool
+    ) -> String? {
         let diagnostic = block.outputSummary?.primaryDiagnosticLine
             ?? TerminalOutputInsightAnalyzer.outputSummary(in: block.outputTail)?.primaryDiagnosticLine
         guard let diagnostic else { return nil }
         let cleaned = diagnostic.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { return nil }
-        return RunbookSensitiveRedactor.redact(cleaned)
+        return redactSensitiveData ? RunbookSensitiveRedactor.redact(cleaned) : cleaned
     }
 
-    nonisolated private static func repeatedFailureDiagnostic(in blocks: [TerminalCommandBlock]) -> RepeatedFailureDiagnostic? {
+    nonisolated private static func repeatedFailureDiagnostic(
+        in blocks: [TerminalCommandBlock],
+        redactSensitiveData: Bool
+    ) -> RepeatedFailureDiagnostic? {
         let endedBlocks = blocks
             .filter { $0.endedAt != nil }
             .sorted(by: mostRecentFirst)
         guard let latest = endedBlocks.first,
               isFailed(latest),
-              let diagnostic = failureDiagnostic(for: latest) else {
+              let diagnostic = failureDiagnostic(for: latest, redactSensitiveData: redactSensitiveData) else {
             return nil
         }
 
         var count = 0
         for block in endedBlocks {
             guard isFailed(block),
-                  failureDiagnostic(for: block) == diagnostic else {
+                  failureDiagnostic(for: block, redactSensitiveData: redactSensitiveData) == diagnostic else {
                 break
             }
             count += 1

@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.38.0] - 2026-07-01
+
+### Added
+- Runbook Markdown 导出会记录最近失败诊断与连续同类失败次数，并沿用脱敏开关处理 token、API Key 与 password 等敏感形态。
+- AI Explain 的“当前过滤结果”上下文新增会话诊断摘要，可把最近失败与连续同类失败线索一起交给模型分析。
+
+### Changed
+- 连续失败判断抽为可复用的 `CommandBlockDiagnostics`，任务统计、Runbook 与 AI 上下文共享同一套判定逻辑。
+
 ## [1.37.0] - 2026-07-01
 
 ### Added

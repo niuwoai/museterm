@@ -365,6 +365,51 @@ final class musetermTests: XCTestCase {
         XCTAssertFalse(markdown.contains(secret))
     }
 
+    func testRunbookMarkdownIncludesRepeatedFailureDiagnostics() {
+        let tab = TerminalSession(sequence: 1)
+        let secret = "sk-abcdefghijklmnopqrstuvwxyz"
+        let repeated = "ERROR token=\(secret)"
+        let blocks = [
+            commandBlock(command: "make test", startedAt: 100, endedAt: 101, exitCode: 1, errorLine: repeated),
+            commandBlock(command: "make test", startedAt: 110, endedAt: 111, exitCode: 1, errorLine: repeated),
+            commandBlock(command: "make test", startedAt: 120, endedAt: 121, exitCode: 1, errorLine: repeated)
+        ]
+
+        let markdown = RunbookMarkdownExporter.markdown(
+            tab: tab,
+            blocks: blocks,
+            query: "",
+            failuresOnly: true,
+            note: "",
+            redactSensitiveData: true,
+            includeReplayScript: false,
+            parameterizeReplayScript: false,
+            confirmReplaySteps: true,
+            variableOverrides: RunbookReplayVariableOverrides(homePath: "", workingDirectory: "")
+        )
+
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failure")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure")))
+        XCTAssertTrue(markdown.contains("3"))
+        XCTAssertTrue(markdown.contains("ERROR token=[REDACTED]"))
+        XCTAssertFalse(markdown.contains(secret))
+    }
+
+    func testCommandBlockDiagnosticsBuildsAIContext() throws {
+        let blocks = [
+            commandBlock(command: "make test", startedAt: 100, endedAt: 101, exitCode: 1, errorLine: "ERROR database is locked"),
+            commandBlock(command: "make test", startedAt: 110, endedAt: 111, exitCode: 1, errorLine: "ERROR database is locked"),
+            commandBlock(command: "make test", startedAt: 120, endedAt: 121, exitCode: 1, errorLine: "ERROR database is locked")
+        ]
+
+        let diagnostics = CommandBlockDiagnostics(blocks: blocks, redactSensitiveData: false)
+        let context = try XCTUnwrap(diagnostics.aiContextText)
+
+        XCTAssertTrue(context.contains("Session diagnostics:"))
+        XCTAssertTrue(context.contains("Recent failure diagnostic: ERROR database is locked"))
+        XCTAssertTrue(context.contains("Repeated failure diagnostic: 3x ERROR database is locked"))
+    }
+
     func testSessionCommandStatsTracksRecentRedactedFailureDiagnostic() {
         let oldFailure = commandBlock(
             command: "swift test",

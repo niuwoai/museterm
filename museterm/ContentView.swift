@@ -778,6 +778,14 @@ private struct CommandInspectorView: View {
         lines.append("Focused command block:")
         lines.append(focusedBlock.aiContextText(includeOutput: true))
 
+        if let diagnostics = CommandBlockDiagnostics(
+            blocks: runbookExportBlocks,
+            redactSensitiveData: false
+        ).aiContextText {
+            lines.append("")
+            lines.append(diagnostics)
+        }
+
         let relatedBlocks = runbookExportBlocks
             .filter { $0.id != focusedBlock.id }
             .suffix(6)
@@ -1376,6 +1384,18 @@ enum RunbookMarkdownExporter {
         if sensitiveOutputCount > 0 {
             lines.append("- \(L10n.string("runbook.sensitive_outputs")): \(sensitiveOutputCount)")
             lines.append("- \(L10n.string("runbook.redaction")): \(redactSensitiveData ? L10n.string("runbook.redaction_on") : L10n.string("runbook.redaction_off"))")
+        }
+        let diagnostics = CommandBlockDiagnostics(blocks: blocks, redactSensitiveData: redactSensitiveData)
+        if let recentFailureDiagnostic = diagnostics.recentFailureDiagnostic {
+            lines.append("- \(L10n.string("runbook.latest_failure")): `\(escapeInline(recentFailureDiagnostic))`")
+        }
+        if let repeatedFailureDiagnostic = diagnostics.repeatedFailureDiagnostic {
+            let repeatedText = L10n.format(
+                "runbook.repeated_failure_value",
+                repeatedFailureDiagnostic.count,
+                "`\(escapeInline(repeatedFailureDiagnostic.diagnostic))`"
+            )
+            lines.append("- \(L10n.string("runbook.repeated_failure")): \(repeatedText)")
         }
 
         let cleanedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
