@@ -341,6 +341,14 @@
 "runbook.duration" = "Duration";
 "runbook.status" = "Status";
 "runbook.output_chars" = "Output characters";
+"runbook.output_summary" = "Output summary";
+"runbook.summary_insights" = "Insights";
+"runbook.summary_error" = "Error";
+"runbook.summary_warning" = "Warning";
+"runbook.summary_url" = "URL";
+"runbook.summary_path" = "Path";
+"runbook.summary_commit" = "Commit";
+"runbook.summary_stack" = "Stack";
 "runbook.command" = "Command";
 "runbook.output_tail" = "Output tail";
 "runbook.untitled_command" = "Command";

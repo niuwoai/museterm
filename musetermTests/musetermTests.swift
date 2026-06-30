@@ -303,4 +303,51 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(block.aiContextText.contains("Output summary:"))
     }
 
+    func testRunbookMarkdownIncludesRedactedOutputSummary() {
+        let tab = TerminalSession(sequence: 1)
+        let secret = "sk-123456789012345678901234"
+        let block = TerminalCommandBlock(
+            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            command: "swift build",
+            workingDirectory: "/tmp/project",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: Date(timeIntervalSince1970: 101),
+            exitCode: 1,
+            outputTail: "",
+            outputCharacterCount: 128,
+            outputSummary: TerminalOutputSummary(
+                insightKinds: [.error, .url],
+                errorLine: "ERROR token=\(secret)",
+                warningLine: nil,
+                url: "https://example.com/build/123",
+                filePath: "Sources/App.swift:42",
+                commitHash: "abc1234",
+                stackTraceLine: nil
+            ),
+            isInteractive: false,
+            commandStartSource: .shellIntegration,
+            completionSource: .shellIntegration
+        )
+
+        let markdown = RunbookMarkdownExporter.markdown(
+            tab: tab,
+            blocks: [block],
+            query: "",
+            failuresOnly: false,
+            note: "",
+            redactSensitiveData: true,
+            includeReplayScript: false,
+            parameterizeReplayScript: false,
+            confirmReplaySteps: true,
+            variableOverrides: RunbookReplayVariableOverrides(homePath: "", workingDirectory: "")
+        )
+
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.output_summary")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.summary_error")))
+        XCTAssertTrue(markdown.contains("[REDACTED]"))
+        XCTAssertTrue(markdown.contains("https://example.com/build/123"))
+        XCTAssertTrue(markdown.contains("Sources/App.swift:42"))
+        XCTAssertFalse(markdown.contains(secret))
+    }
+
 }

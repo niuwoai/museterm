@@ -1322,7 +1322,7 @@ private enum AIExplainContextScope: String, CaseIterable, Identifiable {
     }
 }
 
-private enum RunbookMarkdownExporter {
+enum RunbookMarkdownExporter {
     static func markdown(
         tab: TerminalSession,
         blocks: [TerminalCommandBlock],
@@ -1413,6 +1413,11 @@ private enum RunbookMarkdownExporter {
             }
             lines.append("- \(L10n.string("runbook.status")): \(statusText(for: block))")
             lines.append("- \(L10n.string("runbook.output_chars")): \(block.outputCharacterCount)")
+            if let outputSummary = block.outputSummary, !outputSummary.isEmpty {
+                lines.append("")
+                lines.append("### \(L10n.string("runbook.output_summary"))")
+                lines.append(fenced(outputSummaryText(outputSummary, redactSensitiveData: redactSensitiveData), language: "text"))
+            }
             lines.append("")
             lines.append("### \(L10n.string("runbook.command"))")
             lines.append(fenced(redact(block.command, enabled: redactSensitiveData), language: "bash"))
@@ -1498,6 +1503,33 @@ private enum RunbookMarkdownExporter {
         return L10n.string("command_inspector.status.done")
     }
 
+    private static func outputSummaryText(_ summary: TerminalOutputSummary, redactSensitiveData: Bool) -> String {
+        var lines: [String] = []
+        if !summary.insightKinds.isEmpty {
+            let labels = summary.insightKinds
+                .map { L10n.string($0.labelKey) }
+                .joined(separator: ", ")
+            lines.append("\(L10n.string("runbook.summary_insights")): \(labels)")
+        }
+        appendSummaryLine(summary.errorLine, key: "runbook.summary_error", to: &lines, redactSensitiveData: redactSensitiveData)
+        appendSummaryLine(summary.warningLine, key: "runbook.summary_warning", to: &lines, redactSensitiveData: redactSensitiveData)
+        appendSummaryLine(summary.url, key: "runbook.summary_url", to: &lines, redactSensitiveData: redactSensitiveData)
+        appendSummaryLine(summary.filePath, key: "runbook.summary_path", to: &lines, redactSensitiveData: redactSensitiveData)
+        appendSummaryLine(summary.commitHash, key: "runbook.summary_commit", to: &lines, redactSensitiveData: redactSensitiveData)
+        appendSummaryLine(summary.stackTraceLine, key: "runbook.summary_stack", to: &lines, redactSensitiveData: redactSensitiveData)
+        return lines.joined(separator: "\n")
+    }
+
+    private static func appendSummaryLine(
+        _ value: String?,
+        key: String,
+        to lines: inout [String],
+        redactSensitiveData: Bool
+    ) {
+        guard let value, !value.isEmpty else { return }
+        lines.append("\(L10n.string(key)): \(redact(value, enabled: redactSensitiveData))")
+    }
+
     private static func fenced(_ text: String, language: String) -> String {
         let fence = text.contains("```") ? "````" : "```"
         return "\(fence)\(language)\n\(text)\n\(fence)"
@@ -1523,7 +1555,7 @@ private enum RunbookMarkdownExporter {
     }
 }
 
-private struct RunbookReplayVariableOverrides {
+struct RunbookReplayVariableOverrides {
     var homePath: String
     var workingDirectory: String
 }

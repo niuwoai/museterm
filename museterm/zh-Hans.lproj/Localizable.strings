@@ -341,6 +341,14 @@
 "runbook.duration" = "耗时";
 "runbook.status" = "状态";
 "runbook.output_chars" = "输出字符数";
+"runbook.output_summary" = "输出摘要";
+"runbook.summary_insights" = "洞察类型";
+"runbook.summary_error" = "错误";
+"runbook.summary_warning" = "警告";
+"runbook.summary_url" = "URL";
+"runbook.summary_path" = "路径";
+"runbook.summary_commit" = "提交";
+"runbook.summary_stack" = "堆栈";
 "runbook.command" = "命令";
 "runbook.output_tail" = "输出尾部";
 "runbook.untitled_command" = "命令";

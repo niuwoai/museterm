@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.34.0] - 2026-07-01
+
+### Added
+- Runbook Markdown 导出会为带有紧凑输出摘要的命令块写入“输出摘要”段，记录洞察类型、错误/警告、URL、路径、commit 和堆栈线索。
+- Runbook 输出摘要复用现有脱敏开关，导出时会隐藏摘要中的常见 token、API Key、password 和密钥形态。
+
 ## [1.33.0] - 2026-07-01
 
 ### Added
