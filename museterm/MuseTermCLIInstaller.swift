@@ -347,7 +347,9 @@ def mcp_tools
         "required" => ["text"],
         "properties" => {
           "tab" => { "type" => "string" },
-          "text" => { "type" => "string" }
+          "text" => { "type" => "string" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for MuseTerm to answer" },
+          "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
         }
       }
     },
@@ -359,7 +361,9 @@ def mcp_tools
         "required" => ["key"],
         "properties" => {
           "tab" => { "type" => "string" },
-          "key" => { "type" => "string" }
+          "key" => { "type" => "string" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for MuseTerm to answer" },
+          "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
         }
       }
     }
@@ -394,13 +398,13 @@ def call_tool(name, args)
     tab = require_tab(state, args["tab"])
     tool_result_text(JSON.pretty_generate(commands_payload(state, tab, args["chars"])))
   when "send_text"
-    response = send_request(action: "input", tab: args["tab"], text: args.fetch("text"))
+    response = send_request(action: "input", tab: args["tab"], text: args.fetch("text"), timeout_seconds: args["timeout"] || 3.0)
     raise(response["error"] || "request failed") unless response["ok"]
-    tool_result_text(response["message"] || "ok")
+    tool_result_text(args["metadata"] ? JSON.pretty_generate(response) : (response["message"] || "ok"))
   when "send_key"
-    response = send_request(action: "send_key", tab: args["tab"], key: args.fetch("key"))
+    response = send_request(action: "send_key", tab: args["tab"], key: args.fetch("key"), timeout_seconds: args["timeout"] || 3.0)
     raise(response["error"] || "request failed") unless response["ok"]
-    tool_result_text(response["message"] || "ok")
+    tool_result_text(args["metadata"] ? JSON.pretty_generate(response) : (response["message"] || "ok"))
   else
     raise "Unknown tool: #{name}"
   end

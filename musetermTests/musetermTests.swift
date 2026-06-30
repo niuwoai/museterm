@@ -111,6 +111,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(script.contains("print_json(response)"))
         XCTAssertTrue(script.contains("--timeout SECONDS"))
         XCTAssertTrue(script.contains("timeout must be positive."))
+        XCTAssertTrue(script.contains("return JSON response metadata"))
         XCTAssertTrue(script.contains("commands_payload"))
         XCTAssertTrue(script.contains("\"schemaVersion\" => state[\"schemaVersion\"]"))
         XCTAssertTrue(script.contains("\"snapshotSequence\" => state[\"snapshotSequence\"]"))
@@ -217,6 +218,56 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(command["outputTail"] as? String, "ef")
         XCTAssertEqual(command["outputTailReturnedCharacters"] as? Int, 2)
         XCTAssertEqual(command["outputTailTruncated"] as? Bool, true)
+    }
+
+    func testMCPSendTextReportsResponseMetadata() throws {
+        let fixture = try makeMuseTermCLITestFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let result = try runMuseTermMCPRequestWithToolResponse(
+            fixture.scriptURL,
+            home: fixture.root,
+            request: [
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": [
+                    "name": "send_text",
+                    "arguments": [
+                        "tab": "tab-1",
+                        "text": "echo ok",
+                        "timeout": 1.5,
+                        "metadata": true
+                    ]
+                ]
+            ],
+            response: [
+                "schemaVersion": 1,
+                "app": "MuseTerm",
+                "version": "test",
+                "ok": true,
+                "snapshotSequence": 44,
+                "action": "input",
+                "tabID": "tab-1",
+                "message": "sent"
+            ]
+        )
+        let response = result.response
+        let request = result.toolRequest
+        let resultObject = try XCTUnwrap(response["result"] as? [String: Any])
+        let content = try XCTUnwrap(resultObject["content"] as? [[String: Any]])
+        let text = try XCTUnwrap(content.first?["text"] as? String)
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]
+        )
+
+        XCTAssertEqual(request["action"] as? String, "input")
+        XCTAssertEqual(request["tab"] as? String, "tab-1")
+        XCTAssertEqual(request["text"] as? String, "echo ok")
+        XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(payload["snapshotSequence"] as? Int, 44)
+        XCTAssertEqual(payload["action"] as? String, "input")
+        XCTAssertEqual(payload["tabID"] as? String, "tab-1")
     }
 
     func testMCPReadScreenReportsMetadata() throws {
@@ -1124,33 +1175,7 @@ final class musetermTests: XCTestCase {
 
         try process.run()
 
-        let tools = home
-            .appendingPathComponent("Library/Application Support/MuseTerm/Tools", isDirectory: true)
-        let requests = tools.appendingPathComponent("requests", isDirectory: true)
-        let responses = tools.appendingPathComponent("responses", isDirectory: true)
-        let deadline = Date().addingTimeInterval(2)
-        var requestURL: URL?
-
-        while Date() < deadline {
-            let files = (try? FileManager.default.contentsOfDirectory(
-                at: requests,
-                includingPropertiesForKeys: nil
-            )) ?? []
-            if let file = files.first(where: { $0.pathExtension == "json" }) {
-                requestURL = file
-                break
-            }
-            Thread.sleep(forTimeInterval: 0.02)
-        }
-
-        let resolvedRequestURL = try XCTUnwrap(requestURL, "MuseTerm CLI did not create a tool request")
-        let requestData = try Data(contentsOf: resolvedRequestURL)
-        let request = try XCTUnwrap(JSONSerialization.jsonObject(with: requestData) as? [String: Any])
-        let requestID = try XCTUnwrap(request["id"] as? String)
-        var resolvedResponse = response
-        resolvedResponse["id"] = requestID
-        let responseData = try JSONSerialization.data(withJSONObject: resolvedResponse)
-        try responseData.write(to: responses.appendingPathComponent("\(requestID).json"))
+        let request = try answerNextToolRequest(home: home, response: response)
 
         process.waitUntilExit()
 
@@ -1162,6 +1187,44 @@ final class musetermTests: XCTestCase {
         }
         let parsedOutput = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
         return (output: parsedOutput, request: request)
+    }
+
+    private func runMuseTermMCPRequestWithToolResponse(
+        _ scriptURL: URL,
+        home: URL,
+        request: [String: Any],
+        response: [String: Any]
+    ) throws -> (response: [String: Any], toolRequest: [String: Any]) {
+        let requestData = try JSONSerialization.data(withJSONObject: request)
+        let header = "Content-Length: \(requestData.count)\r\n\r\n"
+        var inputData = Data(header.utf8)
+        inputData.append(requestData)
+
+        let process = Process()
+        let input = Pipe()
+        let output = Pipe()
+        let errorOutput = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/ruby")
+        process.arguments = [scriptURL.path, "mcp"]
+        process.environment = ["HOME": home.path, "PATH": "/usr/bin:/bin:/usr/sbin:/sbin"]
+        process.standardInput = input
+        process.standardOutput = output
+        process.standardError = errorOutput
+
+        try process.run()
+        input.fileHandleForWriting.write(inputData)
+        try input.fileHandleForWriting.close()
+
+        let toolRequest = try answerNextToolRequest(home: home, response: response)
+        process.waitUntilExit()
+
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        let errorData = errorOutput.fileHandleForReading.readDataToEndOfFile()
+        if process.terminationStatus != 0 {
+            let message = String(data: errorData, encoding: .utf8) ?? "unknown MCP error"
+            XCTFail("museterm MCP request failed: \(message)")
+        }
+        return (response: try decodeMCPResponse(data), toolRequest: toolRequest)
     }
 
     private func runMuseTermMCPRequest(
@@ -1197,6 +1260,37 @@ final class musetermTests: XCTestCase {
             XCTFail("museterm MCP failed: \(message)")
         }
         return try decodeMCPResponse(data)
+    }
+
+    private func answerNextToolRequest(home: URL, response: [String: Any]) throws -> [String: Any] {
+        let tools = home
+            .appendingPathComponent("Library/Application Support/MuseTerm/Tools", isDirectory: true)
+        let requests = tools.appendingPathComponent("requests", isDirectory: true)
+        let responses = tools.appendingPathComponent("responses", isDirectory: true)
+        let deadline = Date().addingTimeInterval(2)
+        var requestURL: URL?
+
+        while Date() < deadline {
+            let files = (try? FileManager.default.contentsOfDirectory(
+                at: requests,
+                includingPropertiesForKeys: nil
+            )) ?? []
+            if let file = files.first(where: { $0.pathExtension == "json" }) {
+                requestURL = file
+                break
+            }
+            Thread.sleep(forTimeInterval: 0.02)
+        }
+
+        let resolvedRequestURL = try XCTUnwrap(requestURL, "MuseTerm CLI did not create a tool request")
+        let requestData = try Data(contentsOf: resolvedRequestURL)
+        let request = try XCTUnwrap(JSONSerialization.jsonObject(with: requestData) as? [String: Any])
+        let requestID = try XCTUnwrap(request["id"] as? String)
+        var resolvedResponse = response
+        resolvedResponse["id"] = requestID
+        let responseData = try JSONSerialization.data(withJSONObject: resolvedResponse)
+        try responseData.write(to: responses.appendingPathComponent("\(requestID).json"))
+        return request
     }
 
     private func decodeMCPResponse(_ data: Data) throws -> [String: Any] {

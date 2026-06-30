@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.68.0] - 2026-07-01
+
+### Added
+- MCP `send_text` 与 `send_key` 支持 `timeout` 和 `metadata` 参数；默认仍返回短消息，`metadata: true` 时返回完整工具 response 元数据。
+- 新增 MCP `send_text` 真实 JSON-RPC 端到端测试，模拟 App response 文件并验证响应元数据。
+
 ## [1.67.0] - 2026-07-01
 
 ### Added
