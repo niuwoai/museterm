@@ -48,9 +48,47 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(script.contains("museterm history"))
         XCTAssertTrue(script.contains("museterm input"))
         XCTAssertTrue(script.contains("museterm key"))
+        XCTAssertTrue(script.contains("commands_payload"))
+        XCTAssertTrue(script.contains("\"diagnostics\" => tab.fetch(\"commandDiagnostics\", {})"))
         XCTAssertTrue(script.contains("\"tools/call\""))
         XCTAssertTrue(script.contains("read_screen"))
         XCTAssertTrue(script.contains("send_key"))
+    }
+
+    func testToolTabSnapshotEncodesCommandDiagnostics() throws {
+        let diagnostic = "ERROR database is locked"
+        let diagnostics = CommandBlockDiagnostics(
+            blocks: [
+                commandBlock(command: "make test", startedAt: 100, endedAt: 101, exitCode: 1, errorLine: diagnostic),
+                commandBlock(command: "make test", startedAt: 110, endedAt: 111, exitCode: 1, errorLine: diagnostic),
+                commandBlock(command: "make test", startedAt: 120, endedAt: 121, exitCode: 1, errorLine: diagnostic)
+            ]
+        )
+        let snapshot = TerminalToolTabSnapshot(
+            id: "tab-1",
+            index: 1,
+            title: "project",
+            subtitle: nil,
+            currentDirectory: "/tmp/project",
+            isSelected: true,
+            state: "running",
+            columns: 80,
+            rows: 24,
+            screen: "",
+            history: "",
+            commandDiagnostics: TerminalToolCommandDiagnosticsSnapshot(diagnostics: diagnostics),
+            commandBlocks: [],
+            updatedAt: Date(timeIntervalSince1970: 130)
+        )
+
+        let data = try JSONEncoder().encode(snapshot)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let encodedDiagnostics = try XCTUnwrap(object["commandDiagnostics"] as? [String: Any])
+        let repeatedFailure = try XCTUnwrap(encodedDiagnostics["repeatedFailureDiagnostic"] as? [String: Any])
+
+        XCTAssertEqual(encodedDiagnostics["recentFailureDiagnostic"] as? String, diagnostic)
+        XCTAssertEqual(repeatedFailure["diagnostic"] as? String, diagnostic)
+        XCTAssertEqual(repeatedFailure["count"] as? Int, 3)
     }
 
     func testWorkspaceCreatesAndSelectsTabs() throws {

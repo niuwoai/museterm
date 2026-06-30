@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.39.0] - 2026-07-01
+
+### Added
+- CLI/MCP 的命令读取结果新增 `diagnostics` 摘要，包含最近失败诊断与连续同类失败信息，便于外部工具直接消费结构化故障线索。
+- 工具状态文件的 tab snapshot 新增 `commandDiagnostics` 字段，与应用内统计、Runbook 和 AI 上下文复用同一套诊断判断。
+
+### Changed
+- `museterm commands` 与 MCP `read_commands` 返回包含 `diagnostics` 和 `commands` 的 JSON 对象，不再只返回命令数组。
+
 ## [1.38.0] - 2026-07-01
 
 ### Added

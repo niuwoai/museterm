@@ -159,6 +159,10 @@ end
 def command_commands(args)
   tab_selector, chars, _rest = parse_common(args)
   tab = require_tab(read_state, tab_selector)
+  print_json(commands_payload(tab, chars))
+end
+
+def commands_payload(tab, chars)
   blocks = tab.fetch("commandBlocks", [])
   if chars
     blocks = blocks.map { |block|
@@ -167,7 +171,10 @@ def command_commands(args)
       copy
     }
   end
-  print_json(blocks)
+  {
+    "diagnostics" => tab.fetch("commandDiagnostics", {}),
+    "commands" => blocks
+  }
 end
 
 def command_input(args)
@@ -299,15 +306,7 @@ def call_tool(name, args)
     tool_result_text(tail_chars(tab["history"], args["chars"]))
   when "read_commands"
     tab = require_tab(read_state, args["tab"])
-    blocks = tab.fetch("commandBlocks", [])
-    if args["chars"]
-      blocks = blocks.map { |block|
-        copy = block.dup
-        copy["outputTail"] = tail_chars(copy["outputTail"], args["chars"])
-        copy
-      }
-    end
-    tool_result_text(JSON.pretty_generate(blocks))
+    tool_result_text(JSON.pretty_generate(commands_payload(tab, args["chars"])))
   when "send_text"
     response = send_request(action: "input", tab: args["tab"], text: args.fetch("text"))
     raise(response["error"] || "request failed") unless response["ok"]
@@ -335,7 +334,7 @@ def command_mcp
       when "initialize"
         {
           "protocolVersion" => "2024-11-05",
-          "serverInfo" => { "name" => "museterm", "version" => "1.38.0" },
+          "serverInfo" => { "name" => "museterm", "version" => "1.39.0" },
           "capabilities" => { "tools" => {} }
         }
       when "tools/list"

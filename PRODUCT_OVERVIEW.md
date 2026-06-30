@@ -1,6 +1,6 @@
 # Product Overview
 
-> 最后更新：2026-07-01 | 当前版本：v1.38.0
+> 最后更新：2026-07-01 | 当前版本：v1.39.0
 
 ## 项目简介
 
@@ -58,7 +58,7 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 
 ## API 概览
 
-本项目当前没有网络服务端 API。CLI/MCP 通过本机 `~/Library/Application Support/MuseTerm/Tools` 目录交换状态与输入请求，状态包含标签页屏幕、历史文本和最近结构化命令块；命令块包含开始来源、完成来源和紧凑输出摘要，便于外部工具判断命令边界来自 shell hook 还是输入推断、退出码来自 shell hook 还是进程退出兜底，并直接读取错误、URL、路径和 commit 等关键线索；CLI 支持 `tabs`、`screen`、`history`、`commands`、`input`、`key` 和 `mcp`。任务与端口面板通过系统 `lsof` 读取本机监听 TCP 端口，只展示并填入命令，不会直接结束进程；当前会话进程工具同样只向选中终端填入命令，是否执行由用户按回车确认。录制捷径保存在 `~/Library/Application Support/MuseTerm/TerminalShortcuts/shortcuts.json`，工作区快照保存在 `~/Library/Application Support/MuseTerm/Workspaces/last-workspace.json`，每日命令统计保存在 `~/Library/Application Support/MuseTerm/Stats/daily-command-stats.json`，SSH profile 与 AI Provider 非敏感配置保存在用户偏好中，AI API Key 通过 Keychain 保存，仅在 AI Explain 请求时进入对应 Provider 的请求 header 或 query，不写入 MCP 状态；命令搜索面板的脱敏开关会在 Runbook、AI 上下文和 AI Explain 请求中替换常见 token/password/API Key 形态，Runbook 与 AI 当前过滤上下文还会带上最近失败和连续同类失败摘要；运行时 SSH config 生成到 `~/Library/Application Support/MuseTerm/SSH`，本地 zsh/bash/fish shell integration 生成到 `~/Library/Application Support/MuseTerm/ShellIntegration`，远端 shell hook 仅在当前 SSH 会话内临时生效。版本号通过应用内 `AppVersion` 和 Xcode `MARKETING_VERSION` 保持一致，发布最低系统版本通过 Xcode `MACOSX_DEPLOYMENT_TARGET` 管理。
+本项目当前没有网络服务端 API。CLI/MCP 通过本机 `~/Library/Application Support/MuseTerm/Tools` 目录交换状态与输入请求，状态包含标签页屏幕、历史文本、最近结构化命令块和命令诊断摘要；命令块包含开始来源、完成来源和紧凑输出摘要，便于外部工具判断命令边界来自 shell hook 还是输入推断、退出码来自 shell hook 还是进程退出兜底，并直接读取错误、URL、路径和 commit 等关键线索；命令诊断摘要包含最近失败与连续同类失败，`museterm commands` 和 MCP `read_commands` 会返回 `diagnostics` + `commands` 的 JSON 对象。CLI 支持 `tabs`、`screen`、`history`、`commands`、`input`、`key` 和 `mcp`。任务与端口面板通过系统 `lsof` 读取本机监听 TCP 端口，只展示并填入命令，不会直接结束进程；当前会话进程工具同样只向选中终端填入命令，是否执行由用户按回车确认。录制捷径保存在 `~/Library/Application Support/MuseTerm/TerminalShortcuts/shortcuts.json`，工作区快照保存在 `~/Library/Application Support/MuseTerm/Workspaces/last-workspace.json`，每日命令统计保存在 `~/Library/Application Support/MuseTerm/Stats/daily-command-stats.json`，SSH profile 与 AI Provider 非敏感配置保存在用户偏好中，AI API Key 通过 Keychain 保存，仅在 AI Explain 请求时进入对应 Provider 的请求 header 或 query，不写入 MCP 状态；命令搜索面板的脱敏开关会在 Runbook、AI 上下文和 AI Explain 请求中替换常见 token/password/API Key 形态，Runbook 与 AI 当前过滤上下文还会带上最近失败和连续同类失败摘要；运行时 SSH config 生成到 `~/Library/Application Support/MuseTerm/SSH`，本地 zsh/bash/fish shell integration 生成到 `~/Library/Application Support/MuseTerm/ShellIntegration`，远端 shell hook 仅在当前 SSH 会话内临时生效。版本号通过应用内 `AppVersion` 和 Xcode `MARKETING_VERSION` 保持一致，发布最低系统版本通过 Xcode `MACOSX_DEPLOYMENT_TARGET` 管理。
 
 ## 已知问题 / 待办
 

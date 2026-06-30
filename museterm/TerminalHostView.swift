@@ -211,7 +211,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         isSelected: Bool,
         maxHistoryCharacters: Int
     ) -> TerminalToolTabSnapshot {
-        TerminalToolTabSnapshot(
+        let recentCommandBlocks = Array(session?.commandBlocks.suffix(50) ?? [])
+        return TerminalToolTabSnapshot(
             id: session?.id.uuidString ?? UUID().uuidString,
             index: index,
             title: session?.tabTitle ?? "",
@@ -223,7 +224,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             rows: terminalView.terminal?.rows ?? 0,
             screen: visibleScreenText(),
             history: String(fullHistoryText().suffix(maxHistoryCharacters)),
-            commandBlocks: session?.commandBlocks.suffix(50).map { block in
+            commandDiagnostics: TerminalToolCommandDiagnosticsSnapshot(
+                diagnostics: CommandBlockDiagnostics(blocks: recentCommandBlocks)
+            ),
+            commandBlocks: recentCommandBlocks.map { block in
                 TerminalToolCommandBlockSnapshot(
                     id: block.id.uuidString,
                     command: block.command,
@@ -239,7 +243,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                     outputSummary: block.outputSummary,
                     isInteractive: block.isInteractive
                 )
-            } ?? [],
+            },
             updatedAt: Date()
         )
     }

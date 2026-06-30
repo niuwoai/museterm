@@ -51,8 +51,31 @@ struct TerminalToolTabSnapshot: Codable, Equatable {
     let rows: Int
     let screen: String
     let history: String
+    let commandDiagnostics: TerminalToolCommandDiagnosticsSnapshot
     let commandBlocks: [TerminalToolCommandBlockSnapshot]
     let updatedAt: Date
+}
+
+struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
+    let recentFailureDiagnostic: String?
+    let repeatedFailureDiagnostic: TerminalToolRepeatedFailureSnapshot?
+
+    init(diagnostics: CommandBlockDiagnostics) {
+        recentFailureDiagnostic = diagnostics.recentFailureDiagnostic
+        if let repeatedFailureDiagnostic = diagnostics.repeatedFailureDiagnostic {
+            self.repeatedFailureDiagnostic = TerminalToolRepeatedFailureSnapshot(
+                diagnostic: repeatedFailureDiagnostic.diagnostic,
+                count: repeatedFailureDiagnostic.count
+            )
+        } else {
+            self.repeatedFailureDiagnostic = nil
+        }
+    }
+}
+
+struct TerminalToolRepeatedFailureSnapshot: Codable, Equatable {
+    let diagnostic: String
+    let count: Int
 }
 
 struct TerminalToolCommandBlockSnapshot: Codable, Equatable {
