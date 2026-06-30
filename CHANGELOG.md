@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.89.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `resultRefreshTriggers`，用稳定 code 声明哪些上下文变化会让建议命令结果过期，例如进程、监听端口、工作目录、权限、PATH、文件系统或 Git 状态变化。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露结果刷新触发条件，帮助外部工具在重用旧诊断结果前判断是否需要重新取证。
+
 ## [1.88.0] - 2026-07-01
 
 ### Added

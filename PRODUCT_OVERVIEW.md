@@ -1,6 +1,6 @@
 # Product Overview
 
-> 最后更新：2026-07-01 | 当前版本：v1.88.0
+> 最后更新：2026-07-01 | 当前版本：v1.89.0
 
 ## 项目简介
 
@@ -28,11 +28,11 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 - 命令搜索面板：右侧检查面板可搜索当前标签的命令、目录、命令块输出和原始滚屏历史，支持仅看失败命令；命令块会轻量识别错误、警告、URL、文件路径、JSON/YAML、堆栈和 commit hash，失败命令卡片会直接展示首条关键诊断行，并可复制命令、输出尾部、输出摘要、滚屏片段或 AI 上下文；JSON 输出摘要会自动带上格式化后的 pretty JSON。
 - 任务与端口面板：右侧面板可查看运行中的结构化命令块和本机监听 TCP 端口，支持刷新、打开 `localhost` URL、复制监听地址，并可将本机 `kill PID` 填入本地终端等待确认执行；当前会话工具可向本地或 SSH 标签填入端口扫描、进程列表、PID 详情、SIGTERM 和 SIGKILL 命令；面板还展示本次会话命令统计、当天跨重启累计统计、最长耗时、最近失败诊断、连续同类失败提醒和轻量成就徽章。
 - AI Explain：命令搜索面板可直接对单条命令块请求 AI 解释，覆盖命令意图、输出状态、失败原因、风险点和下一步建议，并在 Provider 返回内容时流式增量显示；AI 上下文可选择只发命令、当前命令块或当前过滤结果摘要；支持 OpenAI 兼容接口、Anthropic、Google Gemini、Azure OpenAI、OpenRouter、Ollama 和自定义端点。
-- Runbook 导出与回放：命令搜索面板可把当前过滤出的命令块生成 Markdown，支持备注、敏感信息脱敏、输出摘要、失败诊断、诊断优先级分数与因素、诊断分类、分类依据与可信度、连续同类失败摘要、建议排查命令、结构化建议排查动作、稳定动作 ID、动作来源分类与可信度、动作优先级分数与因素、动作证据锚点、动作作用域、动作预期结果类型、动作预期结果字段、动作预期结果信号、动作敏感结果字段、动作结果脱敏提示、动作结果隐私级别、动作结果分享策略、动作结果保留策略、动作执行模式、执行目标、重试条件、执行前检查、自动化护栏、用户决策点、完成判据、动作观察信号、动作降级步骤、回放脚本、复制到剪贴板和保存为 `.md` 文件；回放脚本可参数化本机路径，并可编辑 `RUNBOOK_HOME` / `RUNBOOK_WORKDIR` 默认值，默认对每条命令逐步确认；单条命令可填入当前终端待执行，但不会自动回车；Runbook 会记录疑似敏感输出数量、脱敏状态、参数化状态、变量默认值、逐步确认状态，以及每条命令的错误/警告、URL、路径、commit 和堆栈线索。
+- Runbook 导出与回放：命令搜索面板可把当前过滤出的命令块生成 Markdown，支持备注、敏感信息脱敏、输出摘要、失败诊断、诊断优先级分数与因素、诊断分类、分类依据与可信度、连续同类失败摘要、建议排查命令、结构化建议排查动作、稳定动作 ID、动作来源分类与可信度、动作优先级分数与因素、动作证据锚点、动作作用域、动作预期结果类型、动作预期结果字段、动作预期结果信号、动作敏感结果字段、动作结果脱敏提示、动作结果刷新触发条件、动作结果隐私级别、动作结果分享策略、动作结果保留策略、动作执行模式、执行目标、重试条件、执行前检查、自动化护栏、用户决策点、完成判据、动作观察信号、动作降级步骤、回放脚本、复制到剪贴板和保存为 `.md` 文件；回放脚本可参数化本机路径，并可编辑 `RUNBOOK_HOME` / `RUNBOOK_WORKDIR` 默认值，默认对每条命令逐步确认；单条命令可填入当前终端待执行，但不会自动回车；Runbook 会记录疑似敏感输出数量、脱敏状态、参数化状态、变量默认值、逐步确认状态，以及每条命令的错误/警告、URL、路径、commit 和堆栈线索。
 - 安全确认：可在设置中开启/关闭多行粘贴确认和高危命令确认；SSH profile 可选择继承全局、强制确认或关闭确认，高危命令支持内置规则和自定义文本/正则规则，命中规则时会在写入 PTY 前展示预览，取消则不会执行；命令搜索面板会提示疑似敏感输出，并在脱敏开启时对展示、复制、导出和 AI 上下文使用脱敏内容。
 - 标签标题：本机会话优先显示当前目录，远端/SSH 标题保留 `user@host` 便于识别。
 - App 图标：默认使用 Q 版企鹅终端图标，并支持在设置中切换多款动物头像 Dock 图标。
-- CLI/MCP 工具桥：支持安装 `museterm` CLI，供本机 AI 工具读取标签页屏幕、历史文本、最近命令块并发送文本或控制键；状态快照、命令诊断快照以及 `tabs` / `commands` / MCP `read_commands` 输出会暴露 `schemaVersion`，状态快照还会带单调递增的 `snapshotSequence` 并透传到 CLI/MCP 元数据响应，输入/按键请求响应也会返回契约版本、App 版本、快照序列号、action 和成功目标 tab；命令诊断快照会提供 0-100 的 `diagnosticPriorityScore` 和稳定 reason code 组成的 `diagnosticPriorityFactors`，方便外部工具按排查优先级排序并解释分数来源；`museterm input --json` 与 `museterm key --json` 可输出完整 response 元数据，`--timeout SECONDS` 可调整等待 App response 的时间，默认短消息输出保持兼容；MCP `send_text` / `send_key` 也支持 `timeout` 和 `metadata`，默认短消息兼容，`metadata: true` 时返回完整 response 元数据；MCP `list_tabs metadata:true` 也会返回 `schemaVersion`、App 名称、版本、选中标签 ID 和标签数组，`commands` / `read_commands` 会标明标签来源、命令总数、返回命令数、输出尾部截断上限、建议动作执行目标、建议动作证据锚点、建议动作作用域、建议动作预期结果类型、建议动作预期结果字段、建议动作预期结果信号、建议动作敏感结果字段、建议动作结果脱敏提示、建议动作结果隐私级别、建议动作结果分享策略、建议动作结果保留策略、建议动作重试条件、建议动作执行前检查、建议动作自动化护栏、建议动作用户决策点、建议动作完成判据和每个命令块的输出尾部截断状态，方便外部工具按 JSON 契约版本兼容处理并判断轮询时是否读到新快照。
+- CLI/MCP 工具桥：支持安装 `museterm` CLI，供本机 AI 工具读取标签页屏幕、历史文本、最近命令块并发送文本或控制键；状态快照、命令诊断快照以及 `tabs` / `commands` / MCP `read_commands` 输出会暴露 `schemaVersion`，状态快照还会带单调递增的 `snapshotSequence` 并透传到 CLI/MCP 元数据响应，输入/按键请求响应也会返回契约版本、App 版本、快照序列号、action 和成功目标 tab；命令诊断快照会提供 0-100 的 `diagnosticPriorityScore` 和稳定 reason code 组成的 `diagnosticPriorityFactors`，方便外部工具按排查优先级排序并解释分数来源；`museterm input --json` 与 `museterm key --json` 可输出完整 response 元数据，`--timeout SECONDS` 可调整等待 App response 的时间，默认短消息输出保持兼容；MCP `send_text` / `send_key` 也支持 `timeout` 和 `metadata`，默认短消息兼容，`metadata: true` 时返回完整 response 元数据；MCP `list_tabs metadata:true` 也会返回 `schemaVersion`、App 名称、版本、选中标签 ID 和标签数组，`commands` / `read_commands` 会标明标签来源、命令总数、返回命令数、输出尾部截断上限、建议动作执行目标、建议动作证据锚点、建议动作作用域、建议动作预期结果类型、建议动作预期结果字段、建议动作预期结果信号、建议动作敏感结果字段、建议动作结果脱敏提示、建议动作结果刷新触发条件、建议动作结果隐私级别、建议动作结果分享策略、建议动作结果保留策略、建议动作重试条件、建议动作执行前检查、建议动作自动化护栏、建议动作用户决策点、建议动作完成判据和每个命令块的输出尾部截断状态，方便外部工具按 JSON 契约版本兼容处理并判断轮询时是否读到新快照。
 - AI Provider 设置：设置页支持 OpenAI、Anthropic、Google Gemini、Azure OpenAI、OpenRouter、Ollama 和自定义端点；API Key 仅保存到本机 Keychain。
 - 皮肤系统：从 MuseMail 的视觉体系迁移，针对终端场景提供浅色与深色皮肤。
 - 字符配色：支持 Apple、Tango、Solarized、Dracula、One Dark、Nord 等经典 ANSI palette。
@@ -63,6 +63,8 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 `resultRetentionPolicy` 会声明建议命令结果可完整保存、只能保存脱敏摘要，还是仅保留在本机会话；Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露该字段，供外部工具在记录日志或建立索引前选择保留边界。
 
 `resultRedactionHints` 会提示建议命令结果中应优先脱敏的内容类型，例如路径、用户、进程、监听地址、Git 分支和 upstream；Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露该字段，供外部工具在摘要、分享或持久化前选择更准确的脱敏策略。
+
+`resultRefreshTriggers` 会声明哪些上下文变化会让建议命令结果过期，例如进程、监听端口、工作目录、权限、PATH、文件系统或 Git 状态变化；Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露该字段，供外部工具在重用旧诊断结果前判断是否需要重新取证。
 
 ## 已知问题 / 待办
 

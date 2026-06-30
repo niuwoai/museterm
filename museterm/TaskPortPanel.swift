@@ -775,6 +775,10 @@ struct CommandBlockDiagnostics: Equatable {
                 let resultRedactionHints = suggestedNextAction.resultRedactionHints.map(\.rawValue).joined(separator: "; ")
                 lines.append("Suggested next action result redaction hints: \(resultRedactionHints)")
             }
+            if !suggestedNextAction.resultRefreshTriggers.isEmpty {
+                let resultRefreshTriggers = suggestedNextAction.resultRefreshTriggers.map(\.rawValue).joined(separator: "; ")
+                lines.append("Suggested next action result refresh triggers: \(resultRefreshTriggers)")
+            }
             lines.append("Suggested next action result privacy level: \(suggestedNextAction.resultPrivacyLevel.rawValue)")
             lines.append("Suggested next action result sharing policy: \(suggestedNextAction.resultSharingPolicy.rawValue)")
             lines.append("Suggested next action result retention policy: \(suggestedNextAction.resultRetentionPolicy.rawValue)")
@@ -1142,6 +1146,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultSignals: [.targetPortVisible, .ownerProcessVisible],
                 sensitiveResultFields: [.processName, .listenAddress],
                 resultRedactionHints: [.processIdentity, .networkAddress],
+                resultRefreshTriggers: [.processStateChanged, .networkListenersChanged],
                 resultPrivacyLevel: .contextual,
                 resultSharingPolicy: .redactBeforeSharing,
                 resultRetentionPolicy: .persistRedactedSummary,
@@ -1190,6 +1195,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultSignals: [.currentUserVisible, .permissionBoundaryVisible],
                 sensitiveResultFields: [.workingDirectory, .currentUser, .directoryPermissions],
                 resultRedactionHints: [.workingDirectory, .userIdentity, .permissionMetadata],
+                resultRefreshTriggers: [.workingDirectoryChanged, .userContextChanged, .permissionsChanged],
                 resultPrivacyLevel: .sensitive,
                 resultSharingPolicy: .localOnly,
                 resultRetentionPolicy: .localSessionOnly,
@@ -1238,6 +1244,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultSignals: [.pathEntriesVisible],
                 sensitiveResultFields: [.pathEntries],
                 resultRedactionHints: [.shellPathEntries],
+                resultRefreshTriggers: [.shellEnvironmentChanged],
                 resultPrivacyLevel: .sensitive,
                 resultSharingPolicy: .localOnly,
                 resultRetentionPolicy: .localSessionOnly,
@@ -1286,6 +1293,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultSignals: [.workingDirectoryVisible, .directoryEntriesVisible],
                 sensitiveResultFields: [.workingDirectory, .visibleEntries, .fileMetadata],
                 resultRedactionHints: [.workingDirectory, .directoryEntries, .fileMetadata],
+                resultRefreshTriggers: [.workingDirectoryChanged, .filesystemChanged],
                 resultPrivacyLevel: .sensitive,
                 resultSharingPolicy: .localOnly,
                 resultRetentionPolicy: .localSessionOnly,
@@ -1334,6 +1342,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultSignals: [.gitBranchVisible, .gitDirtyStateVisible],
                 sensitiveResultFields: [.gitBranch, .gitUpstream],
                 resultRedactionHints: [.gitBranch, .gitUpstream],
+                resultRefreshTriggers: [.gitStateChanged],
                 resultPrivacyLevel: .contextual,
                 resultSharingPolicy: .redactBeforeSharing,
                 resultRetentionPolicy: .persistRedactedSummary,
@@ -1382,6 +1391,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultSignals: [.workingDirectoryVisible, .gitStateVisible],
                 sensitiveResultFields: [.workingDirectory, .gitBranch, .gitUpstream],
                 resultRedactionHints: [.workingDirectory, .gitBranch, .gitUpstream],
+                resultRefreshTriggers: [.workingDirectoryChanged, .gitStateChanged, .failureContextChanged],
                 resultPrivacyLevel: .sensitive,
                 resultSharingPolicy: .localOnly,
                 resultRetentionPolicy: .localSessionOnly,
@@ -1430,6 +1440,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultSignals: [.workingDirectoryVisible, .gitStateVisible],
                 sensitiveResultFields: [.workingDirectory, .gitBranch, .gitUpstream],
                 resultRedactionHints: [.workingDirectory, .gitBranch, .gitUpstream],
+                resultRefreshTriggers: [.workingDirectoryChanged, .gitStateChanged, .failureContextChanged],
                 resultPrivacyLevel: .sensitive,
                 resultSharingPolicy: .localOnly,
                 resultRetentionPolicy: .localSessionOnly,
@@ -1583,6 +1594,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let expectedResultSignals: [CommandDiagnosticActionResultSignal]
     let sensitiveResultFields: [CommandDiagnosticActionResultField]
     let resultRedactionHints: [CommandDiagnosticActionRedactionHint]
+    let resultRefreshTriggers: [CommandDiagnosticActionRefreshTrigger]
     let resultPrivacyLevel: CommandDiagnosticActionPrivacyLevel
     let resultSharingPolicy: CommandDiagnosticActionSharingPolicy
     let resultRetentionPolicy: CommandDiagnosticActionRetentionPolicy
@@ -1614,6 +1626,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         expectedResultSignals: [CommandDiagnosticActionResultSignal],
         sensitiveResultFields: [CommandDiagnosticActionResultField],
         resultRedactionHints: [CommandDiagnosticActionRedactionHint],
+        resultRefreshTriggers: [CommandDiagnosticActionRefreshTrigger],
         resultPrivacyLevel: CommandDiagnosticActionPrivacyLevel,
         resultSharingPolicy: CommandDiagnosticActionSharingPolicy,
         resultRetentionPolicy: CommandDiagnosticActionRetentionPolicy,
@@ -1644,6 +1657,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         self.expectedResultSignals = expectedResultSignals
         self.sensitiveResultFields = sensitiveResultFields
         self.resultRedactionHints = resultRedactionHints
+        self.resultRefreshTriggers = resultRefreshTriggers
         self.resultPrivacyLevel = resultPrivacyLevel
         self.resultSharingPolicy = resultSharingPolicy
         self.resultRetentionPolicy = resultRetentionPolicy
@@ -1749,6 +1763,18 @@ enum CommandDiagnosticActionRedactionHint: String, Codable, Equatable {
     case fileMetadata = "file_metadata"
     case gitBranch = "git_branch"
     case gitUpstream = "git_upstream"
+}
+
+enum CommandDiagnosticActionRefreshTrigger: String, Codable, Equatable {
+    case processStateChanged = "process_state_changed"
+    case networkListenersChanged = "network_listeners_changed"
+    case workingDirectoryChanged = "working_directory_changed"
+    case userContextChanged = "user_context_changed"
+    case permissionsChanged = "permissions_changed"
+    case shellEnvironmentChanged = "shell_environment_changed"
+    case filesystemChanged = "filesystem_changed"
+    case gitStateChanged = "git_state_changed"
+    case failureContextChanged = "failure_context_changed"
 }
 
 enum CommandDiagnosticActionPrivacyLevel: String, Codable, Equatable {

@@ -483,6 +483,15 @@ final class musetermTests: XCTestCase {
                 CommandDiagnosticActionRedactionHint.gitUpstream.rawValue
             ]
         )
+        let resultRefreshTriggers = try XCTUnwrap(suggestedNextAction["resultRefreshTriggers"] as? [String])
+        XCTAssertEqual(
+            resultRefreshTriggers,
+            [
+                CommandDiagnosticActionRefreshTrigger.workingDirectoryChanged.rawValue,
+                CommandDiagnosticActionRefreshTrigger.gitStateChanged.rawValue,
+                CommandDiagnosticActionRefreshTrigger.failureContextChanged.rawValue
+            ]
+        )
         XCTAssertEqual(
             suggestedNextAction["resultPrivacyLevel"] as? String,
             CommandDiagnosticActionPrivacyLevel.sensitive.rawValue
@@ -904,6 +913,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_expected_result_signals")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_sensitive_result_fields")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_result_redaction_hints")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_result_refresh_triggers")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_result_privacy_level")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_result_sharing_policy")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_result_retention_policy")))
@@ -984,6 +994,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Suggested next action expected result signals: working_directory_visible; git_state_visible"))
         XCTAssertTrue(context.contains("Suggested next action sensitive result fields: working_directory; git_branch; git_upstream"))
         XCTAssertTrue(context.contains("Suggested next action result redaction hints: working_directory; git_branch; git_upstream"))
+        XCTAssertTrue(context.contains("Suggested next action result refresh triggers: working_directory_changed; git_state_changed; failure_context_changed"))
         XCTAssertTrue(context.contains("Suggested next action result privacy level: sensitive"))
         XCTAssertTrue(context.contains("Suggested next action result sharing policy: local_only"))
         XCTAssertTrue(context.contains("Suggested next action result retention policy: local_session_only"))
@@ -1103,6 +1114,10 @@ final class musetermTests: XCTestCase {
             diagnostics.suggestedNextAction?.resultRedactionHints,
             [.workingDirectory, .userIdentity, .permissionMetadata]
         )
+        XCTAssertEqual(
+            diagnostics.suggestedNextAction?.resultRefreshTriggers,
+            [.workingDirectoryChanged, .userContextChanged, .permissionsChanged]
+        )
         XCTAssertEqual(diagnostics.suggestedNextAction?.resultPrivacyLevel, .sensitive)
         XCTAssertEqual(diagnostics.suggestedNextAction?.resultSharingPolicy, .localOnly)
         XCTAssertEqual(diagnostics.suggestedNextAction?.resultRetentionPolicy, .localSessionOnly)
@@ -1215,6 +1230,7 @@ final class musetermTests: XCTestCase {
         )
         XCTAssertEqual(portConflict.suggestedNextAction?.sensitiveResultFields, [.processName, .listenAddress])
         XCTAssertEqual(portConflict.suggestedNextAction?.resultRedactionHints, [.processIdentity, .networkAddress])
+        XCTAssertEqual(portConflict.suggestedNextAction?.resultRefreshTriggers, [.processStateChanged, .networkListenersChanged])
         XCTAssertEqual(portConflict.suggestedNextAction?.resultPrivacyLevel, .contextual)
         XCTAssertEqual(portConflict.suggestedNextAction?.resultSharingPolicy, .redactBeforeSharing)
         XCTAssertEqual(portConflict.suggestedNextAction?.resultRetentionPolicy, .persistRedactedSummary)
@@ -1250,6 +1266,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(missingCommand.suggestedNextAction?.expectedResultSignals, [.pathEntriesVisible])
         XCTAssertEqual(missingCommand.suggestedNextAction?.sensitiveResultFields, [.pathEntries])
         XCTAssertEqual(missingCommand.suggestedNextAction?.resultRedactionHints, [.shellPathEntries])
+        XCTAssertEqual(missingCommand.suggestedNextAction?.resultRefreshTriggers, [.shellEnvironmentChanged])
         XCTAssertEqual(missingCommand.suggestedNextAction?.resultPrivacyLevel, .sensitive)
         XCTAssertEqual(missingCommand.suggestedNextAction?.resultSharingPolicy, .localOnly)
         XCTAssertEqual(missingCommand.suggestedNextAction?.resultRetentionPolicy, .localSessionOnly)
@@ -1296,6 +1313,10 @@ final class musetermTests: XCTestCase {
             missingFile.suggestedNextAction?.resultRedactionHints,
             [.workingDirectory, .directoryEntries, .fileMetadata]
         )
+        XCTAssertEqual(
+            missingFile.suggestedNextAction?.resultRefreshTriggers,
+            [.workingDirectoryChanged, .filesystemChanged]
+        )
         XCTAssertEqual(missingFile.suggestedNextAction?.resultPrivacyLevel, .sensitive)
         XCTAssertEqual(missingFile.suggestedNextAction?.resultSharingPolicy, .localOnly)
         XCTAssertEqual(missingFile.suggestedNextAction?.resultRetentionPolicy, .localSessionOnly)
@@ -1336,6 +1357,7 @@ final class musetermTests: XCTestCase {
         )
         XCTAssertEqual(gitFailure.suggestedNextAction?.sensitiveResultFields, [.gitBranch, .gitUpstream])
         XCTAssertEqual(gitFailure.suggestedNextAction?.resultRedactionHints, [.gitBranch, .gitUpstream])
+        XCTAssertEqual(gitFailure.suggestedNextAction?.resultRefreshTriggers, [.gitStateChanged])
         XCTAssertEqual(gitFailure.suggestedNextAction?.resultPrivacyLevel, .contextual)
         XCTAssertEqual(gitFailure.suggestedNextAction?.resultSharingPolicy, .redactBeforeSharing)
         XCTAssertEqual(gitFailure.suggestedNextAction?.resultRetentionPolicy, .persistRedactedSummary)
@@ -1380,6 +1402,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(
             genericFailure.suggestedNextAction?.resultRedactionHints,
             [.workingDirectory, .gitBranch, .gitUpstream]
+        )
+        XCTAssertEqual(
+            genericFailure.suggestedNextAction?.resultRefreshTriggers,
+            [.workingDirectoryChanged, .gitStateChanged, .failureContextChanged]
         )
         XCTAssertEqual(genericFailure.suggestedNextAction?.resultPrivacyLevel, .sensitive)
         XCTAssertEqual(genericFailure.suggestedNextAction?.resultSharingPolicy, .localOnly)
