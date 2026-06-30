@@ -42,6 +42,7 @@ final class TerminalPreferences: ObservableObject {
         static let glow = "terminal.glow"
         static let optionAsMeta = "terminal.optionAsMeta"
         static let mouseReporting = "terminal.mouseReporting"
+        static let appIcon = "app.icon"
     }
 
     private let defaults: UserDefaults
@@ -60,6 +61,12 @@ final class TerminalPreferences: ObservableObject {
     @Published var glow: Double { didSet { defaults.set(glow, forKey: Keys.glow) } }
     @Published var optionAsMeta: Bool { didSet { defaults.set(optionAsMeta, forKey: Keys.optionAsMeta) } }
     @Published var mouseReporting: Bool { didSet { defaults.set(mouseReporting, forKey: Keys.mouseReporting) } }
+    @Published var appIcon: AppIconChoice {
+        didSet {
+            defaults.set(appIcon.rawValue, forKey: Keys.appIcon)
+            AppIconManager.apply(appIcon)
+        }
+    }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -77,6 +84,8 @@ final class TerminalPreferences: ObservableObject {
         glow = defaults.object(forKey: Keys.glow) as? Double ?? 0.24
         optionAsMeta = defaults.object(forKey: Keys.optionAsMeta) as? Bool ?? true
         mouseReporting = defaults.object(forKey: Keys.mouseReporting) as? Bool ?? true
+        appIcon = AppIconChoice(rawValue: defaults.string(forKey: Keys.appIcon) ?? "") ?? .defaultTerminal
+        AppIconManager.apply(appIcon)
     }
 
     var terminalFont: NSFont {

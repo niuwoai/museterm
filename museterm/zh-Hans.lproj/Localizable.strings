@@ -17,10 +17,13 @@
 
 "settings.title" = "终端设置";
 "settings.tab.appearance" = "外观";
+"settings.tab.app_icon" = "图标";
 "settings.tab.typography" = "字体";
 "settings.tab.glass" = "毛玻璃";
 "settings.tab.behavior" = "行为";
 "settings.skin" = "皮肤";
+"settings.app_icon" = "App 图标";
+"settings.app_icon.footer" = "选择 MuseTerm 运行时显示的 Dock 图标，重启后会自动恢复。";
 "settings.palette" = "ANSI 字符配色";
 "settings.fonts" = "字体";
 "settings.primary_font" = "主字体";
@@ -71,3 +74,18 @@
 "palette.oneDark.summary" = "Atom 风格暗色编辑器配色。";
 "palette.nord.name" = "Nord";
 "palette.nord.summary" = "冷调极地蓝终端色。";
+
+"app_icon.defaultTerminal.name" = "小狗终端";
+"app_icon.defaultTerminal.summary" = "默认 Q 版终端标识。";
+"app_icon.cat.name" = "终端猫";
+"app_icon.cat.summary" = "石墨黑头像配薄荷提示符。";
+"app_icon.fox.name" = "终端狐";
+"app_icon.fox.summary" = "明亮橙色的 shell 小助手。";
+"app_icon.panda.name" = "终端熊猫";
+"app_icon.panda.summary" = "奶油徽章与青色光标。";
+"app_icon.penguin.name" = "终端企鹅";
+"app_icon.penguin.summary" = "深蓝控制台伙伴。";
+"app_icon.owl.name" = "终端猫头鹰";
+"app_icon.owl.summary" = "紫色夜间提示符。";
+"app_icon.dog.name" = "终端狗";
+"app_icon.dog.summary" = "蓝色徽章配暖色头像。";

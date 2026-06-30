@@ -16,6 +16,13 @@ struct SettingsView: View {
                 }
 
                 settingsPage {
+                    appIconSection
+                }
+                .tabItem {
+                    Label(L10n.string("settings.tab.app_icon"), systemImage: "app")
+                }
+
+                settingsPage {
                     fontSection
                 }
                 .tabItem {
@@ -40,7 +47,7 @@ struct SettingsView: View {
         .padding(.horizontal, 20)
         .padding(.top, 18)
         .padding(.bottom, 16)
-        .frame(width: 520, height: 430)
+        .frame(width: 560, height: 460)
         .background(preferences.skin.panelFill)
         .tint(preferences.skin.accent)
         .preferredColorScheme(preferences.skin.preferredColorScheme)
@@ -83,6 +90,31 @@ struct SettingsView: View {
                         PaletteChoiceView(
                             palette: palette,
                             isSelected: preferences.colorPalette == palette,
+                            skin: preferences.skin
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private var appIconSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(L10n.string("settings.app_icon"))
+                .font(.headline)
+            Text(L10n.string("settings.app_icon.footer"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), spacing: 10)], spacing: 10) {
+                ForEach(AppIconChoice.allCases) { choice in
+                    Button {
+                        preferences.appIcon = choice
+                    } label: {
+                        AppIconChoiceView(
+                            choice: choice,
+                            isSelected: preferences.appIcon == choice,
                             skin: preferences.skin
                         )
                     }
@@ -188,6 +220,59 @@ struct SettingsView: View {
                 .padding(.horizontal, 2)
                 .padding(.bottom, 14)
                 .frame(maxWidth: .infinity, alignment: .topLeading)
+        }
+    }
+}
+
+private struct AppIconChoiceView: View {
+    let choice: AppIconChoice
+    let isSelected: Bool
+    let skin: TerminalVisualSkin
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
+                iconPreview
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(skin.accent)
+                }
+            }
+            Text(choice.name)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+            Text(choice.summary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 128, alignment: .topLeading)
+        .background(isSelected ? skin.selectionFill : skin.controlFill)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(isSelected ? skin.accent.opacity(0.55) : skin.hairline, lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private var iconPreview: some View {
+        if let nsImage = choice.nsImage {
+            Image(nsImage: nsImage)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 54, height: 54)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        } else {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(skin.controlFill)
+                .frame(width: 54, height: 54)
+                .overlay {
+                    Image(systemName: "app")
+                        .foregroundStyle(.secondary)
+                }
         }
     }
 }

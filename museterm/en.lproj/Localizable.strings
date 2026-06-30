@@ -17,10 +17,13 @@
 
 "settings.title" = "Terminal Settings";
 "settings.tab.appearance" = "Appearance";
+"settings.tab.app_icon" = "Icon";
 "settings.tab.typography" = "Type";
 "settings.tab.glass" = "Glass";
 "settings.tab.behavior" = "Behavior";
 "settings.skin" = "Skin";
+"settings.app_icon" = "App icon";
+"settings.app_icon.footer" = "Choose the Dock icon used while MuseTerm is running. The choice is restored on launch.";
 "settings.palette" = "ANSI colors";
 "settings.fonts" = "Fonts";
 "settings.primary_font" = "Primary font";
@@ -71,3 +74,18 @@
 "palette.oneDark.summary" = "Atom-style dark editor colors.";
 "palette.nord.name" = "Nord";
 "palette.nord.summary" = "Cool arctic blue terminal colors.";
+
+"app_icon.defaultTerminal.name" = "Pup Terminal";
+"app_icon.defaultTerminal.summary" = "Default Q terminal mark.";
+"app_icon.cat.name" = "Terminal Cat";
+"app_icon.cat.summary" = "Graphite face with mint prompt.";
+"app_icon.fox.name" = "Terminal Fox";
+"app_icon.fox.summary" = "Bright orange shell helper.";
+"app_icon.panda.name" = "Terminal Panda";
+"app_icon.panda.summary" = "Soft cream badge and teal cursor.";
+"app_icon.penguin.name" = "Terminal Penguin";
+"app_icon.penguin.summary" = "Navy console companion.";
+"app_icon.owl.name" = "Terminal Owl";
+"app_icon.owl.summary" = "Violet night prompt.";
+"app_icon.dog.name" = "Terminal Dog";
+"app_icon.dog.summary" = "Blue badge with warm face.";
