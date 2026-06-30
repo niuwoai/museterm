@@ -68,50 +68,10 @@ final class musetermTests: XCTestCase {
     }
 
     func testCliCommandsReportsOutputTailTruncationMetadata() throws {
-        let manager = FileManager.default
-        let root = manager.temporaryDirectory
-            .appendingPathComponent("museterm-cli-tests-\(UUID().uuidString)", isDirectory: true)
-        let tools = root
-            .appendingPathComponent("Library/Application Support/MuseTerm/Tools", isDirectory: true)
-        try manager.createDirectory(at: tools, withIntermediateDirectories: true)
-        defer { try? manager.removeItem(at: root) }
+        let fixture = try makeMuseTermCLITestFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
 
-        let scriptURL = root.appendingPathComponent("museterm")
-        try MuseTermCLIInstaller.script.write(to: scriptURL, atomically: true, encoding: .utf8)
-
-        let state: [String: Any] = [
-            "schemaVersion": 1,
-            "app": "MuseTerm",
-            "version": "test",
-            "selectedTabID": "tab-1",
-            "tabs": [
-                [
-                    "id": "tab-1",
-                    "index": 1,
-                    "title": "project",
-                    "isSelected": true,
-                    "state": "running",
-                    "screen": "screen-abcdef",
-                    "history": "history-abcdef",
-                    "commandDiagnostics": [
-                        "schemaVersion": 1,
-                        "failedCommandCount": 0
-                    ],
-                    "commandBlocks": [
-                        [
-                            "id": "cmd-1",
-                            "command": "make test",
-                            "outputCharacterCount": 10,
-                            "outputTail": "abcdef"
-                        ]
-                    ]
-                ]
-            ]
-        ]
-        let stateData = try JSONSerialization.data(withJSONObject: state, options: [.prettyPrinted])
-        try stateData.write(to: tools.appendingPathComponent("state.json"))
-
-        let limited = try runMuseTermCLIScript(scriptURL, home: root, arguments: ["commands", "--chars", "3"])
+        let limited = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["commands", "--chars", "3"])
         let limitedCommand = try XCTUnwrap((limited["commands"] as? [[String: Any]])?.first)
         XCTAssertEqual(limited["schemaVersion"] as? Int, 1)
         XCTAssertEqual(limitedCommand["outputTail"] as? String, "def")
@@ -121,7 +81,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(limitedCommand["outputTailTruncated"] as? Bool, true)
         XCTAssertEqual(limitedCommand["outputTailStoredTruncated"] as? Bool, true)
 
-        let unlimited = try runMuseTermCLIScript(scriptURL, home: root, arguments: ["commands"])
+        let unlimited = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["commands"])
         let unlimitedCommand = try XCTUnwrap((unlimited["commands"] as? [[String: Any]])?.first)
         XCTAssertEqual(unlimitedCommand["outputTail"] as? String, "abcdef")
         XCTAssertEqual(unlimitedCommand["outputTailCharacters"] as? Int, 6)
@@ -130,7 +90,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(unlimitedCommand["outputTailTruncated"] as? Bool, false)
         XCTAssertEqual(unlimitedCommand["outputTailStoredTruncated"] as? Bool, true)
 
-        let screen = try runMuseTermCLIScript(scriptURL, home: root, arguments: ["screen", "--chars", "4", "--json"])
+        let screen = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["screen", "--chars", "4", "--json"])
         XCTAssertEqual(screen["schemaVersion"] as? Int, 1)
         XCTAssertEqual(screen["field"] as? String, "screen")
         XCTAssertEqual(screen["text"] as? String, "cdef")
@@ -139,13 +99,49 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(screen["limit"] as? Int, 4)
         XCTAssertEqual(screen["truncated"] as? Bool, true)
 
-        let history = try runMuseTermCLIScript(scriptURL, home: root, arguments: ["history", "--json"])
+        let history = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["history", "--json"])
         XCTAssertEqual(history["field"] as? String, "history")
         XCTAssertEqual(history["text"] as? String, "history-abcdef")
         XCTAssertEqual(history["textCharacters"] as? Int, 14)
         XCTAssertEqual(history["returnedCharacters"] as? Int, 14)
         XCTAssertTrue(history["limit"] is NSNull)
         XCTAssertEqual(history["truncated"] as? Bool, false)
+    }
+
+    func testMCPReadScreenReportsMetadata() throws {
+        let fixture = try makeMuseTermCLITestFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let response = try runMuseTermMCPRequest(
+            fixture.scriptURL,
+            home: fixture.root,
+            request: [
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": [
+                    "name": "read_screen",
+                    "arguments": [
+                        "chars": 5,
+                        "metadata": true
+                    ]
+                ]
+            ]
+        )
+        let result = try XCTUnwrap(response["result"] as? [String: Any])
+        let content = try XCTUnwrap(result["content"] as? [[String: Any]])
+        let text = try XCTUnwrap(content.first?["text"] as? String)
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]
+        )
+
+        XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(payload["field"] as? String, "screen")
+        XCTAssertEqual(payload["text"] as? String, "bcdef")
+        XCTAssertEqual(payload["textCharacters"] as? Int, 13)
+        XCTAssertEqual(payload["returnedCharacters"] as? Int, 5)
+        XCTAssertEqual(payload["limit"] as? Int, 5)
+        XCTAssertEqual(payload["truncated"] as? Bool, true)
     }
 
     @MainActor
@@ -957,6 +953,97 @@ final class musetermTests: XCTestCase {
             XCTFail("museterm CLI failed: \(message)")
         }
         return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    }
+
+    private func runMuseTermMCPRequest(
+        _ scriptURL: URL,
+        home: URL,
+        request: [String: Any]
+    ) throws -> [String: Any] {
+        let requestData = try JSONSerialization.data(withJSONObject: request)
+        let header = "Content-Length: \(requestData.count)\r\n\r\n"
+        var inputData = Data(header.utf8)
+        inputData.append(requestData)
+
+        let process = Process()
+        let input = Pipe()
+        let output = Pipe()
+        let errorOutput = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/ruby")
+        process.arguments = [scriptURL.path, "mcp"]
+        process.environment = ["HOME": home.path, "PATH": "/usr/bin:/bin:/usr/sbin:/sbin"]
+        process.standardInput = input
+        process.standardOutput = output
+        process.standardError = errorOutput
+
+        try process.run()
+        input.fileHandleForWriting.write(inputData)
+        try input.fileHandleForWriting.close()
+        process.waitUntilExit()
+
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        let errorData = errorOutput.fileHandleForReading.readDataToEndOfFile()
+        if process.terminationStatus != 0 {
+            let message = String(data: errorData, encoding: .utf8) ?? "unknown MCP error"
+            XCTFail("museterm MCP failed: \(message)")
+        }
+        return try decodeMCPResponse(data)
+    }
+
+    private func decodeMCPResponse(_ data: Data) throws -> [String: Any] {
+        let separator = Data("\r\n\r\n".utf8)
+        guard let range = data.range(of: separator) else {
+            XCTFail("MCP response missing header separator")
+            return [:]
+        }
+        let body = Data(data[range.upperBound...])
+        return try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+    }
+
+    private func makeMuseTermCLITestFixture() throws -> (root: URL, scriptURL: URL) {
+        let manager = FileManager.default
+        let root = manager.temporaryDirectory
+            .appendingPathComponent("museterm-cli-tests-\(UUID().uuidString)", isDirectory: true)
+        let tools = root
+            .appendingPathComponent("Library/Application Support/MuseTerm/Tools", isDirectory: true)
+        try manager.createDirectory(at: tools, withIntermediateDirectories: true)
+
+        let scriptURL = root.appendingPathComponent("museterm")
+        try MuseTermCLIInstaller.script.write(to: scriptURL, atomically: true, encoding: .utf8)
+
+        let state: [String: Any] = [
+            "schemaVersion": 1,
+            "app": "MuseTerm",
+            "version": "test",
+            "selectedTabID": "tab-1",
+            "tabs": [
+                [
+                    "id": "tab-1",
+                    "index": 1,
+                    "title": "project",
+                    "isSelected": true,
+                    "state": "running",
+                    "screen": "screen-abcdef",
+                    "history": "history-abcdef",
+                    "commandDiagnostics": [
+                        "schemaVersion": 1,
+                        "failedCommandCount": 0
+                    ],
+                    "commandBlocks": [
+                        [
+                            "id": "cmd-1",
+                            "command": "make test",
+                            "outputCharacterCount": 10,
+                            "outputTail": "abcdef"
+                        ]
+                    ]
+                ]
+            ]
+        ]
+        let stateData = try JSONSerialization.data(withJSONObject: state, options: [.prettyPrinted])
+        try stateData.write(to: tools.appendingPathComponent("state.json"))
+
+        return (root: root, scriptURL: scriptURL)
     }
 
 }

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.61.0] - 2026-07-01
+
+### Changed
+- MCP `read_screen metadata:true` 新增真实 JSON-RPC 端到端测试，验证外部工具路径能读取屏幕截断元数据。
+
 ## [1.60.0] - 2026-07-01
 
 ### Added

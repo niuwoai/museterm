@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.60.0
+> 当前版本基线：v1.61.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,7 +30,7 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.60.0 已完成五十二条纵向切片：
+v1.61.0 已完成五十三条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
@@ -45,6 +45,7 @@ v1.60.0 已完成五十二条纵向切片：
 - CLI/MCP 诊断摘要：工具状态文件为每个 tab 增加 `commandDiagnostics`，`museterm commands` 与 MCP `read_commands` 返回 `diagnostics` + `commands`，外部工具可直接读取最近失败和连续同类失败线索。
 - CLI/MCP 契约版本：工具状态快照顶层、命令诊断快照、`museterm tabs`、`museterm commands` 和 MCP `read_commands` 均暴露 `schemaVersion`，让外部工具可按 JSON 契约版本做兼容判断。
 - CLI/MCP 屏幕与历史截断元数据：`museterm screen --json`、`museterm history --json` 和 MCP `read_screen` / `read_history` 的 `metadata: true` 会返回文本、字符数、返回字符数、截断上限和截断状态，同时保留默认纯文本输出兼容性。
+- MCP 屏幕元数据端到端验证：测试会启动生成的 Ruby MCP 脚本，发送真实 JSON-RPC `tools/call read_screen` 请求，并验证 `metadata: true` 返回的截断元数据。
 - CLI/MCP 输出截断元数据：`museterm commands --chars N` 和 MCP `read_commands` 会为每个命令块标注 `outputTailCharacters`、`outputTailReturnedCharacters`、数字或 `null` 类型的 `outputTailLimit`、`outputTailTruncated` 与 `outputTailStoredTruncated`，并用真实 Ruby CLI 端到端测试覆盖，避免外部工具把 App 内部 tail 或二次截断 tail 当成完整输出。
 - 诊断摘要可操作化：`CommandBlockDiagnostics` 新增失败命令数、最近失败命令和建议下一步查看项，并同步进入 Runbook、AI 当前过滤上下文与 CLI/MCP `diagnostics`。
 - 诊断严重级别：`CommandBlockDiagnostics` 新增 `diagnosticSeverity`，将 none/failed/repeated/critical 暴露到 Runbook、AI 上下文和 CLI/MCP `diagnostics`，帮助外部工具先判断排查优先级。
