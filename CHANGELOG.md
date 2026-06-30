@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.100.0] - 2026-07-01
+
+### Changed
+- 将每日命令统计的 `PersistentCommandStatsSnapshot` 与 `PersistentCommandStatsStore` 从 `TaskPortPanel.swift` 拆分到独立的 `PersistentCommandStatsStore.swift`。
+- `TaskPortPanel.swift` 行数降到 2000 行以下，面板文件继续聚焦任务、端口与统计展示，统计持久化逻辑独立维护。
+
 ## [1.99.0] - 2026-07-01
 
 ### Changed
