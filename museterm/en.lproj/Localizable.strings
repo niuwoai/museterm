@@ -370,6 +370,7 @@
 "runbook.suggested_next_action_execution_mode" = "Suggested action execution mode";
 "runbook.suggested_next_action_execution_target" = "Suggested action execution target";
 "runbook.suggested_next_action_result_validity_scope" = "Suggested action result validity scope";
+"runbook.suggested_next_action_result_freshness_policy" = "Suggested action result freshness policy";
 "runbook.suggested_next_action_retry_condition" = "Suggested action retry condition";
 "runbook.suggested_next_action_preflight_checks" = "Suggested action preflight checks";
 "runbook.suggested_next_action_automation_guardrails" = "Suggested action automation guardrails";

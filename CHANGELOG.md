@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.91.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `resultFreshnessPolicy`，用稳定 code 声明建议命令结果是实时快照、上下文绑定，还是仅对当前失败尝试有效。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露结果新鲜度策略，帮助外部工具在复用历史诊断结果前判断是否必须重新取证。
+
 ## [1.90.0] - 2026-07-01
 
 ### Added

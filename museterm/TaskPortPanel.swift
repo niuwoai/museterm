@@ -787,6 +787,7 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append("Suggested next action execution mode: \(suggestedNextAction.executionMode.rawValue)")
             lines.append("Suggested next action execution target: \(suggestedNextAction.executionTarget.rawValue)")
             lines.append("Suggested next action result validity scope: \(suggestedNextAction.resultValidityScope.rawValue)")
+            lines.append("Suggested next action result freshness policy: \(suggestedNextAction.resultFreshnessPolicy.rawValue)")
             lines.append("Suggested next action retry condition: \(suggestedNextAction.retryCondition.rawValue)")
             lines.append("Suggested next action preflight checks: \(suggestedNextAction.preflightChecks.joined(separator: "; "))")
             lines.append("Suggested next action automation guardrails: \(suggestedNextAction.automationGuardrails.joined(separator: "; "))")
@@ -1181,6 +1182,7 @@ struct CommandBlockDiagnostics: Equatable {
                 safety: .readOnly,
                 executionTarget: .currentTerminalNetworkNamespace,
                 resultValidityScope: .currentTerminalNetworkNamespace,
+                resultFreshnessPolicy: .liveSnapshot,
                 retryCondition: .portConflictResolvedOrOwnerKnown
             )
         case .permission:
@@ -1231,6 +1233,7 @@ struct CommandBlockDiagnostics: Equatable {
                 safety: .readOnly,
                 executionTarget: .currentWorkingDirectory,
                 resultValidityScope: .currentWorkingDirectory,
+                resultFreshnessPolicy: .contextBound,
                 retryCondition: .permissionsVerified
             )
         case .missingCommand:
@@ -1281,6 +1284,7 @@ struct CommandBlockDiagnostics: Equatable {
                 safety: .readOnly,
                 executionTarget: .currentShellEnvironment,
                 resultValidityScope: .currentShellEnvironment,
+                resultFreshnessPolicy: .contextBound,
                 retryCondition: .commandAvailableOnPath
             )
         case .missingFile:
@@ -1331,6 +1335,7 @@ struct CommandBlockDiagnostics: Equatable {
                 safety: .readOnly,
                 executionTarget: .currentWorkingDirectory,
                 resultValidityScope: .currentWorkingDirectory,
+                resultFreshnessPolicy: .liveSnapshot,
                 retryCondition: .fileOrDirectoryVerified
             )
         case .git:
@@ -1381,6 +1386,7 @@ struct CommandBlockDiagnostics: Equatable {
                 safety: .readOnly,
                 executionTarget: .currentGitRepository,
                 resultValidityScope: .currentGitRepository,
+                resultFreshnessPolicy: .liveSnapshot,
                 retryCondition: .gitStateReviewed
             )
         case .repeated:
@@ -1431,6 +1437,7 @@ struct CommandBlockDiagnostics: Equatable {
                 safety: .readOnly,
                 executionTarget: .currentTerminalSession,
                 resultValidityScope: .currentTerminalSession,
+                resultFreshnessPolicy: .failureAttemptBound,
                 retryCondition: .contextChangedOrFirstFailureInspected
             )
         case .generic:
@@ -1481,6 +1488,7 @@ struct CommandBlockDiagnostics: Equatable {
                 safety: .readOnly,
                 executionTarget: .currentTerminalSession,
                 resultValidityScope: .currentTerminalSession,
+                resultFreshnessPolicy: .failureAttemptBound,
                 retryCondition: .localContextCaptured
             )
         }
@@ -1619,6 +1627,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let executionMode: CommandDiagnosticActionExecutionMode
     let executionTarget: CommandDiagnosticActionExecutionTarget
     let resultValidityScope: CommandDiagnosticActionResultValidityScope
+    let resultFreshnessPolicy: CommandDiagnosticActionResultFreshnessPolicy
     let retryCondition: CommandDiagnosticActionRetryCondition
     let requiresConfirmation: Bool
 
@@ -1652,6 +1661,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         executionMode: CommandDiagnosticActionExecutionMode = .stageOnly,
         executionTarget: CommandDiagnosticActionExecutionTarget,
         resultValidityScope: CommandDiagnosticActionResultValidityScope,
+        resultFreshnessPolicy: CommandDiagnosticActionResultFreshnessPolicy,
         retryCondition: CommandDiagnosticActionRetryCondition,
         requiresConfirmation: Bool = true
     ) {
@@ -1684,6 +1694,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         self.executionMode = executionMode
         self.executionTarget = executionTarget
         self.resultValidityScope = resultValidityScope
+        self.resultFreshnessPolicy = resultFreshnessPolicy
         self.retryCondition = retryCondition
         self.requiresConfirmation = requiresConfirmation
     }
@@ -1820,6 +1831,12 @@ enum CommandDiagnosticActionResultValidityScope: String, Codable, Equatable {
     case currentWorkingDirectory = "current_working_directory"
     case currentShellEnvironment = "current_shell_environment"
     case currentGitRepository = "current_git_repository"
+}
+
+enum CommandDiagnosticActionResultFreshnessPolicy: String, Codable, Equatable {
+    case liveSnapshot = "live_snapshot"
+    case contextBound = "context_bound"
+    case failureAttemptBound = "failure_attempt_bound"
 }
 
 enum CommandDiagnosticActionRetryCondition: String, Codable, Equatable {

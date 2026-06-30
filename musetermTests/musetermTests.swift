@@ -545,6 +545,10 @@ final class musetermTests: XCTestCase {
             CommandDiagnosticActionResultValidityScope.currentTerminalSession.rawValue
         )
         XCTAssertEqual(
+            suggestedNextAction["resultFreshnessPolicy"] as? String,
+            CommandDiagnosticActionResultFreshnessPolicy.failureAttemptBound.rawValue
+        )
+        XCTAssertEqual(
             suggestedNextAction["retryCondition"] as? String,
             CommandDiagnosticActionRetryCondition.contextChangedOrFirstFailureInspected.rawValue
         )
@@ -926,6 +930,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_execution_mode")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_execution_target")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_result_validity_scope")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_result_freshness_policy")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_retry_condition")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_preflight_checks")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_automation_guardrails")))
@@ -1008,6 +1013,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Suggested next action execution mode: stage_only"))
         XCTAssertTrue(context.contains("Suggested next action execution target: current_terminal_session"))
         XCTAssertTrue(context.contains("Suggested next action result validity scope: current_terminal_session"))
+        XCTAssertTrue(context.contains("Suggested next action result freshness policy: failure_attempt_bound"))
         XCTAssertTrue(context.contains("Suggested next action retry condition: context_changed_or_first_failure_inspected"))
         XCTAssertTrue(context.contains("Suggested next action preflight checks:"))
         XCTAssertTrue(context.contains("anything meaningful changed"))
@@ -1132,6 +1138,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(diagnostics.suggestedNextAction?.executionMode, .stageOnly)
         XCTAssertEqual(diagnostics.suggestedNextAction?.executionTarget, .currentWorkingDirectory)
         XCTAssertEqual(diagnostics.suggestedNextAction?.resultValidityScope, .currentWorkingDirectory)
+        XCTAssertEqual(diagnostics.suggestedNextAction?.resultFreshnessPolicy, .contextBound)
         XCTAssertEqual(diagnostics.suggestedNextAction?.retryCondition, .permissionsVerified)
         XCTAssertEqual(diagnostics.suggestedNextAction?.preflightChecks.count, 2)
         XCTAssertTrue(diagnostics.suggestedNextAction?.preflightChecks.first?.contains("insufficient permissions") == true)
@@ -1246,6 +1253,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(portConflict.suggestedNextAction?.executionMode, .stageOnly)
         XCTAssertEqual(portConflict.suggestedNextAction?.executionTarget, .currentTerminalNetworkNamespace)
         XCTAssertEqual(portConflict.suggestedNextAction?.resultValidityScope, .currentTerminalNetworkNamespace)
+        XCTAssertEqual(portConflict.suggestedNextAction?.resultFreshnessPolicy, .liveSnapshot)
         XCTAssertEqual(portConflict.suggestedNextAction?.retryCondition, .portConflictResolvedOrOwnerKnown)
         XCTAssertTrue(portConflict.suggestedNextAction?.preflightChecks.first?.contains("local TCP port") == true)
         XCTAssertTrue(portConflict.suggestedNextAction?.automationGuardrails.first?.contains("kill") == true)
@@ -1282,6 +1290,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(missingCommand.suggestedNextAction?.executionMode, .stageOnly)
         XCTAssertEqual(missingCommand.suggestedNextAction?.executionTarget, .currentShellEnvironment)
         XCTAssertEqual(missingCommand.suggestedNextAction?.resultValidityScope, .currentShellEnvironment)
+        XCTAssertEqual(missingCommand.suggestedNextAction?.resultFreshnessPolicy, .contextBound)
         XCTAssertEqual(missingCommand.suggestedNextAction?.retryCondition, .commandAvailableOnPath)
         XCTAssertTrue(missingCommand.suggestedNextAction?.preflightChecks.first?.contains("missing executable") == true)
         XCTAssertTrue(missingCommand.suggestedNextAction?.automationGuardrails.first?.contains("install packages") == true)
@@ -1333,6 +1342,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(missingFile.suggestedNextAction?.executionMode, .stageOnly)
         XCTAssertEqual(missingFile.suggestedNextAction?.executionTarget, .currentWorkingDirectory)
         XCTAssertEqual(missingFile.suggestedNextAction?.resultValidityScope, .currentWorkingDirectory)
+        XCTAssertEqual(missingFile.suggestedNextAction?.resultFreshnessPolicy, .liveSnapshot)
         XCTAssertEqual(missingFile.suggestedNextAction?.retryCondition, .fileOrDirectoryVerified)
         XCTAssertTrue(missingFile.suggestedNextAction?.preflightChecks.first?.contains("missing path") == true)
         XCTAssertTrue(missingFile.suggestedNextAction?.automationGuardrails.first?.contains("placeholder files") == true)
@@ -1375,6 +1385,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(gitFailure.suggestedNextAction?.executionMode, .stageOnly)
         XCTAssertEqual(gitFailure.suggestedNextAction?.executionTarget, .currentGitRepository)
         XCTAssertEqual(gitFailure.suggestedNextAction?.resultValidityScope, .currentGitRepository)
+        XCTAssertEqual(gitFailure.suggestedNextAction?.resultFreshnessPolicy, .liveSnapshot)
         XCTAssertEqual(gitFailure.suggestedNextAction?.retryCondition, .gitStateReviewed)
         XCTAssertTrue(gitFailure.suggestedNextAction?.preflightChecks.first?.contains("intended repository") == true)
         XCTAssertTrue(gitFailure.suggestedNextAction?.automationGuardrails.first?.contains("reset") == true)
@@ -1425,6 +1436,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(genericFailure.suggestedNextAction?.executionMode, .stageOnly)
         XCTAssertEqual(genericFailure.suggestedNextAction?.executionTarget, .currentTerminalSession)
         XCTAssertEqual(genericFailure.suggestedNextAction?.resultValidityScope, .currentTerminalSession)
+        XCTAssertEqual(genericFailure.suggestedNextAction?.resultFreshnessPolicy, .failureAttemptBound)
         XCTAssertEqual(genericFailure.suggestedNextAction?.retryCondition, .localContextCaptured)
         XCTAssertTrue(genericFailure.suggestedNextAction?.preflightChecks.first?.contains("enough output") == true)
         XCTAssertTrue(genericFailure.suggestedNextAction?.automationGuardrails.first?.contains("destructive fix") == true)
