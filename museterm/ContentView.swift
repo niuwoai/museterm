@@ -1529,6 +1529,12 @@ enum RunbookMarkdownExporter {
             lines.append(
                 "- \(L10n.string("runbook.suggested_next_action_result_freshness_policy")): \(suggestedNextAction.resultFreshnessPolicy.rawValue)"
             )
+            if !suggestedNextAction.resultReuseKeyFields.isEmpty {
+                let resultReuseKeyFields = suggestedNextAction.resultReuseKeyFields.map(\.rawValue).joined(separator: ", ")
+                lines.append(
+                    "- \(L10n.string("runbook.suggested_next_action_result_reuse_key_fields")): \(resultReuseKeyFields)"
+                )
+            }
             lines.append(
                 "- \(L10n.string("runbook.suggested_next_action_retry_condition")): \(suggestedNextAction.retryCondition.rawValue)"
             )

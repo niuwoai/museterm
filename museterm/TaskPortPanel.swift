@@ -788,6 +788,10 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append("Suggested next action execution target: \(suggestedNextAction.executionTarget.rawValue)")
             lines.append("Suggested next action result validity scope: \(suggestedNextAction.resultValidityScope.rawValue)")
             lines.append("Suggested next action result freshness policy: \(suggestedNextAction.resultFreshnessPolicy.rawValue)")
+            if !suggestedNextAction.resultReuseKeyFields.isEmpty {
+                let resultReuseKeyFields = suggestedNextAction.resultReuseKeyFields.map(\.rawValue).joined(separator: "; ")
+                lines.append("Suggested next action result reuse key fields: \(resultReuseKeyFields)")
+            }
             lines.append("Suggested next action retry condition: \(suggestedNextAction.retryCondition.rawValue)")
             lines.append("Suggested next action preflight checks: \(suggestedNextAction.preflightChecks.joined(separator: "; "))")
             lines.append("Suggested next action automation guardrails: \(suggestedNextAction.automationGuardrails.joined(separator: "; "))")
@@ -1183,6 +1187,7 @@ struct CommandBlockDiagnostics: Equatable {
                 executionTarget: .currentTerminalNetworkNamespace,
                 resultValidityScope: .currentTerminalNetworkNamespace,
                 resultFreshnessPolicy: .liveSnapshot,
+                resultReuseKeyFields: [.terminalNetworkNamespace, .networkListeners],
                 retryCondition: .portConflictResolvedOrOwnerKnown
             )
         case .permission:
@@ -1234,6 +1239,7 @@ struct CommandBlockDiagnostics: Equatable {
                 executionTarget: .currentWorkingDirectory,
                 resultValidityScope: .currentWorkingDirectory,
                 resultFreshnessPolicy: .contextBound,
+                resultReuseKeyFields: [.workingDirectory, .userIdentity, .permissionMetadata],
                 retryCondition: .permissionsVerified
             )
         case .missingCommand:
@@ -1285,6 +1291,7 @@ struct CommandBlockDiagnostics: Equatable {
                 executionTarget: .currentShellEnvironment,
                 resultValidityScope: .currentShellEnvironment,
                 resultFreshnessPolicy: .contextBound,
+                resultReuseKeyFields: [.shellEnvironment],
                 retryCondition: .commandAvailableOnPath
             )
         case .missingFile:
@@ -1336,6 +1343,7 @@ struct CommandBlockDiagnostics: Equatable {
                 executionTarget: .currentWorkingDirectory,
                 resultValidityScope: .currentWorkingDirectory,
                 resultFreshnessPolicy: .liveSnapshot,
+                resultReuseKeyFields: [.workingDirectory, .filesystemState],
                 retryCondition: .fileOrDirectoryVerified
             )
         case .git:
@@ -1387,6 +1395,7 @@ struct CommandBlockDiagnostics: Equatable {
                 executionTarget: .currentGitRepository,
                 resultValidityScope: .currentGitRepository,
                 resultFreshnessPolicy: .liveSnapshot,
+                resultReuseKeyFields: [.gitRepository, .gitBranch, .gitWorkingTreeState],
                 retryCondition: .gitStateReviewed
             )
         case .repeated:
@@ -1438,6 +1447,7 @@ struct CommandBlockDiagnostics: Equatable {
                 executionTarget: .currentTerminalSession,
                 resultValidityScope: .currentTerminalSession,
                 resultFreshnessPolicy: .failureAttemptBound,
+                resultReuseKeyFields: [.terminalSession, .workingDirectory, .gitRepository, .failureFingerprint],
                 retryCondition: .contextChangedOrFirstFailureInspected
             )
         case .generic:
@@ -1489,6 +1499,7 @@ struct CommandBlockDiagnostics: Equatable {
                 executionTarget: .currentTerminalSession,
                 resultValidityScope: .currentTerminalSession,
                 resultFreshnessPolicy: .failureAttemptBound,
+                resultReuseKeyFields: [.terminalSession, .workingDirectory, .gitRepository, .failureFingerprint],
                 retryCondition: .localContextCaptured
             )
         }
@@ -1628,6 +1639,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let executionTarget: CommandDiagnosticActionExecutionTarget
     let resultValidityScope: CommandDiagnosticActionResultValidityScope
     let resultFreshnessPolicy: CommandDiagnosticActionResultFreshnessPolicy
+    let resultReuseKeyFields: [CommandDiagnosticActionResultReuseKeyField]
     let retryCondition: CommandDiagnosticActionRetryCondition
     let requiresConfirmation: Bool
 
@@ -1662,6 +1674,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         executionTarget: CommandDiagnosticActionExecutionTarget,
         resultValidityScope: CommandDiagnosticActionResultValidityScope,
         resultFreshnessPolicy: CommandDiagnosticActionResultFreshnessPolicy,
+        resultReuseKeyFields: [CommandDiagnosticActionResultReuseKeyField],
         retryCondition: CommandDiagnosticActionRetryCondition,
         requiresConfirmation: Bool = true
     ) {
@@ -1695,6 +1708,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         self.executionTarget = executionTarget
         self.resultValidityScope = resultValidityScope
         self.resultFreshnessPolicy = resultFreshnessPolicy
+        self.resultReuseKeyFields = resultReuseKeyFields
         self.retryCondition = retryCondition
         self.requiresConfirmation = requiresConfirmation
     }
@@ -1837,6 +1851,21 @@ enum CommandDiagnosticActionResultFreshnessPolicy: String, Codable, Equatable {
     case liveSnapshot = "live_snapshot"
     case contextBound = "context_bound"
     case failureAttemptBound = "failure_attempt_bound"
+}
+
+enum CommandDiagnosticActionResultReuseKeyField: String, Codable, Equatable {
+    case terminalSession = "terminal_session"
+    case terminalNetworkNamespace = "terminal_network_namespace"
+    case workingDirectory = "working_directory"
+    case shellEnvironment = "shell_environment"
+    case userIdentity = "user_identity"
+    case permissionMetadata = "permission_metadata"
+    case filesystemState = "filesystem_state"
+    case networkListeners = "network_listeners"
+    case gitRepository = "git_repository"
+    case gitBranch = "git_branch"
+    case gitWorkingTreeState = "git_working_tree_state"
+    case failureFingerprint = "failure_fingerprint"
 }
 
 enum CommandDiagnosticActionRetryCondition: String, Codable, Equatable {

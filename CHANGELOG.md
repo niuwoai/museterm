@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.92.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `resultReuseKeyFields`，用稳定 code 声明复用建议命令结果前应比较的上下文字段，例如终端会话、工作目录、Shell 环境、Git 仓库、监听端口、权限元数据或失败指纹。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露结果复用键字段，帮助外部工具避免把不同目录、环境、仓库或失败场景的历史诊断结果混用。
+
 ## [1.91.0] - 2026-07-01
 
 ### Added
