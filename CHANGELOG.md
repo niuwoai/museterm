@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.57.0] - 2026-07-01
+
+### Added
+- `museterm commands` 和 MCP `read_commands` 返回的每个命令块新增 `outputTailCharacters`、`outputTailLimit` 和 `outputTailTruncated`，让外部工具知道输出尾部是否因 `--chars` 被截断。
+
 ## [1.56.0] - 2026-07-01
 
 ### Added

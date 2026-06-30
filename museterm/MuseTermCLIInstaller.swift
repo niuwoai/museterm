@@ -165,14 +165,15 @@ def command_commands(args)
 end
 
 def commands_payload(state, tab, chars)
-  blocks = tab.fetch("commandBlocks", [])
-  if chars
-    blocks = blocks.map { |block|
-      copy = block.dup
-      copy["outputTail"] = tail_chars(copy["outputTail"], chars)
-      copy
-    }
-  end
+  blocks = tab.fetch("commandBlocks", []).map { |block|
+    copy = block.dup
+    output_tail = copy["outputTail"].to_s
+    copy["outputTailCharacters"] = output_tail.length
+    copy["outputTailLimit"] = chars
+    copy["outputTailTruncated"] = chars ? output_tail.length > chars : false
+    copy["outputTail"] = tail_chars(output_tail, chars)
+    copy
+  }
   {
     "schemaVersion" => state["schemaVersion"],
     "diagnostics" => tab.fetch("commandDiagnostics", {}),
@@ -338,7 +339,7 @@ def command_mcp
       when "initialize"
         {
           "protocolVersion" => "2024-11-05",
-          "serverInfo" => { "name" => "museterm", "version" => "1.56.0" },
+          "serverInfo" => { "name" => "museterm", "version" => "1.57.0" },
           "capabilities" => { "tools" => {} }
         }
       when "tools/list"
