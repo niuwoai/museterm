@@ -233,18 +233,26 @@ def commands_payload(state, tab, chars)
 end
 
 def command_input(args)
-  tab_selector, _chars, _json, rest = parse_common(args)
+  tab_selector, _chars, json, rest = parse_common(args)
   text = rest.join(" ")
   raise "input requires text." if text.empty?
   response = send_request(action: "input", tab: tab_selector, text: text)
+  if json
+    print_json(response)
+    return
+  end
   response["ok"] ? puts(response["message"] || "ok") : abort(response["error"] || "request failed")
 end
 
 def command_key(args)
-  tab_selector, _chars, _json, rest = parse_common(args)
+  tab_selector, _chars, json, rest = parse_common(args)
   key = rest.first
   raise "key requires a key name, for example enter or ctrl-c." if key.nil? || key.empty?
   response = send_request(action: "send_key", tab: tab_selector, key: key)
+  if json
+    print_json(response)
+    return
+  end
   response["ok"] ? puts(response["message"] || "ok") : abort(response["error"] || "request failed")
 end
 
@@ -436,8 +444,8 @@ def command_help
       museterm screen [--tab selected|INDEX|ID] [--chars N] [--json]
       museterm history [--tab selected|INDEX|ID] [--chars N] [--json]
       museterm commands [--tab selected|INDEX|ID] [--chars N]
-      museterm input [--tab selected|INDEX|ID] TEXT
-      museterm key [--tab selected|INDEX|ID] enter|ctrl-c|tab|escape|up|down|left|right
+      museterm input [--tab selected|INDEX|ID] [--json] TEXT
+      museterm key [--tab selected|INDEX|ID] [--json] enter|ctrl-c|tab|escape|up|down|left|right
       museterm mcp
 
     MCP config example:

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.66.0] - 2026-07-01
+
+### Added
+- `museterm input` 与 `museterm key` 支持 `--json`，可输出完整工具 response 元数据；默认短消息输出保持兼容。
+- 新增 CLI 输入请求端到端测试，模拟 App response 文件并验证 `input --json` 会返回响应元数据。
+
 ## [1.65.0] - 2026-07-01
 
 ### Added

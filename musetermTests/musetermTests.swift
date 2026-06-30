@@ -66,6 +66,36 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(object["tabID"] as? String, "tab-1")
     }
 
+    func testCliInputJsonReturnsResponseMetadata() throws {
+        let fixture = try makeMuseTermCLITestFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let result = try runMuseTermCLIRequestScript(
+            fixture.scriptURL,
+            home: fixture.root,
+            arguments: ["input", "--json", "--tab", "tab-1", "echo ok"],
+            response: [
+                "schemaVersion": 1,
+                "app": "MuseTerm",
+                "version": "test",
+                "ok": true,
+                "snapshotSequence": 43,
+                "action": "input",
+                "tabID": "tab-1",
+                "message": "sent"
+            ]
+        )
+
+        XCTAssertEqual(result.request["action"] as? String, "input")
+        XCTAssertEqual(result.request["tab"] as? String, "tab-1")
+        XCTAssertEqual(result.request["text"] as? String, "echo ok")
+        XCTAssertEqual(result.output["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(result.output["version"] as? String, "test")
+        XCTAssertEqual(result.output["snapshotSequence"] as? Int, 43)
+        XCTAssertEqual(result.output["action"] as? String, "input")
+        XCTAssertEqual(result.output["tabID"] as? String, "tab-1")
+    }
+
     func testCliInstallerScriptExposesMCPAndTerminalCommands() {
         let script = MuseTermCLIInstaller.script
 
@@ -78,6 +108,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(script.contains("text_payload(state, tab, \"history\", args[\"chars\"])"))
         XCTAssertTrue(script.contains("museterm input"))
         XCTAssertTrue(script.contains("museterm key"))
+        XCTAssertTrue(script.contains("print_json(response)"))
         XCTAssertTrue(script.contains("commands_payload"))
         XCTAssertTrue(script.contains("\"schemaVersion\" => state[\"schemaVersion\"]"))
         XCTAssertTrue(script.contains("\"snapshotSequence\" => state[\"snapshotSequence\"]"))
@@ -1072,6 +1103,63 @@ final class musetermTests: XCTestCase {
             XCTFail("museterm CLI failed: \(message)")
         }
         return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    }
+
+    private func runMuseTermCLIRequestScript(
+        _ scriptURL: URL,
+        home: URL,
+        arguments: [String],
+        response: [String: Any]
+    ) throws -> (output: [String: Any], request: [String: Any]) {
+        let process = Process()
+        let output = Pipe()
+        let errorOutput = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/ruby")
+        process.arguments = [scriptURL.path] + arguments
+        process.environment = ["HOME": home.path, "PATH": "/usr/bin:/bin:/usr/sbin:/sbin"]
+        process.standardOutput = output
+        process.standardError = errorOutput
+
+        try process.run()
+
+        let tools = home
+            .appendingPathComponent("Library/Application Support/MuseTerm/Tools", isDirectory: true)
+        let requests = tools.appendingPathComponent("requests", isDirectory: true)
+        let responses = tools.appendingPathComponent("responses", isDirectory: true)
+        let deadline = Date().addingTimeInterval(2)
+        var requestURL: URL?
+
+        while Date() < deadline {
+            let files = (try? FileManager.default.contentsOfDirectory(
+                at: requests,
+                includingPropertiesForKeys: nil
+            )) ?? []
+            if let file = files.first(where: { $0.pathExtension == "json" }) {
+                requestURL = file
+                break
+            }
+            Thread.sleep(forTimeInterval: 0.02)
+        }
+
+        let resolvedRequestURL = try XCTUnwrap(requestURL, "MuseTerm CLI did not create a tool request")
+        let requestData = try Data(contentsOf: resolvedRequestURL)
+        let request = try XCTUnwrap(JSONSerialization.jsonObject(with: requestData) as? [String: Any])
+        let requestID = try XCTUnwrap(request["id"] as? String)
+        var resolvedResponse = response
+        resolvedResponse["id"] = requestID
+        let responseData = try JSONSerialization.data(withJSONObject: resolvedResponse)
+        try responseData.write(to: responses.appendingPathComponent("\(requestID).json"))
+
+        process.waitUntilExit()
+
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        let errorData = errorOutput.fileHandleForReading.readDataToEndOfFile()
+        if process.terminationStatus != 0 {
+            let message = String(data: errorData, encoding: .utf8) ?? "unknown CLI error"
+            XCTFail("museterm CLI request failed: \(message)")
+        }
+        let parsedOutput = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        return (output: parsedOutput, request: request)
     }
 
     private func runMuseTermMCPRequest(
