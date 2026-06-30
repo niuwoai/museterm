@@ -80,6 +80,7 @@ def parse_common(args)
   tab = nil
   chars = nil
   json = false
+  timeout = nil
   rest = []
   until args.empty?
     item = args.shift
@@ -88,13 +89,15 @@ def parse_common(args)
       tab = args.shift
     when "--chars", "-c"
       chars = args.shift
+    when "--timeout"
+      timeout = args.shift
     when "--json"
       json = true
     else
       rest << item
     end
   end
-  [tab, chars, json, rest]
+  [tab, chars, json, rest, timeout]
 end
 
 def print_json(value)
@@ -136,6 +139,9 @@ def tabs_payload(state)
 end
 
 def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, timeout_seconds: 3.0)
+  timeout_seconds = timeout_seconds.to_f
+  raise "timeout must be positive." if timeout_seconds <= 0
+
   ensure_dirs
   id = SecureRandom.uuid
   request = {
@@ -233,10 +239,10 @@ def commands_payload(state, tab, chars)
 end
 
 def command_input(args)
-  tab_selector, _chars, json, rest = parse_common(args)
+  tab_selector, _chars, json, rest, timeout = parse_common(args)
   text = rest.join(" ")
   raise "input requires text." if text.empty?
-  response = send_request(action: "input", tab: tab_selector, text: text)
+  response = send_request(action: "input", tab: tab_selector, text: text, timeout_seconds: timeout || 3.0)
   if json
     print_json(response)
     return
@@ -245,10 +251,10 @@ def command_input(args)
 end
 
 def command_key(args)
-  tab_selector, _chars, json, rest = parse_common(args)
+  tab_selector, _chars, json, rest, timeout = parse_common(args)
   key = rest.first
   raise "key requires a key name, for example enter or ctrl-c." if key.nil? || key.empty?
-  response = send_request(action: "send_key", tab: tab_selector, key: key)
+  response = send_request(action: "send_key", tab: tab_selector, key: key, timeout_seconds: timeout || 3.0)
   if json
     print_json(response)
     return
@@ -444,8 +450,8 @@ def command_help
       museterm screen [--tab selected|INDEX|ID] [--chars N] [--json]
       museterm history [--tab selected|INDEX|ID] [--chars N] [--json]
       museterm commands [--tab selected|INDEX|ID] [--chars N]
-      museterm input [--tab selected|INDEX|ID] [--json] TEXT
-      museterm key [--tab selected|INDEX|ID] [--json] enter|ctrl-c|tab|escape|up|down|left|right
+      museterm input [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] TEXT
+      museterm key [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] enter|ctrl-c|tab|escape|up|down|left|right
       museterm mcp
 
     MCP config example:

@@ -73,7 +73,7 @@ final class musetermTests: XCTestCase {
         let result = try runMuseTermCLIRequestScript(
             fixture.scriptURL,
             home: fixture.root,
-            arguments: ["input", "--json", "--tab", "tab-1", "echo ok"],
+            arguments: ["input", "--json", "--timeout", "1.5", "--tab", "tab-1", "echo ok"],
             response: [
                 "schemaVersion": 1,
                 "app": "MuseTerm",
@@ -109,6 +109,8 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(script.contains("museterm input"))
         XCTAssertTrue(script.contains("museterm key"))
         XCTAssertTrue(script.contains("print_json(response)"))
+        XCTAssertTrue(script.contains("--timeout SECONDS"))
+        XCTAssertTrue(script.contains("timeout must be positive."))
         XCTAssertTrue(script.contains("commands_payload"))
         XCTAssertTrue(script.contains("\"schemaVersion\" => state[\"schemaVersion\"]"))
         XCTAssertTrue(script.contains("\"snapshotSequence\" => state[\"snapshotSequence\"]"))

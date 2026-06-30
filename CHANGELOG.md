@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.67.0] - 2026-07-01
+
+### Added
+- `museterm input` 与 `museterm key` 支持 `--timeout SECONDS`，脚本可按场景延长或缩短等待 App response 文件的时间；超时时间必须为正数。
+- CLI 输入请求端到端测试覆盖 `--timeout` 与 `--json` 同时使用的请求链路。
+
 ## [1.66.0] - 2026-07-01
 
 ### Added
