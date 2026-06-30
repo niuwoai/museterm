@@ -119,4 +119,55 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(tab.tabSubtitle, "app")
     }
 
+    func testTerminalShortcutRecorderProtectsEchoOffInput() throws {
+        let started = Date(timeIntervalSince1970: 100)
+        let recorder = TerminalShortcutRecorder(startedAt: started)
+
+        recorder.record(data: Array("ls\n".utf8), echoEnabled: true, now: started.addingTimeInterval(0.2))
+        recorder.record(data: Array("secret\n".utf8), echoEnabled: false, now: started.addingTimeInterval(0.5))
+
+        let shortcut = try XCTUnwrap(recorder.finish(title: "Deploy", finishedAt: started.addingTimeInterval(1)))
+        XCTAssertEqual(shortcut.events.count, 2)
+        XCTAssertFalse(shortcut.events[0].requiresEchoOff)
+        XCTAssertTrue(shortcut.events[1].requiresEchoOff)
+        XCTAssertTrue(shortcut.hasProtectedInput)
+        XCTAssertEqual(shortcut.events[1].bytes, [])
+        XCTAssertEqual(shortcut.events[1].transientProtectedBytes, Array("secret\n".utf8))
+    }
+
+    func testSSHConfigRendersPerHopIdentityAndProxyJump() {
+        let firstJump = SSHJumpHost(
+            name: "bastion",
+            host: "jump1.example.com",
+            user: "ops",
+            port: 2222,
+            identityFiles: ["~/.ssh/jump1"]
+        )
+        let secondJump = SSHJumpHost(
+            host: "jump2.example.com",
+            user: "root",
+            port: 22,
+            identityFiles: ["~/.ssh/jump2"]
+        )
+        let profile = SSHConnectionProfile(
+            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            name: "Prod",
+            host: "prod.internal",
+            user: "deploy",
+            port: 2200,
+            identityFiles: ["~/.ssh/prod"],
+            jumpHosts: [firstJump, secondJump],
+            extraOptions: ["ServerAliveInterval 30"]
+        )
+
+        let config = SSHConfigMaterializer.renderConfig(profile: profile)
+
+        XCTAssertTrue(config.contains("Host museterm-11111111-1111-1111-1111-111111111111-jump-1"))
+        XCTAssertTrue(config.contains("IdentityFile "))
+        XCTAssertTrue(config.contains("ProxyJump museterm-11111111-1111-1111-1111-111111111111-jump-1"))
+        XCTAssertTrue(config.contains("ProxyJump museterm-11111111-1111-1111-1111-111111111111-jump-2"))
+        XCTAssertTrue(config.contains("HostName prod.internal"))
+        XCTAssertTrue(config.contains("ServerAliveInterval 30"))
+    }
+
 }

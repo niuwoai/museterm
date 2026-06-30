@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var workspace = TerminalWorkspace()
+    @StateObject private var sshStore = SSHConnectionStore()
     @ObservedObject private var preferences: TerminalPreferences
 
     init(preferences: TerminalPreferences = TerminalPreferences()) {
@@ -26,6 +27,7 @@ struct ContentView: View {
             HStack(spacing: 0) {
                 SidebarView(
                     workspace: workspace,
+                    sshStore: sshStore,
                     preferences: preferences
                 )
 
@@ -47,6 +49,7 @@ struct ContentView: View {
 
 private struct SidebarView: View {
     @ObservedObject var workspace: TerminalWorkspace
+    @ObservedObject var sshStore: SSHConnectionStore
     @ObservedObject var preferences: TerminalPreferences
 
     var body: some View {
@@ -58,7 +61,7 @@ private struct SidebarView: View {
 
             if preferences.showsTabList {
                 ScrollView {
-                    LazyVStack(spacing: 6) {
+                    LazyVStack(spacing: 10) {
                         ForEach(workspace.tabs) { tab in
                             TabRowView(
                                 tab: tab,
@@ -70,6 +73,15 @@ private struct SidebarView: View {
                                 workspace.select(tab)
                             }
                         }
+
+                        TerminalShortcutSection(workspace: workspace, skin: preferences.skin)
+                            .padding(.top, 4)
+
+                        SSHProfilesSection(
+                            workspace: workspace,
+                            store: sshStore,
+                            skin: preferences.skin
+                        )
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 8)
@@ -107,9 +119,7 @@ private struct SidebarView: View {
                 Text(L10n.string("app.name"))
                     .font(.headline)
                 Spacer()
-                IconButton(systemName: "plus", title: L10n.string("action.new_tab")) {
-                    workspace.newTab()
-                }
+                CompactNewConnectionMenu(workspace: workspace, sshStore: sshStore)
                 IconButton(
                     systemName: "sidebar.left",
                     title: L10n.string("action.hide_tab_list")
@@ -125,9 +135,7 @@ private struct SidebarView: View {
                 IconButton(systemName: "sidebar.right", title: L10n.string("action.show_tab_list")) {
                     preferences.showsTabList = true
                 }
-                IconButton(systemName: "plus", title: L10n.string("action.new_tab")) {
-                    workspace.newTab()
-                }
+                CompactNewConnectionMenu(workspace: workspace, sshStore: sshStore)
             }
         }
     }
@@ -197,7 +205,6 @@ private struct TerminalPaneView: View {
                 let isSelected = workspace.selectedID == tab.id
                 TerminalHostView(session: tab, preferences: preferences, isActive: isSelected)
                     .id(tab.id)
-                    .opacity(isSelected ? 1 : 0)
                     .allowsHitTesting(isSelected)
                     .accessibilityHidden(!isSelected)
                     .zIndex(isSelected ? 1 : 0)

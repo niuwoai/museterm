@@ -154,8 +154,9 @@ final class TerminalToolBridge {
 
         guard timer == nil else { return }
         timer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { [weak self] _ in
+            guard let bridge = self else { return }
             Task { @MainActor in
-                self?.tick()
+                bridge.tick()
             }
         }
     }

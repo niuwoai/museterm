@@ -2,6 +2,33 @@ import Combine
 import Darwin
 import Foundation
 
+enum TerminalLaunchConfiguration: Equatable {
+    case localShell
+    case ssh(SSHConnectionProfile)
+
+    var connectionLabel: String? {
+        switch self {
+        case .localShell:
+            return nil
+        case .ssh(let profile):
+            return profile.displayName
+        }
+    }
+
+    var connectionSubtitle: String? {
+        switch self {
+        case .localShell:
+            return nil
+        case .ssh(let profile):
+            let clean = profile.normalized
+            if clean.jumpHosts.isEmpty {
+                return clean.target
+            }
+            return L10n.format("ssh.tab.subtitle_with_jumps", clean.target, clean.jumpHosts.count)
+        }
+    }
+}
+
 final class TerminalSession: ObservableObject, Identifiable {
     enum State {
         case running
@@ -11,16 +38,21 @@ final class TerminalSession: ObservableObject, Identifiable {
     let id = UUID()
     let sequence: Int
     let createdAt = Date()
+    let launchConfiguration: TerminalLaunchConfiguration
 
     @Published var title: String
     @Published var currentDirectory: String?
     @Published var state: State = .running
+    @Published private(set) var activeRecordingStartedAt: Date?
+    @Published private(set) var isPlayingShortcut = false
 
     lazy var controller = TerminalHostController(session: self)
+    private var recorder: TerminalShortcutRecorder?
 
-    init(sequence: Int) {
+    init(sequence: Int, launchConfiguration: TerminalLaunchConfiguration = .localShell) {
         self.sequence = sequence
-        title = L10n.format("tab.default_title", sequence)
+        self.launchConfiguration = launchConfiguration
+        title = launchConfiguration.connectionLabel ?? L10n.format("tab.default_title", sequence)
     }
 
     func prepareController() {
@@ -31,6 +63,78 @@ final class TerminalSession: ObservableObject, Identifiable {
         controller.ensureProcessStarted()
     }
 
+    func terminate() {
+        cancelRecording()
+        controller.terminate()
+    }
+
+    var isRecording: Bool {
+        recorder != nil
+    }
+
+    func startRecording() {
+        guard recorder == nil else { return }
+        let now = Date()
+        recorder = TerminalShortcutRecorder(startedAt: now)
+        activeRecordingStartedAt = now
+    }
+
+    func stopRecording(defaultTitle: String? = nil) -> TerminalShortcut? {
+        let finishedAt = Date()
+        defer {
+            recorder = nil
+            activeRecordingStartedAt = nil
+        }
+        let title = defaultTitle ?? L10n.format(
+            "shortcut.generated_title",
+            Self.shortcutTitleFormatter.string(from: finishedAt)
+        )
+        return recorder?.finish(title: title, finishedAt: finishedAt)
+    }
+
+    func cancelRecording() {
+        recorder = nil
+        activeRecordingStartedAt = nil
+    }
+
+    func recordInputIfNeeded(data: [UInt8], echoEnabled: Bool) {
+        guard !isPlayingShortcut else { return }
+        recorder?.record(data: data, echoEnabled: echoEnabled)
+    }
+
+    func playShortcut(_ shortcut: TerminalShortcut) {
+        guard case .running = state else { return }
+        guard shortcut.isPlayable, !isRecording, !isPlayingShortcut else { return }
+        isPlayingShortcut = true
+        Task { [weak self] in
+            var protectedBytesCache: [String: [UInt8]] = [:]
+            for event in shortcut.events {
+                if event.delayMilliseconds > 0 {
+                    try? await Task.sleep(nanoseconds: UInt64(event.delayMilliseconds) * 1_000_000)
+                }
+
+                let shouldContinue = await MainActor.run {
+                    guard let self else { return false }
+                    if event.requiresEchoOff, self.controller.terminalEchoEnabled {
+                        self.isPlayingShortcut = false
+                        return false
+                    }
+                    return true
+                }
+                if !shouldContinue { break }
+
+                let bytes = event.resolvedBytes(cache: &protectedBytesCache)
+                guard !bytes.isEmpty else { continue }
+                await MainActor.run {
+                    self?.controller.sendProcessInput(bytes: bytes)
+                }
+            }
+            await MainActor.run {
+                self?.isPlayingShortcut = false
+            }
+        }
+    }
+
     var displayTitle: String {
         if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return L10n.format("tab.default_title", sequence)
@@ -39,6 +143,10 @@ final class TerminalSession: ObservableObject, Identifiable {
     }
 
     var tabTitle: String {
+        if let connectionLabel = launchConfiguration.connectionLabel {
+            return connectionLabel
+        }
+
         if let remoteIdentity {
             return remoteIdentity
         }
@@ -52,6 +160,10 @@ final class TerminalSession: ObservableObject, Identifiable {
     }
 
     var tabSubtitle: String? {
+        if let connectionSubtitle = launchConfiguration.connectionSubtitle {
+            return connectionSubtitle
+        }
+
         if remoteIdentity != nil {
             return directoryLabel
         }
@@ -151,11 +263,18 @@ final class TerminalSession: ObservableObject, Identifiable {
             .first
             .map(String.init) ?? host.lowercased()
     }
+
+    private static let shortcutTitleFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter
+    }()
 }
 
 final class TerminalWorkspace: ObservableObject {
     @Published private(set) var tabs: [TerminalSession] = []
     @Published var selectedID: TerminalSession.ID?
+    @Published private(set) var shortcuts: [TerminalShortcut] = TerminalShortcutStore.load()
 
     private let automaticallyStartProcesses: Bool
     private var nextSequence = 1
@@ -170,7 +289,7 @@ final class TerminalWorkspace: ObservableObject {
     }
 
     deinit {
-        preparedTab?.controller.terminate()
+        preparedTab?.terminate()
     }
 
     var selectedTab: TerminalSession? {
@@ -188,6 +307,17 @@ final class TerminalWorkspace: ObservableObject {
             }
         }
         schedulePrepareNextTab()
+    }
+
+    func openSSH(profile: SSHConnectionProfile) {
+        let tab = makeTab(launchConfiguration: .ssh(profile))
+        tabs.append(tab)
+        selectedID = tab.id
+        if automaticallyStartProcesses {
+            DispatchQueue.main.async {
+                tab.startProcessIfNeeded()
+            }
+        }
     }
 
     func newTabFromShortcut(eventTimestamp: TimeInterval? = nil) {
@@ -222,7 +352,7 @@ final class TerminalWorkspace: ObservableObject {
     }
 
     func close(_ tab: TerminalSession) {
-        tab.controller.terminate()
+        tab.terminate()
         guard tabs.count > 1 else {
             newTab()
             tabs.removeAll { $0.id == tab.id }
@@ -237,6 +367,61 @@ final class TerminalWorkspace: ObservableObject {
             let fallbackIndex = min(index ?? 0, tabs.count - 1)
             selectedID = tabs[fallbackIndex].id
         }
+    }
+
+    var isRecording: Bool {
+        tabs.contains { $0.isRecording }
+    }
+
+    func startRecordingSelectedTab() {
+        guard !isRecording, let selectedTab else { return }
+        selectedTab.startProcessIfNeeded()
+        selectedTab.startRecording()
+        objectWillChange.send()
+    }
+
+    func stopRecording() {
+        guard let tab = tabs.first(where: { $0.isRecording }) else { return }
+        guard let shortcut = tab.stopRecording() else {
+            objectWillChange.send()
+            return
+        }
+        upsertShortcut(shortcut)
+        objectWillChange.send()
+    }
+
+    func playShortcut(_ shortcut: TerminalShortcut) {
+        guard !isRecording else { return }
+        selectedTab?.playShortcut(shortcut)
+        objectWillChange.send()
+    }
+
+    func renameShortcut(id: UUID, title: String) {
+        guard let index = shortcuts.firstIndex(where: { $0.id == id }) else { return }
+        var shortcut = shortcuts[index]
+        shortcut.title = title
+        shortcut.updatedAt = Date()
+        shortcuts[index] = shortcut.normalized
+        persistShortcuts()
+    }
+
+    func deleteShortcut(id: UUID) {
+        shortcuts.filter { $0.id == id }.forEach(TerminalShortcutStore.deleteProtectedInputs)
+        shortcuts.removeAll { $0.id == id }
+        persistShortcuts()
+    }
+
+    func editableShortcutsText() -> String {
+        TerminalShortcutStore.editableText(for: shortcuts)
+    }
+
+    func saveEditableShortcutsText(_ text: String) throws {
+        let edited = try TerminalShortcutStore.decodeEditableText(text)
+        for shortcut in shortcuts where edited.contains(where: { $0.id == shortcut.id }) == false {
+            TerminalShortcutStore.deleteProtectedInputs(for: shortcut)
+        }
+        shortcuts = edited
+        TerminalShortcutStore.save(shortcuts)
     }
 
     private func selectRelativeTab(offset: Int) {
@@ -304,8 +489,8 @@ final class TerminalWorkspace: ObservableObject {
         return makeTab()
     }
 
-    private func makeTab() -> TerminalSession {
-        let tab = TerminalSession(sequence: nextSequence)
+    private func makeTab(launchConfiguration: TerminalLaunchConfiguration = .localShell) -> TerminalSession {
+        let tab = TerminalSession(sequence: nextSequence, launchConfiguration: launchConfiguration)
         nextSequence += 1
         return tab
     }
@@ -326,7 +511,18 @@ final class TerminalWorkspace: ObservableObject {
 
         let tab = makeTab()
         tab.prepareController()
-        tab.startProcessIfNeeded()
         preparedTab = tab
+    }
+
+    private func upsertShortcut(_ shortcut: TerminalShortcut) {
+        shortcuts.filter { $0.id == shortcut.id }.forEach(TerminalShortcutStore.deleteProtectedInputs)
+        shortcuts.removeAll { $0.id == shortcut.id }
+        shortcuts.insert(shortcut.normalized, at: 0)
+        persistShortcuts()
+    }
+
+    private func persistShortcuts() {
+        shortcuts = Array(shortcuts.map(\.normalized).filter(\.isPlayable).prefix(24))
+        TerminalShortcutStore.save(shortcuts)
     }
 }

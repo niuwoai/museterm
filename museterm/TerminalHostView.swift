@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import SwiftTerm
 import SwiftUI
 
@@ -9,6 +10,7 @@ struct TerminalHostView: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSView {
         let controller = session.controller
+        controller.setActive(isActive)
         DispatchQueue.main.async {
             controller.ensureProcessStarted()
             if isActive {
@@ -21,9 +23,9 @@ struct TerminalHostView: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         session.controller.layoutTerminalViews()
         session.controller.apply(preferences: preferences)
+        session.controller.setActive(isActive)
         DispatchQueue.main.async {
             session.controller.ensureProcessStarted()
-            session.controller.setActive(isActive)
             if isActive {
                 session.controller.focusTerminal()
                 session.controller.invalidateDisplay()
@@ -33,6 +35,8 @@ struct TerminalHostView: NSViewRepresentable {
 }
 
 final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
+    private static let minimumStartSize = CGSize(width: 120, height: 80)
+
     let container = NSView(frame: .zero)
     private let visualEffectView = NSVisualEffectView(frame: .zero)
     private let tintView = NSView(frame: .zero)
@@ -41,6 +45,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private let terminalView = FocusableLocalProcessTerminalView(frame: .zero)
     private weak var session: TerminalSession?
     private var didStart = false
+    private var pendingStart = false
     private var didConfigureMetal = false
     private var lastAppliedPreferences: TerminalPreferenceSignature?
 
@@ -109,6 +114,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.frame = container.bounds
         terminalView.frame.origin.x += marginWidth
         terminalView.frame.size.width = max(0, terminalView.frame.width - marginWidth * 2)
+        startPendingProcessIfReady()
     }
 
     func terminate() {
@@ -116,7 +122,11 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func ensureProcessStarted() {
-        startProcessIfNeeded()
+        if canStartProcess {
+            startProcessIfNeeded()
+        } else {
+            pendingStart = true
+        }
     }
 
     func focusTerminal() {
@@ -124,7 +134,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func setActive(_ isActive: Bool) {
-        container.alphaValue = isActive ? 1 : 0
+        container.alphaValue = 1
+        container.isHidden = !isActive
+        terminalView.isHidden = !isActive
+        terminalView.layer?.isHidden = !isActive
     }
 
     func invalidateDisplay() {
@@ -157,7 +170,15 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         guard didStart, terminalView.process.running else {
             throw TerminalToolError.processUnavailable
         }
+        sendProcessInput(bytes: bytes)
+    }
+
+    func sendProcessInput(bytes: [UInt8]) {
         terminalView.send(source: terminalView, data: bytes[...])
+    }
+
+    var terminalEchoEnabled: Bool {
+        terminalView.terminalEchoEnabled
     }
 
     func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {}
@@ -199,21 +220,74 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.onNeedsFocus = { [weak self] in
             self?.focusTerminal()
         }
+        terminalView.onReadyForProcessStart = { [weak self] in
+            self?.startPendingProcessIfReady()
+        }
+        terminalView.shouldRecordInput = { [weak self] in
+            guard let session = self?.session else { return false }
+            return session.isRecording && !session.isPlayingShortcut
+        }
+        terminalView.onSendToProcess = { [weak self] data, echoEnabled in
+            self?.session?.recordInputIfNeeded(data: data, echoEnabled: echoEnabled)
+        }
         container.addSubview(terminalView)
         layoutTerminalViews()
     }
 
     private func startProcessIfNeeded() {
         guard !didStart else { return }
+        pendingStart = false
         didStart = true
 
-        let shell = Self.loginShell()
-        let execName = "-" + URL(fileURLWithPath: shell).lastPathComponent
-        terminalView.startProcess(
-            executable: shell,
-            execName: execName,
-            currentDirectory: FileManager.default.homeDirectoryForCurrentUser.path
-        )
+        switch session?.launchConfiguration ?? .localShell {
+        case .localShell:
+            let shell = Self.loginShell()
+            let execName = "-" + URL(fileURLWithPath: shell).lastPathComponent
+            terminalView.startProcess(
+                executable: shell,
+                environment: Self.environmentArray(),
+                execName: execName,
+                currentDirectory: FileManager.default.homeDirectoryForCurrentUser.path
+            )
+        case .ssh(let profile):
+            do {
+                let descriptor = try SSHConfigMaterializer.descriptor(for: profile)
+                terminalView.startProcess(
+                    executable: descriptor.executable,
+                    args: descriptor.args,
+                    environment: Self.environmentArray(),
+                    currentDirectory: FileManager.default.homeDirectoryForCurrentUser.path
+                )
+                drainStartupCommands(descriptor.startupCommands)
+            } catch {
+                terminalView.feed(text: L10n.format("ssh.error.launch_failed", error.localizedDescription) + "\n")
+                session?.state = .exited(nil)
+            }
+        }
+    }
+
+    private func drainStartupCommands(_ commands: [String]) {
+        guard !commands.isEmpty else { return }
+        Task { [weak self] in
+            for command in commands {
+                try? await Task.sleep(nanoseconds: 450_000_000)
+                await MainActor.run {
+                    guard let self, self.terminalView.process.running else { return }
+                    self.terminalView.send(source: self.terminalView, data: Array((command + "\n").utf8)[...])
+                }
+            }
+        }
+    }
+
+    private var canStartProcess: Bool {
+        terminalView.window != nil
+            && terminalView.bounds.width >= Self.minimumStartSize.width
+            && terminalView.bounds.height >= Self.minimumStartSize.height
+    }
+
+    private func startPendingProcessIfReady() {
+        guard pendingStart, canStartProcess else { return }
+        startProcessIfNeeded()
     }
 
     private func configureMetalIfNeeded() {
@@ -257,6 +331,14 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
 
         return String(cString: password.pw_shell)
     }
+
+    private static func environmentArray() -> [String] {
+        var environment = ProcessInfo.processInfo.environment
+        environment["TERM"] = "xterm-256color"
+        environment["LANG"] = environment["LANG"] ?? "en_US.UTF-8"
+        environment["MUSETERM_TERMINAL"] = "1"
+        return environment.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }
+    }
 }
 
 private struct TerminalPreferenceSignature: Equatable {
@@ -293,11 +375,27 @@ private struct TerminalPreferenceSignature: Equatable {
 
 private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     var onNeedsFocus: (() -> Void)?
+    var onReadyForProcessStart: (() -> Void)?
+    var shouldRecordInput: (() -> Bool)?
+    var onSendToProcess: ((_ data: [UInt8], _ echoEnabled: Bool) -> Void)?
+    private var cachedEchoEnabled: Bool?
+    private var cachedEchoCheckedAt: TimeInterval = 0
+    private var pendingEchoBytes: [UInt8] = []
+    private let maxEchoCacheAge: TimeInterval = 1.0
+    private let maxPendingEchoBytes = 2_048
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         DispatchQueue.main.async { [weak self] in
             self?.requestFocus()
+            self?.onReadyForProcessStart?()
+        }
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        DispatchQueue.main.async { [weak self] in
+            self?.onReadyForProcessStart?()
         }
     }
 
@@ -322,5 +420,69 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
         requestFocus()
         onNeedsFocus?()
         super.otherMouseDown(with: event)
+    }
+
+    override func paste(_ sender: Any) {
+        onNeedsFocus?()
+        super.paste(sender)
+    }
+
+    override func send(source: TerminalView, data: ArraySlice<UInt8>) {
+        if shouldRecordInput?() == true {
+            let bytes = Array(data)
+            let echoEnabled = cachedTerminalEchoEnabled()
+            onSendToProcess?(bytes, echoEnabled)
+            if echoEnabled {
+                rememberExpectedEcho(bytes)
+            }
+        }
+        super.send(source: source, data: data)
+    }
+
+    override func dataReceived(slice: ArraySlice<UInt8>) {
+        if shouldRecordInput?() == true, !isExpectedEcho(slice) {
+            invalidateTerminalEchoCache()
+        }
+        super.dataReceived(slice: slice)
+    }
+
+    var terminalEchoEnabled: Bool {
+        guard process.running else { return false }
+        var attributes = termios()
+        guard tcgetattr(process.childfd, &attributes) == 0 else { return false }
+        return (attributes.c_lflag & tcflag_t(ECHO)) != 0
+    }
+
+    private func invalidateTerminalEchoCache() {
+        cachedEchoEnabled = nil
+        cachedEchoCheckedAt = 0
+        pendingEchoBytes.removeAll(keepingCapacity: true)
+    }
+
+    private func cachedTerminalEchoEnabled() -> Bool {
+        let now = ProcessInfo.processInfo.systemUptime
+        if let cachedEchoEnabled, now - cachedEchoCheckedAt <= maxEchoCacheAge {
+            return cachedEchoEnabled
+        }
+        let fresh = terminalEchoEnabled
+        cachedEchoEnabled = fresh
+        cachedEchoCheckedAt = now
+        return fresh
+    }
+
+    private func rememberExpectedEcho(_ bytes: [UInt8]) {
+        guard !bytes.isEmpty else { return }
+        pendingEchoBytes.append(contentsOf: bytes)
+        if pendingEchoBytes.count > maxPendingEchoBytes {
+            pendingEchoBytes.removeFirst(pendingEchoBytes.count - maxPendingEchoBytes)
+        }
+    }
+
+    private func isExpectedEcho(_ slice: ArraySlice<UInt8>) -> Bool {
+        guard !slice.isEmpty, !pendingEchoBytes.isEmpty else { return false }
+        let bytes = Array(slice)
+        guard pendingEchoBytes.starts(with: bytes) else { return false }
+        pendingEchoBytes.removeFirst(bytes.count)
+        return true
     }
 }

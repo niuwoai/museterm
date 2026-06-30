@@ -2,8 +2,11 @@
 "app.lightweight" = "轻快终端";
 
 "action.new_tab" = "新建标签";
+"action.new_connection" = "新建连接";
 "action.settings" = "设置";
 "action.close_tab" = "关闭标签";
+"action.cancel" = "取消";
+"action.save" = "保存";
 "action.previous_tab" = "上一个标签";
 "action.next_tab" = "下一个标签";
 "action.select_tab" = "选择标签 %d";
@@ -14,6 +17,43 @@
 "menu.tab" = "标签";
 
 "tab.default_title" = "Shell %d";
+
+"shortcut.section" = "录制捷径";
+"shortcut.start_recording" = "开始录制终端";
+"shortcut.stop_recording" = "停止录制终端";
+"shortcut.edit_json" = "编辑录制 JSON";
+"shortcut.empty" = "在这里录制终端输入，然后可在当前标签回放。";
+"shortcut.default_title" = "终端捷径";
+"shortcut.generated_title" = "终端捷径 %@";
+"shortcut.play" = "回放";
+"shortcut.rename" = "改名";
+"shortcut.delete" = "删除";
+"shortcut.rename_title" = "改名录制捷径";
+"shortcut.name" = "捷径名称";
+"shortcut.tooltip" = "%d 段输入 · %d 秒";
+
+"ssh.section" = "SSH 主机";
+"ssh.add" = "添加主机";
+"ssh.empty" = "把 SSH 主机存到这里。Profile 支持跳转机、多跳，以及每一跳使用不同密钥。";
+"ssh.connect" = "连接";
+"ssh.edit" = "编辑";
+"ssh.delete" = "删除";
+"ssh.name" = "名称";
+"ssh.host" = "主机";
+"ssh.user" = "用户";
+"ssh.port" = "端口";
+"ssh.identities" = "密钥文件";
+"ssh.identities.help" = "每行一个私钥路径，支持以 ~ 开头。";
+"ssh.jumps" = "跳转机";
+"ssh.jumps.help" = "每行一跳：可选名称|user@host:port|key1,key2。行顺序就是 SSH 路由顺序。";
+"ssh.options" = "SSH 选项";
+"ssh.options.help" = "每行一个 OpenSSH config 选项，例如 ServerAliveInterval 30。";
+"ssh.startup" = "启动命令";
+"ssh.startup.help" = "连接后自动发送的命令，每行一条。";
+"ssh.editor.title" = "SSH 主机";
+"ssh.tooltip_with_jumps" = "%@ · %d 跳";
+"ssh.tab.subtitle_with_jumps" = "%@ · %d 跳";
+"ssh.error.launch_failed" = "SSH 启动失败：%@";
 
 "settings.title" = "终端设置";
 "settings.tab.appearance" = "外观";
@@ -97,8 +137,8 @@
 "palette.nord.name" = "Nord";
 "palette.nord.summary" = "冷调极地蓝终端色。";
 
-"app_icon.defaultTerminal.name" = "小狗终端";
-"app_icon.defaultTerminal.summary" = "默认 Q 版终端标识。";
+"app_icon.defaultTerminal.name" = "企鹅终端";
+"app_icon.defaultTerminal.summary" = "默认企鹅终端标识。";
 "app_icon.cat.name" = "终端猫";
 "app_icon.cat.summary" = "石墨黑头像配薄荷提示符。";
 "app_icon.fox.name" = "终端狐";

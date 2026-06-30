@@ -1,6 +1,6 @@
 # Product Overview
 
-> 最后更新：2026-06-30 | 当前版本：v1.2.0-rc28
+> 最后更新：2026-06-30 | 当前版本：v1.3.1-rc1
 
 ## 项目简介
 
@@ -10,12 +10,16 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 
 - 多标签终端：左侧纵向标签列表，支持新建、切换、关闭标签，并可通过侧栏图标或设置开关折叠显示。
 - 标签快捷键：支持 `Cmd+T` 新建、`Cmd+Shift+[` / `Cmd+Shift+]` 前后切换，以及 `Cmd+1` 到 `Cmd+9` 直达标签。
-- 快速建签：预热下一份终端控制器和备用 shell，并延后补位以减少新建标签后的主线程阻塞。
+- 快速建签：预热下一份终端控制器，并延后补位以减少新建标签后的主线程阻塞。
 - 本地 shell：每个标签启动一个独立登录 shell。
+- SSH 主机：侧栏可保存并打开 SSH profile，支持用户名、端口、不同密钥文件、额外 SSH 选项和连接后启动命令。
+- 跳转机：SSH profile 支持一跳、二跳、三跳及更多多跳路由，每一跳可配置自己的用户、端口和密钥。
+- 终端录制：侧栏可录制当前终端输入，生成可回放的终端捷径，并保留原始输入延迟。
+- 录制编辑：录制捷径支持改名、删除和 JSON 编辑；不回显输入通过 Keychain 保存，JSON 仅保存引用。
 - 标签保活：切换标签时终端渲染视图常驻，避免已有输出丢失或变空白。
 - 终端状态：自动同步终端标题、当前目录和进程退出状态。
 - 标签标题：本机会话优先显示当前目录，远端/SSH 标题保留 `user@host` 便于识别。
-- App 图标：默认使用 Q 版终端图标，并支持在设置中切换多款动物头像 Dock 图标。
+- App 图标：默认使用 Q 版企鹅终端图标，并支持在设置中切换多款动物头像 Dock 图标。
 - CLI/MCP 工具桥：支持安装 `museterm` CLI，供本机 AI 工具读取标签页屏幕、历史文本并发送文本或控制键。
 - 皮肤系统：从 MuseMail 的视觉体系迁移，针对终端场景提供浅色与深色皮肤。
 - 字符配色：支持 Apple、Tango、Solarized、Dracula、One Dark、Nord 等经典 ANSI palette。
@@ -40,11 +44,11 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 
 ## API 概览
 
-本项目当前没有网络服务端 API。CLI/MCP 通过本机 `~/Library/Application Support/MuseTerm/Tools` 目录交换状态与输入请求。版本号通过应用内 `AppVersion` 和 Xcode `MARKETING_VERSION` 保持一致，发布最低系统版本通过 Xcode `MACOSX_DEPLOYMENT_TARGET` 管理。
+本项目当前没有网络服务端 API。CLI/MCP 通过本机 `~/Library/Application Support/MuseTerm/Tools` 目录交换状态与输入请求。录制捷径保存在 `~/Library/Application Support/MuseTerm/TerminalShortcuts/shortcuts.json`，SSH profile 保存在用户偏好中，运行时 SSH config 生成到 `~/Library/Application Support/MuseTerm/SSH`。版本号通过应用内 `AppVersion` 和 Xcode `MARKETING_VERSION` 保持一致，发布最低系统版本通过 Xcode `MACOSX_DEPLOYMENT_TARGET` 管理。
 
 ## 已知问题 / 待办
 
-- [ ] 增加快捷键：新建标签、关闭标签、切换标签、打开设置。
 - [ ] 增加终端配色 palette 的完整 16/256 色映射。
 - [ ] 增加标签重命名、启动目录和自定义启动命令。
 - [ ] 增加导出滚屏内容和搜索面板。
+- [ ] 为 SSH profile 增加导入 `~/.ssh/config` 和分组搜索。

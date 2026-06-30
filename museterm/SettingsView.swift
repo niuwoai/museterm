@@ -2,54 +2,19 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var preferences: TerminalPreferences
+    @State private var selectedSettingsTab: SettingsTab = .appearance
     @State private var cliInstallMessage = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
             Divider()
-            TabView {
-                settingsPage {
-                    skinSection
-                }
-                .tabItem {
-                    Label(L10n.string("settings.tab.appearance"), systemImage: "paintpalette")
-                }
-
-                settingsPage {
-                    appIconSection
-                }
-                .tabItem {
-                    Label(L10n.string("settings.tab.app_icon"), systemImage: "app")
-                }
-
-                settingsPage {
-                    fontSection
-                }
-                .tabItem {
-                    Label(L10n.string("settings.tab.typography"), systemImage: "textformat")
-                }
-
-                settingsPage {
-                    glassSection
-                }
-                .tabItem {
-                    Label(L10n.string("settings.tab.glass"), systemImage: "square.on.square.dashed")
-                }
-
-                settingsPage {
-                    behaviorSection
-                }
-                .tabItem {
-                    Label(L10n.string("settings.tab.behavior"), systemImage: "keyboard")
-                }
-
-                settingsPage {
-                    toolsSection
-                }
-                .tabItem {
-                    Label(L10n.string("settings.tab.tools"), systemImage: "hammer")
-                }
+            SettingsTabBar(
+                selection: $selectedSettingsTab,
+                skin: preferences.skin
+            )
+            settingsPage {
+                settingsContent
             }
         }
         .padding(.horizontal, 20)
@@ -69,6 +34,24 @@ struct SettingsView: View {
             Text(AppVersion.displayValue)
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var settingsContent: some View {
+        switch selectedSettingsTab {
+        case .appearance:
+            skinSection
+        case .appIcon:
+            appIconSection
+        case .typography:
+            fontSection
+        case .glass:
+            glassSection
+        case .behavior:
+            behaviorSection
+        case .tools:
+            toolsSection
         }
     }
 
@@ -305,6 +288,70 @@ struct SettingsView: View {
                 .padding(.bottom, 14)
                 .frame(maxWidth: .infinity, alignment: .topLeading)
         }
+    }
+}
+
+private enum SettingsTab: CaseIterable, Identifiable {
+    case appearance
+    case appIcon
+    case typography
+    case glass
+    case behavior
+    case tools
+
+    var id: Self { self }
+
+    var titleKey: String {
+        switch self {
+        case .appearance: return "settings.tab.appearance"
+        case .appIcon: return "settings.tab.app_icon"
+        case .typography: return "settings.tab.typography"
+        case .glass: return "settings.tab.glass"
+        case .behavior: return "settings.tab.behavior"
+        case .tools: return "settings.tab.tools"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .appearance: return "paintpalette"
+        case .appIcon: return "app"
+        case .typography: return "textformat"
+        case .glass: return "square.on.square.dashed"
+        case .behavior: return "keyboard"
+        case .tools: return "hammer"
+        }
+    }
+}
+
+private struct SettingsTabBar: View {
+    @Binding var selection: SettingsTab
+    let skin: TerminalVisualSkin
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(SettingsTab.allCases) { tab in
+                Button {
+                    selection = tab
+                } label: {
+                    Label(L10n.string(tab.titleKey), systemImage: tab.systemImage)
+                        .font(.caption.weight(.medium))
+                        .lineLimit(1)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
+                .focusable(false)
+                .foregroundStyle(selection == tab ? skin.accent : .secondary)
+                .background(selection == tab ? skin.selectionFill : Color.clear)
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .help(L10n.string(tab.titleKey))
+            }
+        }
+        .padding(4)
+        .background(skin.controlFill)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 

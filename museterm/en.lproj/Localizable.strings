@@ -2,8 +2,11 @@
 "app.lightweight" = "Light terminal";
 
 "action.new_tab" = "New tab";
+"action.new_connection" = "New connection";
 "action.settings" = "Settings";
 "action.close_tab" = "Close tab";
+"action.cancel" = "Cancel";
+"action.save" = "Save";
 "action.previous_tab" = "Previous tab";
 "action.next_tab" = "Next tab";
 "action.select_tab" = "Select tab %d";
@@ -14,6 +17,43 @@
 "menu.tab" = "Tab";
 
 "tab.default_title" = "Shell %d";
+
+"shortcut.section" = "Recordings";
+"shortcut.start_recording" = "Start terminal recording";
+"shortcut.stop_recording" = "Stop terminal recording";
+"shortcut.edit_json" = "Edit recordings JSON";
+"shortcut.empty" = "Record terminal input here, then replay it on the active tab.";
+"shortcut.default_title" = "Terminal Shortcut";
+"shortcut.generated_title" = "Terminal Shortcut %@";
+"shortcut.play" = "Replay";
+"shortcut.rename" = "Rename";
+"shortcut.delete" = "Delete";
+"shortcut.rename_title" = "Rename recording";
+"shortcut.name" = "Recording name";
+"shortcut.tooltip" = "%d inputs · %d seconds";
+
+"ssh.section" = "SSH Hosts";
+"ssh.add" = "Add host";
+"ssh.empty" = "Save SSH hosts here. Profiles can use jump hosts and different keys per hop.";
+"ssh.connect" = "Connect";
+"ssh.edit" = "Edit";
+"ssh.delete" = "Delete";
+"ssh.name" = "Name";
+"ssh.host" = "Host";
+"ssh.user" = "User";
+"ssh.port" = "Port";
+"ssh.identities" = "Identity files";
+"ssh.identities.help" = "One private key path per line. Paths may start with ~.";
+"ssh.jumps" = "Jump hosts";
+"ssh.jumps.help" = "One hop per line: optional-name|user@host:port|key1,key2. The left-to-right order is the SSH route.";
+"ssh.options" = "SSH options";
+"ssh.options.help" = "One OpenSSH config option per line, for example ServerAliveInterval 30.";
+"ssh.startup" = "Startup commands";
+"ssh.startup.help" = "Commands to send after connection, one per line.";
+"ssh.editor.title" = "SSH host";
+"ssh.tooltip_with_jumps" = "%@ · %d jumps";
+"ssh.tab.subtitle_with_jumps" = "%@ · %d jumps";
+"ssh.error.launch_failed" = "SSH launch failed: %@";
 
 "settings.title" = "Terminal Settings";
 "settings.tab.appearance" = "Appearance";
@@ -97,8 +137,8 @@
 "palette.nord.name" = "Nord";
 "palette.nord.summary" = "Cool arctic blue terminal colors.";
 
-"app_icon.defaultTerminal.name" = "Pup Terminal";
-"app_icon.defaultTerminal.summary" = "Default Q terminal mark.";
+"app_icon.defaultTerminal.name" = "Penguin Terminal";
+"app_icon.defaultTerminal.summary" = "Default penguin terminal mark.";
 "app_icon.cat.name" = "Terminal Cat";
 "app_icon.cat.summary" = "Graphite face with mint prompt.";
 "app_icon.fox.name" = "Terminal Fox";
