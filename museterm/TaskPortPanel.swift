@@ -682,7 +682,12 @@ struct CommandBlockDiagnostics: Equatable {
         )
         suggestedNextAction = Self.suggestedNextAction(
             failedCommandCount: failedCommandCount,
+            latestFailedCommand: latestFailedCommand,
+            recentFailureDiagnostic: recentFailureDiagnostic,
+            recentFailureFingerprint: recentFailureFingerprint,
+            repeatedFailureDiagnostic: repeatedFailureDiagnostic,
             diagnosticCategory: diagnosticCategory,
+            diagnosticCategoryEvidence: diagnosticCategoryEvidence,
             diagnosticCategoryConfidence: diagnosticCategoryConfidence,
             diagnosticPriorityScore: diagnosticPriorityScore,
             diagnosticPriorityFactors: diagnosticPriorityFactors
@@ -747,6 +752,10 @@ struct CommandBlockDiagnostics: Equatable {
             if !suggestedNextAction.priorityFactors.isEmpty {
                 let priorityFactors = suggestedNextAction.priorityFactors.map(\.rawValue).joined(separator: "; ")
                 lines.append("Suggested next action priority factors: \(priorityFactors)")
+            }
+            if !suggestedNextAction.evidenceAnchors.isEmpty {
+                let evidenceAnchors = suggestedNextAction.evidenceAnchors.map(\.rawValue).joined(separator: "; ")
+                lines.append("Suggested next action evidence anchors: \(evidenceAnchors)")
             }
             lines.append("Suggested next action title: \(suggestedNextAction.title)")
             lines.append("Suggested next action safety: \(suggestedNextAction.safety.rawValue)")
@@ -1077,12 +1086,24 @@ struct CommandBlockDiagnostics: Equatable {
 
     nonisolated private static func suggestedNextAction(
         failedCommandCount: Int,
+        latestFailedCommand: String?,
+        recentFailureDiagnostic: String?,
+        recentFailureFingerprint: String?,
+        repeatedFailureDiagnostic: RepeatedFailureDiagnostic?,
         diagnosticCategory: CommandDiagnosticCategory,
+        diagnosticCategoryEvidence: String?,
         diagnosticCategoryConfidence: CommandDiagnosticConfidence,
         diagnosticPriorityScore: Int,
         diagnosticPriorityFactors: [CommandDiagnosticPriorityFactor]
     ) -> CommandDiagnosticAction? {
         guard failedCommandCount > 0 else { return nil }
+        let evidenceAnchors = Self.actionEvidenceAnchors(
+            latestFailedCommand: latestFailedCommand,
+            recentFailureDiagnostic: recentFailureDiagnostic,
+            recentFailureFingerprint: recentFailureFingerprint,
+            repeatedFailureDiagnostic: repeatedFailureDiagnostic,
+            diagnosticCategoryEvidence: diagnosticCategoryEvidence
+        )
         switch diagnosticCategory {
         case .none:
             return nil
@@ -1093,6 +1114,7 @@ struct CommandBlockDiagnostics: Equatable {
                 confidence: diagnosticCategoryConfidence,
                 priorityScore: diagnosticPriorityScore,
                 priorityFactors: diagnosticPriorityFactors,
+                evidenceAnchors: evidenceAnchors,
                 title: "List listening TCP ports",
                 rationale: "The latest failure looks like a local port conflict, so inspect listeners before rerunning.",
                 command: "lsof -nP -iTCP -sTCP:LISTEN",
@@ -1131,6 +1153,7 @@ struct CommandBlockDiagnostics: Equatable {
                 confidence: diagnosticCategoryConfidence,
                 priorityScore: diagnosticPriorityScore,
                 priorityFactors: diagnosticPriorityFactors,
+                evidenceAnchors: evidenceAnchors,
                 title: "Inspect current permissions",
                 rationale: "The latest failure mentions permission denied, so check the working directory and current user.",
                 command: "pwd && id && ls -ld .",
@@ -1169,6 +1192,7 @@ struct CommandBlockDiagnostics: Equatable {
                 confidence: diagnosticCategoryConfidence,
                 priorityScore: diagnosticPriorityScore,
                 priorityFactors: diagnosticPriorityFactors,
+                evidenceAnchors: evidenceAnchors,
                 title: "Inspect PATH",
                 rationale: "The latest failure says a command is missing, so check which directories the shell searches.",
                 command: "echo \"$PATH\"",
@@ -1207,6 +1231,7 @@ struct CommandBlockDiagnostics: Equatable {
                 confidence: diagnosticCategoryConfidence,
                 priorityScore: diagnosticPriorityScore,
                 priorityFactors: diagnosticPriorityFactors,
+                evidenceAnchors: evidenceAnchors,
                 title: "Inspect current directory",
                 rationale: "The latest failure references a missing file, so confirm the current directory and visible files.",
                 command: "pwd && ls -la",
@@ -1245,6 +1270,7 @@ struct CommandBlockDiagnostics: Equatable {
                 confidence: diagnosticCategoryConfidence,
                 priorityScore: diagnosticPriorityScore,
                 priorityFactors: diagnosticPriorityFactors,
+                evidenceAnchors: evidenceAnchors,
                 title: "Inspect Git state",
                 rationale: "The latest failed command or diagnostic is Git-related, so inspect branch and dirty state first.",
                 command: "git status --short --branch",
@@ -1283,6 +1309,7 @@ struct CommandBlockDiagnostics: Equatable {
                 confidence: diagnosticCategoryConfidence,
                 priorityScore: diagnosticPriorityScore,
                 priorityFactors: diagnosticPriorityFactors,
+                evidenceAnchors: evidenceAnchors,
                 title: "Inspect repeat context",
                 rationale: "The latest failures repeat, so capture location and Git state before another retry.",
                 command: "pwd && git status --short --branch 2>/dev/null || true",
@@ -1321,6 +1348,7 @@ struct CommandBlockDiagnostics: Equatable {
                 confidence: diagnosticCategoryConfidence,
                 priorityScore: diagnosticPriorityScore,
                 priorityFactors: diagnosticPriorityFactors,
+                evidenceAnchors: evidenceAnchors,
                 title: "Inspect local context",
                 rationale: "The failure is not specific enough yet, so capture location and Git state as a safe first step.",
                 command: "pwd && git status --short --branch 2>/dev/null || true",
@@ -1353,6 +1381,32 @@ struct CommandBlockDiagnostics: Equatable {
                 retryCondition: .localContextCaptured
             )
         }
+    }
+
+    nonisolated private static func actionEvidenceAnchors(
+        latestFailedCommand: String?,
+        recentFailureDiagnostic: String?,
+        recentFailureFingerprint: String?,
+        repeatedFailureDiagnostic: RepeatedFailureDiagnostic?,
+        diagnosticCategoryEvidence: String?
+    ) -> [CommandDiagnosticEvidenceAnchor] {
+        var anchors: [CommandDiagnosticEvidenceAnchor] = []
+        if latestFailedCommand != nil {
+            anchors.append(.latestFailedCommand)
+        }
+        if recentFailureDiagnostic != nil {
+            anchors.append(.recentFailureDiagnostic)
+        }
+        if recentFailureFingerprint != nil {
+            anchors.append(.recentFailureFingerprint)
+        }
+        if repeatedFailureDiagnostic != nil {
+            anchors.append(.repeatedFailureDiagnostic)
+        }
+        if diagnosticCategoryEvidence != nil {
+            anchors.append(.diagnosticCategoryEvidence)
+        }
+        return anchors
     }
 
     nonisolated private static func occurrenceDate(for block: TerminalCommandBlock) -> Date {
@@ -1438,6 +1492,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let confidence: CommandDiagnosticConfidence
     let priorityScore: Int
     let priorityFactors: [CommandDiagnosticPriorityFactor]
+    let evidenceAnchors: [CommandDiagnosticEvidenceAnchor]
     let title: String
     let rationale: String
     let command: String
@@ -1459,6 +1514,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         confidence: CommandDiagnosticConfidence,
         priorityScore: Int,
         priorityFactors: [CommandDiagnosticPriorityFactor],
+        evidenceAnchors: [CommandDiagnosticEvidenceAnchor],
         title: String,
         rationale: String,
         command: String,
@@ -1479,6 +1535,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         self.confidence = confidence
         self.priorityScore = priorityScore
         self.priorityFactors = priorityFactors
+        self.evidenceAnchors = evidenceAnchors
         self.title = title
         self.rationale = rationale
         self.command = command
@@ -1512,6 +1569,14 @@ enum CommandDiagnosticActionSafety: String, Codable, Equatable {
 
 enum CommandDiagnosticActionExecutionMode: String, Codable, Equatable {
     case stageOnly = "stage_only"
+}
+
+enum CommandDiagnosticEvidenceAnchor: String, Codable, Equatable {
+    case latestFailedCommand = "latest_failed_command"
+    case recentFailureDiagnostic = "recent_failure_diagnostic"
+    case recentFailureFingerprint = "recent_failure_fingerprint"
+    case repeatedFailureDiagnostic = "repeated_failure_diagnostic"
+    case diagnosticCategoryEvidence = "diagnostic_category_evidence"
 }
 
 enum CommandDiagnosticActionExecutionTarget: String, Codable, Equatable {

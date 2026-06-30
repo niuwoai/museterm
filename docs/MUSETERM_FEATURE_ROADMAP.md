@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.78.0
+> 当前版本基线：v1.79.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,7 +30,7 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.78.0 已完成七十条纵向切片：
+v1.79.0 已完成七十一条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
@@ -65,6 +65,7 @@ v1.78.0 已完成七十条纵向切片：
 - 建议排查动作 ID：`suggestedNextAction` 新增稳定 `id`，例如 `inspect_git_state`、`inspect_repeat_context`，Runbook、AI 上下文和 CLI/MCP 可按动作类型消费，不必依赖可变标题文案。
 - 建议排查动作自解释：`suggestedNextAction` 新增 `sourceCategory` 与 `confidence`，单个 action 对象即可说明建议来自哪类诊断以及可信度，减少 MCP/AI 工具拼接旁路字段的成本。
 - 建议排查动作优先级：`suggestedNextAction` 新增 `priorityScore` 与 `priorityFactors`，让 action 对象自身也能排序并解释优先级来源，不必依赖父级 diagnostics 字段。
+- 建议排查动作证据锚点：`suggestedNextAction` 新增 `evidenceAnchors`，用稳定 code 标明建议动作锚定了哪些诊断来源，让 AI/MCP 工具能解释建议从哪里来，同时避免重复携带敏感日志内容。
 - 建议排查动作执行模式：`suggestedNextAction` 新增 `executionMode`，当前统一为 `stage_only`，明确外部工具只能填入或展示建议动作，执行仍必须由用户确认。
 - 建议排查动作执行目标：`suggestedNextAction` 新增 `executionTarget`，用稳定 code 声明建议命令应在当前终端会话、工作目录、shell 环境、Git 仓库或网络命名空间中理解，减少本地/远端/容器/错误目录误用。
 - 建议排查动作重试条件：`suggestedNextAction` 新增 `retryCondition`，用稳定 code 描述用户考虑重跑失败命令前应满足的条件，让排查动作和后续重跑边界更容易被工具串起来。

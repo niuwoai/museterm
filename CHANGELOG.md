@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.79.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `evidenceAnchors`，用稳定 code 标明建议动作锚定的诊断证据来源。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露证据锚点，帮助外部工具解释建议来源而不重复携带敏感日志内容。
+
 ## [1.78.0] - 2026-07-01
 
 ### Added

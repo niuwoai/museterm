@@ -428,6 +428,17 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(suggestedNextAction["confidence"] as? String, CommandDiagnosticConfidence.medium.rawValue)
         XCTAssertEqual(suggestedNextAction["priorityScore"] as? Int, 90)
         XCTAssertEqual(suggestedNextAction["priorityFactors"] as? [String], priorityFactors)
+        let evidenceAnchors = try XCTUnwrap(suggestedNextAction["evidenceAnchors"] as? [String])
+        XCTAssertEqual(
+            evidenceAnchors,
+            [
+                CommandDiagnosticEvidenceAnchor.latestFailedCommand.rawValue,
+                CommandDiagnosticEvidenceAnchor.recentFailureDiagnostic.rawValue,
+                CommandDiagnosticEvidenceAnchor.recentFailureFingerprint.rawValue,
+                CommandDiagnosticEvidenceAnchor.repeatedFailureDiagnostic.rawValue,
+                CommandDiagnosticEvidenceAnchor.diagnosticCategoryEvidence.rawValue
+            ]
+        )
         XCTAssertEqual(suggestedNextAction["title"] as? String, "Inspect repeat context")
         XCTAssertEqual(
             suggestedNextAction["rationale"] as? String,
@@ -830,6 +841,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_confidence")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_priority_score")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_priority_factors")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_evidence_anchors")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_safety")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_execution_mode")))
@@ -898,6 +910,8 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Suggested next action priority score: 90"))
         XCTAssertTrue(context.contains("Suggested next action priority factors: failed_command; repeated_severity"))
         XCTAssertTrue(context.contains("multiple_failures; repeated_failure_count"))
+        XCTAssertTrue(context.contains("Suggested next action evidence anchors: latest_failed_command; recent_failure_diagnostic"))
+        XCTAssertTrue(context.contains("repeated_failure_diagnostic; diagnostic_category_evidence"))
         XCTAssertTrue(context.contains("Suggested next action title: Inspect repeat context"))
         XCTAssertTrue(context.contains("Suggested next action safety: read_only"))
         XCTAssertTrue(context.contains("Suggested next action execution mode: stage_only"))
@@ -994,6 +1008,8 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(diagnostics.suggestedNextAction?.confidence, .high)
         XCTAssertEqual(diagnostics.suggestedNextAction?.priorityScore, 100)
         XCTAssertEqual(diagnostics.suggestedNextAction?.priorityFactors, diagnostics.diagnosticPriorityFactors)
+        XCTAssertTrue(diagnostics.suggestedNextAction?.evidenceAnchors.contains(.latestFailedCommand) == true)
+        XCTAssertTrue(diagnostics.suggestedNextAction?.evidenceAnchors.contains(.diagnosticCategoryEvidence) == true)
         XCTAssertEqual(diagnostics.suggestedNextAction?.title, "Inspect current permissions")
         XCTAssertEqual(diagnostics.suggestedNextAction?.safety, .readOnly)
         XCTAssertEqual(diagnostics.suggestedNextAction?.executionMode, .stageOnly)
@@ -1090,6 +1106,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(portConflict.suggestedNextAction?.confidence, .high)
         XCTAssertEqual(portConflict.suggestedNextAction?.priorityScore, 56)
         XCTAssertEqual(portConflict.suggestedNextAction?.priorityFactors, portConflict.diagnosticPriorityFactors)
+        XCTAssertTrue(portConflict.suggestedNextAction?.evidenceAnchors.contains(.diagnosticCategoryEvidence) == true)
         XCTAssertEqual(portConflict.suggestedNextAction?.title, "List listening TCP ports")
         XCTAssertEqual(portConflict.suggestedNextAction?.safety, .readOnly)
         XCTAssertEqual(portConflict.suggestedNextAction?.executionMode, .stageOnly)
@@ -1115,6 +1132,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(missingCommand.suggestedNextAction?.confidence, .high)
         XCTAssertEqual(missingCommand.suggestedNextAction?.priorityScore, 54)
         XCTAssertEqual(missingCommand.suggestedNextAction?.priorityFactors, missingCommand.diagnosticPriorityFactors)
+        XCTAssertTrue(missingCommand.suggestedNextAction?.evidenceAnchors.contains(.diagnosticCategoryEvidence) == true)
         XCTAssertEqual(missingCommand.suggestedNextAction?.title, "Inspect PATH")
         XCTAssertEqual(missingCommand.suggestedNextAction?.executionMode, .stageOnly)
         XCTAssertEqual(missingCommand.suggestedNextAction?.executionTarget, .currentShellEnvironment)
@@ -1139,6 +1157,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(missingFile.suggestedNextAction?.confidence, .high)
         XCTAssertEqual(missingFile.suggestedNextAction?.priorityScore, 54)
         XCTAssertEqual(missingFile.suggestedNextAction?.priorityFactors, missingFile.diagnosticPriorityFactors)
+        XCTAssertTrue(missingFile.suggestedNextAction?.evidenceAnchors.contains(.diagnosticCategoryEvidence) == true)
         XCTAssertEqual(missingFile.suggestedNextAction?.title, "Inspect current directory")
         XCTAssertEqual(missingFile.suggestedNextAction?.executionMode, .stageOnly)
         XCTAssertEqual(missingFile.suggestedNextAction?.executionTarget, .currentWorkingDirectory)
@@ -1163,6 +1182,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(gitFailure.suggestedNextAction?.confidence, .medium)
         XCTAssertEqual(gitFailure.suggestedNextAction?.priorityScore, 100)
         XCTAssertEqual(gitFailure.suggestedNextAction?.priorityFactors, gitFailure.diagnosticPriorityFactors)
+        XCTAssertTrue(gitFailure.suggestedNextAction?.evidenceAnchors.contains(.diagnosticCategoryEvidence) == true)
         XCTAssertEqual(gitFailure.suggestedNextAction?.title, "Inspect Git state")
         XCTAssertEqual(gitFailure.suggestedNextAction?.executionMode, .stageOnly)
         XCTAssertEqual(gitFailure.suggestedNextAction?.executionTarget, .currentGitRepository)
@@ -1186,6 +1206,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(genericFailure.suggestedNextAction?.confidence, .low)
         XCTAssertEqual(genericFailure.suggestedNextAction?.priorityScore, 45)
         XCTAssertEqual(genericFailure.suggestedNextAction?.priorityFactors, genericFailure.diagnosticPriorityFactors)
+        XCTAssertTrue(genericFailure.suggestedNextAction?.evidenceAnchors.contains(.diagnosticCategoryEvidence) == true)
         XCTAssertEqual(genericFailure.suggestedNextAction?.title, "Inspect local context")
         XCTAssertEqual(genericFailure.suggestedNextAction?.executionMode, .stageOnly)
         XCTAssertEqual(genericFailure.suggestedNextAction?.executionTarget, .currentTerminalSession)
