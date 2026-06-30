@@ -99,6 +99,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(repeatedFailure["fingerprint"] as? String, "error database is locked")
         XCTAssertNotNil(repeatedFailure["firstOccurredAt"])
         XCTAssertNotNil(repeatedFailure["latestOccurredAt"])
+        XCTAssertEqual(repeatedFailure["durationMilliseconds"] as? Int, 20_000)
         XCTAssertEqual(repeatedFailure["count"] as? Int, 3)
     }
 
@@ -445,6 +446,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_inspection")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_window")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_duration")))
         XCTAssertTrue(markdown.contains("3"))
         XCTAssertTrue(markdown.contains(CommandDiagnosticSeverity.repeated.rawValue))
         XCTAssertTrue(markdown.contains("make test"))
@@ -470,6 +472,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Recent failure fingerprint: error database is locked"))
         XCTAssertTrue(context.contains("Repeated failure diagnostic: 3x ERROR database is locked"))
         XCTAssertTrue(context.contains("Repeated failure window:"))
+        XCTAssertTrue(context.contains("Repeated failure duration: 20000 ms"))
         XCTAssertTrue(context.contains("Diagnostic severity: repeated"))
         XCTAssertTrue(context.contains("Suggested next inspection: Inspect the repeated failure output before rerunning"))
     }
@@ -509,6 +512,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(repeated.fingerprint, "error retry <num> failed at <path>")
         XCTAssertEqual(repeated.firstOccurredAt, Date(timeIntervalSince1970: 101))
         XCTAssertEqual(repeated.latestOccurredAt, Date(timeIntervalSince1970: 121))
+        XCTAssertEqual(repeated.durationMilliseconds, 20_000)
         XCTAssertEqual(diagnostics.diagnosticSeverity, .repeated)
     }
 

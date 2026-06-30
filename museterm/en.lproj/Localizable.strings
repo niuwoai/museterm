@@ -340,6 +340,7 @@
 "runbook.repeated_failure_value" = "%d times: %@";
 "runbook.repeated_failure_window" = "Repeated failure window";
 "runbook.repeated_failure_window_value" = "%@ to %@";
+"runbook.repeated_failure_duration" = "Repeated failure duration";
 "runbook.suggested_next_inspection" = "Suggested next inspection";
 "runbook.filter_query" = "Search filter";
 "runbook.filter_failures" = "Failures only";

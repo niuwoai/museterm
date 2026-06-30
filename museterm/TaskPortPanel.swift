@@ -673,6 +673,7 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append(
                 "Repeated failure window: \(Self.isoTimestamp(repeatedFailureDiagnostic.firstOccurredAt)) to \(Self.isoTimestamp(repeatedFailureDiagnostic.latestOccurredAt))"
             )
+            lines.append("Repeated failure duration: \(repeatedFailureDiagnostic.durationMilliseconds) ms")
         }
         if diagnosticSeverity != .none {
             lines.append("Diagnostic severity: \(diagnosticSeverity.rawValue)")
@@ -774,6 +775,10 @@ struct CommandBlockDiagnostics: Equatable {
             fingerprint: latestRecord.fingerprint,
             firstOccurredAt: occurrenceDate(for: firstMatchedBlock),
             latestOccurredAt: occurrenceDate(for: latestMatchedBlock),
+            durationMilliseconds: failureDurationMilliseconds(
+                firstOccurredAt: occurrenceDate(for: firstMatchedBlock),
+                latestOccurredAt: occurrenceDate(for: latestMatchedBlock)
+            ),
             count: count
         )
     }
@@ -823,6 +828,13 @@ struct CommandBlockDiagnostics: Equatable {
         ISO8601DateFormatter().string(from: date)
     }
 
+    nonisolated private static func failureDurationMilliseconds(
+        firstOccurredAt: Date,
+        latestOccurredAt: Date
+    ) -> Int {
+        max(0, Int(latestOccurredAt.timeIntervalSince(firstOccurredAt) * 1000))
+    }
+
     nonisolated private static let repeatedFailureThreshold = 3
 }
 
@@ -831,6 +843,7 @@ struct RepeatedFailureDiagnostic: Equatable {
     let fingerprint: String
     let firstOccurredAt: Date
     let latestOccurredAt: Date
+    let durationMilliseconds: Int
     let count: Int
 }
 

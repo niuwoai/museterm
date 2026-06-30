@@ -1414,6 +1414,9 @@ enum RunbookMarkdownExporter {
                 timestamp(repeatedFailureDiagnostic.latestOccurredAt)
             )
             lines.append("- \(L10n.string("runbook.repeated_failure_window")): \(windowText)")
+            lines.append(
+                "- \(L10n.string("runbook.repeated_failure_duration")): \(repeatedFailureDiagnostic.durationMilliseconds) ms"
+            )
         }
         if let suggestedNextInspection = diagnostics.suggestedNextInspection {
             lines.append("- \(L10n.string("runbook.suggested_next_inspection")): \(escapeInline(suggestedNextInspection))")

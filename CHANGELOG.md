@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.44.0] - 2026-07-01
+
+### Added
+- 连续同类失败诊断新增 `durationMilliseconds`，Runbook、AI 上下文和 CLI/MCP `diagnostics` 可直接读取这波失败持续了多久。
+- Runbook Markdown 会记录连续失败持续时长，为后续排查排序、趋势统计和回放摘要打基础。
+
 ## [1.43.0] - 2026-07-01
 
 ### Added
