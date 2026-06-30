@@ -331,9 +331,12 @@
 "runbook.redaction" = "脱敏";
 "runbook.redaction_on" = "已开启";
 "runbook.redaction_off" = "未开启";
+"runbook.failed_commands" = "失败命令";
+"runbook.latest_failed_command" = "最近失败命令";
 "runbook.latest_failure" = "最近失败";
 "runbook.repeated_failure" = "连续同类失败";
 "runbook.repeated_failure_value" = "连续 %d 次：%@";
+"runbook.suggested_next_inspection" = "建议下一步查看";
 "runbook.filter_query" = "搜索过滤";
 "runbook.filter_failures" = "仅失败命令";
 "runbook.yes" = "是";

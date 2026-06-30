@@ -331,9 +331,12 @@
 "runbook.redaction" = "Redaction";
 "runbook.redaction_on" = "Enabled";
 "runbook.redaction_off" = "Disabled";
+"runbook.failed_commands" = "Failed commands";
+"runbook.latest_failed_command" = "Latest failed command";
 "runbook.latest_failure" = "Latest failure";
 "runbook.repeated_failure" = "Repeated failure";
 "runbook.repeated_failure_value" = "%d times: %@";
+"runbook.suggested_next_inspection" = "Suggested next inspection";
 "runbook.filter_query" = "Search filter";
 "runbook.filter_failures" = "Failures only";
 "runbook.yes" = "Yes";

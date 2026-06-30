@@ -586,8 +586,7 @@ struct SessionCommandStats {
     init(blocks: [TerminalCommandBlock], portCount: Int) {
         commandCount = blocks.count
         let diagnostics = CommandBlockDiagnostics(blocks: blocks)
-        let failedBlocks = blocks.filter(CommandBlockDiagnostics.isFailed)
-        failureCount = failedBlocks.count
+        failureCount = diagnostics.failedCommandCount
         runningCount = blocks.filter { $0.endedAt == nil }.count
         self.portCount = portCount
         longestDurationMilliseconds = blocks.compactMap(\.durationMilliseconds).max()
@@ -615,11 +614,19 @@ struct SessionCommandStats {
 }
 
 struct CommandBlockDiagnostics: Equatable {
+    let failedCommandCount: Int
+    let latestFailedCommand: String?
     let recentFailureDiagnostic: String?
     let repeatedFailureDiagnostic: RepeatedFailureDiagnostic?
+    let suggestedNextInspection: String?
 
     init(blocks: [TerminalCommandBlock], redactSensitiveData: Bool = true) {
-        let failedBlocks = blocks.filter(Self.isFailed)
+        let failedBlocks = blocks.filter(Self.isFailed).sorted(by: Self.mostRecentFirst)
+        failedCommandCount = failedBlocks.count
+        latestFailedCommand = failedBlocks.first.map { block in
+            let command = block.command.trimmingCharacters(in: .whitespacesAndNewlines)
+            return redactSensitiveData ? RunbookSensitiveRedactor.redact(command) : command
+        }
         recentFailureDiagnostic = failedBlocks
             .sorted(by: Self.mostRecentFirst)
             .compactMap { Self.failureDiagnostic(for: $0, redactSensitiveData: redactSensitiveData) }
@@ -628,10 +635,22 @@ struct CommandBlockDiagnostics: Equatable {
             in: blocks,
             redactSensitiveData: redactSensitiveData
         )
+        suggestedNextInspection = Self.suggestedNextInspection(
+            failedCommandCount: failedCommandCount,
+            latestFailedCommand: latestFailedCommand,
+            recentFailureDiagnostic: recentFailureDiagnostic,
+            repeatedFailureDiagnostic: repeatedFailureDiagnostic
+        )
     }
 
     var aiContextText: String? {
         var lines: [String] = []
+        if failedCommandCount > 0 {
+            lines.append("Failed commands: \(failedCommandCount)")
+        }
+        if let latestFailedCommand {
+            lines.append("Latest failed command: \(latestFailedCommand)")
+        }
         if let recentFailureDiagnostic {
             lines.append("Recent failure diagnostic: \(recentFailureDiagnostic)")
         }
@@ -639,6 +658,9 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append(
                 "Repeated failure diagnostic: \(repeatedFailureDiagnostic.count)x \(repeatedFailureDiagnostic.diagnostic)"
             )
+        }
+        if let suggestedNextInspection {
+            lines.append("Suggested next inspection: \(suggestedNextInspection)")
         }
         guard !lines.isEmpty else { return nil }
         return (["Session diagnostics:"] + lines).joined(separator: "\n")
@@ -688,6 +710,24 @@ struct CommandBlockDiagnostics: Equatable {
         }
         guard count >= Self.repeatedFailureThreshold else { return nil }
         return RepeatedFailureDiagnostic(diagnostic: diagnostic, count: count)
+    }
+
+    nonisolated private static func suggestedNextInspection(
+        failedCommandCount: Int,
+        latestFailedCommand: String?,
+        recentFailureDiagnostic: String?,
+        repeatedFailureDiagnostic: RepeatedFailureDiagnostic?
+    ) -> String? {
+        if let repeatedFailureDiagnostic {
+            return "Inspect the repeated failure output before rerunning: \(repeatedFailureDiagnostic.diagnostic)"
+        }
+        if let recentFailureDiagnostic {
+            return "Inspect the latest failed command output: \(recentFailureDiagnostic)"
+        }
+        if failedCommandCount > 0, let latestFailedCommand {
+            return "Inspect the latest failed command exit status: \(latestFailedCommand)"
+        }
+        return nil
     }
 
     nonisolated private static let repeatedFailureThreshold = 3

@@ -1386,6 +1386,12 @@ enum RunbookMarkdownExporter {
             lines.append("- \(L10n.string("runbook.redaction")): \(redactSensitiveData ? L10n.string("runbook.redaction_on") : L10n.string("runbook.redaction_off"))")
         }
         let diagnostics = CommandBlockDiagnostics(blocks: blocks, redactSensitiveData: redactSensitiveData)
+        if diagnostics.failedCommandCount > 0 {
+            lines.append("- \(L10n.string("runbook.failed_commands")): \(diagnostics.failedCommandCount)")
+        }
+        if let latestFailedCommand = diagnostics.latestFailedCommand {
+            lines.append("- \(L10n.string("runbook.latest_failed_command")): `\(escapeInline(latestFailedCommand))`")
+        }
         if let recentFailureDiagnostic = diagnostics.recentFailureDiagnostic {
             lines.append("- \(L10n.string("runbook.latest_failure")): `\(escapeInline(recentFailureDiagnostic))`")
         }
@@ -1396,6 +1402,9 @@ enum RunbookMarkdownExporter {
                 "`\(escapeInline(repeatedFailureDiagnostic.diagnostic))`"
             )
             lines.append("- \(L10n.string("runbook.repeated_failure")): \(repeatedText)")
+        }
+        if let suggestedNextInspection = diagnostics.suggestedNextInspection {
+            lines.append("- \(L10n.string("runbook.suggested_next_inspection")): \(escapeInline(suggestedNextInspection))")
         }
 
         let cleanedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)

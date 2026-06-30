@@ -86,7 +86,13 @@ final class musetermTests: XCTestCase {
         let encodedDiagnostics = try XCTUnwrap(object["commandDiagnostics"] as? [String: Any])
         let repeatedFailure = try XCTUnwrap(encodedDiagnostics["repeatedFailureDiagnostic"] as? [String: Any])
 
+        XCTAssertEqual(encodedDiagnostics["failedCommandCount"] as? Int, 3)
+        XCTAssertEqual(encodedDiagnostics["latestFailedCommand"] as? String, "make test")
         XCTAssertEqual(encodedDiagnostics["recentFailureDiagnostic"] as? String, diagnostic)
+        XCTAssertEqual(
+            encodedDiagnostics["suggestedNextInspection"] as? String,
+            "Inspect the repeated failure output before rerunning: \(diagnostic)"
+        )
         XCTAssertEqual(repeatedFailure["diagnostic"] as? String, diagnostic)
         XCTAssertEqual(repeatedFailure["count"] as? Int, 3)
     }
@@ -427,9 +433,14 @@ final class musetermTests: XCTestCase {
         )
 
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failure")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.failed_commands")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_inspection")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure")))
         XCTAssertTrue(markdown.contains("3"))
+        XCTAssertTrue(markdown.contains("make test"))
         XCTAssertTrue(markdown.contains("ERROR token=[REDACTED]"))
+        XCTAssertTrue(markdown.contains("Inspect the repeated failure output before rerunning"))
         XCTAssertFalse(markdown.contains(secret))
     }
 
@@ -444,8 +455,11 @@ final class musetermTests: XCTestCase {
         let context = try XCTUnwrap(diagnostics.aiContextText)
 
         XCTAssertTrue(context.contains("Session diagnostics:"))
+        XCTAssertTrue(context.contains("Failed commands: 3"))
+        XCTAssertTrue(context.contains("Latest failed command: make test"))
         XCTAssertTrue(context.contains("Recent failure diagnostic: ERROR database is locked"))
         XCTAssertTrue(context.contains("Repeated failure diagnostic: 3x ERROR database is locked"))
+        XCTAssertTrue(context.contains("Suggested next inspection: Inspect the repeated failure output before rerunning"))
     }
 
     func testSessionCommandStatsTracksRecentRedactedFailureDiagnostic() {

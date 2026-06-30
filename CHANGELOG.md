@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.40.0] - 2026-07-01
+
+### Added
+- 命令诊断摘要新增失败命令数、最近失败命令和建议下一步查看项，便于 Runbook、AI 上下文和 CLI/MCP 工具直接定位排查入口。
+- Runbook Markdown 会记录失败命令数、最近失败命令和建议下一步查看项，并继续沿用脱敏策略。
+
+### Changed
+- 任务统计的失败数改为复用 `CommandBlockDiagnostics.failedCommandCount`，进一步减少诊断逻辑分叉。
+
 ## [1.39.0] - 2026-07-01
 
 ### Added
