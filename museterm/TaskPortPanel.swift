@@ -615,6 +615,7 @@ struct SessionCommandStats {
 
 struct CommandBlockDiagnostics: Equatable {
     let failedCommandCount: Int
+    let diagnosticPriorityScore: Int
     let latestFailedCommand: String?
     let recentFailureDiagnostic: String?
     let recentFailureFingerprint: String?
@@ -658,6 +659,13 @@ struct CommandBlockDiagnostics: Equatable {
         diagnosticCategory = diagnosticCategoryMatch.category
         diagnosticCategoryEvidence = diagnosticCategoryMatch.evidence
         diagnosticCategoryConfidence = diagnosticCategoryMatch.confidence
+        diagnosticPriorityScore = Self.diagnosticPriorityScore(
+            failedCommandCount: failedCommandCount,
+            diagnosticSeverity: diagnosticSeverity,
+            diagnosticCategory: diagnosticCategory,
+            diagnosticCategoryConfidence: diagnosticCategoryConfidence,
+            repeatedFailureDiagnostic: repeatedFailureDiagnostic
+        )
         suggestedNextInspection = Self.suggestedNextInspection(
             failedCommandCount: failedCommandCount,
             latestFailedCommand: latestFailedCommand,
@@ -676,6 +684,9 @@ struct CommandBlockDiagnostics: Equatable {
         var lines: [String] = []
         if failedCommandCount > 0 {
             lines.append("Failed commands: \(failedCommandCount)")
+        }
+        if diagnosticPriorityScore > 0 {
+            lines.append("Diagnostic priority score: \(diagnosticPriorityScore)")
         }
         if let latestFailedCommand {
             lines.append("Latest failed command: \(latestFailedCommand)")
@@ -908,6 +919,57 @@ struct CommandBlockDiagnostics: Equatable {
             evidence: recentFailureDiagnostic ?? latestFailedCommand,
             confidence: .low
         )
+    }
+
+    nonisolated private static func diagnosticPriorityScore(
+        failedCommandCount: Int,
+        diagnosticSeverity: CommandDiagnosticSeverity,
+        diagnosticCategory: CommandDiagnosticCategory,
+        diagnosticCategoryConfidence: CommandDiagnosticConfidence,
+        repeatedFailureDiagnostic: RepeatedFailureDiagnostic?
+    ) -> Int {
+        guard failedCommandCount > 0 else { return 0 }
+        let severityScore: Int
+        switch diagnosticSeverity {
+        case .none:
+            severityScore = 0
+        case .failed:
+            severityScore = 40
+        case .repeated:
+            severityScore = 70
+        case .critical:
+            severityScore = 90
+        }
+
+        let categoryScore: Int
+        switch diagnosticCategory {
+        case .none:
+            categoryScore = 0
+        case .portConflict, .permission:
+            categoryScore = 8
+        case .missingFile, .missingCommand, .git:
+            categoryScore = 6
+        case .repeated:
+            categoryScore = 5
+        case .generic:
+            categoryScore = 2
+        }
+
+        let confidenceScore: Int
+        switch diagnosticCategoryConfidence {
+        case .none:
+            confidenceScore = 0
+        case .low:
+            confidenceScore = 1
+        case .medium:
+            confidenceScore = 3
+        case .high:
+            confidenceScore = 6
+        }
+
+        let failedCountScore = min(10, failedCommandCount * 2)
+        let repeatedCountScore = min(12, (repeatedFailureDiagnostic?.count ?? 0) * 2)
+        return min(100, severityScore + categoryScore + confidenceScore + failedCountScore + repeatedCountScore)
     }
 
     nonisolated private static func suggestedNextInspection(

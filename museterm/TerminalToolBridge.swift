@@ -79,6 +79,7 @@ struct TerminalToolTabSnapshot: Codable, Equatable {
 struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
     let schemaVersion: Int
     let failedCommandCount: Int
+    let diagnosticPriorityScore: Int
     let diagnosticSeverity: String
     let diagnosticCategory: String
     let diagnosticCategoryEvidence: String?
@@ -94,6 +95,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
     init(schemaVersion: Int = 1, diagnostics: CommandBlockDiagnostics) {
         self.schemaVersion = schemaVersion
         failedCommandCount = diagnostics.failedCommandCount
+        diagnosticPriorityScore = diagnostics.diagnosticPriorityScore
         diagnosticSeverity = diagnostics.diagnosticSeverity.rawValue
         diagnosticCategory = diagnostics.diagnosticCategory.rawValue
         diagnosticCategoryEvidence = diagnostics.diagnosticCategoryEvidence
