@@ -55,6 +55,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private var startupPromptPollWorkItem: DispatchWorkItem?
     private var startupHardDeadline: TimeInterval = 0
     private var startupLastOutputUptime: TimeInterval = 0
+    private var startupFirstContentUptime: TimeInterval = 0
     private var startupRedrawCount = 0
     private var didRunStartupPromptRedraw = false
     private var didReceiveProcessInput = false
@@ -581,6 +582,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             masterPtyDescriptor: terminalView.process.childfd,
             windowSize: &size
         )
+        // 启动期的窗口定型 resize 会向 shell 发 SIGWINCH 触发重绘（首个标签尤其晚），
+        // 把它也算作“活动”，让遮罩继续盖住并等它引发的重绘安静后再判定，避免过早揭幕。
+        noteStartupOutputActivity()
         sizeChanged(source: terminalView, newCols: newCols, newRows: newRows)
     }
 
@@ -593,6 +597,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         didRunStartupPromptRedraw = false
         startupRedrawCount = 0
         startupLastOutputUptime = now
+        startupFirstContentUptime = 0
         // 硬上限：无论如何最多盖这么久，避免极端情况下一直盖着空白。
         startupHardDeadline = now + 3.0
         showStartupCover()
@@ -618,6 +623,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private func runStartupPromptPoll() {
         // 输出安静多久算“启动抖动结束”。
         let quietThreshold: TimeInterval = 0.2
+        // 首屏出现后的最小覆盖时长：避免在“窗口尺寸最终定型”的迟到 SIGWINCH 重绘到来
+        // 之前就揭幕（开 app 的第一个标签尤其明显）。
+        let minCoverageAfterContent: TimeInterval = 0.45
 
         guard !didRunStartupPromptRedraw else { return }
         if didReceiveProcessInput {
@@ -646,6 +654,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             scheduleStartupPromptPoll(after: 0.1)
             return
         }
+        if startupFirstContentUptime == 0 {
+            startupFirstContentUptime = now
+        }
 
         // 输出尚未安静（WINCH/初始化仍在抖动）——继续盖住等待，绝不此时动手。
         guard now - startupLastOutputUptime >= quietThreshold else {
@@ -668,7 +679,14 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             return
         }
 
-        // 安静且干净 → 揭幕。
+        // 当前安静且干净；但若还没盖够最小覆盖时长，继续盖住轮询，以防迟到的窗口
+        // 定型 resize 又把提示符重绘成两条。
+        if now - startupFirstContentUptime < minCoverageAfterContent {
+            scheduleStartupPromptPoll(after: 0.1)
+            return
+        }
+
+        // 安静、干净、且已盖够最小覆盖时长 → 揭幕。
         finishStartupPromptDeduplication()
     }
 
