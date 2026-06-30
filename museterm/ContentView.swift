@@ -1536,6 +1536,9 @@ enum RunbookMarkdownExporter {
                 )
             }
             lines.append(
+                "- \(L10n.string("runbook.suggested_next_action_result_reuse_policy")): \(suggestedNextAction.resultReusePolicy.rawValue)"
+            )
+            lines.append(
                 "- \(L10n.string("runbook.suggested_next_action_retry_condition")): \(suggestedNextAction.retryCondition.rawValue)"
             )
             if !suggestedNextAction.preflightChecks.isEmpty {

@@ -792,6 +792,7 @@ struct CommandBlockDiagnostics: Equatable {
                 let resultReuseKeyFields = suggestedNextAction.resultReuseKeyFields.map(\.rawValue).joined(separator: "; ")
                 lines.append("Suggested next action result reuse key fields: \(resultReuseKeyFields)")
             }
+            lines.append("Suggested next action result reuse policy: \(suggestedNextAction.resultReusePolicy.rawValue)")
             lines.append("Suggested next action retry condition: \(suggestedNextAction.retryCondition.rawValue)")
             lines.append("Suggested next action preflight checks: \(suggestedNextAction.preflightChecks.joined(separator: "; "))")
             lines.append("Suggested next action automation guardrails: \(suggestedNextAction.automationGuardrails.joined(separator: "; "))")
@@ -1188,6 +1189,7 @@ struct CommandBlockDiagnostics: Equatable {
                 resultValidityScope: .currentTerminalNetworkNamespace,
                 resultFreshnessPolicy: .liveSnapshot,
                 resultReuseKeyFields: [.terminalNetworkNamespace, .networkListeners],
+                resultReusePolicy: .refreshBeforeUse,
                 retryCondition: .portConflictResolvedOrOwnerKnown
             )
         case .permission:
@@ -1240,6 +1242,7 @@ struct CommandBlockDiagnostics: Equatable {
                 resultValidityScope: .currentWorkingDirectory,
                 resultFreshnessPolicy: .contextBound,
                 resultReuseKeyFields: [.workingDirectory, .userIdentity, .permissionMetadata],
+                resultReusePolicy: .reuseWhenKeysMatch,
                 retryCondition: .permissionsVerified
             )
         case .missingCommand:
@@ -1292,6 +1295,7 @@ struct CommandBlockDiagnostics: Equatable {
                 resultValidityScope: .currentShellEnvironment,
                 resultFreshnessPolicy: .contextBound,
                 resultReuseKeyFields: [.shellEnvironment],
+                resultReusePolicy: .reuseWhenKeysMatch,
                 retryCondition: .commandAvailableOnPath
             )
         case .missingFile:
@@ -1344,6 +1348,7 @@ struct CommandBlockDiagnostics: Equatable {
                 resultValidityScope: .currentWorkingDirectory,
                 resultFreshnessPolicy: .liveSnapshot,
                 resultReuseKeyFields: [.workingDirectory, .filesystemState],
+                resultReusePolicy: .refreshBeforeUse,
                 retryCondition: .fileOrDirectoryVerified
             )
         case .git:
@@ -1396,6 +1401,7 @@ struct CommandBlockDiagnostics: Equatable {
                 resultValidityScope: .currentGitRepository,
                 resultFreshnessPolicy: .liveSnapshot,
                 resultReuseKeyFields: [.gitRepository, .gitBranch, .gitWorkingTreeState],
+                resultReusePolicy: .refreshBeforeUse,
                 retryCondition: .gitStateReviewed
             )
         case .repeated:
@@ -1448,6 +1454,7 @@ struct CommandBlockDiagnostics: Equatable {
                 resultValidityScope: .currentTerminalSession,
                 resultFreshnessPolicy: .failureAttemptBound,
                 resultReuseKeyFields: [.terminalSession, .workingDirectory, .gitRepository, .failureFingerprint],
+                resultReusePolicy: .doNotReuseAcrossAttempts,
                 retryCondition: .contextChangedOrFirstFailureInspected
             )
         case .generic:
@@ -1500,6 +1507,7 @@ struct CommandBlockDiagnostics: Equatable {
                 resultValidityScope: .currentTerminalSession,
                 resultFreshnessPolicy: .failureAttemptBound,
                 resultReuseKeyFields: [.terminalSession, .workingDirectory, .gitRepository, .failureFingerprint],
+                resultReusePolicy: .doNotReuseAcrossAttempts,
                 retryCondition: .localContextCaptured
             )
         }
@@ -1640,6 +1648,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let resultValidityScope: CommandDiagnosticActionResultValidityScope
     let resultFreshnessPolicy: CommandDiagnosticActionResultFreshnessPolicy
     let resultReuseKeyFields: [CommandDiagnosticActionResultReuseKeyField]
+    let resultReusePolicy: CommandDiagnosticActionResultReusePolicy
     let retryCondition: CommandDiagnosticActionRetryCondition
     let requiresConfirmation: Bool
 
@@ -1675,6 +1684,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         resultValidityScope: CommandDiagnosticActionResultValidityScope,
         resultFreshnessPolicy: CommandDiagnosticActionResultFreshnessPolicy,
         resultReuseKeyFields: [CommandDiagnosticActionResultReuseKeyField],
+        resultReusePolicy: CommandDiagnosticActionResultReusePolicy,
         retryCondition: CommandDiagnosticActionRetryCondition,
         requiresConfirmation: Bool = true
     ) {
@@ -1709,6 +1719,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         self.resultValidityScope = resultValidityScope
         self.resultFreshnessPolicy = resultFreshnessPolicy
         self.resultReuseKeyFields = resultReuseKeyFields
+        self.resultReusePolicy = resultReusePolicy
         self.retryCondition = retryCondition
         self.requiresConfirmation = requiresConfirmation
     }
@@ -1866,6 +1877,12 @@ enum CommandDiagnosticActionResultReuseKeyField: String, Codable, Equatable {
     case gitBranch = "git_branch"
     case gitWorkingTreeState = "git_working_tree_state"
     case failureFingerprint = "failure_fingerprint"
+}
+
+enum CommandDiagnosticActionResultReusePolicy: String, Codable, Equatable {
+    case refreshBeforeUse = "refresh_before_use"
+    case reuseWhenKeysMatch = "reuse_when_keys_match"
+    case doNotReuseAcrossAttempts = "do_not_reuse_across_attempts"
 }
 
 enum CommandDiagnosticActionRetryCondition: String, Codable, Equatable {

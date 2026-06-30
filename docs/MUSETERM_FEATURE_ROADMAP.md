@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.92.0
+> 当前版本基线：v1.93.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,7 +30,7 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.92.0 已完成八十四条纵向切片：
+v1.93.0 已完成八十五条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
@@ -81,6 +81,7 @@ v1.92.0 已完成八十四条纵向切片：
 - 建议排查动作结果适用范围：`suggestedNextAction` 新增 `resultValidityScope`，用稳定 code 声明建议命令结果可在哪个范围内复用，例如当前终端会话、网络命名空间、工作目录、Shell 环境或 Git 仓库。
 - 建议排查动作结果新鲜度策略：`suggestedNextAction` 新增 `resultFreshnessPolicy`，用稳定 code 声明建议命令结果是实时快照、上下文绑定，还是仅对当前失败尝试有效，帮助外部工具判断历史诊断结果能否复用。
 - 建议排查动作结果复用键字段：`suggestedNextAction` 新增 `resultReuseKeyFields`，用稳定 code 声明复用建议命令结果前应比较哪些上下文，例如终端会话、工作目录、Shell 环境、Git 仓库、监听端口、权限元数据或失败指纹。
+- 建议排查动作结果复用策略：`suggestedNextAction` 新增 `resultReusePolicy`，用稳定 code 明确历史建议命令结果应先刷新再用、仅在复用键匹配时可用，还是不能跨失败尝试复用。
 - 建议排查动作重试条件：`suggestedNextAction` 新增 `retryCondition`，用稳定 code 描述用户考虑重跑失败命令前应满足的条件，让排查动作和后续重跑边界更容易被工具串起来。
 - 建议排查动作执行前检查：`suggestedNextAction` 新增 `preflightChecks`，用结构化清单描述填入建议动作前应确认的上下文，避免在目录、权限、Git 状态或失败输出仍不清楚时盲目重试。
 - 建议排查动作自动化护栏：`suggestedNextAction` 新增 `automationGuardrails`，明确建议动作不能自动越过的边界，例如不自动 kill 进程、不自动 sudo/chmod、不自动安装依赖、不自动执行 Git 破坏性操作。

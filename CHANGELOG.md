@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.93.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `resultReusePolicy`，用稳定 code 明确建议命令结果应先刷新再用、仅在复用键匹配时可用，还是不能跨失败尝试复用。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露结果复用策略，帮助外部工具在读取历史诊断结果时选择刷新、保守复用或重新取证。
+
 ## [1.92.0] - 2026-07-01
 
 ### Added
