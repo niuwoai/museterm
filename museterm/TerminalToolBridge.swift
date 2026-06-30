@@ -140,6 +140,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
     let expectedSignals: [String]
     let fallbackNextSteps: [String]
     let safety: String
+    let executionMode: String
     let requiresConfirmation: Bool
 
     init(action: CommandDiagnosticAction) {
@@ -154,6 +155,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
         expectedSignals = action.expectedSignals
         fallbackNextSteps = action.fallbackNextSteps
         safety = action.safety.rawValue
+        executionMode = action.executionMode.rawValue
         requiresConfirmation = action.requiresConfirmation
     }
 }

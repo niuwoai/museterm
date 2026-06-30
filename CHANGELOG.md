@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.72.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `executionMode`，当前建议动作统一标记为 `stage_only`，明确只能填入或展示，不能由外部工具自动执行。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露执行模式，进一步固定“用户确认后执行”的安全边界。
+
 ## [1.71.0] - 2026-07-01
 
 ### Added

@@ -1466,6 +1466,9 @@ enum RunbookMarkdownExporter {
             lines.append(
                 "- \(L10n.string("runbook.suggested_next_action_safety")): \(suggestedNextAction.safety.rawValue)"
             )
+            lines.append(
+                "- \(L10n.string("runbook.suggested_next_action_execution_mode")): \(suggestedNextAction.executionMode.rawValue)"
+            )
             if !suggestedNextAction.expectedSignals.isEmpty {
                 let expectedSignals = suggestedNextAction.expectedSignals
                     .map { "`\(escapeInline($0))`" }

@@ -750,6 +750,7 @@ struct CommandBlockDiagnostics: Equatable {
             }
             lines.append("Suggested next action title: \(suggestedNextAction.title)")
             lines.append("Suggested next action safety: \(suggestedNextAction.safety.rawValue)")
+            lines.append("Suggested next action execution mode: \(suggestedNextAction.executionMode.rawValue)")
             lines.append("Suggested next action rationale: \(suggestedNextAction.rationale)")
             lines.append("Suggested next action expected signals: \(suggestedNextAction.expectedSignals.joined(separator: "; "))")
             lines.append("Suggested next action fallback steps: \(suggestedNextAction.fallbackNextSteps.joined(separator: "; "))")
@@ -1311,6 +1312,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let expectedSignals: [String]
     let fallbackNextSteps: [String]
     let safety: CommandDiagnosticActionSafety
+    let executionMode: CommandDiagnosticActionExecutionMode
     let requiresConfirmation: Bool
 
     nonisolated init(
@@ -1325,6 +1327,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         expectedSignals: [String],
         fallbackNextSteps: [String],
         safety: CommandDiagnosticActionSafety,
+        executionMode: CommandDiagnosticActionExecutionMode = .stageOnly,
         requiresConfirmation: Bool = true
     ) {
         self.id = id
@@ -1338,6 +1341,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         self.expectedSignals = expectedSignals
         self.fallbackNextSteps = fallbackNextSteps
         self.safety = safety
+        self.executionMode = executionMode
         self.requiresConfirmation = requiresConfirmation
     }
 }
@@ -1354,6 +1358,10 @@ enum CommandDiagnosticActionID: String, Codable, Equatable {
 
 enum CommandDiagnosticActionSafety: String, Codable, Equatable {
     case readOnly = "read_only"
+}
+
+enum CommandDiagnosticActionExecutionMode: String, Codable, Equatable {
+    case stageOnly = "stage_only"
 }
 
 private struct FailureDiagnosticRecord: Equatable {
