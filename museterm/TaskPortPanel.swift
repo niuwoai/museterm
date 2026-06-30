@@ -752,6 +752,7 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append("Suggested next action safety: \(suggestedNextAction.safety.rawValue)")
             lines.append("Suggested next action execution mode: \(suggestedNextAction.executionMode.rawValue)")
             lines.append("Suggested next action retry condition: \(suggestedNextAction.retryCondition.rawValue)")
+            lines.append("Suggested next action preflight checks: \(suggestedNextAction.preflightChecks.joined(separator: "; "))")
             lines.append("Suggested next action rationale: \(suggestedNextAction.rationale)")
             lines.append("Suggested next action expected signals: \(suggestedNextAction.expectedSignals.joined(separator: "; "))")
             lines.append("Suggested next action fallback steps: \(suggestedNextAction.fallbackNextSteps.joined(separator: "; "))")
@@ -1095,6 +1096,10 @@ struct CommandBlockDiagnostics: Equatable {
                     "Look for the conflicting local port.",
                     "Check the owning PID and process name before deciding whether to stop it."
                 ],
+                preflightChecks: [
+                    "Confirm the failed command expected to bind a local TCP port.",
+                    "Keep the follow-up inspection read-only until the owning process is identified."
+                ],
                 fallbackNextSteps: [
                     "If the port is not listed locally, check whether the failure happened inside a container, VM, or remote host.",
                     "If the owner is unclear, inspect the process details before stopping anything."
@@ -1115,6 +1120,10 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedSignals: [
                     "Confirm the command ran in the expected directory.",
                     "Compare the current user and directory permissions with the failed operation."
+                ],
+                preflightChecks: [
+                    "Confirm the failure is from insufficient permissions rather than a missing path.",
+                    "Check whether the command was intended to run locally, over SSH, or under sudo."
                 ],
                 fallbackNextSteps: [
                     "If directory permissions look correct, inspect the target file, parent directory, or mounted volume permissions.",
@@ -1137,6 +1146,10 @@ struct CommandBlockDiagnostics: Equatable {
                     "Confirm whether the expected tool directory is present in PATH.",
                     "If PATH looks correct, inspect whether the command is installed under a different name."
                 ],
+                preflightChecks: [
+                    "Confirm the missing executable name from the failed command or diagnostic line.",
+                    "Check whether the project requires an environment activation step before retrying."
+                ],
                 fallbackNextSteps: [
                     "If PATH contains the expected directory, run a read-only lookup such as command -v for the missing executable.",
                     "If the command exists in another shell, compare login shell startup files and project environment activation."
@@ -1157,6 +1170,10 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedSignals: [
                     "Confirm the command ran in the directory that should contain the file.",
                     "Check whether the missing file is absent, renamed, hidden, or has unexpected casing."
+                ],
+                preflightChecks: [
+                    "Confirm the missing path is expected to exist before rerunning.",
+                    "Check whether the command depends on generated files or a project setup step."
                 ],
                 fallbackNextSteps: [
                     "If the directory is correct, search the project tree for the expected filename or config equivalent.",
@@ -1179,6 +1196,10 @@ struct CommandBlockDiagnostics: Equatable {
                     "Check the current branch and upstream relation.",
                     "Look for dirty, conflicted, staged, or untracked files before retrying Git commands."
                 ],
+                preflightChecks: [
+                    "Confirm the failed command was run inside the intended repository.",
+                    "Check whether local changes, conflicts, or upstream drift could change the retry result."
+                ],
                 fallbackNextSteps: [
                     "If status is clean, inspect the failed Git command output for remote, auth, or repository path clues.",
                     "If conflicts or dirty files are present, resolve or stash intentionally before rerunning."
@@ -1200,6 +1221,10 @@ struct CommandBlockDiagnostics: Equatable {
                     "Confirm whether repeated failures are happening in the expected working directory.",
                     "If this is a Git project, compare branch and dirty state before another rerun."
                 ],
+                preflightChecks: [
+                    "Confirm whether anything meaningful changed since the last failed attempt.",
+                    "Prefer inspecting the first failure output if the command and context are unchanged."
+                ],
                 fallbackNextSteps: [
                     "If context is unchanged, inspect the first repeated failure output instead of rerunning immediately.",
                     "If context changed between attempts, capture the changed directory, branch, or environment before comparing results."
@@ -1220,6 +1245,10 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedSignals: [
                     "Confirm the working directory before deeper inspection.",
                     "If available, use Git state to correlate the failure with recent local changes."
+                ],
+                preflightChecks: [
+                    "Confirm the failure has enough output to guide a targeted next step.",
+                    "Keep the first inspection read-only until the failing dependency is clearer."
                 ],
                 fallbackNextSteps: [
                     "If local context is inconclusive, inspect the last output lines and the command exit code together.",
@@ -1318,6 +1347,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let rationale: String
     let command: String
     let expectedSignals: [String]
+    let preflightChecks: [String]
     let fallbackNextSteps: [String]
     let safety: CommandDiagnosticActionSafety
     let executionMode: CommandDiagnosticActionExecutionMode
@@ -1334,6 +1364,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         rationale: String,
         command: String,
         expectedSignals: [String],
+        preflightChecks: [String],
         fallbackNextSteps: [String],
         safety: CommandDiagnosticActionSafety,
         executionMode: CommandDiagnosticActionExecutionMode = .stageOnly,
@@ -1349,6 +1380,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         self.rationale = rationale
         self.command = command
         self.expectedSignals = expectedSignals
+        self.preflightChecks = preflightChecks
         self.fallbackNextSteps = fallbackNextSteps
         self.safety = safety
         self.executionMode = executionMode

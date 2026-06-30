@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.74.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `preflightChecks`，用结构化清单描述填入建议排查动作前应确认的上下文。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露执行前检查，继续强化建议动作只读、分阶段和用户确认的安全边界。
+
 ## [1.73.0] - 2026-07-01
 
 ### Added

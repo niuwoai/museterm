@@ -138,6 +138,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
     let rationale: String
     let command: String
     let expectedSignals: [String]
+    let preflightChecks: [String]
     let fallbackNextSteps: [String]
     let safety: String
     let executionMode: String
@@ -154,6 +155,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
         rationale = action.rationale
         command = action.command
         expectedSignals = action.expectedSignals
+        preflightChecks = action.preflightChecks
         fallbackNextSteps = action.fallbackNextSteps
         safety = action.safety.rawValue
         executionMode = action.executionMode.rawValue
