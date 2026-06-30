@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.48.0] - 2026-07-01
+
+### Added
+- 命令诊断摘要新增 `diagnosticCategoryEvidence`，记录诊断分类命中的脱敏证据文本，便于 AI/MCP 和 Runbook 判断分类来源。
+- Runbook、AI 上下文和 CLI/MCP `diagnostics` 会同步暴露诊断分类依据，避免外部工具只能看到分类结果却不知道判断依据。
+
 ## [1.47.0] - 2026-07-01
 
 ### Added

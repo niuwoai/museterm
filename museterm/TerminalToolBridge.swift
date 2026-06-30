@@ -60,6 +60,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
     let failedCommandCount: Int
     let diagnosticSeverity: String
     let diagnosticCategory: String
+    let diagnosticCategoryEvidence: String?
     let latestFailedCommand: String?
     let recentFailureDiagnostic: String?
     let recentFailureFingerprint: String?
@@ -71,6 +72,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
         failedCommandCount = diagnostics.failedCommandCount
         diagnosticSeverity = diagnostics.diagnosticSeverity.rawValue
         diagnosticCategory = diagnostics.diagnosticCategory.rawValue
+        diagnosticCategoryEvidence = diagnostics.diagnosticCategoryEvidence
         latestFailedCommand = diagnostics.latestFailedCommand
         recentFailureDiagnostic = diagnostics.recentFailureDiagnostic
         recentFailureFingerprint = diagnostics.recentFailureFingerprint

@@ -89,6 +89,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(encodedDiagnostics["failedCommandCount"] as? Int, 3)
         XCTAssertEqual(encodedDiagnostics["diagnosticSeverity"] as? String, CommandDiagnosticSeverity.repeated.rawValue)
         XCTAssertEqual(encodedDiagnostics["diagnosticCategory"] as? String, CommandDiagnosticCategory.repeated.rawValue)
+        XCTAssertEqual(encodedDiagnostics["diagnosticCategoryEvidence"] as? String, diagnostic)
         XCTAssertEqual(encodedDiagnostics["latestFailedCommand"] as? String, "make test")
         XCTAssertEqual(encodedDiagnostics["recentFailureDiagnostic"] as? String, diagnostic)
         XCTAssertEqual(encodedDiagnostics["recentFailureFingerprint"] as? String, "error database is locked")
@@ -448,6 +449,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.failed_commands")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.diagnostic_severity")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.diagnostic_category")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.diagnostic_category_evidence")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.failure_fingerprint")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_inspection")))
@@ -487,6 +489,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Repeated failure duration: 20000 ms"))
         XCTAssertTrue(context.contains("Diagnostic severity: repeated"))
         XCTAssertTrue(context.contains("Diagnostic category: repeated"))
+        XCTAssertTrue(context.contains("Diagnostic category evidence: ERROR database is locked"))
         XCTAssertTrue(context.contains("Suggested next inspection: Inspect the repeated failure output before rerunning"))
         XCTAssertTrue(context.contains("Suggested next command: pwd && git status --short --branch 2>/dev/null || true"))
     }
@@ -548,6 +551,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(diagnostics.failedCommandCount, 1)
         XCTAssertEqual(diagnostics.diagnosticSeverity, .critical)
         XCTAssertEqual(diagnostics.diagnosticCategory, .permission)
+        XCTAssertEqual(diagnostics.diagnosticCategoryEvidence, "fatal: permission denied")
         XCTAssertEqual(diagnostics.suggestedNextCommand, "pwd && id && ls -ld .")
     }
 
@@ -602,12 +606,16 @@ final class musetermTests: XCTestCase {
         )
 
         XCTAssertEqual(portConflict.diagnosticCategory, .portConflict)
+        XCTAssertEqual(portConflict.diagnosticCategoryEvidence, "Error: listen EADDRINUSE: address already in use :::5173")
         XCTAssertEqual(portConflict.suggestedNextCommand, "lsof -nP -iTCP -sTCP:LISTEN")
         XCTAssertEqual(missingCommand.diagnosticCategory, .missingCommand)
+        XCTAssertEqual(missingCommand.diagnosticCategoryEvidence, "zsh: command not found: frobnicate")
         XCTAssertEqual(missingCommand.suggestedNextCommand, "echo \"$PATH\"")
         XCTAssertEqual(missingFile.diagnosticCategory, .missingFile)
+        XCTAssertEqual(missingFile.diagnosticCategoryEvidence, "cat: config.yml: No such file or directory")
         XCTAssertEqual(missingFile.suggestedNextCommand, "pwd && ls -la")
         XCTAssertEqual(gitFailure.diagnosticCategory, .git)
+        XCTAssertEqual(gitFailure.diagnosticCategoryEvidence, "git pull")
         XCTAssertEqual(gitFailure.suggestedNextCommand, "git status --short --branch")
     }
 

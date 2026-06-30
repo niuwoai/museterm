@@ -623,6 +623,7 @@ struct CommandBlockDiagnostics: Equatable {
     let suggestedNextCommand: String?
     let diagnosticSeverity: CommandDiagnosticSeverity
     let diagnosticCategory: CommandDiagnosticCategory
+    let diagnosticCategoryEvidence: String?
 
     init(blocks: [TerminalCommandBlock], redactSensitiveData: Bool = true) {
         let failedBlocks = blocks.filter(Self.isFailed).sorted(by: Self.mostRecentFirst)
@@ -646,12 +647,14 @@ struct CommandBlockDiagnostics: Equatable {
             recentFailureDiagnostic: recentFailureDiagnostic,
             repeatedFailureDiagnostic: repeatedFailureDiagnostic
         )
-        diagnosticCategory = Self.diagnosticCategory(
+        let diagnosticCategoryMatch = Self.diagnosticCategoryMatch(
             failedCommandCount: failedCommandCount,
             latestFailedCommand: latestFailedCommand,
             recentFailureDiagnostic: recentFailureDiagnostic,
             repeatedFailureDiagnostic: repeatedFailureDiagnostic
         )
+        diagnosticCategory = diagnosticCategoryMatch.category
+        diagnosticCategoryEvidence = diagnosticCategoryMatch.evidence
         suggestedNextInspection = Self.suggestedNextInspection(
             failedCommandCount: failedCommandCount,
             latestFailedCommand: latestFailedCommand,
@@ -693,6 +696,9 @@ struct CommandBlockDiagnostics: Equatable {
         }
         if diagnosticCategory != .none {
             lines.append("Diagnostic category: \(diagnosticCategory.rawValue)")
+        }
+        if let diagnosticCategoryEvidence {
+            lines.append("Diagnostic category evidence: \(diagnosticCategoryEvidence)")
         }
         if let suggestedNextInspection {
             lines.append("Suggested next inspection: \(suggestedNextInspection)")
@@ -828,41 +834,51 @@ struct CommandBlockDiagnostics: Equatable {
         return .failed
     }
 
-    nonisolated private static func diagnosticCategory(
+    nonisolated private static func diagnosticCategoryMatch(
         failedCommandCount: Int,
         latestFailedCommand: String?,
         recentFailureDiagnostic: String?,
         repeatedFailureDiagnostic: RepeatedFailureDiagnostic?
-    ) -> CommandDiagnosticCategory {
-        guard failedCommandCount > 0 else { return .none }
+    ) -> DiagnosticCategoryMatch {
+        guard failedCommandCount > 0 else {
+            return DiagnosticCategoryMatch(category: .none, evidence: nil)
+        }
         let command = latestFailedCommand?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
         let diagnostic = recentFailureDiagnostic?.lowercased() ?? ""
         if diagnostic.contains("address already in use")
             || diagnostic.contains("eaddrinuse")
             || diagnostic.contains("port already")
             || diagnostic.contains("listen tcp") {
-            return .portConflict
+            return DiagnosticCategoryMatch(category: .portConflict, evidence: recentFailureDiagnostic)
         }
         if diagnostic.contains("permission denied") {
-            return .permission
+            return DiagnosticCategoryMatch(category: .permission, evidence: recentFailureDiagnostic)
         }
         if diagnostic.contains("command not found") {
-            return .missingCommand
+            return DiagnosticCategoryMatch(category: .missingCommand, evidence: recentFailureDiagnostic)
         }
         if diagnostic.contains("no such file")
             || diagnostic.contains("not found")
             || diagnostic.contains("cannot find") {
-            return .missingFile
+            return DiagnosticCategoryMatch(category: .missingFile, evidence: recentFailureDiagnostic)
         }
         if command.hasPrefix("git ")
-            || command == "git"
-            || diagnostic.contains("fatal:") {
-            return .git
+            || command == "git" {
+            return DiagnosticCategoryMatch(category: .git, evidence: latestFailedCommand)
+        }
+        if diagnostic.contains("fatal:") {
+            return DiagnosticCategoryMatch(category: .git, evidence: recentFailureDiagnostic)
         }
         if repeatedFailureDiagnostic != nil {
-            return .repeated
+            return DiagnosticCategoryMatch(
+                category: .repeated,
+                evidence: repeatedFailureDiagnostic?.diagnostic
+            )
         }
-        return .generic
+        return DiagnosticCategoryMatch(
+            category: .generic,
+            evidence: recentFailureDiagnostic ?? latestFailedCommand
+        )
     }
 
     nonisolated private static func suggestedNextInspection(
@@ -962,6 +978,11 @@ enum CommandDiagnosticCategory: String, Codable, Equatable {
 private struct FailureDiagnosticRecord: Equatable {
     let diagnostic: String
     let fingerprint: String
+}
+
+private struct DiagnosticCategoryMatch: Equatable {
+    let category: CommandDiagnosticCategory
+    let evidence: String?
 }
 
 private struct PersistentCommandStatsSnapshot: Codable, Equatable {

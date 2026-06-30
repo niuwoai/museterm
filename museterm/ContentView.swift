@@ -1395,6 +1395,9 @@ enum RunbookMarkdownExporter {
         if diagnostics.diagnosticCategory != .none {
             lines.append("- \(L10n.string("runbook.diagnostic_category")): \(diagnostics.diagnosticCategory.rawValue)")
         }
+        if let diagnosticCategoryEvidence = diagnostics.diagnosticCategoryEvidence {
+            lines.append("- \(L10n.string("runbook.diagnostic_category_evidence")): `\(escapeInline(diagnosticCategoryEvidence))`")
+        }
         if let latestFailedCommand = diagnostics.latestFailedCommand {
             lines.append("- \(L10n.string("runbook.latest_failed_command")): `\(escapeInline(latestFailedCommand))`")
         }

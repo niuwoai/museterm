@@ -334,6 +334,7 @@
 "runbook.failed_commands" = "失败命令";
 "runbook.diagnostic_severity" = "诊断严重级别";
 "runbook.diagnostic_category" = "诊断分类";
+"runbook.diagnostic_category_evidence" = "诊断分类依据";
 "runbook.latest_failed_command" = "最近失败命令";
 "runbook.latest_failure" = "最近失败";
 "runbook.failure_fingerprint" = "失败指纹";

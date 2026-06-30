@@ -334,6 +334,7 @@
 "runbook.failed_commands" = "Failed commands";
 "runbook.diagnostic_severity" = "Diagnostic severity";
 "runbook.diagnostic_category" = "Diagnostic category";
+"runbook.diagnostic_category_evidence" = "Diagnostic category evidence";
 "runbook.latest_failed_command" = "Latest failed command";
 "runbook.latest_failure" = "Latest failure";
 "runbook.failure_fingerprint" = "Failure fingerprint";
