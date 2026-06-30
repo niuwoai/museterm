@@ -135,6 +135,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
     let priorityScore: Int
     let priorityFactors: [String]
     let evidenceAnchors: [String]
+    let actionScope: String
     let title: String
     let rationale: String
     let command: String
@@ -157,6 +158,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
         priorityScore = action.priorityScore
         priorityFactors = action.priorityFactors.map(\.rawValue)
         evidenceAnchors = action.evidenceAnchors.map(\.rawValue)
+        actionScope = action.actionScope.rawValue
         title = action.title
         rationale = action.rationale
         command = action.command

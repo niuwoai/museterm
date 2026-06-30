@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.80.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `actionScope`，用稳定 code 标明建议动作主要检查的上下文面，例如本地网络、权限边界、shell 环境、工作目录、Git 仓库或连续失败上下文。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露动作作用域，帮助外部工具区分“在哪里执行”和“在排查什么”。
+
 ## [1.79.0] - 2026-07-01
 
 ### Added

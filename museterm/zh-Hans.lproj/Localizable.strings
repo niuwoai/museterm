@@ -355,6 +355,7 @@
 "runbook.suggested_next_action_priority_score" = "建议动作优先级分数";
 "runbook.suggested_next_action_priority_factors" = "建议动作优先级因素";
 "runbook.suggested_next_action_evidence_anchors" = "建议动作证据锚点";
+"runbook.suggested_next_action_scope" = "建议动作作用域";
 "runbook.suggested_next_action" = "建议排查动作";
 "runbook.suggested_next_action_safety" = "建议动作安全级别";
 "runbook.suggested_next_action_execution_mode" = "建议动作执行模式";
