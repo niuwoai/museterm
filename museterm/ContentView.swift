@@ -41,6 +41,9 @@ struct ContentView: View {
         .tint(preferences.skin.accent)
         .preferredColorScheme(preferences.skin.preferredColorScheme)
         .frame(minWidth: 920, minHeight: 560)
+        .onAppear {
+            TerminalToolBridge.shared.attach(workspace: workspace)
+        }
     }
 }
 
@@ -50,42 +53,37 @@ private struct SidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Image(systemName: "terminal")
-                    .foregroundStyle(preferences.skin.accent)
-                Text(L10n.string("app.name"))
-                    .font(.headline)
-                Spacer()
-                IconButton(systemName: "plus", title: L10n.string("action.new_tab")) {
-                    workspace.newTab()
-                }
-            }
+            header
             .padding(.horizontal, 14)
             .padding(.top, 14)
             .padding(.bottom, 10)
 
-            ScrollView {
-                LazyVStack(spacing: 6) {
-                    ForEach(workspace.tabs) { tab in
-                        TabRowView(
-                            tab: tab,
-                            isSelected: workspace.selectedID == tab.id,
-                            skin: preferences.skin,
-                            closeAction: { workspace.close(tab) }
-                        )
-                        .onTapGesture {
-                            workspace.select(tab)
+            if preferences.showsTabList {
+                ScrollView {
+                    LazyVStack(spacing: 6) {
+                        ForEach(workspace.tabs) { tab in
+                            TabRowView(
+                                tab: tab,
+                                isSelected: workspace.selectedID == tab.id,
+                                skin: preferences.skin,
+                                closeAction: { workspace.close(tab) }
+                            )
+                            .onTapGesture {
+                                workspace.select(tab)
+                            }
                         }
                     }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
             }
 
             Spacer(minLength: 8)
 
             HStack {
-                Spacer()
+                if preferences.showsTabList {
+                    Spacer()
+                }
                 Button {
                     SettingsWindowOpener.open(preferences: preferences)
                 } label: {
@@ -98,8 +96,42 @@ private struct SidebarView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
         }
-        .frame(width: 220)
+        .frame(width: preferences.showsTabList ? 220 : 56)
         .background(preferences.skin.sidebarBackground)
+    }
+
+    @ViewBuilder
+    private var header: some View {
+        if preferences.showsTabList {
+            HStack(spacing: 8) {
+                Image(systemName: "terminal")
+                    .foregroundStyle(preferences.skin.accent)
+                Text(L10n.string("app.name"))
+                    .font(.headline)
+                Spacer()
+                IconButton(systemName: "plus", title: L10n.string("action.new_tab")) {
+                    workspace.newTab()
+                }
+                IconButton(
+                    systemName: "sidebar.left",
+                    title: L10n.string("action.hide_tab_list")
+                ) {
+                    preferences.showsTabList = false
+                }
+            }
+        } else {
+            VStack(spacing: 10) {
+                Image(systemName: "terminal")
+                    .foregroundStyle(preferences.skin.accent)
+                    .frame(width: 28, height: 28)
+                IconButton(systemName: "sidebar.right", title: L10n.string("action.show_tab_list")) {
+                    preferences.showsTabList = true
+                }
+                IconButton(systemName: "plus", title: L10n.string("action.new_tab")) {
+                    workspace.newTab()
+                }
+            }
+        }
     }
 }
 

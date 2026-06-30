@@ -7,6 +7,8 @@
 "action.previous_tab" = "Previous tab";
 "action.next_tab" = "Next tab";
 "action.select_tab" = "Select tab %d";
+"action.show_tab_list" = "Show tab list";
+"action.hide_tab_list" = "Hide tab list";
 
 "menu.settings" = "Settings…";
 "menu.tab" = "Tab";
@@ -21,6 +23,7 @@
 "settings.tab.typography" = "Type";
 "settings.tab.glass" = "Glass";
 "settings.tab.behavior" = "Behavior";
+"settings.tab.tools" = "MCP & Tools";
 "settings.skin" = "Skin";
 "settings.app_icon" = "App icon";
 "settings.app_icon.footer" = "Choose the Dock icon used while MuseTerm is running. The choice is restored on launch.";
@@ -39,7 +42,28 @@
 "settings.behavior" = "Behavior";
 "settings.option_as_meta" = "Use Option as Meta";
 "settings.mouse_reporting" = "Forward mouse reporting";
+"settings.show_tab_list" = "Show tab list in sidebar";
 "settings.footer" = "Fonts are loaded from installed macOS families. The fallback font is added to the Core Text cascade list for characters the primary font cannot draw.";
+"settings.tools" = "MCP & command line";
+"settings.tools.summary" = "MuseTerm publishes local tab snapshots and accepts local input requests so other AI tools can read a tab, inspect history, and send text or control keys.";
+"settings.tools.install_path" = "CLI install path";
+"settings.tools.state_path" = "Local bridge data";
+"settings.tools.install_cli" = "Install CLI";
+"settings.tools.copy_path" = "Copy path";
+"settings.tools.installed" = "Installed";
+"settings.tools.not_installed" = "Not installed";
+"settings.tools.install_success" = "Installed museterm at %@. Add ~/.local/bin to PATH if your shell cannot find it.";
+"settings.tools.install_failed" = "Install failed: %@";
+"settings.tools.commands" = "CLI examples";
+"settings.tools.command_examples" = "museterm tabs\nmuseterm screen --tab selected --chars 4000\nmuseterm history --tab 1 --chars 12000\nmuseterm input --tab selected \"ls -la\"\nmuseterm key --tab selected enter\nmuseterm key --tab selected ctrl-c";
+"settings.tools.mcp" = "MCP configuration";
+"settings.tools.mcp_config" = "{\"mcpServers\":{\"museterm\":{\"command\":\"museterm\",\"args\":[\"mcp\"]}}}";
+"tools.error.no_workspace" = "MuseTerm workspace is not ready.";
+"tools.error.empty_input" = "No text, key, or bytes were provided.";
+"tools.error.tab_not_found" = "No tab matched %@.";
+"tools.error.process_unavailable" = "The terminal process is not ready.";
+"tools.error.unknown_action" = "Unknown tool action: %@";
+"tools.response.input_sent" = "Sent input to %@.";
 
 "glass.material.underWindow" = "Window";
 "glass.material.hudWindow" = "HUD";

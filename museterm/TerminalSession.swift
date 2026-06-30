@@ -1,4 +1,5 @@
 import Combine
+import Darwin
 import Foundation
 
 final class TerminalSession: ObservableObject, Identifiable {
@@ -76,14 +77,25 @@ final class TerminalSession: ObservableObject, Identifiable {
         return url.lastPathComponent.isEmpty ? currentDirectory : url.lastPathComponent
     }
 
+    var toolStateText: String {
+        switch state {
+        case .running:
+            return "running"
+        case .exited(let code):
+            if let code {
+                return "exited(\(code))"
+            }
+            return "exited"
+        }
+    }
+
     private var remoteIdentity: String? {
         guard let identity = Self.identity(in: title) else { return nil }
         return Self.isLocalIdentity(identity) ? nil : identity
     }
 
     private static func identity(in title: String) -> String? {
-        let pattern = #"(?:^|[\s:/])([A-Za-z0-9._-]+)@([A-Za-z0-9._-]+)"#
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        guard let regex = identityRegex else { return nil }
 
         let range = NSRange(title.startIndex..<title.endIndex, in: title)
         guard let match = regex.firstMatch(in: title, range: range), match.numberOfRanges >= 3 else {
@@ -108,18 +120,28 @@ final class TerminalSession: ObservableObject, Identifiable {
         let host = normalizedHost(parts[1])
         guard user == NSUserName() else { return false }
 
-        let localHosts = [
-            Host.current().localizedName,
-            Host.current().name,
-            ProcessInfo.processInfo.hostName
-        ]
-        .compactMap { $0 }
-        .map(normalizedHost)
-
-        return localHosts.contains { localHost in
+        return localHostNames.contains { localHost in
             host == localHost || host.hasPrefix(localHost) || localHost.hasPrefix(host)
         }
     }
+
+    nonisolated private static let identityRegex = try? NSRegularExpression(
+        pattern: #"(?:^|[\s:/])([A-Za-z0-9._-]+)@([A-Za-z0-9._-]+)"#
+    )
+
+    nonisolated private static let localHostNames: Set<String> = {
+        var names = [ProcessInfo.processInfo.hostName]
+        var hostnameBuffer = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+        if gethostname(&hostnameBuffer, hostnameBuffer.count) == 0 {
+            names.append(String(cString: hostnameBuffer))
+        }
+
+        return Set(
+            names
+                .map(normalizedHost)
+                .filter { !$0.isEmpty }
+        )
+    }()
 
     nonisolated private static func normalizedHost(_ host: String) -> String {
         host
@@ -226,6 +248,51 @@ final class TerminalWorkspace: ObservableObject {
 
         let nextIndex = (currentIndex + offset + tabs.count) % tabs.count
         selectedID = tabs[nextIndex].id
+    }
+
+    func toolSnapshots(maxHistoryCharacters: Int) -> [TerminalToolTabSnapshot] {
+        tabs.enumerated().map { offset, tab in
+            tab.controller.toolSnapshot(
+                index: offset + 1,
+                isSelected: selectedTab?.id == tab.id,
+                maxHistoryCharacters: maxHistoryCharacters
+            )
+        }
+    }
+
+    func sendToolInput(to selector: String?, bytes: [UInt8]) throws -> TerminalSession {
+        let tab = try toolTab(matching: selector)
+        tab.startProcessIfNeeded()
+        try tab.controller.sendToolInput(bytes: bytes)
+        selectedID = tab.id
+        return tab
+    }
+
+    private func toolTab(matching selector: String?) throws -> TerminalSession {
+        let cleaned = selector?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let cleaned, !cleaned.isEmpty, cleaned != "selected" else {
+            if let selectedTab { return selectedTab }
+            if let first = tabs.first { return first }
+            throw TerminalToolError.tabNotFound("selected")
+        }
+
+        if let index = Int(cleaned), tabs.indices.contains(index - 1) {
+            return tabs[index - 1]
+        }
+
+        if let exact = tabs.first(where: { $0.id.uuidString == cleaned }) {
+            return exact
+        }
+
+        if let prefix = tabs.first(where: { $0.id.uuidString.lowercased().hasPrefix(cleaned.lowercased()) }) {
+            return prefix
+        }
+
+        if let titled = tabs.first(where: { $0.tabTitle == cleaned || $0.displayTitle == cleaned }) {
+            return titled
+        }
+
+        throw TerminalToolError.tabNotFound(cleaned)
     }
 
     private func takePreparedTab() -> TerminalSession {

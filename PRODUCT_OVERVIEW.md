@@ -1,6 +1,6 @@
 # Product Overview
 
-> 最后更新：2026-06-30 | 当前版本：v1.2.0-rc18
+> 最后更新：2026-06-30 | 当前版本：v1.2.0-rc22
 
 ## 项目简介
 
@@ -8,7 +8,7 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 
 ## 核心功能
 
-- 多标签终端：左侧纵向标签列表，支持新建、切换、关闭标签。
+- 多标签终端：左侧纵向标签列表，支持新建、切换、关闭标签，并可通过侧栏图标或设置开关折叠显示。
 - 标签快捷键：支持 `Cmd+T` 新建、`Cmd+Shift+[` / `Cmd+Shift+]` 前后切换，以及 `Cmd+1` 到 `Cmd+9` 直达标签。
 - 快速建签：预热下一份终端控制器和备用 shell，并延后补位以减少新建标签后的主线程阻塞。
 - 本地 shell：每个标签启动一个独立登录 shell。
@@ -16,12 +16,13 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 - 终端状态：自动同步终端标题、当前目录和进程退出状态。
 - 标签标题：本机会话优先显示当前目录，远端/SSH 标题保留 `user@host` 便于识别。
 - App 图标：默认使用 Q 版终端图标，并支持在设置中切换多款动物头像 Dock 图标。
+- CLI/MCP 工具桥：支持安装 `museterm` CLI，供本机 AI 工具读取标签页屏幕、历史文本并发送文本或控制键。
 - 皮肤系统：从 MuseMail 的视觉体系迁移，针对终端场景提供浅色与深色皮肤。
 - 字符配色：支持 Apple、Tango、Solarized、Dracula、One Dark、Nord 等经典 ANSI palette。
 - 毛玻璃配置：支持启用/关闭、材质选择、玻璃强度、终端底色透明度、染色和柔光。
 - 字体配置：支持从已安装字体中搜索选择主字体和回退字体。
 - 排版配置：支持字号和行高调节。
-- 设置窗口：支持 `Cmd+,` 快捷键，并按外观、图标、字体、毛玻璃和行为分组。
+- 设置窗口：支持 `Cmd+,` 快捷键，并按外观、图标、字体、毛玻璃、行为和 MCP 工具分组。
 - 紧凑侧栏：底部仅保留设置图标入口，减少常驻控件占用。
 
 ## 技术栈
@@ -39,7 +40,7 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 
 ## API 概览
 
-本项目当前没有服务端 API。版本号通过应用内 `AppVersion` 和 Xcode `MARKETING_VERSION` 保持一致，发布最低系统版本通过 Xcode `MACOSX_DEPLOYMENT_TARGET` 管理。
+本项目当前没有网络服务端 API。CLI/MCP 通过本机 `~/Library/Application Support/MuseTerm/Tools` 目录交换状态与输入请求。版本号通过应用内 `AppVersion` 和 Xcode `MARKETING_VERSION` 保持一致，发布最低系统版本通过 Xcode `MACOSX_DEPLOYMENT_TARGET` 管理。
 
 ## 已知问题 / 待办
 

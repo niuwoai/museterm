@@ -7,6 +7,8 @@
 "action.previous_tab" = "上一个标签";
 "action.next_tab" = "下一个标签";
 "action.select_tab" = "选择标签 %d";
+"action.show_tab_list" = "显示标签列表";
+"action.hide_tab_list" = "隐藏标签列表";
 
 "menu.settings" = "设置…";
 "menu.tab" = "标签";
@@ -21,6 +23,7 @@
 "settings.tab.typography" = "字体";
 "settings.tab.glass" = "毛玻璃";
 "settings.tab.behavior" = "行为";
+"settings.tab.tools" = "MCP 与工具";
 "settings.skin" = "皮肤";
 "settings.app_icon" = "App 图标";
 "settings.app_icon.footer" = "选择 MuseTerm 运行时显示的 Dock 图标，重启后会自动恢复。";
@@ -39,7 +42,28 @@
 "settings.behavior" = "行为";
 "settings.option_as_meta" = "Option 作为 Meta 键";
 "settings.mouse_reporting" = "转发鼠标上报";
+"settings.show_tab_list" = "在侧栏显示标签列表";
 "settings.footer" = "字体列表来自 macOS 已安装字体。回退字体会加入 Core Text 级联列表，用于主字体无法显示的字符。";
+"settings.tools" = "MCP 与命令行";
+"settings.tools.summary" = "MuseTerm 会在本机发布标签页快照，并接受本机输入请求，让别的 AI 工具读取当前屏幕、查看历史、发送文本或控制键。";
+"settings.tools.install_path" = "CLI 安装路径";
+"settings.tools.state_path" = "本机桥接数据";
+"settings.tools.install_cli" = "安装 CLI";
+"settings.tools.copy_path" = "复制路径";
+"settings.tools.installed" = "已安装";
+"settings.tools.not_installed" = "未安装";
+"settings.tools.install_success" = "已安装 museterm 到 %@。如果 shell 找不到它，请把 ~/.local/bin 加入 PATH。";
+"settings.tools.install_failed" = "安装失败：%@";
+"settings.tools.commands" = "CLI 示例";
+"settings.tools.command_examples" = "museterm tabs\nmuseterm screen --tab selected --chars 4000\nmuseterm history --tab 1 --chars 12000\nmuseterm input --tab selected \"ls -la\"\nmuseterm key --tab selected enter\nmuseterm key --tab selected ctrl-c";
+"settings.tools.mcp" = "MCP 配置";
+"settings.tools.mcp_config" = "{\"mcpServers\":{\"museterm\":{\"command\":\"museterm\",\"args\":[\"mcp\"]}}}";
+"tools.error.no_workspace" = "MuseTerm 工作区尚未就绪。";
+"tools.error.empty_input" = "没有提供文本、按键或字节。";
+"tools.error.tab_not_found" = "没有匹配到标签：%@。";
+"tools.error.process_unavailable" = "终端进程尚未就绪。";
+"tools.error.unknown_action" = "未知工具动作：%@";
+"tools.response.input_sent" = "已向 %@ 发送输入。";
 
 "glass.material.underWindow" = "窗口";
 "glass.material.hudWindow" = "HUD";

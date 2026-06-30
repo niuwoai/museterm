@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var preferences: TerminalPreferences
+    @State private var cliInstallMessage = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -42,12 +43,19 @@ struct SettingsView: View {
                 .tabItem {
                     Label(L10n.string("settings.tab.behavior"), systemImage: "keyboard")
                 }
+
+                settingsPage {
+                    toolsSection
+                }
+                .tabItem {
+                    Label(L10n.string("settings.tab.tools"), systemImage: "hammer")
+                }
             }
         }
         .padding(.horizontal, 20)
         .padding(.top, 18)
         .padding(.bottom, 16)
-        .frame(width: 560, height: 460)
+        .frame(width: 620, height: 500)
         .background(preferences.skin.panelFill)
         .tint(preferences.skin.accent)
         .preferredColorScheme(preferences.skin.preferredColorScheme)
@@ -207,8 +215,84 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(L10n.string("settings.behavior"))
                 .font(.headline)
+            Toggle(L10n.string("settings.show_tab_list"), isOn: $preferences.showsTabList)
             Toggle(L10n.string("settings.option_as_meta"), isOn: $preferences.optionAsMeta)
             Toggle(L10n.string("settings.mouse_reporting"), isOn: $preferences.mouseReporting)
+        }
+    }
+
+    private var toolsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(L10n.string("settings.tools"))
+                    .font(.headline)
+                Spacer()
+                statusBadge
+            }
+
+            Text(L10n.string("settings.tools.summary"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(alignment: .leading, spacing: 8) {
+                SettingsCodeRow(title: L10n.string("settings.tools.install_path"), value: MuseTermCLIInstaller.installPath)
+                SettingsCodeRow(title: L10n.string("settings.tools.state_path"), value: MuseTermCLIInstaller.supportPath)
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    installCLI()
+                } label: {
+                    Label(L10n.string("settings.tools.install_cli"), systemImage: "arrow.down.circle")
+                }
+
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(MuseTermCLIInstaller.installPath, forType: .string)
+                } label: {
+                    Label(L10n.string("settings.tools.copy_path"), systemImage: "doc.on.doc")
+                }
+            }
+
+            if !cliInstallMessage.isEmpty {
+                Text(cliInstallMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Divider()
+                .padding(.vertical, 4)
+
+            Text(L10n.string("settings.tools.commands"))
+                .font(.subheadline.weight(.semibold))
+            SettingsCodeBlock(text: L10n.string("settings.tools.command_examples"))
+
+            Text(L10n.string("settings.tools.mcp"))
+                .font(.subheadline.weight(.semibold))
+                .padding(.top, 4)
+            SettingsCodeBlock(text: L10n.string("settings.tools.mcp_config"))
+        }
+    }
+
+    @ViewBuilder
+    private var statusBadge: some View {
+        let installed = MuseTermCLIInstaller.isInstalled()
+        Label(
+            installed ? L10n.string("settings.tools.installed") : L10n.string("settings.tools.not_installed"),
+            systemImage: installed ? "checkmark.circle.fill" : "exclamationmark.circle"
+        )
+        .font(.caption.weight(.medium))
+        .foregroundStyle(installed ? preferences.skin.accent : .secondary)
+    }
+
+    private func installCLI() {
+        do {
+            try MuseTermCLIInstaller.install()
+            cliInstallMessage = L10n.format("settings.tools.install_success", MuseTermCLIInstaller.installPath)
+        } catch {
+            cliInstallMessage = L10n.format("settings.tools.install_failed", error.localizedDescription)
         }
     }
 
@@ -400,6 +484,41 @@ private struct PaletteChoiceView: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .strokeBorder(isSelected ? skin.accent.opacity(0.55) : skin.hairline, lineWidth: 1)
         )
+    }
+}
+
+private struct SettingsCodeRow: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.caption.monospaced())
+                .textSelection(.enabled)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(8)
+                .background(.quaternary.opacity(0.45))
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+    }
+}
+
+private struct SettingsCodeBlock: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.caption.monospaced())
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(10)
+            .background(.quaternary.opacity(0.45))
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
     }
 }
 

@@ -21,6 +21,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(preferences.skin, TerminalVisualSkin.seaSalt)
         XCTAssertEqual(preferences.colorPalette, TerminalColorPalette.apple)
         XCTAssertTrue(preferences.glassEnabled)
+        XCTAssertTrue(preferences.showsTabList)
         XCTAssertEqual(preferences.fontSize, 14)
     }
 
@@ -29,6 +30,27 @@ final class musetermTests: XCTestCase {
             XCTAssertEqual(palette.swiftTermColors.count, 16)
             XCTAssertEqual(palette.nsColors.count, 16)
         }
+    }
+
+    func testToolInputMapsNamedControlKeys() {
+        XCTAssertEqual(TerminalToolInput.bytes(text: nil, key: "enter", rawBytes: nil), [0x0D])
+        XCTAssertEqual(TerminalToolInput.bytes(text: nil, key: "ctrl-c", rawBytes: nil), [0x03])
+        XCTAssertEqual(TerminalToolInput.bytes(text: nil, key: "tab", rawBytes: nil), [0x09])
+        XCTAssertEqual(TerminalToolInput.bytes(text: "abc", key: nil, rawBytes: nil), Array("abc".utf8))
+        XCTAssertEqual(TerminalToolInput.bytes(text: nil, key: nil, rawBytes: [1, 2, 3]), [1, 2, 3])
+    }
+
+    func testCliInstallerScriptExposesMCPAndTerminalCommands() {
+        let script = MuseTermCLIInstaller.script
+
+        XCTAssertTrue(script.contains("museterm tabs"))
+        XCTAssertTrue(script.contains("museterm screen"))
+        XCTAssertTrue(script.contains("museterm history"))
+        XCTAssertTrue(script.contains("museterm input"))
+        XCTAssertTrue(script.contains("museterm key"))
+        XCTAssertTrue(script.contains("\"tools/call\""))
+        XCTAssertTrue(script.contains("read_screen"))
+        XCTAssertTrue(script.contains("send_key"))
     }
 
     func testWorkspaceCreatesAndSelectsTabs() throws {

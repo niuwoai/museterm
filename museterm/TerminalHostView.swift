@@ -115,6 +115,34 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.layer?.setNeedsDisplay()
     }
 
+    func toolSnapshot(
+        index: Int,
+        isSelected: Bool,
+        maxHistoryCharacters: Int
+    ) -> TerminalToolTabSnapshot {
+        TerminalToolTabSnapshot(
+            id: session?.id.uuidString ?? UUID().uuidString,
+            index: index,
+            title: session?.tabTitle ?? "",
+            subtitle: session?.tabSubtitle,
+            currentDirectory: session?.currentDirectory,
+            isSelected: isSelected,
+            state: session?.toolStateText ?? "unknown",
+            columns: terminalView.terminal?.cols ?? 0,
+            rows: terminalView.terminal?.rows ?? 0,
+            screen: visibleScreenText(),
+            history: String(fullHistoryText().suffix(maxHistoryCharacters)),
+            updatedAt: Date()
+        )
+    }
+
+    func sendToolInput(bytes: [UInt8]) throws {
+        guard didStart, terminalView.process.running else {
+            throw TerminalToolError.processUnavailable
+        }
+        terminalView.send(source: terminalView, data: bytes[...])
+    }
+
     func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {}
 
     func setTerminalTitle(source: LocalProcessTerminalView, title: String) {
@@ -174,6 +202,20 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         } catch {
             try? terminalView.setUseMetal(false)
         }
+    }
+
+    private func visibleScreenText() -> String {
+        guard let terminal = terminalView.terminal else { return "" }
+        return (0..<terminal.rows)
+            .compactMap { row in
+                terminal.getLine(row: row)?.translateToString(trimRight: true)
+            }
+            .joined(separator: "\n")
+    }
+
+    private func fullHistoryText() -> String {
+        guard let terminal = terminalView.terminal else { return visibleScreenText() }
+        return String(data: terminal.getBufferAsData(), encoding: .utf8) ?? visibleScreenText()
     }
 
     private static func loginShell() -> String {
