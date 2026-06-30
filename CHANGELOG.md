@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.73.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `retryCondition`，用稳定 code 描述用户考虑重跑失败命令前应满足的条件。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露重试条件，帮助外部工具把排查动作和后续重跑边界串起来。
+
 ## [1.72.0] - 2026-07-01
 
 ### Added

@@ -141,6 +141,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
     let fallbackNextSteps: [String]
     let safety: String
     let executionMode: String
+    let retryCondition: String
     let requiresConfirmation: Bool
 
     init(action: CommandDiagnosticAction) {
@@ -156,6 +157,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
         fallbackNextSteps = action.fallbackNextSteps
         safety = action.safety.rawValue
         executionMode = action.executionMode.rawValue
+        retryCondition = action.retryCondition.rawValue
         requiresConfirmation = action.requiresConfirmation
     }
 }

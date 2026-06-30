@@ -751,6 +751,7 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append("Suggested next action title: \(suggestedNextAction.title)")
             lines.append("Suggested next action safety: \(suggestedNextAction.safety.rawValue)")
             lines.append("Suggested next action execution mode: \(suggestedNextAction.executionMode.rawValue)")
+            lines.append("Suggested next action retry condition: \(suggestedNextAction.retryCondition.rawValue)")
             lines.append("Suggested next action rationale: \(suggestedNextAction.rationale)")
             lines.append("Suggested next action expected signals: \(suggestedNextAction.expectedSignals.joined(separator: "; "))")
             lines.append("Suggested next action fallback steps: \(suggestedNextAction.fallbackNextSteps.joined(separator: "; "))")
@@ -1098,7 +1099,8 @@ struct CommandBlockDiagnostics: Equatable {
                     "If the port is not listed locally, check whether the failure happened inside a container, VM, or remote host.",
                     "If the owner is unclear, inspect the process details before stopping anything."
                 ],
-                safety: .readOnly
+                safety: .readOnly,
+                retryCondition: .portConflictResolvedOrOwnerKnown
             )
         case .permission:
             return CommandDiagnosticAction(
@@ -1118,7 +1120,8 @@ struct CommandBlockDiagnostics: Equatable {
                     "If directory permissions look correct, inspect the target file, parent directory, or mounted volume permissions.",
                     "If the user is unexpected, check whether the shell, SSH profile, or sudo context changed."
                 ],
-                safety: .readOnly
+                safety: .readOnly,
+                retryCondition: .permissionsVerified
             )
         case .missingCommand:
             return CommandDiagnosticAction(
@@ -1138,7 +1141,8 @@ struct CommandBlockDiagnostics: Equatable {
                     "If PATH contains the expected directory, run a read-only lookup such as command -v for the missing executable.",
                     "If the command exists in another shell, compare login shell startup files and project environment activation."
                 ],
-                safety: .readOnly
+                safety: .readOnly,
+                retryCondition: .commandAvailableOnPath
             )
         case .missingFile:
             return CommandDiagnosticAction(
@@ -1158,7 +1162,8 @@ struct CommandBlockDiagnostics: Equatable {
                     "If the directory is correct, search the project tree for the expected filename or config equivalent.",
                     "If the file is generated, rerun the generation or install step before retrying the failed command."
                 ],
-                safety: .readOnly
+                safety: .readOnly,
+                retryCondition: .fileOrDirectoryVerified
             )
         case .git:
             return CommandDiagnosticAction(
@@ -1178,7 +1183,8 @@ struct CommandBlockDiagnostics: Equatable {
                     "If status is clean, inspect the failed Git command output for remote, auth, or repository path clues.",
                     "If conflicts or dirty files are present, resolve or stash intentionally before rerunning."
                 ],
-                safety: .readOnly
+                safety: .readOnly,
+                retryCondition: .gitStateReviewed
             )
         case .repeated:
             return CommandDiagnosticAction(
@@ -1198,7 +1204,8 @@ struct CommandBlockDiagnostics: Equatable {
                     "If context is unchanged, inspect the first repeated failure output instead of rerunning immediately.",
                     "If context changed between attempts, capture the changed directory, branch, or environment before comparing results."
                 ],
-                safety: .readOnly
+                safety: .readOnly,
+                retryCondition: .contextChangedOrFirstFailureInspected
             )
         case .generic:
             return CommandDiagnosticAction(
@@ -1218,7 +1225,8 @@ struct CommandBlockDiagnostics: Equatable {
                     "If local context is inconclusive, inspect the last output lines and the command exit code together.",
                     "If the command depends on a service or file, run a read-only health or existence check next."
                 ],
-                safety: .readOnly
+                safety: .readOnly,
+                retryCondition: .localContextCaptured
             )
         }
     }
@@ -1313,6 +1321,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let fallbackNextSteps: [String]
     let safety: CommandDiagnosticActionSafety
     let executionMode: CommandDiagnosticActionExecutionMode
+    let retryCondition: CommandDiagnosticActionRetryCondition
     let requiresConfirmation: Bool
 
     nonisolated init(
@@ -1328,6 +1337,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         fallbackNextSteps: [String],
         safety: CommandDiagnosticActionSafety,
         executionMode: CommandDiagnosticActionExecutionMode = .stageOnly,
+        retryCondition: CommandDiagnosticActionRetryCondition,
         requiresConfirmation: Bool = true
     ) {
         self.id = id
@@ -1342,6 +1352,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         self.fallbackNextSteps = fallbackNextSteps
         self.safety = safety
         self.executionMode = executionMode
+        self.retryCondition = retryCondition
         self.requiresConfirmation = requiresConfirmation
     }
 }
@@ -1362,6 +1373,16 @@ enum CommandDiagnosticActionSafety: String, Codable, Equatable {
 
 enum CommandDiagnosticActionExecutionMode: String, Codable, Equatable {
     case stageOnly = "stage_only"
+}
+
+enum CommandDiagnosticActionRetryCondition: String, Codable, Equatable {
+    case portConflictResolvedOrOwnerKnown = "port_conflict_resolved_or_owner_known"
+    case permissionsVerified = "permissions_verified"
+    case commandAvailableOnPath = "command_available_on_path"
+    case fileOrDirectoryVerified = "file_or_directory_verified"
+    case gitStateReviewed = "git_state_reviewed"
+    case contextChangedOrFirstFailureInspected = "context_changed_or_first_failure_inspected"
+    case localContextCaptured = "local_context_captured"
 }
 
 private struct FailureDiagnosticRecord: Equatable {

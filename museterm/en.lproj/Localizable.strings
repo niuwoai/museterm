@@ -357,6 +357,7 @@
 "runbook.suggested_next_action" = "Suggested next action";
 "runbook.suggested_next_action_safety" = "Suggested action safety";
 "runbook.suggested_next_action_execution_mode" = "Suggested action execution mode";
+"runbook.suggested_next_action_retry_condition" = "Suggested action retry condition";
 "runbook.suggested_next_action_expected_signals" = "Suggested action expected signals";
 "runbook.suggested_next_action_fallback_steps" = "Suggested action fallback steps";
 "runbook.suggested_next_action_confirmation" = "Suggested action needs confirmation";
