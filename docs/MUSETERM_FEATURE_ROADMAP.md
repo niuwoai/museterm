@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.86.0
+> 当前版本基线：v1.87.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,7 +30,7 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.86.0 已完成七十八条纵向切片：
+v1.87.0 已完成七十九条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
@@ -73,6 +73,7 @@ v1.86.0 已完成七十八条纵向切片：
 - 建议排查动作敏感结果字段：`suggestedNextAction` 新增 `sensitiveResultFields`，用稳定 code 标明建议命令结果中哪些字段可能携带路径、用户、进程、Git 或目录元数据等敏感上下文，便于外部工具优先脱敏。
 - 建议排查动作结果隐私级别：`suggestedNextAction` 新增 `resultPrivacyLevel`，用稳定 code 汇总建议命令结果的隐私敏感级别，帮助 AI/MCP 工具在解释、转发或记录前选择本地处理或脱敏策略。
 - 建议排查动作结果分享策略：`suggestedNextAction` 新增 `resultSharingPolicy`，用稳定 code 声明建议命令结果应直接分享、先脱敏再分享，还是仅本地查看，让 AI/MCP 工具在转发诊断结果前能遵守更明确的隐私边界。
+- 建议排查动作结果保留策略：`suggestedNextAction` 新增 `resultRetentionPolicy`，用稳定 code 声明建议命令结果可完整保存、只能保存脱敏摘要，还是仅保留在本机会话，帮助外部工具在记录日志或建立索引前遵守更细的隐私边界。
 - 建议排查动作执行模式：`suggestedNextAction` 新增 `executionMode`，当前统一为 `stage_only`，明确外部工具只能填入或展示建议动作，执行仍必须由用户确认。
 - 建议排查动作执行目标：`suggestedNextAction` 新增 `executionTarget`，用稳定 code 声明建议命令应在当前终端会话、工作目录、shell 环境、Git 仓库或网络命名空间中理解，减少本地/远端/容器/错误目录误用。
 - 建议排查动作重试条件：`suggestedNextAction` 新增 `retryCondition`，用稳定 code 描述用户考虑重跑失败命令前应满足的条件，让排查动作和后续重跑边界更容易被工具串起来。

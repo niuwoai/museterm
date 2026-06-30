@@ -142,6 +142,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
     let sensitiveResultFields: [String]
     let resultPrivacyLevel: String
     let resultSharingPolicy: String
+    let resultRetentionPolicy: String
     let title: String
     let rationale: String
     let command: String
@@ -171,6 +172,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
         sensitiveResultFields = action.sensitiveResultFields.map(\.rawValue)
         resultPrivacyLevel = action.resultPrivacyLevel.rawValue
         resultSharingPolicy = action.resultSharingPolicy.rawValue
+        resultRetentionPolicy = action.resultRetentionPolicy.rawValue
         title = action.title
         rationale = action.rationale
         command = action.command

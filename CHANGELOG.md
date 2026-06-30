@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.87.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `resultRetentionPolicy`，用稳定 code 声明建议命令结果可完整保存、只能保存脱敏摘要，还是仅保留在本机会话。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露结果保留策略，帮助外部工具在记录日志或建立索引前遵守更细的隐私边界。
+
 ## [1.86.0] - 2026-07-01
 
 ### Added

@@ -482,6 +482,10 @@ final class musetermTests: XCTestCase {
             suggestedNextAction["resultSharingPolicy"] as? String,
             CommandDiagnosticActionSharingPolicy.localOnly.rawValue
         )
+        XCTAssertEqual(
+            suggestedNextAction["resultRetentionPolicy"] as? String,
+            CommandDiagnosticActionRetentionPolicy.localSessionOnly.rawValue
+        )
         XCTAssertEqual(suggestedNextAction["title"] as? String, "Inspect repeat context")
         XCTAssertEqual(
             suggestedNextAction["rationale"] as? String,
@@ -892,6 +896,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_sensitive_result_fields")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_result_privacy_level")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_result_sharing_policy")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_result_retention_policy")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_safety")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_execution_mode")))
@@ -970,6 +975,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Suggested next action sensitive result fields: working_directory; git_branch; git_upstream"))
         XCTAssertTrue(context.contains("Suggested next action result privacy level: sensitive"))
         XCTAssertTrue(context.contains("Suggested next action result sharing policy: local_only"))
+        XCTAssertTrue(context.contains("Suggested next action result retention policy: local_session_only"))
         XCTAssertTrue(context.contains("Suggested next action title: Inspect repeat context"))
         XCTAssertTrue(context.contains("Suggested next action safety: read_only"))
         XCTAssertTrue(context.contains("Suggested next action execution mode: stage_only"))
@@ -1084,6 +1090,7 @@ final class musetermTests: XCTestCase {
         )
         XCTAssertEqual(diagnostics.suggestedNextAction?.resultPrivacyLevel, .sensitive)
         XCTAssertEqual(diagnostics.suggestedNextAction?.resultSharingPolicy, .localOnly)
+        XCTAssertEqual(diagnostics.suggestedNextAction?.resultRetentionPolicy, .localSessionOnly)
         XCTAssertEqual(diagnostics.suggestedNextAction?.title, "Inspect current permissions")
         XCTAssertEqual(diagnostics.suggestedNextAction?.safety, .readOnly)
         XCTAssertEqual(diagnostics.suggestedNextAction?.executionMode, .stageOnly)
@@ -1194,6 +1201,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(portConflict.suggestedNextAction?.sensitiveResultFields, [.processName, .listenAddress])
         XCTAssertEqual(portConflict.suggestedNextAction?.resultPrivacyLevel, .contextual)
         XCTAssertEqual(portConflict.suggestedNextAction?.resultSharingPolicy, .redactBeforeSharing)
+        XCTAssertEqual(portConflict.suggestedNextAction?.resultRetentionPolicy, .persistRedactedSummary)
         XCTAssertEqual(portConflict.suggestedNextAction?.title, "List listening TCP ports")
         XCTAssertEqual(portConflict.suggestedNextAction?.safety, .readOnly)
         XCTAssertEqual(portConflict.suggestedNextAction?.executionMode, .stageOnly)
@@ -1227,6 +1235,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(missingCommand.suggestedNextAction?.sensitiveResultFields, [.pathEntries])
         XCTAssertEqual(missingCommand.suggestedNextAction?.resultPrivacyLevel, .sensitive)
         XCTAssertEqual(missingCommand.suggestedNextAction?.resultSharingPolicy, .localOnly)
+        XCTAssertEqual(missingCommand.suggestedNextAction?.resultRetentionPolicy, .localSessionOnly)
         XCTAssertEqual(missingCommand.suggestedNextAction?.title, "Inspect PATH")
         XCTAssertEqual(missingCommand.suggestedNextAction?.executionMode, .stageOnly)
         XCTAssertEqual(missingCommand.suggestedNextAction?.executionTarget, .currentShellEnvironment)
@@ -1268,6 +1277,7 @@ final class musetermTests: XCTestCase {
         )
         XCTAssertEqual(missingFile.suggestedNextAction?.resultPrivacyLevel, .sensitive)
         XCTAssertEqual(missingFile.suggestedNextAction?.resultSharingPolicy, .localOnly)
+        XCTAssertEqual(missingFile.suggestedNextAction?.resultRetentionPolicy, .localSessionOnly)
         XCTAssertEqual(missingFile.suggestedNextAction?.title, "Inspect current directory")
         XCTAssertEqual(missingFile.suggestedNextAction?.executionMode, .stageOnly)
         XCTAssertEqual(missingFile.suggestedNextAction?.executionTarget, .currentWorkingDirectory)
@@ -1306,6 +1316,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(gitFailure.suggestedNextAction?.sensitiveResultFields, [.gitBranch, .gitUpstream])
         XCTAssertEqual(gitFailure.suggestedNextAction?.resultPrivacyLevel, .contextual)
         XCTAssertEqual(gitFailure.suggestedNextAction?.resultSharingPolicy, .redactBeforeSharing)
+        XCTAssertEqual(gitFailure.suggestedNextAction?.resultRetentionPolicy, .persistRedactedSummary)
         XCTAssertEqual(gitFailure.suggestedNextAction?.title, "Inspect Git state")
         XCTAssertEqual(gitFailure.suggestedNextAction?.executionMode, .stageOnly)
         XCTAssertEqual(gitFailure.suggestedNextAction?.executionTarget, .currentGitRepository)
@@ -1346,6 +1357,7 @@ final class musetermTests: XCTestCase {
         )
         XCTAssertEqual(genericFailure.suggestedNextAction?.resultPrivacyLevel, .sensitive)
         XCTAssertEqual(genericFailure.suggestedNextAction?.resultSharingPolicy, .localOnly)
+        XCTAssertEqual(genericFailure.suggestedNextAction?.resultRetentionPolicy, .localSessionOnly)
         XCTAssertEqual(genericFailure.suggestedNextAction?.title, "Inspect local context")
         XCTAssertEqual(genericFailure.suggestedNextAction?.executionMode, .stageOnly)
         XCTAssertEqual(genericFailure.suggestedNextAction?.executionTarget, .currentTerminalSession)
