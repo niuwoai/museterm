@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.84.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `sensitiveResultFields`，用稳定 code 标明建议命令结果中哪些字段可能携带路径、用户、进程、Git 或目录元数据等敏感上下文。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露敏感结果字段，帮助外部工具在解释或转发结果前优先脱敏。
+
 ## [1.83.0] - 2026-07-01
 
 ### Added

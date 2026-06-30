@@ -767,6 +767,10 @@ struct CommandBlockDiagnostics: Equatable {
                 let expectedResultSignals = suggestedNextAction.expectedResultSignals.map(\.rawValue).joined(separator: "; ")
                 lines.append("Suggested next action expected result signals: \(expectedResultSignals)")
             }
+            if !suggestedNextAction.sensitiveResultFields.isEmpty {
+                let sensitiveResultFields = suggestedNextAction.sensitiveResultFields.map(\.rawValue).joined(separator: "; ")
+                lines.append("Suggested next action sensitive result fields: \(sensitiveResultFields)")
+            }
             lines.append("Suggested next action title: \(suggestedNextAction.title)")
             lines.append("Suggested next action safety: \(suggestedNextAction.safety.rawValue)")
             lines.append("Suggested next action execution mode: \(suggestedNextAction.executionMode.rawValue)")
@@ -1129,6 +1133,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultKind: .listeningPorts,
                 expectedResultFields: [.localPort, .processID, .processName, .listenAddress],
                 expectedResultSignals: [.targetPortVisible, .ownerProcessVisible],
+                sensitiveResultFields: [.processName, .listenAddress],
                 title: "List listening TCP ports",
                 rationale: "The latest failure looks like a local port conflict, so inspect listeners before rerunning.",
                 command: "lsof -nP -iTCP -sTCP:LISTEN",
@@ -1172,6 +1177,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultKind: .identityAndPermissions,
                 expectedResultFields: [.workingDirectory, .currentUser, .directoryPermissions],
                 expectedResultSignals: [.currentUserVisible, .permissionBoundaryVisible],
+                sensitiveResultFields: [.workingDirectory, .currentUser, .directoryPermissions],
                 title: "Inspect current permissions",
                 rationale: "The latest failure mentions permission denied, so check the working directory and current user.",
                 command: "pwd && id && ls -ld .",
@@ -1215,6 +1221,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultKind: .shellPath,
                 expectedResultFields: [.pathEntries],
                 expectedResultSignals: [.pathEntriesVisible],
+                sensitiveResultFields: [.pathEntries],
                 title: "Inspect PATH",
                 rationale: "The latest failure says a command is missing, so check which directories the shell searches.",
                 command: "echo \"$PATH\"",
@@ -1258,6 +1265,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultKind: .directoryListing,
                 expectedResultFields: [.workingDirectory, .visibleEntries, .fileMetadata],
                 expectedResultSignals: [.workingDirectoryVisible, .directoryEntriesVisible],
+                sensitiveResultFields: [.workingDirectory, .visibleEntries, .fileMetadata],
                 title: "Inspect current directory",
                 rationale: "The latest failure references a missing file, so confirm the current directory and visible files.",
                 command: "pwd && ls -la",
@@ -1301,6 +1309,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultKind: .gitStatus,
                 expectedResultFields: [.gitBranch, .gitUpstream, .gitDirtyState],
                 expectedResultSignals: [.gitBranchVisible, .gitDirtyStateVisible],
+                sensitiveResultFields: [.gitBranch, .gitUpstream],
                 title: "Inspect Git state",
                 rationale: "The latest failed command or diagnostic is Git-related, so inspect branch and dirty state first.",
                 command: "git status --short --branch",
@@ -1344,6 +1353,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultKind: .contextSnapshot,
                 expectedResultFields: [.workingDirectory, .gitBranch, .gitUpstream, .gitDirtyState],
                 expectedResultSignals: [.workingDirectoryVisible, .gitStateVisible],
+                sensitiveResultFields: [.workingDirectory, .gitBranch, .gitUpstream],
                 title: "Inspect repeat context",
                 rationale: "The latest failures repeat, so capture location and Git state before another retry.",
                 command: "pwd && git status --short --branch 2>/dev/null || true",
@@ -1387,6 +1397,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultKind: .contextSnapshot,
                 expectedResultFields: [.workingDirectory, .gitBranch, .gitUpstream, .gitDirtyState],
                 expectedResultSignals: [.workingDirectoryVisible, .gitStateVisible],
+                sensitiveResultFields: [.workingDirectory, .gitBranch, .gitUpstream],
                 title: "Inspect local context",
                 rationale: "The failure is not specific enough yet, so capture location and Git state as a safe first step.",
                 command: "pwd && git status --short --branch 2>/dev/null || true",
@@ -1535,6 +1546,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let expectedResultKind: CommandDiagnosticActionResultKind
     let expectedResultFields: [CommandDiagnosticActionResultField]
     let expectedResultSignals: [CommandDiagnosticActionResultSignal]
+    let sensitiveResultFields: [CommandDiagnosticActionResultField]
     let title: String
     let rationale: String
     let command: String
@@ -1561,6 +1573,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         expectedResultKind: CommandDiagnosticActionResultKind,
         expectedResultFields: [CommandDiagnosticActionResultField],
         expectedResultSignals: [CommandDiagnosticActionResultSignal],
+        sensitiveResultFields: [CommandDiagnosticActionResultField],
         title: String,
         rationale: String,
         command: String,
@@ -1586,6 +1599,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         self.expectedResultKind = expectedResultKind
         self.expectedResultFields = expectedResultFields
         self.expectedResultSignals = expectedResultSignals
+        self.sensitiveResultFields = sensitiveResultFields
         self.title = title
         self.rationale = rationale
         self.command = command
