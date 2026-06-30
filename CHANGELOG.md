@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.82.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `expectedResultFields`，用稳定 code 标明建议命令结果中应重点抽取的字段，例如端口、PID、进程名、当前用户、目录权限、PATH 条目、Git 分支和 dirty 状态。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露预期结果字段，帮助外部工具按字段理解建议命令输出。
+
 ## [1.81.0] - 2026-07-01
 
 ### Added

@@ -357,6 +357,7 @@
 "runbook.suggested_next_action_evidence_anchors" = "Suggested action evidence anchors";
 "runbook.suggested_next_action_scope" = "Suggested action scope";
 "runbook.suggested_next_action_expected_result_kind" = "Suggested action expected result kind";
+"runbook.suggested_next_action_expected_result_fields" = "Suggested action expected result fields";
 "runbook.suggested_next_action" = "Suggested next action";
 "runbook.suggested_next_action_safety" = "Suggested action safety";
 "runbook.suggested_next_action_execution_mode" = "Suggested action execution mode";

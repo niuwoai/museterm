@@ -1474,6 +1474,12 @@ enum RunbookMarkdownExporter {
             lines.append(
                 "- \(L10n.string("runbook.suggested_next_action_expected_result_kind")): \(suggestedNextAction.expectedResultKind.rawValue)"
             )
+            if !suggestedNextAction.expectedResultFields.isEmpty {
+                let expectedResultFields = suggestedNextAction.expectedResultFields.map(\.rawValue).joined(separator: ", ")
+                lines.append(
+                    "- \(L10n.string("runbook.suggested_next_action_expected_result_fields")): \(expectedResultFields)"
+                )
+            }
             lines.append("- \(L10n.string("runbook.suggested_next_action")): \(escapeInline(suggestedNextAction.title))")
             lines.append(
                 "- \(L10n.string("runbook.suggested_next_action_safety")): \(suggestedNextAction.safety.rawValue)"
