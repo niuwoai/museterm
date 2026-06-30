@@ -594,6 +594,8 @@ private struct CommandInspectorView: View {
                             block: block,
                             skin: preferences.skin,
                             displayOutput: outputText(for: block),
+                            displaySummary: outputSummaryText(for: block),
+                            diagnosticLine: outputDiagnosticLine(for: block),
                             hasSensitiveOutput: RunbookSensitiveRedactor.containsSensitiveData(block.outputTail),
                             copyCommand: { copy(block.command, messageKey: "command_inspector.copied_command") },
                             copyOutput: {
@@ -607,7 +609,7 @@ private struct CommandInspectorView: View {
                             copyAIContext: { copy(aiContext(for: block), messageKey: "command_inspector.copied_ai_context") },
                             copyOutputSummary: {
                                 copy(
-                                    TerminalOutputInsightAnalyzer.summary(in: outputText(for: block)),
+                                    outputSummaryText(for: block),
                                     messageKey: "command_inspector.copied_output_summary"
                                 )
                             },
@@ -800,6 +802,21 @@ private struct CommandInspectorView: View {
 
     private func outputText(for block: TerminalCommandBlock) -> String {
         redactSensitiveData ? RunbookSensitiveRedactor.redact(block.outputTail) : block.outputTail
+    }
+
+    private func outputSummaryText(for block: TerminalCommandBlock) -> String {
+        if let outputSummary = block.outputSummary, !outputSummary.isEmpty {
+            return redactSensitiveData
+                ? RunbookSensitiveRedactor.redact(outputSummary.aiContextText)
+                : outputSummary.aiContextText
+        }
+        return TerminalOutputInsightAnalyzer.summary(in: outputText(for: block))
+    }
+
+    private func outputDiagnosticLine(for block: TerminalCommandBlock) -> String? {
+        guard let diagnosticLine = block.outputSummary?.primaryDiagnosticLine else { return nil }
+        let result = redactSensitiveData ? RunbookSensitiveRedactor.redact(diagnosticLine) : diagnosticLine
+        return result.isEmpty ? nil : result
     }
 
     private func copyReplayScript() {
@@ -1664,6 +1681,8 @@ private struct CommandBlockCard: View {
     let block: TerminalCommandBlock
     let skin: TerminalVisualSkin
     let displayOutput: String
+    let displaySummary: String
+    let diagnosticLine: String?
     let hasSensitiveOutput: Bool
     let copyCommand: () -> Void
     let copyOutput: () -> Void
@@ -1677,8 +1696,16 @@ private struct CommandBlockCard: View {
         TerminalOutputInsightAnalyzer.insights(in: displayOutput)
     }
 
-    private var outputSummary: String {
-        TerminalOutputInsightAnalyzer.summary(in: displayOutput)
+    private var outputInsightKinds: [TerminalOutputInsightKind] {
+        if let outputSummary = block.outputSummary, !outputSummary.insightKinds.isEmpty {
+            return Array(outputSummary.insightKinds.prefix(5))
+        }
+
+        var kinds: [TerminalOutputInsightKind] = []
+        for insight in outputInsights where !kinds.contains(insight.kind) {
+            kinds.append(insight.kind)
+        }
+        return Array(kinds.prefix(5))
     }
 
     var body: some View {
@@ -1702,6 +1729,14 @@ private struct CommandBlockCard: View {
                     .lineLimit(2)
             }
 
+            if let diagnosticLine, isFailure {
+                Label(diagnosticLine, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.red.opacity(0.9))
+                    .lineLimit(2)
+                    .textSelection(.enabled)
+            }
+
             HStack(spacing: 8) {
                 if let workingDirectory = block.workingDirectory, !workingDirectory.isEmpty {
                     Label(workingDirectory, systemImage: "folder")
@@ -1715,10 +1750,10 @@ private struct CommandBlockCard: View {
             .font(.caption2)
             .foregroundStyle(.secondary)
 
-            if !outputInsights.isEmpty {
+            if !outputInsightKinds.isEmpty {
                 HStack(spacing: 5) {
-                    ForEach(outputInsights.prefix(5)) { insight in
-                        Text(L10n.string(insight.kind.labelKey))
+                    ForEach(outputInsightKinds, id: \.self) { kind in
+                        Text(L10n.string(kind.labelKey))
                             .font(.caption2.weight(.medium))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
@@ -1768,7 +1803,7 @@ private struct CommandBlockCard: View {
                         .frame(width: 24, height: 22)
                 }
                 .buttonStyle(.plain)
-                .disabled(outputSummary.isEmpty)
+                .disabled(displaySummary.isEmpty)
                 .help(L10n.string("command_inspector.copy_output_summary"))
 
                 Button(action: stageCommand) {
@@ -1815,10 +1850,17 @@ private struct CommandBlockCard: View {
         if block.endedAt == nil {
             return skin.accent
         }
-        if let exitCode = block.exitCode, exitCode != 0 {
+        if isFailure {
             return .red.opacity(0.82)
         }
         return .green.opacity(0.78)
+    }
+
+    private var isFailure: Bool {
+        if let exitCode = block.exitCode {
+            return exitCode != 0
+        }
+        return false
     }
 
     private var statusLabel: String {

@@ -81,6 +81,19 @@ struct TerminalOutputSummary: Codable, Equatable {
         }
         return lines.joined(separator: "\n")
     }
+
+    var primaryDiagnosticLine: String? {
+        [
+            errorLine,
+            warningLine,
+            stackTraceLine,
+            filePath,
+            url,
+            commitHash
+        ]
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty }
+    }
 }
 
 enum TerminalOutputInsightAnalyzer {

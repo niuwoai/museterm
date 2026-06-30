@@ -217,6 +217,21 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(summary.insightKinds.contains(.error))
         XCTAssertTrue(summary.searchableText.contains("abc1234"))
         XCTAssertTrue(summary.aiContextText.contains("Output error:"))
+        XCTAssertEqual(summary.primaryDiagnosticLine, "ERROR failed to compile Sources/App.swift:42")
+    }
+
+    func testOutputSummaryPrimaryDiagnosticFallsBackToWarning() {
+        let summary = TerminalOutputSummary(
+            insightKinds: [.warning, .url],
+            errorLine: nil,
+            warningLine: "warning: deprecated option",
+            url: "https://example.com/warnings",
+            filePath: nil,
+            commitHash: nil,
+            stackTraceLine: nil
+        )
+
+        XCTAssertEqual(summary.primaryDiagnosticLine, "warning: deprecated option")
     }
 
     func testShellIntegrationParserAcceptsSplitCompletionMarker() {
