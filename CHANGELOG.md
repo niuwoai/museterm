@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.63.0] - 2026-07-01
+
+### Added
+- `museterm commands` 与 MCP `read_commands` 顶层新增 `tabID`、`selectedTabID`、`commandCount`、`returnedCommandCount` 和 `outputTailLimit`，让外部工具读取命令块时无需自行推断标签来源和截断参数。
+- 新增 MCP `read_commands` 真实 JSON-RPC 端到端测试，覆盖命令块顶层元数据和输出尾部截断元数据。
+
 ## [1.62.0] - 2026-07-01
 
 ### Added

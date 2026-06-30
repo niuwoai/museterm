@@ -61,6 +61,8 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(script.contains("\"outputTailStoredTruncated\""))
         XCTAssertTrue(script.contains("commands_payload(state, tab, chars)"))
         XCTAssertTrue(script.contains("commands_payload(state, tab, args[\"chars\"])"))
+        XCTAssertTrue(script.contains("\"commandCount\" => source_blocks.length"))
+        XCTAssertTrue(script.contains("\"returnedCommandCount\" => blocks.length"))
         XCTAssertTrue(script.contains("\"diagnostics\" => tab.fetch(\"commandDiagnostics\", {})"))
         XCTAssertTrue(script.contains("\"tools/call\""))
         XCTAssertTrue(script.contains("read_screen"))
@@ -74,6 +76,11 @@ final class musetermTests: XCTestCase {
         let limited = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["commands", "--chars", "3"])
         let limitedCommand = try XCTUnwrap((limited["commands"] as? [[String: Any]])?.first)
         XCTAssertEqual(limited["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(limited["tabID"] as? String, "tab-1")
+        XCTAssertEqual(limited["selectedTabID"] as? String, "tab-1")
+        XCTAssertEqual(limited["commandCount"] as? Int, 1)
+        XCTAssertEqual(limited["returnedCommandCount"] as? Int, 1)
+        XCTAssertEqual(limited["outputTailLimit"] as? Int, 3)
         XCTAssertEqual(limitedCommand["outputTail"] as? String, "def")
         XCTAssertEqual(limitedCommand["outputTailCharacters"] as? Int, 6)
         XCTAssertEqual(limitedCommand["outputTailReturnedCharacters"] as? Int, 3)
@@ -83,6 +90,7 @@ final class musetermTests: XCTestCase {
 
         let unlimited = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["commands"])
         let unlimitedCommand = try XCTUnwrap((unlimited["commands"] as? [[String: Any]])?.first)
+        XCTAssertTrue(unlimited["outputTailLimit"] is NSNull)
         XCTAssertEqual(unlimitedCommand["outputTail"] as? String, "abcdef")
         XCTAssertEqual(unlimitedCommand["outputTailCharacters"] as? Int, 6)
         XCTAssertEqual(unlimitedCommand["outputTailReturnedCharacters"] as? Int, 6)
@@ -106,6 +114,45 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(history["returnedCharacters"] as? Int, 14)
         XCTAssertTrue(history["limit"] is NSNull)
         XCTAssertEqual(history["truncated"] as? Bool, false)
+    }
+
+    func testMCPReadCommandsReportsPayloadMetadata() throws {
+        let fixture = try makeMuseTermCLITestFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let response = try runMuseTermMCPRequest(
+            fixture.scriptURL,
+            home: fixture.root,
+            request: [
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": [
+                    "name": "read_commands",
+                    "arguments": [
+                        "chars": 2
+                    ]
+                ]
+            ]
+        )
+        let result = try XCTUnwrap(response["result"] as? [String: Any])
+        let content = try XCTUnwrap(result["content"] as? [[String: Any]])
+        let text = try XCTUnwrap(content.first?["text"] as? String)
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]
+        )
+        let commands = try XCTUnwrap(payload["commands"] as? [[String: Any]])
+        let command = try XCTUnwrap(commands.first)
+
+        XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(payload["tabID"] as? String, "tab-1")
+        XCTAssertEqual(payload["selectedTabID"] as? String, "tab-1")
+        XCTAssertEqual(payload["commandCount"] as? Int, 1)
+        XCTAssertEqual(payload["returnedCommandCount"] as? Int, 1)
+        XCTAssertEqual(payload["outputTailLimit"] as? Int, 2)
+        XCTAssertEqual(command["outputTail"] as? String, "ef")
+        XCTAssertEqual(command["outputTailReturnedCharacters"] as? Int, 2)
+        XCTAssertEqual(command["outputTailTruncated"] as? Bool, true)
     }
 
     func testMCPReadScreenReportsMetadata() throws {

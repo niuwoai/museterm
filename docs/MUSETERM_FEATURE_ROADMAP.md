@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.62.0
+> 当前版本基线：v1.63.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,7 +30,7 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.62.0 已完成五十四条纵向切片：
+v1.63.0 已完成五十五条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
@@ -43,6 +43,7 @@ v1.62.0 已完成五十四条纵向切片：
 - 连续失败提醒：统计面板会在最近连续 3 次以上同一诊断失败时显示重复提醒；最新命令成功或诊断变化时不提示，保持克制。
 - 诊断摘要复用：Runbook 导出与 AI Explain 当前过滤上下文会复用同一套 `CommandBlockDiagnostics`，记录最近失败和连续同类失败摘要，并沿用脱敏策略。
 - CLI/MCP 诊断摘要：工具状态文件为每个 tab 增加 `commandDiagnostics`，`museterm commands` 与 MCP `read_commands` 返回 `diagnostics` + `commands`，外部工具可直接读取最近失败和连续同类失败线索。
+- CLI/MCP 命令列表顶层元数据：`museterm commands` 与 MCP `read_commands` 会返回 `tabID`、`selectedTabID`、`commandCount`、`returnedCommandCount` 和 `outputTailLimit`，外部工具读取命令块时无需自行推断标签来源、命令总量和 tail 截断参数。
 - MCP 标签列表元数据：MCP `list_tabs` 默认保持数组输出兼容，传入 `metadata: true` 时返回 `schemaVersion`、App 名称、版本、选中标签 ID 和标签数组，让外部工具读取标签列表时也能稳定判断契约版本。
 - CLI/MCP 契约版本：工具状态快照顶层、命令诊断快照、`museterm tabs`、`museterm commands` 和 MCP `read_commands` 均暴露 `schemaVersion`，让外部工具可按 JSON 契约版本做兼容判断。
 - CLI/MCP 屏幕与历史截断元数据：`museterm screen --json`、`museterm history --json` 和 MCP `read_screen` / `read_history` 的 `metadata: true` 会返回文本、字符数、返回字符数、截断上限和截断状态，同时保留默认纯文本输出兼容性。

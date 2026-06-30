@@ -202,11 +202,12 @@ def command_commands(args)
 end
 
 def commands_payload(state, tab, chars)
-  blocks = tab.fetch("commandBlocks", []).map { |block|
+  source_blocks = tab.fetch("commandBlocks", [])
+  output_tail_limit = chars.nil? ? nil : chars.to_i
+  blocks = source_blocks.map { |block|
     copy = block.dup
     output_tail = copy["outputTail"].to_s
     output_character_count = copy.key?("outputCharacterCount") ? copy["outputCharacterCount"].to_i : output_tail.length
-    output_tail_limit = chars.nil? ? nil : chars.to_i
     returned_tail = tail_chars(output_tail, chars)
     copy["outputTailCharacters"] = output_tail.length
     copy["outputTailReturnedCharacters"] = returned_tail.length
@@ -218,6 +219,11 @@ def commands_payload(state, tab, chars)
   }
   {
     "schemaVersion" => state["schemaVersion"],
+    "tabID" => tab["id"],
+    "selectedTabID" => state["selectedTabID"],
+    "commandCount" => source_blocks.length,
+    "returnedCommandCount" => blocks.length,
+    "outputTailLimit" => output_tail_limit,
     "diagnostics" => tab.fetch("commandDiagnostics", {}),
     "commands" => blocks
   }
