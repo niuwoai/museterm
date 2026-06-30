@@ -332,6 +332,7 @@
 "runbook.redaction_on" = "Enabled";
 "runbook.redaction_off" = "Disabled";
 "runbook.failed_commands" = "Failed commands";
+"runbook.diagnostic_severity" = "Diagnostic severity";
 "runbook.latest_failed_command" = "Latest failed command";
 "runbook.latest_failure" = "Latest failure";
 "runbook.repeated_failure" = "Repeated failure";

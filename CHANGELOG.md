@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.41.0] - 2026-07-01
+
+### Added
+- 命令诊断摘要新增 `diagnosticSeverity`，将无失败、普通失败、连续失败和关键失败归类，便于 Runbook、AI 上下文与 CLI/MCP 工具快速判断排查优先级。
+- Runbook Markdown 会记录诊断严重级别，AI 当前过滤上下文和 CLI/MCP `diagnostics` 会同步暴露同一字段。
+
 ## [1.40.0] - 2026-07-01
 
 ### Added

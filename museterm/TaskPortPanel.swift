@@ -619,6 +619,7 @@ struct CommandBlockDiagnostics: Equatable {
     let recentFailureDiagnostic: String?
     let repeatedFailureDiagnostic: RepeatedFailureDiagnostic?
     let suggestedNextInspection: String?
+    let diagnosticSeverity: CommandDiagnosticSeverity
 
     init(blocks: [TerminalCommandBlock], redactSensitiveData: Bool = true) {
         let failedBlocks = blocks.filter(Self.isFailed).sorted(by: Self.mostRecentFirst)
@@ -634,6 +635,11 @@ struct CommandBlockDiagnostics: Equatable {
         repeatedFailureDiagnostic = Self.repeatedFailureDiagnostic(
             in: blocks,
             redactSensitiveData: redactSensitiveData
+        )
+        diagnosticSeverity = Self.diagnosticSeverity(
+            failedCommandCount: failedCommandCount,
+            recentFailureDiagnostic: recentFailureDiagnostic,
+            repeatedFailureDiagnostic: repeatedFailureDiagnostic
         )
         suggestedNextInspection = Self.suggestedNextInspection(
             failedCommandCount: failedCommandCount,
@@ -658,6 +664,9 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append(
                 "Repeated failure diagnostic: \(repeatedFailureDiagnostic.count)x \(repeatedFailureDiagnostic.diagnostic)"
             )
+        }
+        if diagnosticSeverity != .none {
+            lines.append("Diagnostic severity: \(diagnosticSeverity.rawValue)")
         }
         if let suggestedNextInspection {
             lines.append("Suggested next inspection: \(suggestedNextInspection)")
@@ -712,6 +721,25 @@ struct CommandBlockDiagnostics: Equatable {
         return RepeatedFailureDiagnostic(diagnostic: diagnostic, count: count)
     }
 
+    nonisolated private static func diagnosticSeverity(
+        failedCommandCount: Int,
+        recentFailureDiagnostic: String?,
+        repeatedFailureDiagnostic: RepeatedFailureDiagnostic?
+    ) -> CommandDiagnosticSeverity {
+        guard failedCommandCount > 0 else { return .none }
+        let diagnostic = recentFailureDiagnostic?.lowercased() ?? ""
+        if diagnostic.contains("fatal")
+            || diagnostic.contains("panic")
+            || diagnostic.contains("segmentation fault")
+            || diagnostic.contains("permission denied") {
+            return .critical
+        }
+        if repeatedFailureDiagnostic != nil {
+            return .repeated
+        }
+        return .failed
+    }
+
     nonisolated private static func suggestedNextInspection(
         failedCommandCount: Int,
         latestFailedCommand: String?,
@@ -736,6 +764,13 @@ struct CommandBlockDiagnostics: Equatable {
 struct RepeatedFailureDiagnostic: Equatable {
     let diagnostic: String
     let count: Int
+}
+
+enum CommandDiagnosticSeverity: String, Codable, Equatable {
+    case none
+    case failed
+    case repeated
+    case critical
 }
 
 private struct PersistentCommandStatsSnapshot: Codable, Equatable {

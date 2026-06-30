@@ -58,6 +58,7 @@ struct TerminalToolTabSnapshot: Codable, Equatable {
 
 struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
     let failedCommandCount: Int
+    let diagnosticSeverity: String
     let latestFailedCommand: String?
     let recentFailureDiagnostic: String?
     let repeatedFailureDiagnostic: TerminalToolRepeatedFailureSnapshot?
@@ -65,6 +66,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
 
     init(diagnostics: CommandBlockDiagnostics) {
         failedCommandCount = diagnostics.failedCommandCount
+        diagnosticSeverity = diagnostics.diagnosticSeverity.rawValue
         latestFailedCommand = diagnostics.latestFailedCommand
         recentFailureDiagnostic = diagnostics.recentFailureDiagnostic
         if let repeatedFailureDiagnostic = diagnostics.repeatedFailureDiagnostic {

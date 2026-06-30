@@ -332,6 +332,7 @@
 "runbook.redaction_on" = "已开启";
 "runbook.redaction_off" = "未开启";
 "runbook.failed_commands" = "失败命令";
+"runbook.diagnostic_severity" = "诊断严重级别";
 "runbook.latest_failed_command" = "最近失败命令";
 "runbook.latest_failure" = "最近失败";
 "runbook.repeated_failure" = "连续同类失败";

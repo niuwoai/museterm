@@ -87,6 +87,7 @@ final class musetermTests: XCTestCase {
         let repeatedFailure = try XCTUnwrap(encodedDiagnostics["repeatedFailureDiagnostic"] as? [String: Any])
 
         XCTAssertEqual(encodedDiagnostics["failedCommandCount"] as? Int, 3)
+        XCTAssertEqual(encodedDiagnostics["diagnosticSeverity"] as? String, CommandDiagnosticSeverity.repeated.rawValue)
         XCTAssertEqual(encodedDiagnostics["latestFailedCommand"] as? String, "make test")
         XCTAssertEqual(encodedDiagnostics["recentFailureDiagnostic"] as? String, diagnostic)
         XCTAssertEqual(
@@ -434,10 +435,12 @@ final class musetermTests: XCTestCase {
 
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failure")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.failed_commands")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.diagnostic_severity")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_inspection")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure")))
         XCTAssertTrue(markdown.contains("3"))
+        XCTAssertTrue(markdown.contains(CommandDiagnosticSeverity.repeated.rawValue))
         XCTAssertTrue(markdown.contains("make test"))
         XCTAssertTrue(markdown.contains("ERROR token=[REDACTED]"))
         XCTAssertTrue(markdown.contains("Inspect the repeated failure output before rerunning"))
@@ -459,7 +462,26 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Latest failed command: make test"))
         XCTAssertTrue(context.contains("Recent failure diagnostic: ERROR database is locked"))
         XCTAssertTrue(context.contains("Repeated failure diagnostic: 3x ERROR database is locked"))
+        XCTAssertTrue(context.contains("Diagnostic severity: repeated"))
         XCTAssertTrue(context.contains("Suggested next inspection: Inspect the repeated failure output before rerunning"))
+    }
+
+    func testCommandBlockDiagnosticsMarksCriticalFailure() {
+        let diagnostics = CommandBlockDiagnostics(
+            blocks: [
+                commandBlock(
+                    command: "deploy prod",
+                    startedAt: 100,
+                    endedAt: 101,
+                    exitCode: 1,
+                    errorLine: "fatal: permission denied"
+                )
+            ],
+            redactSensitiveData: false
+        )
+
+        XCTAssertEqual(diagnostics.failedCommandCount, 1)
+        XCTAssertEqual(diagnostics.diagnosticSeverity, .critical)
     }
 
     func testSessionCommandStatsTracksRecentRedactedFailureDiagnostic() {
