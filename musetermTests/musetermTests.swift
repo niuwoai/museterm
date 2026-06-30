@@ -54,6 +54,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(script.contains("museterm key"))
         XCTAssertTrue(script.contains("commands_payload"))
         XCTAssertTrue(script.contains("\"schemaVersion\" => state[\"schemaVersion\"]"))
+        XCTAssertTrue(script.contains("\"snapshotSequence\" => state[\"snapshotSequence\"]"))
         XCTAssertTrue(script.contains("\"outputTailCharacters\""))
         XCTAssertTrue(script.contains("\"outputTailReturnedCharacters\""))
         XCTAssertTrue(script.contains("\"outputTailLimit\""))
@@ -76,6 +77,7 @@ final class musetermTests: XCTestCase {
         let limited = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["commands", "--chars", "3"])
         let limitedCommand = try XCTUnwrap((limited["commands"] as? [[String: Any]])?.first)
         XCTAssertEqual(limited["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(limited["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(limited["tabID"] as? String, "tab-1")
         XCTAssertEqual(limited["selectedTabID"] as? String, "tab-1")
         XCTAssertEqual(limited["commandCount"] as? Int, 1)
@@ -100,6 +102,7 @@ final class musetermTests: XCTestCase {
 
         let screen = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["screen", "--chars", "4", "--json"])
         XCTAssertEqual(screen["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(screen["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(screen["field"] as? String, "screen")
         XCTAssertEqual(screen["text"] as? String, "cdef")
         XCTAssertEqual(screen["textCharacters"] as? Int, 13)
@@ -108,6 +111,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(screen["truncated"] as? Bool, true)
 
         let history = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["history", "--json"])
+        XCTAssertEqual(history["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(history["field"] as? String, "history")
         XCTAssertEqual(history["text"] as? String, "history-abcdef")
         XCTAssertEqual(history["textCharacters"] as? Int, 14)
@@ -145,6 +149,7 @@ final class musetermTests: XCTestCase {
         let command = try XCTUnwrap(commands.first)
 
         XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(payload["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(payload["tabID"] as? String, "tab-1")
         XCTAssertEqual(payload["selectedTabID"] as? String, "tab-1")
         XCTAssertEqual(payload["commandCount"] as? Int, 1)
@@ -183,6 +188,7 @@ final class musetermTests: XCTestCase {
         )
 
         XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(payload["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(payload["field"] as? String, "screen")
         XCTAssertEqual(payload["text"] as? String, "bcdef")
         XCTAssertEqual(payload["textCharacters"] as? Int, 13)
@@ -220,6 +226,7 @@ final class musetermTests: XCTestCase {
         let tab = try XCTUnwrap(tabs.first)
 
         XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(payload["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(payload["app"] as? String, "MuseTerm")
         XCTAssertEqual(payload["version"] as? String, "test")
         XCTAssertEqual(payload["selectedTabID"] as? String, "tab-1")
@@ -263,6 +270,7 @@ final class musetermTests: XCTestCase {
         let state = TerminalToolState(
             app: "MuseTerm",
             version: "test",
+            snapshotSequence: 7,
             updatedAt: Date(timeIntervalSince1970: 130),
             selectedTabID: "tab-1",
             tabs: [snapshot]
@@ -271,6 +279,7 @@ final class musetermTests: XCTestCase {
         let stateObject = try XCTUnwrap(JSONSerialization.jsonObject(with: stateData) as? [String: Any])
 
         XCTAssertEqual(stateObject["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(stateObject["snapshotSequence"] as? Int, 7)
         XCTAssertEqual(encodedDiagnostics["schemaVersion"] as? Int, 1)
         XCTAssertEqual(encodedDiagnostics["failedCommandCount"] as? Int, 3)
         XCTAssertEqual(encodedDiagnostics["diagnosticSeverity"] as? String, CommandDiagnosticSeverity.repeated.rawValue)
@@ -1099,6 +1108,7 @@ final class musetermTests: XCTestCase {
             "schemaVersion": 1,
             "app": "MuseTerm",
             "version": "test",
+            "snapshotSequence": 42,
             "selectedTabID": "tab-1",
             "tabs": [
                 [

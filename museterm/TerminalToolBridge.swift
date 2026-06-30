@@ -35,6 +35,7 @@ struct TerminalToolState: Codable {
     let schemaVersion: Int
     let app: String
     let version: String
+    let snapshotSequence: Int
     let updatedAt: Date
     let selectedTabID: String?
     let tabs: [TerminalToolTabSnapshot]
@@ -43,6 +44,7 @@ struct TerminalToolState: Codable {
         schemaVersion: Int = 1,
         app: String,
         version: String,
+        snapshotSequence: Int = 0,
         updatedAt: Date,
         selectedTabID: String?,
         tabs: [TerminalToolTabSnapshot]
@@ -50,6 +52,7 @@ struct TerminalToolState: Codable {
         self.schemaVersion = schemaVersion
         self.app = app
         self.version = version
+        self.snapshotSequence = snapshotSequence
         self.updatedAt = updatedAt
         self.selectedTabID = selectedTabID
         self.tabs = tabs
@@ -251,6 +254,7 @@ final class TerminalToolBridge {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
     private let maxHistoryCharacters = 240_000
+    private var snapshotSequence = 0
 
     private init() {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -288,9 +292,11 @@ final class TerminalToolBridge {
     private func writeState() {
         guard let workspace else { return }
         do {
+            snapshotSequence += 1
             let state = TerminalToolState(
                 app: "MuseTerm",
                 version: AppVersion.value,
+                snapshotSequence: snapshotSequence,
                 updatedAt: Date(),
                 selectedTabID: workspace.selectedTab?.id.uuidString,
                 tabs: workspace.toolSnapshots(maxHistoryCharacters: maxHistoryCharacters)

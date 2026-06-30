@@ -107,6 +107,7 @@ def text_payload(state, tab, field, chars)
   returned = tail_chars(text, chars)
   {
     "schemaVersion" => state["schemaVersion"],
+    "snapshotSequence" => state["snapshotSequence"],
     "tabID" => tab["id"],
     "field" => field,
     "text" => returned,
@@ -128,6 +129,7 @@ def tabs_payload(state)
     "schemaVersion" => state["schemaVersion"],
     "app" => state["app"],
     "version" => state["version"],
+    "snapshotSequence" => state["snapshotSequence"],
     "selectedTabID" => state["selectedTabID"],
     "tabs" => tab_summaries(state)
   }
@@ -219,6 +221,7 @@ def commands_payload(state, tab, chars)
   }
   {
     "schemaVersion" => state["schemaVersion"],
+    "snapshotSequence" => state["snapshotSequence"],
     "tabID" => tab["id"],
     "selectedTabID" => state["selectedTabID"],
     "commandCount" => source_blocks.length,

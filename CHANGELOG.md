@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.64.0] - 2026-07-01
+
+### Added
+- 工具状态快照新增单调递增的 `snapshotSequence`，每次写入 `state.json` 时递增，方便外部工具判断轮询时是否读到新快照。
+- `museterm tabs`、`museterm screen --json`、`museterm history --json`、`museterm commands` 以及对应 MCP 元数据响应会透传 `snapshotSequence`，减少外部工具依赖时间字符串判断状态新旧。
+
 ## [1.63.0] - 2026-07-01
 
 ### Added
