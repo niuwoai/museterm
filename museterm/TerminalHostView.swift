@@ -52,11 +52,11 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private var didStart = false
     private var pendingStart = false
     private var pendingStartWorkItem: DispatchWorkItem?
-    private var startupPromptSettleWorkItem: DispatchWorkItem?
-    private var startupCoverFallbackWorkItem: DispatchWorkItem?
+    private var startupPromptPollWorkItem: DispatchWorkItem?
     private var startupPromptRedrawDeadline: TimeInterval = 0
+    private var startupMinCoverageDeadline: TimeInterval = 0
+    private var startupRedrawCount = 0
     private var didRunStartupPromptRedraw = false
-    private var didSendStartupRedraw = false
     private var didReceiveProcessInput = false
     private var didConfigureMetal = false
     private var lastAppliedPreferences: TerminalPreferenceSignature?
@@ -375,7 +375,6 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     private func handleProcessOutputForZModem(_ data: ArraySlice<UInt8>) -> Bool {
-        noteStartupOutputActivity()
         if let activeZModemTransfer {
             activeZModemTransfer.acceptRemoteData(Array(data))
             return true
@@ -584,73 +583,80 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         sizeChanged(source: terminalView, newCols: newCols, newRows: newRows)
     }
 
-    // 新建标签时，shell 打印 PS1 后常因启动期 SIGWINCH（窗口尺寸尚未稳定）触发
-    // zle reset-prompt，把提示符在顶部重绘成多条。这里全程用遮罩盖住首屏，在背后
-    // 等输出停止抖动再检测：若发现重复提示符就发 ^L 让 shell 清屏重绘成单条，等画面
-    // 真正干净后再把遮罩淡出。用户因此只会看到一条干净 PS1 平滑出现，看不到中间过程。
+    // 新建标签时，shell 打印 PS1 后常因启动期 SIGWINCH 或 p10k 实时提示符，把提示符
+    // 在顶部重绘成多条。这里全程用遮罩盖住首屏，在背后用“定时轮询”持续检测：发现重复
+    // 就发 ^L 让 shell 清屏重绘成单条。只有当“已过最小覆盖时长 且 当前画面确实干净”时
+    // 才淡出遮罩——这样既能抓到出现得较晚的重绘，也不会在重绘到来前提前揭开露馅。
     private func beginStartupPromptDeduplication() {
+        let now = ProcessInfo.processInfo.systemUptime
         didRunStartupPromptRedraw = false
-        didSendStartupRedraw = false
-        // 启动窗口：超过该时限即收手（兜底淡出遮罩），避免极端情况下一直盖着空白。
-        startupPromptRedrawDeadline = ProcessInfo.processInfo.systemUptime + 1.0
+        startupRedrawCount = 0
+        // 最小覆盖时长：必须盖住到这一刻之后才允许揭开，确保覆盖住迟到的启动重绘。
+        startupMinCoverageDeadline = now + 0.5
+        // 硬上限：无论如何最多盖这么久，避免极端情况下一直盖着空白。
+        startupPromptRedrawDeadline = now + 2.0
         showStartupCover()
-
-        let fallback = DispatchWorkItem { [weak self] in
-            self?.finishStartupPromptDeduplication()
-        }
-        startupCoverFallbackWorkItem = fallback
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: fallback)
+        scheduleStartupPromptPoll(after: 0.1)
     }
 
-    // 每当有新输出抵达就重排一次“静默后检测”，确保只在所有启动抖动结束后才判定，
-    // 无论重复提示符是立刻出现还是在 shell 初始化稍慢后才出现都能覆盖。
-    private func noteStartupOutputActivity() {
-        guard !didRunStartupPromptRedraw, !didSendStartupRedraw, !didReceiveProcessInput else { return }
-        scheduleStartupPromptSettleCheck()
-    }
-
-    private func scheduleStartupPromptSettleCheck() {
-        startupPromptSettleWorkItem?.cancel()
+    private func scheduleStartupPromptPoll(after delay: TimeInterval) {
+        startupPromptPollWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            guard !self.didRunStartupPromptRedraw else { return }
-            if self.didReceiveProcessInput {
-                // 用户已经开始输入，立即放行，别再挡着。
-                self.finishStartupPromptDeduplication()
-                return
-            }
-            guard self.terminalView.process.running else {
-                self.finishStartupPromptDeduplication()
-                return
-            }
-            // 还没有任何可见输出（PS1 尚未打印）——继续等后续输出或兜底淡出。
-            guard self.hasVisibleStartupContent() else { return }
-
-            let withinWindow = ProcessInfo.processInfo.systemUptime < self.startupPromptRedrawDeadline
-            if withinWindow, self.visibleScreenLooksLikeDuplicatedStartupPrompt() {
-                self.didSendStartupRedraw = true
-                self.terminalView.process.send(data: [0x0C][...])
-                self.invalidateDisplay()
-                // ^L 只重绘一条干净 PS1，很快；用固定短延时淡出，不再等一整轮静默。
-                let finish = DispatchWorkItem { [weak self] in
-                    self?.finishStartupPromptDeduplication()
-                }
-                self.startupPromptSettleWorkItem = finish
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: finish)
-            } else {
-                // 画面已稳定且无重复（本就干净，或 ^L 已清理完成）→ 淡出遮罩。
-                self.finishStartupPromptDeduplication()
-            }
+            self?.runStartupPromptPoll()
         }
-        startupPromptSettleWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: workItem)
+        startupPromptPollWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+    }
+
+    private func runStartupPromptPoll() {
+        guard !didRunStartupPromptRedraw else { return }
+        if didReceiveProcessInput {
+            // 用户已经开始输入，立即放行，别再挡着。
+            finishStartupPromptDeduplication()
+            return
+        }
+        guard terminalView.process.running else {
+            finishStartupPromptDeduplication()
+            return
+        }
+
+        let now = ProcessInfo.processInfo.systemUptime
+        if now >= startupPromptRedrawDeadline {
+            // 到硬上限，无论是否干净都揭开，避免一直盖着。
+            finishStartupPromptDeduplication()
+            return
+        }
+
+        // 还没有任何可见输出（PS1 尚未打印）——继续等。
+        guard hasVisibleStartupContent() else {
+            scheduleStartupPromptPoll(after: 0.1)
+            return
+        }
+
+        if visibleScreenLooksLikeDuplicatedStartupPrompt() {
+            if startupRedrawCount < 3 {
+                startupRedrawCount += 1
+                terminalView.process.send(data: [0x0C][...])
+                invalidateDisplay()
+            }
+            // 给 ^L 一点时间重绘后再复检；遮罩继续遮挡。
+            scheduleStartupPromptPoll(after: 0.18)
+            return
+        }
+
+        // 当前画面干净。但若还没到最小覆盖时长，继续盖住轮询，以防迟到的重绘露馅。
+        if now < startupMinCoverageDeadline {
+            scheduleStartupPromptPoll(after: 0.1)
+            return
+        }
+
+        finishStartupPromptDeduplication()
     }
 
     private func finishStartupPromptDeduplication() {
         guard !didRunStartupPromptRedraw else { return }
         didRunStartupPromptRedraw = true
-        startupPromptSettleWorkItem?.cancel()
-        startupCoverFallbackWorkItem?.cancel()
+        startupPromptPollWorkItem?.cancel()
         hideStartupCover()
     }
 
