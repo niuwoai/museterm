@@ -465,6 +465,13 @@ final class musetermTests: XCTestCase {
                 CommandDiagnosticActionResultSignal.gitStateVisible.rawValue
             ]
         )
+        XCTAssertEqual(
+            suggestedNextAction["resultInterpretationHints"] as? [String],
+            [
+                CommandDiagnosticActionResultInterpretationHint.gitOutputOptional.rawValue,
+                CommandDiagnosticActionResultInterpretationHint.compareAgainstFirstFailure.rawValue
+            ]
+        )
         let sensitiveResultFields = try XCTUnwrap(suggestedNextAction["sensitiveResultFields"] as? [String])
         XCTAssertEqual(
             sensitiveResultFields,
@@ -940,6 +947,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_expected_result_kind")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_expected_result_fields")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_expected_result_signals")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_result_interpretation_hints")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_sensitive_result_fields")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_result_redaction_hints")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_result_refresh_triggers")))
@@ -1026,6 +1034,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Suggested next action expected result fields: working_directory; git_branch"))
         XCTAssertTrue(context.contains("git_upstream; git_dirty_state"))
         XCTAssertTrue(context.contains("Suggested next action expected result signals: working_directory_visible; git_state_visible"))
+        XCTAssertTrue(context.contains("Suggested next action result interpretation hints: git_output_optional; compare_against_first_failure"))
         XCTAssertTrue(context.contains("Suggested next action sensitive result fields: working_directory; git_branch; git_upstream"))
         XCTAssertTrue(context.contains("Suggested next action result redaction hints: working_directory; git_branch; git_upstream"))
         XCTAssertTrue(context.contains("Suggested next action result refresh triggers: working_directory_changed; git_state_changed; failure_context_changed"))
@@ -1152,6 +1161,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(
             diagnostics.suggestedNextAction?.expectedResultSignals,
             [.currentUserVisible, .permissionBoundaryVisible]
+        )
+        XCTAssertEqual(
+            diagnostics.suggestedNextAction?.resultInterpretationHints,
+            [.compareUserAndPermissions, .mismatchExplainsPermissionFailure]
         )
         XCTAssertEqual(
             diagnostics.suggestedNextAction?.sensitiveResultFields,
@@ -1286,6 +1299,10 @@ final class musetermTests: XCTestCase {
             portConflict.suggestedNextAction?.expectedResultSignals,
             [.targetPortVisible, .ownerProcessVisible]
         )
+        XCTAssertEqual(
+            portConflict.suggestedNextAction?.resultInterpretationHints,
+            [.emptyOutputMeansNoLocalListener, .rowsIdentifyOwners]
+        )
         XCTAssertEqual(portConflict.suggestedNextAction?.sensitiveResultFields, [.processName, .listenAddress])
         XCTAssertEqual(portConflict.suggestedNextAction?.resultRedactionHints, [.processIdentity, .networkAddress])
         XCTAssertEqual(portConflict.suggestedNextAction?.resultRefreshTriggers, [.processStateChanged, .networkListenersChanged])
@@ -1333,6 +1350,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(missingCommand.suggestedNextAction?.expectedResultKind, .shellPath)
         XCTAssertEqual(missingCommand.suggestedNextAction?.expectedResultFields, [.pathEntries])
         XCTAssertEqual(missingCommand.suggestedNextAction?.expectedResultSignals, [.pathEntriesVisible])
+        XCTAssertEqual(
+            missingCommand.suggestedNextAction?.resultInterpretationHints,
+            [.pathEntryPresenceMatters, .missingPathEntryExplainsCommandFailure]
+        )
         XCTAssertEqual(missingCommand.suggestedNextAction?.sensitiveResultFields, [.pathEntries])
         XCTAssertEqual(missingCommand.suggestedNextAction?.resultRedactionHints, [.shellPathEntries])
         XCTAssertEqual(missingCommand.suggestedNextAction?.resultRefreshTriggers, [.shellEnvironmentChanged])
@@ -1378,6 +1399,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(
             missingFile.suggestedNextAction?.expectedResultSignals,
             [.workingDirectoryVisible, .directoryEntriesVisible]
+        )
+        XCTAssertEqual(
+            missingFile.suggestedNextAction?.resultInterpretationHints,
+            [.missingEntryConfirmsPathIssue, .caseMismatchMayMatter]
         )
         XCTAssertEqual(
             missingFile.suggestedNextAction?.sensitiveResultFields,
@@ -1437,6 +1462,10 @@ final class musetermTests: XCTestCase {
             gitFailure.suggestedNextAction?.expectedResultSignals,
             [.gitBranchVisible, .gitDirtyStateVisible]
         )
+        XCTAssertEqual(
+            gitFailure.suggestedNextAction?.resultInterpretationHints,
+            [.dirtyStateRequiresUserDecision, .upstreamRelationMayExplainFailure]
+        )
         XCTAssertEqual(gitFailure.suggestedNextAction?.sensitiveResultFields, [.gitBranch, .gitUpstream])
         XCTAssertEqual(gitFailure.suggestedNextAction?.resultRedactionHints, [.gitBranch, .gitUpstream])
         XCTAssertEqual(gitFailure.suggestedNextAction?.resultRefreshTriggers, [.gitStateChanged])
@@ -1487,6 +1516,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(
             genericFailure.suggestedNextAction?.expectedResultSignals,
             [.workingDirectoryVisible, .gitStateVisible]
+        )
+        XCTAssertEqual(
+            genericFailure.suggestedNextAction?.resultInterpretationHints,
+            [.gitOutputOptional, .contextSnapshotMayBePartial]
         )
         XCTAssertEqual(
             genericFailure.suggestedNextAction?.sensitiveResultFields,

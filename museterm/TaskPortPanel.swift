@@ -767,6 +767,10 @@ struct CommandBlockDiagnostics: Equatable {
                 let expectedResultSignals = suggestedNextAction.expectedResultSignals.map(\.rawValue).joined(separator: "; ")
                 lines.append("Suggested next action expected result signals: \(expectedResultSignals)")
             }
+            if !suggestedNextAction.resultInterpretationHints.isEmpty {
+                let hints = suggestedNextAction.resultInterpretationHints.map(\.rawValue).joined(separator: "; ")
+                lines.append("Suggested next action result interpretation hints: \(hints)")
+            }
             if !suggestedNextAction.sensitiveResultFields.isEmpty {
                 let sensitiveResultFields = suggestedNextAction.sensitiveResultFields.map(\.rawValue).joined(separator: "; ")
                 lines.append("Suggested next action sensitive result fields: \(sensitiveResultFields)")
@@ -1155,6 +1159,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultKind: .listeningPorts,
                 expectedResultFields: [.localPort, .processID, .processName, .listenAddress],
                 expectedResultSignals: [.targetPortVisible, .ownerProcessVisible],
+                resultInterpretationHints: [.emptyOutputMeansNoLocalListener, .rowsIdentifyOwners],
                 sensitiveResultFields: [.processName, .listenAddress],
                 resultRedactionHints: [.processIdentity, .networkAddress],
                 resultRefreshTriggers: [.processStateChanged, .networkListenersChanged],
@@ -1209,6 +1214,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultKind: .identityAndPermissions,
                 expectedResultFields: [.workingDirectory, .currentUser, .directoryPermissions],
                 expectedResultSignals: [.currentUserVisible, .permissionBoundaryVisible],
+                resultInterpretationHints: [.compareUserAndPermissions, .mismatchExplainsPermissionFailure],
                 sensitiveResultFields: [.workingDirectory, .currentUser, .directoryPermissions],
                 resultRedactionHints: [.workingDirectory, .userIdentity, .permissionMetadata],
                 resultRefreshTriggers: [.workingDirectoryChanged, .userContextChanged, .permissionsChanged],
@@ -1263,6 +1269,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultKind: .shellPath,
                 expectedResultFields: [.pathEntries],
                 expectedResultSignals: [.pathEntriesVisible],
+                resultInterpretationHints: [.pathEntryPresenceMatters, .missingPathEntryExplainsCommandFailure],
                 sensitiveResultFields: [.pathEntries],
                 resultRedactionHints: [.shellPathEntries],
                 resultRefreshTriggers: [.shellEnvironmentChanged],
@@ -1317,6 +1324,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultKind: .directoryListing,
                 expectedResultFields: [.workingDirectory, .visibleEntries, .fileMetadata],
                 expectedResultSignals: [.workingDirectoryVisible, .directoryEntriesVisible],
+                resultInterpretationHints: [.missingEntryConfirmsPathIssue, .caseMismatchMayMatter],
                 sensitiveResultFields: [.workingDirectory, .visibleEntries, .fileMetadata],
                 resultRedactionHints: [.workingDirectory, .directoryEntries, .fileMetadata],
                 resultRefreshTriggers: [.workingDirectoryChanged, .filesystemChanged],
@@ -1371,6 +1379,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultKind: .gitStatus,
                 expectedResultFields: [.gitBranch, .gitUpstream, .gitDirtyState],
                 expectedResultSignals: [.gitBranchVisible, .gitDirtyStateVisible],
+                resultInterpretationHints: [.dirtyStateRequiresUserDecision, .upstreamRelationMayExplainFailure],
                 sensitiveResultFields: [.gitBranch, .gitUpstream],
                 resultRedactionHints: [.gitBranch, .gitUpstream],
                 resultRefreshTriggers: [.gitStateChanged],
@@ -1425,6 +1434,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultKind: .contextSnapshot,
                 expectedResultFields: [.workingDirectory, .gitBranch, .gitUpstream, .gitDirtyState],
                 expectedResultSignals: [.workingDirectoryVisible, .gitStateVisible],
+                resultInterpretationHints: [.gitOutputOptional, .compareAgainstFirstFailure],
                 sensitiveResultFields: [.workingDirectory, .gitBranch, .gitUpstream],
                 resultRedactionHints: [.workingDirectory, .gitBranch, .gitUpstream],
                 resultRefreshTriggers: [.workingDirectoryChanged, .gitStateChanged, .failureContextChanged],
@@ -1479,6 +1489,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultKind: .contextSnapshot,
                 expectedResultFields: [.workingDirectory, .gitBranch, .gitUpstream, .gitDirtyState],
                 expectedResultSignals: [.workingDirectoryVisible, .gitStateVisible],
+                resultInterpretationHints: [.gitOutputOptional, .contextSnapshotMayBePartial],
                 sensitiveResultFields: [.workingDirectory, .gitBranch, .gitUpstream],
                 resultRedactionHints: [.workingDirectory, .gitBranch, .gitUpstream],
                 resultRefreshTriggers: [.workingDirectoryChanged, .gitStateChanged, .failureContextChanged],
@@ -1638,6 +1649,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let expectedResultKind: CommandDiagnosticActionResultKind
     let expectedResultFields: [CommandDiagnosticActionResultField]
     let expectedResultSignals: [CommandDiagnosticActionResultSignal]
+    let resultInterpretationHints: [CommandDiagnosticActionResultInterpretationHint]
     let sensitiveResultFields: [CommandDiagnosticActionResultField]
     let resultRedactionHints: [CommandDiagnosticActionRedactionHint]
     let resultRefreshTriggers: [CommandDiagnosticActionRefreshTrigger]
@@ -1675,6 +1687,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         expectedResultKind: CommandDiagnosticActionResultKind,
         expectedResultFields: [CommandDiagnosticActionResultField],
         expectedResultSignals: [CommandDiagnosticActionResultSignal],
+        resultInterpretationHints: [CommandDiagnosticActionResultInterpretationHint],
         sensitiveResultFields: [CommandDiagnosticActionResultField],
         resultRedactionHints: [CommandDiagnosticActionRedactionHint],
         resultRefreshTriggers: [CommandDiagnosticActionRefreshTrigger],
@@ -1711,6 +1724,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         self.expectedResultKind = expectedResultKind
         self.expectedResultFields = expectedResultFields
         self.expectedResultSignals = expectedResultSignals
+        self.resultInterpretationHints = resultInterpretationHints
         self.sensitiveResultFields = sensitiveResultFields
         self.resultRedactionHints = resultRedactionHints
         self.resultRefreshTriggers = resultRefreshTriggers
@@ -1811,6 +1825,22 @@ enum CommandDiagnosticActionResultSignal: String, Codable, Equatable {
     case gitBranchVisible = "git_branch_visible"
     case gitDirtyStateVisible = "git_dirty_state_visible"
     case gitStateVisible = "git_state_visible"
+}
+
+enum CommandDiagnosticActionResultInterpretationHint: String, Codable, Equatable {
+    case emptyOutputMeansNoLocalListener = "empty_output_means_no_local_listener"
+    case rowsIdentifyOwners = "rows_identify_owners"
+    case compareUserAndPermissions = "compare_user_and_permissions"
+    case mismatchExplainsPermissionFailure = "mismatch_explains_permission_failure"
+    case pathEntryPresenceMatters = "path_entry_presence_matters"
+    case missingPathEntryExplainsCommandFailure = "missing_path_entry_explains_command_failure"
+    case missingEntryConfirmsPathIssue = "missing_entry_confirms_path_issue"
+    case caseMismatchMayMatter = "case_mismatch_may_matter"
+    case dirtyStateRequiresUserDecision = "dirty_state_requires_user_decision"
+    case upstreamRelationMayExplainFailure = "upstream_relation_may_explain_failure"
+    case gitOutputOptional = "git_output_optional"
+    case compareAgainstFirstFailure = "compare_against_first_failure"
+    case contextSnapshotMayBePartial = "context_snapshot_may_be_partial"
 }
 
 enum CommandDiagnosticActionRedactionHint: String, Codable, Equatable {

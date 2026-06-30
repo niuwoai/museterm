@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.95.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `resultInterpretationHints`，用稳定 code 描述建议命令输出应如何解释，例如空端口列表表示本机无监听者、权限输出需要比较用户与权限位、Git dirty 状态需要用户决策。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露结果解释提示，帮助外部工具少依赖自然语言猜测排查结果含义。
+
 ## [1.94.0] - 2026-07-01
 
 ### Added
