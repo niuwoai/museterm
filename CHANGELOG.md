@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.97.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `resultDecisionHints`，用稳定 code 描述建议命令结果应触发的保守决策分支，例如端口 owner 需要用户决定、权限不匹配需要明确提权、Git dirty 状态需要先处理工作树。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露结果决策提示，让外部工具在解析和解释输出后仍保持“只建议、不越权”的执行边界。
+
 ## [1.96.0] - 2026-07-01
 
 ### Added

@@ -361,6 +361,7 @@
 "runbook.suggested_next_action_expected_result_signals" = "Suggested action expected result signals";
 "runbook.suggested_next_action_result_parsing_hints" = "Suggested action result parsing hints";
 "runbook.suggested_next_action_result_interpretation_hints" = "Suggested action result interpretation hints";
+"runbook.suggested_next_action_result_decision_hints" = "Suggested action result decision hints";
 "runbook.suggested_next_action_sensitive_result_fields" = "Suggested action sensitive result fields";
 "runbook.suggested_next_action_result_redaction_hints" = "Suggested action result redaction hints";
 "runbook.suggested_next_action_result_refresh_triggers" = "Suggested action result refresh triggers";
