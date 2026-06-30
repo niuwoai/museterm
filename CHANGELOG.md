@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.52.0] - 2026-07-01
+
+### Added
+- 结构化建议排查动作新增 `sourceCategory` 和 `confidence`，让单个 action 对象也能说明建议来自哪类诊断以及可信度。
+- Runbook、AI 上下文和 CLI/MCP `diagnostics.suggestedNextAction` 会同步暴露来源分类和可信度，减少外部工具拼接旁路字段的成本。
+
 ## [1.51.0] - 2026-07-01
 
 ### Added

@@ -104,6 +104,8 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
 
 struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
     let id: String
+    let sourceCategory: String
+    let confidence: String
     let title: String
     let rationale: String
     let command: String
@@ -112,6 +114,8 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
 
     init(action: CommandDiagnosticAction) {
         id = action.id.rawValue
+        sourceCategory = action.sourceCategory.rawValue
+        confidence = action.confidence.rawValue
         title = action.title
         rationale = action.rationale
         command = action.command

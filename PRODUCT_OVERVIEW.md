@@ -1,6 +1,6 @@
 # Product Overview
 
-> 最后更新：2026-07-01 | 当前版本：v1.51.0
+> 最后更新：2026-07-01 | 当前版本：v1.52.0
 
 ## 项目简介
 
@@ -28,7 +28,7 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 - 命令搜索面板：右侧检查面板可搜索当前标签的命令、目录、命令块输出和原始滚屏历史，支持仅看失败命令；命令块会轻量识别错误、警告、URL、文件路径、JSON/YAML、堆栈和 commit hash，失败命令卡片会直接展示首条关键诊断行，并可复制命令、输出尾部、输出摘要、滚屏片段或 AI 上下文；JSON 输出摘要会自动带上格式化后的 pretty JSON。
 - 任务与端口面板：右侧面板可查看运行中的结构化命令块和本机监听 TCP 端口，支持刷新、打开 `localhost` URL、复制监听地址，并可将本机 `kill PID` 填入本地终端等待确认执行；当前会话工具可向本地或 SSH 标签填入端口扫描、进程列表、PID 详情、SIGTERM 和 SIGKILL 命令；面板还展示本次会话命令统计、当天跨重启累计统计、最长耗时、最近失败诊断、连续同类失败提醒和轻量成就徽章。
 - AI Explain：命令搜索面板可直接对单条命令块请求 AI 解释，覆盖命令意图、输出状态、失败原因、风险点和下一步建议，并在 Provider 返回内容时流式增量显示；AI 上下文可选择只发命令、当前命令块或当前过滤结果摘要；支持 OpenAI 兼容接口、Anthropic、Google Gemini、Azure OpenAI、OpenRouter、Ollama 和自定义端点。
-- Runbook 导出与回放：命令搜索面板可把当前过滤出的命令块生成 Markdown，支持备注、敏感信息脱敏、输出摘要、失败诊断、诊断分类、分类依据与可信度、连续同类失败摘要、建议排查命令、结构化建议排查动作及稳定动作 ID、回放脚本、复制到剪贴板和保存为 `.md` 文件；回放脚本可参数化本机路径，并可编辑 `RUNBOOK_HOME` / `RUNBOOK_WORKDIR` 默认值，默认对每条命令逐步确认；单条命令可填入当前终端待执行，但不会自动回车；Runbook 会记录疑似敏感输出数量、脱敏状态、参数化状态、变量默认值、逐步确认状态，以及每条命令的错误/警告、URL、路径、commit 和堆栈线索。
+- Runbook 导出与回放：命令搜索面板可把当前过滤出的命令块生成 Markdown，支持备注、敏感信息脱敏、输出摘要、失败诊断、诊断分类、分类依据与可信度、连续同类失败摘要、建议排查命令、结构化建议排查动作、稳定动作 ID、动作来源分类与可信度、回放脚本、复制到剪贴板和保存为 `.md` 文件；回放脚本可参数化本机路径，并可编辑 `RUNBOOK_HOME` / `RUNBOOK_WORKDIR` 默认值，默认对每条命令逐步确认；单条命令可填入当前终端待执行，但不会自动回车；Runbook 会记录疑似敏感输出数量、脱敏状态、参数化状态、变量默认值、逐步确认状态，以及每条命令的错误/警告、URL、路径、commit 和堆栈线索。
 - 安全确认：可在设置中开启/关闭多行粘贴确认和高危命令确认；SSH profile 可选择继承全局、强制确认或关闭确认，高危命令支持内置规则和自定义文本/正则规则，命中规则时会在写入 PTY 前展示预览，取消则不会执行；命令搜索面板会提示疑似敏感输出，并在脱敏开启时对展示、复制、导出和 AI 上下文使用脱敏内容。
 - 标签标题：本机会话优先显示当前目录，远端/SSH 标题保留 `user@host` 便于识别。
 - App 图标：默认使用 Q 版企鹅终端图标，并支持在设置中切换多款动物头像 Dock 图标。
@@ -58,7 +58,7 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 
 ## API 概览
 
-本项目当前没有网络服务端 API。CLI/MCP 通过本机 `~/Library/Application Support/MuseTerm/Tools` 目录交换状态与输入请求，状态包含标签页屏幕、历史文本、最近结构化命令块和命令诊断摘要；命令块包含开始来源、完成来源和紧凑输出摘要，便于外部工具判断命令边界来自 shell hook 还是输入推断、退出码来自 shell hook 还是进程退出兜底，并直接读取错误、URL、路径和 commit 等关键线索；命令诊断摘要包含失败命令数、诊断严重级别、诊断分类、诊断分类依据、诊断分类可信度、最近失败命令、最近失败诊断、失败指纹、连续同类失败、匹配方式、连续失败时间窗、持续时长、建议下一步查看项、建议排查命令和结构化建议排查动作；建议动作包含稳定 `id`、标题、原因、命令、安全级别和确认要求，`museterm commands` 和 MCP `read_commands` 会返回 `diagnostics` + `commands` 的 JSON 对象。CLI 支持 `tabs`、`screen`、`history`、`commands`、`input`、`key` 和 `mcp`。任务与端口面板通过系统 `lsof` 读取本机监听 TCP 端口，只展示并填入命令，不会直接结束进程；当前会话进程工具同样只向选中终端填入命令，是否执行由用户按回车确认。录制捷径保存在 `~/Library/Application Support/MuseTerm/TerminalShortcuts/shortcuts.json`，工作区快照保存在 `~/Library/Application Support/MuseTerm/Workspaces/last-workspace.json`，每日命令统计保存在 `~/Library/Application Support/MuseTerm/Stats/daily-command-stats.json`，SSH profile 与 AI Provider 非敏感配置保存在用户偏好中，AI API Key 通过 Keychain 保存，仅在 AI Explain 请求时进入对应 Provider 的请求 header 或 query，不写入 MCP 状态；命令搜索面板的脱敏开关会在 Runbook、AI 上下文和 AI Explain 请求中替换常见 token/password/API Key 形态，Runbook 与 AI 当前过滤上下文还会带上最近失败、失败指纹、连续同类失败摘要、匹配方式、连续失败时间窗、持续时长、建议排查命令、结构化建议排查动作和稳定动作 ID、诊断分类、诊断分类依据、诊断分类可信度和诊断严重级别；运行时 SSH config 生成到 `~/Library/Application Support/MuseTerm/SSH`，本地 zsh/bash/fish shell integration 生成到 `~/Library/Application Support/MuseTerm/ShellIntegration`，远端 shell hook 仅在当前 SSH 会话内临时生效。版本号通过应用内 `AppVersion` 和 Xcode `MARKETING_VERSION` 保持一致，发布最低系统版本通过 Xcode `MACOSX_DEPLOYMENT_TARGET` 管理。
+本项目当前没有网络服务端 API。CLI/MCP 通过本机 `~/Library/Application Support/MuseTerm/Tools` 目录交换状态与输入请求，状态包含标签页屏幕、历史文本、最近结构化命令块和命令诊断摘要；命令块包含开始来源、完成来源和紧凑输出摘要，便于外部工具判断命令边界来自 shell hook 还是输入推断、退出码来自 shell hook 还是进程退出兜底，并直接读取错误、URL、路径和 commit 等关键线索；命令诊断摘要包含失败命令数、诊断严重级别、诊断分类、诊断分类依据、诊断分类可信度、最近失败命令、最近失败诊断、失败指纹、连续同类失败、匹配方式、连续失败时间窗、持续时长、建议下一步查看项、建议排查命令和结构化建议排查动作；建议动作包含稳定 `id`、来源诊断分类、动作可信度、标题、原因、命令、安全级别和确认要求，`museterm commands` 和 MCP `read_commands` 会返回 `diagnostics` + `commands` 的 JSON 对象。CLI 支持 `tabs`、`screen`、`history`、`commands`、`input`、`key` 和 `mcp`。任务与端口面板通过系统 `lsof` 读取本机监听 TCP 端口，只展示并填入命令，不会直接结束进程；当前会话进程工具同样只向选中终端填入命令，是否执行由用户按回车确认。录制捷径保存在 `~/Library/Application Support/MuseTerm/TerminalShortcuts/shortcuts.json`，工作区快照保存在 `~/Library/Application Support/MuseTerm/Workspaces/last-workspace.json`，每日命令统计保存在 `~/Library/Application Support/MuseTerm/Stats/daily-command-stats.json`，SSH profile 与 AI Provider 非敏感配置保存在用户偏好中，AI API Key 通过 Keychain 保存，仅在 AI Explain 请求时进入对应 Provider 的请求 header 或 query，不写入 MCP 状态；命令搜索面板的脱敏开关会在 Runbook、AI 上下文和 AI Explain 请求中替换常见 token/password/API Key 形态，Runbook 与 AI 当前过滤上下文还会带上最近失败、失败指纹、连续同类失败摘要、匹配方式、连续失败时间窗、持续时长、建议排查命令、结构化建议排查动作、稳定动作 ID、动作来源分类与可信度、诊断分类、诊断分类依据、诊断分类可信度和诊断严重级别；运行时 SSH config 生成到 `~/Library/Application Support/MuseTerm/SSH`，本地 zsh/bash/fish shell integration 生成到 `~/Library/Application Support/MuseTerm/ShellIntegration`，远端 shell hook 仅在当前 SSH 会话内临时生效。版本号通过应用内 `AppVersion` 和 Xcode `MARKETING_VERSION` 保持一致，发布最低系统版本通过 Xcode `MACOSX_DEPLOYMENT_TARGET` 管理。
 
 ## 已知问题 / 待办
 

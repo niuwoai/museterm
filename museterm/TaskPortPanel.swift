@@ -666,7 +666,8 @@ struct CommandBlockDiagnostics: Equatable {
         )
         suggestedNextAction = Self.suggestedNextAction(
             failedCommandCount: failedCommandCount,
-            diagnosticCategory: diagnosticCategory
+            diagnosticCategory: diagnosticCategory,
+            diagnosticCategoryConfidence: diagnosticCategoryConfidence
         )
         suggestedNextCommand = suggestedNextAction?.command
     }
@@ -715,6 +716,8 @@ struct CommandBlockDiagnostics: Equatable {
         }
         if let suggestedNextAction {
             lines.append("Suggested next action id: \(suggestedNextAction.id.rawValue)")
+            lines.append("Suggested next action source category: \(suggestedNextAction.sourceCategory.rawValue)")
+            lines.append("Suggested next action confidence: \(suggestedNextAction.confidence.rawValue)")
             lines.append("Suggested next action title: \(suggestedNextAction.title)")
             lines.append("Suggested next action safety: \(suggestedNextAction.safety.rawValue)")
             lines.append("Suggested next action rationale: \(suggestedNextAction.rationale)")
@@ -925,7 +928,8 @@ struct CommandBlockDiagnostics: Equatable {
 
     nonisolated private static func suggestedNextAction(
         failedCommandCount: Int,
-        diagnosticCategory: CommandDiagnosticCategory
+        diagnosticCategory: CommandDiagnosticCategory,
+        diagnosticCategoryConfidence: CommandDiagnosticConfidence
     ) -> CommandDiagnosticAction? {
         guard failedCommandCount > 0 else { return nil }
         switch diagnosticCategory {
@@ -934,6 +938,8 @@ struct CommandBlockDiagnostics: Equatable {
         case .portConflict:
             return CommandDiagnosticAction(
                 id: .listListeningPorts,
+                sourceCategory: diagnosticCategory,
+                confidence: diagnosticCategoryConfidence,
                 title: "List listening TCP ports",
                 rationale: "The latest failure looks like a local port conflict, so inspect listeners before rerunning.",
                 command: "lsof -nP -iTCP -sTCP:LISTEN",
@@ -942,6 +948,8 @@ struct CommandBlockDiagnostics: Equatable {
         case .permission:
             return CommandDiagnosticAction(
                 id: .inspectPermissions,
+                sourceCategory: diagnosticCategory,
+                confidence: diagnosticCategoryConfidence,
                 title: "Inspect current permissions",
                 rationale: "The latest failure mentions permission denied, so check the working directory and current user.",
                 command: "pwd && id && ls -ld .",
@@ -950,6 +958,8 @@ struct CommandBlockDiagnostics: Equatable {
         case .missingCommand:
             return CommandDiagnosticAction(
                 id: .inspectPath,
+                sourceCategory: diagnosticCategory,
+                confidence: diagnosticCategoryConfidence,
                 title: "Inspect PATH",
                 rationale: "The latest failure says a command is missing, so check which directories the shell searches.",
                 command: "echo \"$PATH\"",
@@ -958,6 +968,8 @@ struct CommandBlockDiagnostics: Equatable {
         case .missingFile:
             return CommandDiagnosticAction(
                 id: .inspectDirectory,
+                sourceCategory: diagnosticCategory,
+                confidence: diagnosticCategoryConfidence,
                 title: "Inspect current directory",
                 rationale: "The latest failure references a missing file, so confirm the current directory and visible files.",
                 command: "pwd && ls -la",
@@ -966,6 +978,8 @@ struct CommandBlockDiagnostics: Equatable {
         case .git:
             return CommandDiagnosticAction(
                 id: .inspectGitState,
+                sourceCategory: diagnosticCategory,
+                confidence: diagnosticCategoryConfidence,
                 title: "Inspect Git state",
                 rationale: "The latest failed command or diagnostic is Git-related, so inspect branch and dirty state first.",
                 command: "git status --short --branch",
@@ -974,6 +988,8 @@ struct CommandBlockDiagnostics: Equatable {
         case .repeated:
             return CommandDiagnosticAction(
                 id: .inspectRepeatContext,
+                sourceCategory: diagnosticCategory,
+                confidence: diagnosticCategoryConfidence,
                 title: "Inspect repeat context",
                 rationale: "The latest failures repeat, so capture location and Git state before another retry.",
                 command: "pwd && git status --short --branch 2>/dev/null || true",
@@ -982,6 +998,8 @@ struct CommandBlockDiagnostics: Equatable {
         case .generic:
             return CommandDiagnosticAction(
                 id: .inspectLocalContext,
+                sourceCategory: diagnosticCategory,
+                confidence: diagnosticCategoryConfidence,
                 title: "Inspect local context",
                 rationale: "The failure is not specific enough yet, so capture location and Git state as a safe first step.",
                 command: "pwd && git status --short --branch 2>/dev/null || true",
@@ -1050,6 +1068,8 @@ enum CommandDiagnosticConfidence: String, Codable, Equatable {
 
 struct CommandDiagnosticAction: Codable, Equatable {
     let id: CommandDiagnosticActionID
+    let sourceCategory: CommandDiagnosticCategory
+    let confidence: CommandDiagnosticConfidence
     let title: String
     let rationale: String
     let command: String
@@ -1058,6 +1078,8 @@ struct CommandDiagnosticAction: Codable, Equatable {
 
     nonisolated init(
         id: CommandDiagnosticActionID,
+        sourceCategory: CommandDiagnosticCategory,
+        confidence: CommandDiagnosticConfidence,
         title: String,
         rationale: String,
         command: String,
@@ -1065,6 +1087,8 @@ struct CommandDiagnosticAction: Codable, Equatable {
         requiresConfirmation: Bool = true
     ) {
         self.id = id
+        self.sourceCategory = sourceCategory
+        self.confidence = confidence
         self.title = title
         self.rationale = rationale
         self.command = command
