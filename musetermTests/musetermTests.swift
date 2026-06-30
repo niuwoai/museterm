@@ -413,6 +413,7 @@ final class musetermTests: XCTestCase {
             CommandDiagnosticConfidence.medium.rawValue
         )
         XCTAssertEqual(encodedDiagnostics["latestFailedCommand"] as? String, "make test")
+        XCTAssertEqual(encodedDiagnostics["latestFailedExitCode"] as? Int, 1)
         XCTAssertEqual(encodedDiagnostics["recentFailureDiagnostic"] as? String, diagnostic)
         XCTAssertEqual(encodedDiagnostics["recentFailureFingerprint"] as? String, "error database is locked")
         XCTAssertEqual(
@@ -1033,6 +1034,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Diagnostic priority factors: failed_command; repeated_severity"))
         XCTAssertTrue(context.contains("multiple_failures; repeated_failure_count"))
         XCTAssertTrue(context.contains("Latest failed command: make test"))
+        XCTAssertTrue(context.contains("Latest failed exit code: 1"))
         XCTAssertTrue(context.contains("Recent failure diagnostic: ERROR database is locked"))
         XCTAssertTrue(context.contains("Recent failure fingerprint: error database is locked"))
         XCTAssertTrue(context.contains("Repeated failure diagnostic: 3x ERROR database is locked"))

@@ -339,6 +339,7 @@
 "runbook.diagnostic_category_evidence" = "Diagnostic category evidence";
 "runbook.diagnostic_category_confidence" = "Diagnostic category confidence";
 "runbook.latest_failed_command" = "Latest failed command";
+"runbook.latest_failed_exit_code" = "Latest failed exit code";
 "runbook.latest_failure" = "Latest failure";
 "runbook.failure_fingerprint" = "Failure fingerprint";
 "runbook.repeated_failure" = "Repeated failure";

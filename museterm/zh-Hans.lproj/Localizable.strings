@@ -339,6 +339,7 @@
 "runbook.diagnostic_category_evidence" = "诊断分类依据";
 "runbook.diagnostic_category_confidence" = "诊断分类可信度";
 "runbook.latest_failed_command" = "最近失败命令";
+"runbook.latest_failed_exit_code" = "最近失败退出码";
 "runbook.latest_failure" = "最近失败";
 "runbook.failure_fingerprint" = "失败指纹";
 "runbook.repeated_failure" = "连续同类失败";

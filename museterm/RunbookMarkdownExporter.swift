@@ -150,6 +150,9 @@ enum RunbookMarkdownExporter {
         if let latestFailedCommand = diagnostics.latestFailedCommand {
             lines.append("- \(L10n.string("runbook.latest_failed_command")): `\(escapeInline(latestFailedCommand))`")
         }
+        if let latestFailedExitCode = diagnostics.latestFailedExitCode {
+            lines.append("- \(L10n.string("runbook.latest_failed_exit_code")): \(latestFailedExitCode)")
+        }
         if let recentFailureDiagnostic = diagnostics.recentFailureDiagnostic {
             lines.append("- \(L10n.string("runbook.latest_failure")): `\(escapeInline(recentFailureDiagnostic))`")
         }

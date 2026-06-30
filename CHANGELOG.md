@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.105.0] - 2026-07-01
+
+### Added
+- `CommandBlockDiagnostics` 新增 `latestFailedExitCode`，Runbook、AI 上下文和 CLI/MCP `commandDiagnostics` 会同步暴露最近失败命令退出码。
+- 测试覆盖 CLI/MCP 诊断快照和 AI 上下文里的最近失败退出码字段。
+
 ## [1.104.0] - 2026-07-01
 
 ### Changed
