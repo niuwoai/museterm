@@ -4,6 +4,8 @@ struct SettingsView: View {
     @ObservedObject var preferences: TerminalPreferences
     @State private var selectedSettingsTab: SettingsTab = .appearance
     @State private var cliInstallMessage = ""
+    @State private var aiAPIKeyDraft = ""
+    @State private var aiStatusMessage = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -20,7 +22,7 @@ struct SettingsView: View {
         .padding(.horizontal, 20)
         .padding(.top, 18)
         .padding(.bottom, 16)
-        .frame(width: 620, height: 500)
+        .frame(width: 720, height: 560)
         .background(preferences.skin.panelFill)
         .tint(preferences.skin.accent)
         .preferredColorScheme(preferences.skin.preferredColorScheme)
@@ -50,6 +52,8 @@ struct SettingsView: View {
             glassSection
         case .behavior:
             behaviorSection
+        case .ai:
+            aiSection
         case .tools:
             toolsSection
         }
@@ -201,6 +205,27 @@ struct SettingsView: View {
             Toggle(L10n.string("settings.show_tab_list"), isOn: $preferences.showsTabList)
             Toggle(L10n.string("settings.option_as_meta"), isOn: $preferences.optionAsMeta)
             Toggle(L10n.string("settings.mouse_reporting"), isOn: $preferences.mouseReporting)
+            Toggle(L10n.string("settings.confirm_multiline_paste"), isOn: $preferences.confirmMultilinePaste)
+            Toggle(L10n.string("settings.confirm_dangerous_commands"), isOn: $preferences.confirmDangerousCommands)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L10n.string("settings.custom_dangerous_rules"))
+                    .font(.caption.weight(.semibold))
+                Text(L10n.string("settings.custom_dangerous_rules.help"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                TextEditor(text: $preferences.customDangerousCommandRules)
+                    .font(.system(.caption, design: .monospaced))
+                    .frame(minHeight: 82, maxHeight: 110)
+                    .scrollContentBackground(.hidden)
+                    .background(preferences.skin.controlFill)
+                    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .strokeBorder(preferences.skin.hairline, lineWidth: 1)
+                    )
+            }
+            .disabled(!preferences.confirmDangerousCommands)
 
             HStack {
                 Text(L10n.string("settings.cursor_shape"))
@@ -217,6 +242,14 @@ struct SettingsView: View {
             .padding(.top, 4)
             Toggle(L10n.string("settings.cursor_blink"), isOn: $preferences.cursorBlink)
         }
+    }
+
+    private var aiSection: some View {
+        AIProviderSettingsSection(
+            preferences: preferences,
+            apiKeyDraft: $aiAPIKeyDraft,
+            statusMessage: $aiStatusMessage
+        )
     }
 
     private var toolsSection: some View {
@@ -312,6 +345,7 @@ private enum SettingsTab: CaseIterable, Identifiable {
     case typography
     case glass
     case behavior
+    case ai
     case tools
 
     var id: Self { self }
@@ -323,6 +357,7 @@ private enum SettingsTab: CaseIterable, Identifiable {
         case .typography: return "settings.tab.typography"
         case .glass: return "settings.tab.glass"
         case .behavior: return "settings.tab.behavior"
+        case .ai: return "settings.tab.ai"
         case .tools: return "settings.tab.tools"
         }
     }
@@ -334,7 +369,55 @@ private enum SettingsTab: CaseIterable, Identifiable {
         case .typography: return "textformat"
         case .glass: return "square.on.square.dashed"
         case .behavior: return "keyboard"
+        case .ai: return "sparkles"
         case .tools: return "hammer"
+        }
+    }
+}
+
+private struct AIProviderChoiceView: View {
+    let provider: AIProviderKind
+    let isSelected: Bool
+    let skin: TerminalVisualSkin
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: iconName)
+                    .foregroundStyle(skin.accent)
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(skin.accent)
+                }
+            }
+            Text(provider.name)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+            Text(provider.summary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
+        .background(isSelected ? skin.selectionFill : skin.controlFill)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(isSelected ? skin.accent.opacity(0.55) : skin.hairline, lineWidth: 1)
+        )
+    }
+
+    private var iconName: String {
+        switch provider {
+        case .openAI: return "circle.hexagongrid"
+        case .anthropic: return "text.alignleft"
+        case .google: return "sparkle.magnifyingglass"
+        case .azureOpenAI: return "cloud"
+        case .openRouter: return "arrow.triangle.branch"
+        case .ollama: return "desktopcomputer"
+        case .custom: return "slider.horizontal.3"
         }
     }
 }
@@ -369,6 +452,130 @@ private struct SettingsTabBar: View {
         .padding(4)
         .background(skin.controlFill)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+private struct AIProviderSettingsSection: View {
+    @ObservedObject var preferences: TerminalPreferences
+    @Binding var apiKeyDraft: String
+    @Binding var statusMessage: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L10n.string("settings.ai"))
+                .font(.headline)
+            Text(L10n.string("settings.ai.summary"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            providerGrid
+            customNameField
+            connectionFields
+            apiKeyControls
+            statusText
+
+            Text(L10n.string("settings.ai.privacy"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var providerGrid: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], spacing: 10) {
+            ForEach(AIProviderKind.allCases) { provider in
+                Button {
+                    preferences.aiProvider = provider
+                    statusMessage = ""
+                } label: {
+                    AIProviderChoiceView(
+                        provider: provider,
+                        isSelected: preferences.aiProvider == provider,
+                        skin: preferences.skin
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var customNameField: some View {
+        if preferences.aiProvider == .custom {
+            SettingsTextFieldRow(
+                title: L10n.string("settings.ai.custom_name"),
+                text: $preferences.aiCustomProviderName,
+                placeholder: L10n.string("settings.ai.custom_name.placeholder")
+            )
+        }
+    }
+
+    private var connectionFields: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SettingsTextFieldRow(
+                title: L10n.string("settings.ai.base_url"),
+                text: $preferences.aiBaseURL,
+                placeholder: preferences.aiProvider.defaultBaseURL
+            )
+
+            SettingsTextFieldRow(
+                title: L10n.string("settings.ai.model"),
+                text: $preferences.aiModel,
+                placeholder: preferences.aiProvider.defaultModel
+            )
+        }
+    }
+
+    private var apiKeyControls: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(L10n.string("settings.ai.api_key"))
+                    .font(.subheadline.weight(.medium))
+                Spacer()
+                apiKeyStatusBadge
+            }
+            SecureField(L10n.string("settings.ai.api_key.placeholder"), text: $apiKeyDraft)
+                .textFieldStyle(.roundedBorder)
+            HStack(spacing: 10) {
+                Button {
+                    preferences.saveAIAPIKey(apiKeyDraft)
+                    apiKeyDraft = ""
+                    statusMessage = L10n.string("settings.ai.api_key.save_success")
+                } label: {
+                    Label(L10n.string("settings.ai.api_key.save"), systemImage: "key.fill")
+                }
+                .disabled(apiKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                Button(role: .destructive) {
+                    preferences.clearAIAPIKey()
+                    apiKeyDraft = ""
+                    statusMessage = L10n.string("settings.ai.api_key.clear_success")
+                } label: {
+                    Label(L10n.string("settings.ai.api_key.clear"), systemImage: "trash")
+                }
+                .disabled(!preferences.hasAIAPIKey)
+            }
+        }
+    }
+
+    private var apiKeyStatusBadge: some View {
+        Label(
+            preferences.hasAIAPIKey ? L10n.string("settings.ai.api_key.saved") : L10n.string("settings.ai.api_key.not_saved"),
+            systemImage: preferences.hasAIAPIKey ? "checkmark.circle.fill" : "key"
+        )
+        .font(.caption.weight(.medium))
+        .foregroundStyle(preferences.hasAIAPIKey ? preferences.skin.accent : .secondary)
+    }
+
+    @ViewBuilder
+    private var statusText: some View {
+        if !statusMessage.isEmpty {
+            Text(statusMessage)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 
@@ -568,6 +775,21 @@ private struct SettingsCodeRow: View {
                 .padding(8)
                 .background(.quaternary.opacity(0.45))
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+    }
+}
+
+private struct SettingsTextFieldRow: View {
+    let title: String
+    @Binding var text: String
+    let placeholder: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.subheadline.weight(.medium))
+            TextField(placeholder, text: $text)
+                .textFieldStyle(.roundedBorder)
         }
     }
 }

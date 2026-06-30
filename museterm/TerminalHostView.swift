@@ -3,6 +3,13 @@ import Darwin
 import SwiftTerm
 import SwiftUI
 
+private struct LocalShellLaunchDescriptor {
+    let executable: String
+    let args: [String]
+    let execName: String
+    let environment: [String]
+}
+
 struct TerminalHostView: NSViewRepresentable {
     @ObservedObject var session: TerminalSession
     @ObservedObject var preferences: TerminalPreferences
@@ -40,7 +47,6 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private static let uploadMissingMarker = "__MUSETERM_ZMODEM_UPLOAD_MISSING__"
     private static let downloadReadyMarker = "__MUSETERM_ZMODEM_DOWNLOAD_READY__"
     private static let downloadMissingMarker = "__MUSETERM_ZMODEM_DOWNLOAD_MISSING__"
-
     let container = NSView(frame: .zero)
     private let visualEffectView = NSVisualEffectView(frame: .zero)
     private let tintView = NSView(frame: .zero)
@@ -63,6 +69,11 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private var lastAppliedPreferences: TerminalPreferenceSignature?
     private var pendingZModemProbe: PendingZModemProbe?
     private var activeZModemTransfer: ZModemBridgeProcess?
+    private let shellIntegrationParser = TerminalShellIntegrationParser()
+    private var pendingShellIntegrationEvents: [TerminalShellIntegrationEvent] = []
+    private weak var preferences: TerminalPreferences?
+    private var pendingSafetyInputBytes: [UInt8] = []
+    private let maxPendingSafetyInputBytes = 8_192
 
     init(session: TerminalSession) {
         self.session = session
@@ -71,6 +82,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func apply(preferences: TerminalPreferences) {
+        self.preferences = preferences
         layoutTerminalViews()
         let signature = TerminalPreferenceSignature(preferences: preferences)
         guard signature != lastAppliedPreferences else { return }
@@ -211,6 +223,20 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             rows: terminalView.terminal?.rows ?? 0,
             screen: visibleScreenText(),
             history: String(fullHistoryText().suffix(maxHistoryCharacters)),
+            commandBlocks: session?.commandBlocks.suffix(50).map { block in
+                TerminalToolCommandBlockSnapshot(
+                    id: block.id.uuidString,
+                    command: block.command,
+                    workingDirectory: block.workingDirectory,
+                    startedAt: block.startedAt,
+                    endedAt: block.endedAt,
+                    exitCode: block.exitCode,
+                    durationMilliseconds: block.durationMilliseconds,
+                    outputTail: block.outputTail,
+                    outputCharacterCount: block.outputCharacterCount,
+                    isInteractive: block.isInteractive
+                )
+            } ?? [],
             updatedAt: Date()
         )
     }
@@ -321,6 +347,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func processTerminated(source: TerminalView, exitCode: Int32?) {
+        session?.finishActiveCommand(exitCode: exitCode, historySnapshot: fullHistoryText())
         session?.state = .exited(exitCode)
     }
 
@@ -371,10 +398,32 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             return session.isRecording && !session.isPlayingShortcut
         }
         terminalView.onSendToProcess = { [weak self] data, echoEnabled in
-            self?.session?.recordInputIfNeeded(data: data, echoEnabled: echoEnabled)
+            guard let self else { return true }
+            guard self.approveProcessInputIfNeeded(data: data, echoEnabled: echoEnabled) else {
+                return false
+            }
+            guard self.activeZModemTransfer == nil, self.pendingZModemProbe == nil else {
+                return true
+            }
+            self.session?.recordInputIfNeeded(data: data, echoEnabled: echoEnabled)
+            self.session?.observeProcessInput(
+                data: data,
+                echoEnabled: echoEnabled,
+                historySnapshot: self.fullHistoryText()
+            )
+            self.updatePendingSafetyInput(data: data, echoEnabled: echoEnabled)
+            return true
         }
         terminalView.onReceivedProcessData = { [weak self] data in
-            self?.handleProcessOutputForZModem(data) ?? false
+            guard let self else { return false }
+            self.handleProcessOutputForShellIntegration(data)
+            return self.handleProcessOutputForZModem(data)
+        }
+        terminalView.onProcessOutputCommitted = { [weak self] in
+            guard let self else { return }
+            let historySnapshot = self.fullHistoryText()
+            self.flushPendingShellIntegrationEvents(historySnapshot: historySnapshot)
+            self.session?.observeProcessOutput(historySnapshot: historySnapshot)
         }
         container.addSubview(terminalView)
 
@@ -408,6 +457,111 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             }
         }
         return true
+    }
+
+    private func handleProcessOutputForShellIntegration(_ data: ArraySlice<UInt8>) {
+        guard activeZModemTransfer == nil, pendingZModemProbe == nil else { return }
+        pendingShellIntegrationEvents.append(contentsOf: shellIntegrationParser.accept(data))
+    }
+
+    private func flushPendingShellIntegrationEvents(historySnapshot: String) {
+        guard !pendingShellIntegrationEvents.isEmpty else { return }
+        let events = pendingShellIntegrationEvents
+        pendingShellIntegrationEvents.removeAll(keepingCapacity: true)
+
+        for event in events {
+            switch event {
+            case .commandFinished(let exitCode):
+                session?.finishActiveCommand(exitCode: exitCode, historySnapshot: historySnapshot)
+            }
+        }
+    }
+
+    private func approveProcessInputIfNeeded(data: [UInt8], echoEnabled: Bool) -> Bool {
+        guard echoEnabled, activeZModemTransfer == nil, pendingZModemProbe == nil else { return true }
+        guard let preferences else { return true }
+
+        let safetyPolicy = session?.safetyPolicy ?? .inherit
+        let shouldConfirmMultilinePaste = safetyPolicy.resolves(globalValue: preferences.confirmMultilinePaste)
+        let shouldConfirmDangerousCommands = safetyPolicy.resolves(globalValue: preferences.confirmDangerousCommands)
+
+        if shouldConfirmMultilinePaste,
+           let text = String(bytes: data, encoding: .utf8),
+           SafetyInputAnalyzer.isMultilinePaste(text) {
+            guard confirmMultilinePaste(text) else { return false }
+        }
+
+        guard shouldConfirmDangerousCommands else { return true }
+        guard let command = pendingCommandCandidate(afterAppending: data) else { return true }
+        guard let rule = SafetyInputAnalyzer.dangerousRule(
+            for: command,
+            customRulesText: preferences.customDangerousCommandRules
+        ) else { return true }
+        return confirmDangerousCommand(command, rule: rule)
+    }
+
+    private func pendingCommandCandidate(afterAppending data: [UInt8]) -> String? {
+        guard data.contains(where: { $0 == 0x0D || $0 == 0x0A }) else { return nil }
+        var bytes = pendingSafetyInputBytes
+        for byte in data {
+            if byte == 0x0D || byte == 0x0A {
+                break
+            }
+            bytes.append(byte)
+        }
+        return String(bytes: bytes, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func updatePendingSafetyInput(data: [UInt8], echoEnabled: Bool) {
+        guard echoEnabled else {
+            pendingSafetyInputBytes.removeAll(keepingCapacity: true)
+            return
+        }
+
+        for byte in data {
+            switch byte {
+            case 0x0D, 0x0A, 0x03:
+                pendingSafetyInputBytes.removeAll(keepingCapacity: true)
+            case 0x7F, 0x08:
+                if !pendingSafetyInputBytes.isEmpty {
+                    pendingSafetyInputBytes.removeLast()
+                }
+            default:
+                if byte == 0x09 || byte >= 0x20 {
+                    pendingSafetyInputBytes.append(byte)
+                    if pendingSafetyInputBytes.count > maxPendingSafetyInputBytes {
+                        pendingSafetyInputBytes.removeFirst(pendingSafetyInputBytes.count - maxPendingSafetyInputBytes)
+                    }
+                }
+            }
+        }
+    }
+
+    private func confirmMultilinePaste(_ text: String) -> Bool {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = L10n.string("safety.multiline.title")
+        alert.informativeText = L10n.format("safety.multiline.message", SafetyInputAnalyzer.nonEmptyLineCount(in: text))
+        alert.addButton(withTitle: L10n.string("safety.action.send"))
+        alert.addButton(withTitle: L10n.string("action.cancel"))
+        alert.accessoryView = SafetyPreviewTextView(text: SafetyInputAnalyzer.preview(text))
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+
+    private func confirmDangerousCommand(_ command: String, rule: SafetyDangerousCommandRule) -> Bool {
+        let alert = NSAlert()
+        alert.alertStyle = session?.environment == .production ? .critical : .warning
+        alert.messageText = L10n.string("safety.dangerous.title")
+        alert.informativeText = L10n.format(
+            "safety.dangerous.message",
+            rule.localizedName,
+            session?.environment.name ?? TerminalEnvironmentKind.local.name
+        )
+        alert.addButton(withTitle: L10n.string("safety.action.run_anyway"))
+        alert.addButton(withTitle: L10n.string("action.cancel"))
+        alert.accessoryView = SafetyPreviewTextView(text: command)
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     private func startLocalZModemTransfer(
@@ -524,17 +678,19 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         pendingStartWorkItem = nil
         didStart = true
 
-        switch session?.launchConfiguration ?? .localShell {
-        case .localShell:
-            let shell = Self.loginShell()
-            let execName = "-" + URL(fileURLWithPath: shell).lastPathComponent
+        switch session?.launchConfiguration ?? .localShell() {
+        case .localShell(let startDirectory):
+            let descriptor = Self.localShellLaunchDescriptor()
+            let currentDirectory = TerminalWorkingDirectory.normalizedExistingDirectory(startDirectory)
+                ?? FileManager.default.homeDirectoryForCurrentUser.path
             // 先盖上遮罩，再启动进程：保证 shell 的第一条 PS1 输出抵达前画面已被遮住。
             beginStartupPromptDeduplication()
             terminalView.startProcess(
-                executable: shell,
-                environment: Self.environmentArray(),
-                execName: execName,
-                currentDirectory: FileManager.default.homeDirectoryForCurrentUser.path
+                executable: descriptor.executable,
+                args: descriptor.args,
+                environment: descriptor.environment,
+                execName: descriptor.execName,
+                currentDirectory: currentDirectory
             )
         case .ssh(let profile):
             do {
@@ -542,10 +698,12 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 terminalView.startProcess(
                     executable: descriptor.executable,
                     args: descriptor.args,
-                    environment: Self.environmentArray(),
+                    environment: Self.environmentArray(shellPath: nil),
                     currentDirectory: FileManager.default.homeDirectoryForCurrentUser.path
                 )
-                drainStartupCommands(descriptor.startupCommands)
+                let startupCommands = RemoteShellIntegration.startupCommands(for: profile)
+                    + descriptor.startupCommands
+                drainStartupCommands(startupCommands)
             } catch {
                 terminalView.feed(text: L10n.format("ssh.error.launch_failed", error.localizedDescription) + "\n")
                 session?.state = .exited(nil)
@@ -803,7 +961,40 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         return String(cString: password.pw_shell)
     }
 
-    private static func environmentArray() -> [String] {
+    private static func localShellLaunchDescriptor() -> LocalShellLaunchDescriptor {
+        let shellPath = loginShell()
+        let shellName = URL(fileURLWithPath: shellPath).lastPathComponent
+        var environment = environmentDictionary(shellPath: shellPath)
+        var args: [String] = []
+        var execName = "-" + shellName
+
+        switch shellName {
+        case "bash":
+            if let rcfile = installBashIntegration(environment: &environment) {
+                args = ["--rcfile", rcfile.path, "-i"]
+                execName = shellName
+            }
+        case "fish":
+            if let script = installFishIntegration(environment: &environment) {
+                args = ["-C", "source \(fishSingleQuoted(script.path))"]
+            }
+        default:
+            break
+        }
+
+        return LocalShellLaunchDescriptor(
+            executable: shellPath,
+            args: args,
+            execName: execName,
+            environment: environmentArray(from: environment)
+        )
+    }
+
+    private static func environmentArray(shellPath: String?) -> [String] {
+        environmentArray(from: environmentDictionary(shellPath: shellPath))
+    }
+
+    private static func environmentDictionary(shellPath: String?) -> [String: String] {
         var environment = ProcessInfo.processInfo.environment
         environment["TERM"] = "xterm-256color"
         environment["LANG"] = environment["LANG"] ?? "en_US.UTF-8"
@@ -811,7 +1002,183 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         environment["POWERLEVEL9K_INSTANT_PROMPT"] = environment["POWERLEVEL9K_INSTANT_PROMPT"] ?? "off"
         environment["MUSETERM_ORIGINAL_XDG_CACHE_HOME"] = environment["XDG_CACHE_HOME"] ?? ""
         environment["XDG_CACHE_HOME"] = museTermShellCacheDirectory()
+        if let shellPath {
+            installLocalShellIntegrationIfSupported(shellPath: shellPath, environment: &environment)
+        }
+        return environment
+    }
+
+    private static func environmentArray(from environment: [String: String]) -> [String] {
         return environment.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }
+    }
+
+    private static func installLocalShellIntegrationIfSupported(
+        shellPath: String,
+        environment: inout [String: String]
+    ) {
+        guard URL(fileURLWithPath: shellPath).lastPathComponent == "zsh" else { return }
+        let integrationDirectory = museTermShellIntegrationDirectory(for: "zsh")
+        let originalZDOTDIR = environment["ZDOTDIR"]?.isEmpty == false
+            ? environment["ZDOTDIR"]!
+            : FileManager.default.homeDirectoryForCurrentUser.path
+
+        do {
+            try createZshIntegrationFiles(in: integrationDirectory)
+            environment["MUSETERM_REAL_ZDOTDIR"] = originalZDOTDIR
+            environment["MUSETERM_SHELL_INTEGRATION"] = "zsh"
+            environment["ZDOTDIR"] = integrationDirectory.path
+        } catch {
+            NSLog("MuseTerm shell integration disabled: \(error.localizedDescription)")
+        }
+    }
+
+    private static func installBashIntegration(environment: inout [String: String]) -> URL? {
+        let integrationDirectory = museTermShellIntegrationDirectory(for: "bash")
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+
+        do {
+            try FileManager.default.createDirectory(at: integrationDirectory, withIntermediateDirectories: true)
+            let rcfile = integrationDirectory.appendingPathComponent("museterm.bashrc")
+            try writeShellIntegrationFile(rcfile, contents: bashIntegrationScript())
+            environment["MUSETERM_REAL_HOME"] = home
+            environment["MUSETERM_SHELL_INTEGRATION"] = "bash"
+            return rcfile
+        } catch {
+            NSLog("MuseTerm bash integration disabled: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private static func installFishIntegration(environment: inout [String: String]) -> URL? {
+        let integrationDirectory = museTermShellIntegrationDirectory(for: "fish")
+
+        do {
+            try FileManager.default.createDirectory(at: integrationDirectory, withIntermediateDirectories: true)
+            let script = integrationDirectory.appendingPathComponent("museterm.fish")
+            try writeShellIntegrationFile(script, contents: fishIntegrationScript())
+            environment["MUSETERM_SHELL_INTEGRATION"] = "fish"
+            return script
+        } catch {
+            NSLog("MuseTerm fish integration disabled: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private static func museTermShellIntegrationDirectory(for shellName: String) -> URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        return base
+            .appendingPathComponent("MuseTerm", isDirectory: true)
+            .appendingPathComponent("ShellIntegration", isDirectory: true)
+            .appendingPathComponent(shellName, isDirectory: true)
+    }
+
+    private static func createZshIntegrationFiles(in directory: URL) throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try writeShellIntegrationFile(
+            directory.appendingPathComponent(".zshenv"),
+            contents: sourceOriginalZshFile(".zshenv")
+        )
+        try writeShellIntegrationFile(
+            directory.appendingPathComponent(".zprofile"),
+            contents: sourceOriginalZshFile(".zprofile")
+        )
+        try writeShellIntegrationFile(
+            directory.appendingPathComponent(".zlogin"),
+            contents: sourceOriginalZshFile(".zlogin")
+        )
+        try writeShellIntegrationFile(
+            directory.appendingPathComponent(".zshrc"),
+            contents: zshrcIntegrationScript()
+        )
+    }
+
+    private static func sourceOriginalZshFile(_ filename: String) -> String {
+        """
+        # Generated by MuseTerm. Do not edit; your original \(filename) is sourced below.
+        if [[ -n "${MUSETERM_REAL_ZDOTDIR:-}" && -r "${MUSETERM_REAL_ZDOTDIR}/\(filename)" ]]; then
+          source "${MUSETERM_REAL_ZDOTDIR}/\(filename)"
+        fi
+
+        """
+    }
+
+    private static func zshrcIntegrationScript() -> String {
+        sourceOriginalZshFile(".zshrc")
+            + """
+            if [[ -z "${MUSETERM_DISABLE_SHELL_INTEGRATION:-}" ]]; then
+              _museterm_precmd() {
+                local muse_status=$?
+                printf '\\033]777;MuseTerm;end=%d\\a' "$muse_status"
+              }
+              typeset -ga precmd_functions
+              precmd_functions=(${precmd_functions:#_museterm_precmd})
+              precmd_functions=(_museterm_precmd $precmd_functions)
+            fi
+
+            """
+    }
+
+    private static func bashIntegrationScript() -> String {
+        """
+        # Generated by MuseTerm. Do not edit; user bash startup files are sourced below.
+        if [[ -z "${MUSETERM_BASH_CONFIG_LOADED:-}" ]]; then
+          export MUSETERM_BASH_CONFIG_LOADED=1
+          _museterm_home="${MUSETERM_REAL_HOME:-$HOME}"
+          if [[ -r "${_museterm_home}/.bash_profile" ]]; then
+            source "${_museterm_home}/.bash_profile"
+          elif [[ -r "${_museterm_home}/.bash_login" ]]; then
+            source "${_museterm_home}/.bash_login"
+          elif [[ -r "${_museterm_home}/.profile" ]]; then
+            source "${_museterm_home}/.profile"
+          elif [[ -r "${_museterm_home}/.bashrc" ]]; then
+            source "${_museterm_home}/.bashrc"
+          fi
+          unset _museterm_home
+        fi
+
+        if [[ -z "${MUSETERM_DISABLE_SHELL_INTEGRATION:-}" ]]; then
+          _museterm_prompt_command() {
+            local muse_status=$?
+            printf '\\033]777;MuseTerm;end=%d\\a' "$muse_status"
+            return "$muse_status"
+          }
+          case ";${PROMPT_COMMAND:-};" in
+            *";_museterm_prompt_command;"*) ;;
+            *) PROMPT_COMMAND="_museterm_prompt_command${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;;
+          esac
+        fi
+
+        """
+    }
+
+    private static func fishIntegrationScript() -> String {
+        """
+        # Generated by MuseTerm. Do not edit.
+        if not set -q MUSETERM_DISABLE_SHELL_INTEGRATION
+            functions -e _museterm_postexec 2>/dev/null
+            function _museterm_postexec --on-event fish_postexec
+                set -l muse_status $status
+                printf '\\033]777;MuseTerm;end=%d\\a' $muse_status
+                return $muse_status
+            end
+        end
+
+        """
+    }
+
+    private static func fishSingleQuoted(_ value: String) -> String {
+        "'" + value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+        + "'"
+    }
+
+    private static func writeShellIntegrationFile(_ url: URL, contents: String) throws {
+        if let existing = try? String(contentsOf: url, encoding: .utf8), existing == contents {
+            return
+        }
+        try contents.write(to: url, atomically: true, encoding: .utf8)
     }
 
     private static func museTermShellCacheDirectory() -> String {
@@ -1276,8 +1643,9 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
     var onTerminalTitle: ((_ title: String) -> Void)?
     var onCurrentDirectory: ((_ directory: String?) -> Void)?
     var shouldRecordInput: (() -> Bool)?
-    var onSendToProcess: ((_ data: [UInt8], _ echoEnabled: Bool) -> Void)?
+    var onSendToProcess: ((_ data: [UInt8], _ echoEnabled: Bool) -> Bool)?
     var onReceivedProcessData: ((_ data: ArraySlice<UInt8>) -> Bool)?
+    var onProcessOutputCommitted: (() -> Void)?
     private var terminalDelegateRouter: TerminalDelegateRouter?
     private var pendingResizeWorkItem: DispatchWorkItem?
     private var cachedEchoEnabled: Bool?
@@ -1346,11 +1714,11 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
     }
 
     override func send(source: TerminalView, data: ArraySlice<UInt8>) {
+        let bytes = Array(data)
+        let echoEnabled = cachedTerminalEchoEnabled()
+        guard onSendToProcess?(bytes, echoEnabled) ?? true else { return }
         onProcessInputSent?()
         if shouldRecordInput?() == true {
-            let bytes = Array(data)
-            let echoEnabled = cachedTerminalEchoEnabled()
-            onSendToProcess?(bytes, echoEnabled)
             if echoEnabled {
                 rememberExpectedEcho(bytes)
             }
@@ -1413,6 +1781,7 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
             invalidateTerminalEchoCache()
         }
         super.dataReceived(slice: slice)
+        onProcessOutputCommitted?()
     }
 
     var terminalEchoEnabled: Bool {
@@ -1453,6 +1822,208 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
         guard pendingEchoBytes.starts(with: bytes) else { return false }
         pendingEchoBytes.removeFirst(bytes.count)
         return true
+    }
+}
+
+private enum TerminalShellIntegrationEvent: Equatable {
+    case commandFinished(Int32)
+}
+
+private struct SafetyDangerousCommandRule {
+    let nameKey: String?
+    let displayName: String?
+    let matches: (String) -> Bool
+
+    init(nameKey: String, matches: @escaping (String) -> Bool) {
+        self.nameKey = nameKey
+        displayName = nil
+        self.matches = matches
+    }
+
+    init(displayName: String, matches: @escaping (String) -> Bool) {
+        nameKey = nil
+        self.displayName = displayName
+        self.matches = matches
+    }
+
+    var localizedName: String {
+        if let displayName {
+            return L10n.format("safety.rule.custom", displayName)
+        }
+        guard let nameKey else { return L10n.string("safety.rule.custom_fallback") }
+        return L10n.string(nameKey)
+    }
+}
+
+private enum SafetyInputAnalyzer {
+    private static let dangerousRules: [SafetyDangerousCommandRule] = [
+        SafetyDangerousCommandRule(nameKey: "safety.rule.recursive_delete") { command in
+            let normalized = normalized(command)
+            return normalized.contains("rm -rf /")
+                || normalized.contains("rm -fr /")
+                || normalized.contains("sudo rm -rf")
+                || normalized.contains("sudo rm -fr")
+        },
+        SafetyDangerousCommandRule(nameKey: "safety.rule.database_drop") { command in
+            let normalized = normalized(command)
+            return normalized.contains("drop database")
+                || normalized.contains("drop schema")
+                || normalized.contains("truncate table")
+        },
+        SafetyDangerousCommandRule(nameKey: "safety.rule.kubernetes_delete") { command in
+            let normalized = normalized(command)
+            return normalized.contains("kubectl delete")
+                || normalized.contains("kubectl drain")
+                || normalized.contains("kubectl scale")
+        },
+        SafetyDangerousCommandRule(nameKey: "safety.rule.terraform_destroy") { command in
+            normalized(command).contains("terraform destroy")
+        },
+        SafetyDangerousCommandRule(nameKey: "safety.rule.disk_destroy") { command in
+            let normalized = normalized(command)
+            return normalized.contains("mkfs.")
+                || normalized.contains("diskutil erase")
+                || normalized.contains("dd if=") && normalized.contains(" of=/dev/")
+        },
+        SafetyDangerousCommandRule(nameKey: "safety.rule.docker_prune") { command in
+            let normalized = normalized(command)
+            return normalized.contains("docker system prune") && normalized.contains("-a")
+        },
+        SafetyDangerousCommandRule(nameKey: "safety.rule.git_reset") { command in
+            normalized(command).contains("git reset --hard")
+        }
+    ]
+
+    static func isMultilinePaste(_ text: String) -> Bool {
+        guard text.count > 1 else { return false }
+        return nonEmptyLineCount(in: text) >= 2
+    }
+
+    static func nonEmptyLineCount(in text: String) -> Int {
+        text.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .count
+    }
+
+    static func dangerousRule(for command: String, customRulesText: String) -> SafetyDangerousCommandRule? {
+        dangerousRules.first { $0.matches(command) }
+            ?? customDangerousRules(from: customRulesText).first { $0.matches(command) }
+    }
+
+    static func preview(_ text: String) -> String {
+        let limit = 4_000
+        guard text.count > limit else { return text }
+        return String(text.prefix(limit)) + "\n..."
+    }
+
+    private static func normalized(_ command: String) -> String {
+        command
+            .lowercased()
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func customDangerousRules(from text: String) -> [SafetyDangerousCommandRule] {
+        text.components(separatedBy: .newlines).compactMap { line in
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, !trimmed.hasPrefix("#") else { return nil }
+
+            if trimmed.lowercased().hasPrefix("regex:") {
+                let pattern = String(trimmed.dropFirst("regex:".count))
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !pattern.isEmpty,
+                      let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+                    return nil
+                }
+                return SafetyDangerousCommandRule(displayName: "regex:\(pattern)") { command in
+                    let range = NSRange(command.startIndex..<command.endIndex, in: command)
+                    return regex.firstMatch(in: command, range: range) != nil
+                }
+            }
+
+            let needle = normalized(trimmed)
+            guard !needle.isEmpty else { return nil }
+            return SafetyDangerousCommandRule(displayName: trimmed) { command in
+                normalized(command).contains(needle)
+            }
+        }
+    }
+}
+
+private final class SafetyPreviewTextView: NSScrollView {
+    init(text: String) {
+        let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: 460, height: 150))
+        textView.string = text
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+        textView.backgroundColor = .textBackgroundColor
+        textView.textColor = .textColor
+
+        super.init(frame: NSRect(x: 0, y: 0, width: 460, height: 150))
+        hasVerticalScroller = true
+        borderType = .bezelBorder
+        documentView = textView
+    }
+
+    required init?(coder: NSCoder) {
+        nil
+    }
+}
+
+private final class TerminalShellIntegrationParser {
+    private static let markerPrefix = "\u{1B}]777;MuseTerm;"
+    private static let markerTerminator: Character = "\u{7}"
+    private static let maxBufferCharacters = 8_192
+
+    private var buffer = ""
+
+    func accept(_ data: ArraySlice<UInt8>) -> [TerminalShellIntegrationEvent] {
+        guard !data.isEmpty else { return [] }
+        buffer.append(String(decoding: data, as: UTF8.self))
+
+        var events: [TerminalShellIntegrationEvent] = []
+        while let prefixRange = buffer.range(of: Self.markerPrefix) {
+            let payloadStart = prefixRange.upperBound
+            guard let terminatorIndex = buffer[payloadStart...].firstIndex(of: Self.markerTerminator) else {
+                if prefixRange.lowerBound != buffer.startIndex {
+                    buffer.removeSubrange(buffer.startIndex..<prefixRange.lowerBound)
+                }
+                trimBufferIfNeeded()
+                return events
+            }
+
+            let payload = String(buffer[payloadStart..<terminatorIndex])
+            if let event = Self.event(from: payload) {
+                events.append(event)
+            }
+            let removeEnd = buffer.index(after: terminatorIndex)
+            buffer.removeSubrange(buffer.startIndex..<removeEnd)
+        }
+
+        keepPossiblePrefixTail()
+        return events
+    }
+
+    private static func event(from payload: String) -> TerminalShellIntegrationEvent? {
+        guard payload.hasPrefix("end=") else { return nil }
+        let value = payload.dropFirst("end=".count)
+        guard let exitCode = Int32(value.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            return nil
+        }
+        return .commandFinished(exitCode)
+    }
+
+    private func keepPossiblePrefixTail() {
+        let keepCount = Self.markerPrefix.count - 1
+        guard buffer.count > keepCount else { return }
+        buffer = String(buffer.suffix(keepCount))
+    }
+
+    private func trimBufferIfNeeded() {
+        guard buffer.count > Self.maxBufferCharacters else { return }
+        buffer = String(buffer.suffix(Self.maxBufferCharacters))
     }
 }
 

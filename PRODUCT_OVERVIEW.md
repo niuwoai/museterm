@@ -1,6 +1,6 @@
 # Product Overview
 
-> 最后更新：2026-06-30 | 当前版本：v1.8.1-rc1
+> 最后更新：2026-06-30 | 当前版本：v1.29.0
 
 ## 项目简介
 
@@ -10,9 +10,11 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 
 - 多标签终端：左侧纵向标签列表，支持新建、切换、关闭标签；关闭按钮仅在鼠标悬停到整块标签行时显示，并可通过侧栏图标或设置开关折叠列表。
 - 标签快捷键：支持 `Cmd+T` 新建、`Cmd+W` 关闭当前标签（关掉最后一个标签即关闭窗口，所有窗口关闭后退出 App）、`Cmd+Shift+[` / `Cmd+Shift+]` 前后切换，以及 `Cmd+1` 到 `Cmd+9` 直达标签；标签标题后用浅色 `⌘N` 标注对应快捷键。
+- 工作区保存与恢复：标签菜单支持 `Option+Cmd+S` 保存当前本地/SSH 标签、选中标签和本地工作目录，`Option+Cmd+O` 可确认后从上次快照恢复；本地 shell 会直接启动到已保存目录，SSH 标签恢复连接入口，但不会冻结或恢复已经运行的进程现场。
 - 快速建签：预热下一份终端控制器，并延后补位以减少新建标签后的主线程阻塞。
 - 本地 shell：每个标签启动一个独立登录 shell。
-- SSH 主机：侧栏可保存并打开 SSH profile，单击主机名整块区域即可直接连接，「…」菜单仅保留编辑与删除；支持用户名、端口、不同密钥文件、额外 SSH 选项和连接后启动命令。
+- SSH 主机：侧栏可保存并打开 SSH profile，单击主机名整块区域即可直接连接，「…」菜单仅保留编辑与删除；支持用户名、端口、不同密钥文件、额外 SSH 选项、远端 shell hook 和连接后启动命令。
+- SSH 环境标记：SSH profile 可标记开发、预发、生产环境，侧栏与标签行会显示 DEV/STG/PROD 短标。
 - 跳转机：SSH profile 支持一跳、二跳、三跳及更多多跳路由，每一跳可配置自己的用户、端口和密钥。
 - 终端录制：侧栏可录制当前终端输入，生成可回放的终端捷径，并保留原始输入延迟。
 - 录制编辑：录制捷径支持改名、删除和 JSON 编辑；不回显输入通过 Keychain 保存，JSON 仅保存引用。
@@ -21,16 +23,24 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 - 传输依赖提示：开始传输前检查远端 `rz`/`sz` 支持；远端缺少 `lrzsz` 时会在终端提示常见 Linux 发行版和 macOS 的安装命令，本机缺少 `lrzsz` 时提示使用 Homebrew 安装。
 - 标签保活：切换标签时终端渲染视图常驻，避免已有输出丢失或变空白。
 - 终端状态：自动同步终端标题、当前目录和进程退出状态。
+- 结构化命令块：旁路记录用户提交的命令、工作目录、时间、输出尾部和退出/中断状态，为历史搜索、Runbook 和 AI Explain 提供基础数据。
+- Shell integration：本地 zsh、bash 和 fish 会加载 MuseTerm 专用启动 hook，在保留用户原有配置的基础上回传命令真实退出码；SSH profile 可为远端 bash/zsh 会话临时注入 hook，不写入远端启动文件；其他 shell 暂时使用保守识别。
+- 命令搜索面板：右侧检查面板可搜索当前标签的命令、目录、命令块输出和原始滚屏历史，支持仅看失败命令，并可复制命令、输出尾部、滚屏片段或 AI 上下文。
+- 任务与端口面板：右侧面板可查看运行中的结构化命令块和本机监听 TCP 端口，支持刷新、打开 `localhost` URL、复制监听地址，并可将本机 `kill PID` 填入本地终端等待确认执行；当前会话工具可向本地或 SSH 标签填入端口扫描、进程列表、PID 详情、SIGTERM 和 SIGKILL 命令；面板还展示本次会话命令统计、当天跨重启累计统计、最长耗时和轻量成就徽章。
+- AI Explain：命令搜索面板可直接对单条命令块请求 AI 解释，覆盖命令意图、输出状态、失败原因、风险点和下一步建议，并在 Provider 返回内容时流式增量显示；AI 上下文可选择只发命令、当前命令块或当前过滤结果摘要；支持 OpenAI 兼容接口、Anthropic、Google Gemini、Azure OpenAI、OpenRouter、Ollama 和自定义端点。
+- Runbook 导出与回放：命令搜索面板可把当前过滤出的命令块生成 Markdown，支持备注、敏感信息脱敏、回放脚本、复制到剪贴板和保存为 `.md` 文件；回放脚本可参数化本机路径，并可编辑 `RUNBOOK_HOME` / `RUNBOOK_WORKDIR` 默认值，默认对每条命令逐步确认；单条命令可填入当前终端待执行，但不会自动回车；Runbook 会记录疑似敏感输出数量、脱敏状态、参数化状态、变量默认值与逐步确认状态。
+- 安全确认：可在设置中开启/关闭多行粘贴确认和高危命令确认；SSH profile 可选择继承全局、强制确认或关闭确认，高危命令支持内置规则和自定义文本/正则规则，命中规则时会在写入 PTY 前展示预览，取消则不会执行；命令搜索面板会提示疑似敏感输出，并在脱敏开启时对展示、复制、导出和 AI 上下文使用脱敏内容。
 - 标签标题：本机会话优先显示当前目录，远端/SSH 标题保留 `user@host` 便于识别。
 - App 图标：默认使用 Q 版企鹅终端图标，并支持在设置中切换多款动物头像 Dock 图标。
-- CLI/MCP 工具桥：支持安装 `museterm` CLI，供本机 AI 工具读取标签页屏幕、历史文本并发送文本或控制键。
+- CLI/MCP 工具桥：支持安装 `museterm` CLI，供本机 AI 工具读取标签页屏幕、历史文本、最近命令块并发送文本或控制键。
+- AI Provider 设置：设置页支持 OpenAI、Anthropic、Google Gemini、Azure OpenAI、OpenRouter、Ollama 和自定义端点；API Key 仅保存到本机 Keychain。
 - 皮肤系统：从 MuseMail 的视觉体系迁移，针对终端场景提供浅色与深色皮肤。
 - 字符配色：支持 Apple、Tango、Solarized、Dracula、One Dark、Nord 等经典 ANSI palette。
 - 毛玻璃配置：支持启用/关闭、材质选择、玻璃强度、终端底色透明度、染色和柔光。
 - 字体配置：支持从已安装字体中搜索选择主字体和回退字体。
 - 排版配置：支持字号和行高调节。
 - 光标配置：支持区块 / 竖线 / 下划线三种样式，并可单独开关闪烁。
-- 设置窗口：支持 `Cmd+,` 快捷键，并按外观、图标、字体、毛玻璃、行为和 MCP 工具分组。
+- 设置窗口：支持 `Cmd+,` 快捷键，并按外观、图标、字体、毛玻璃、行为、AI 和 MCP 工具分组；命令搜索面板可通过侧栏按钮或 `Cmd+F` 打开，任务与端口面板可通过侧栏按钮或 `Cmd+Shift+P` 打开。
 - 紧凑侧栏：底部仅保留设置图标入口，减少常驻控件占用。
 
 ## 技术栈
@@ -48,11 +58,11 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 
 ## API 概览
 
-本项目当前没有网络服务端 API。CLI/MCP 通过本机 `~/Library/Application Support/MuseTerm/Tools` 目录交换状态与输入请求。录制捷径保存在 `~/Library/Application Support/MuseTerm/TerminalShortcuts/shortcuts.json`，SSH profile 保存在用户偏好中，运行时 SSH config 生成到 `~/Library/Application Support/MuseTerm/SSH`。版本号通过应用内 `AppVersion` 和 Xcode `MARKETING_VERSION` 保持一致，发布最低系统版本通过 Xcode `MACOSX_DEPLOYMENT_TARGET` 管理。
+本项目当前没有网络服务端 API。CLI/MCP 通过本机 `~/Library/Application Support/MuseTerm/Tools` 目录交换状态与输入请求，状态包含标签页屏幕、历史文本和最近结构化命令块；CLI 支持 `tabs`、`screen`、`history`、`commands`、`input`、`key` 和 `mcp`。任务与端口面板通过系统 `lsof` 读取本机监听 TCP 端口，只展示并填入命令，不会直接结束进程；当前会话进程工具同样只向选中终端填入命令，是否执行由用户按回车确认。录制捷径保存在 `~/Library/Application Support/MuseTerm/TerminalShortcuts/shortcuts.json`，工作区快照保存在 `~/Library/Application Support/MuseTerm/Workspaces/last-workspace.json`，每日命令统计保存在 `~/Library/Application Support/MuseTerm/Stats/daily-command-stats.json`，SSH profile 与 AI Provider 非敏感配置保存在用户偏好中，AI API Key 通过 Keychain 保存，仅在 AI Explain 请求时进入对应 Provider 的请求 header 或 query，不写入 Runbook、MCP 状态或剪贴板上下文；命令搜索面板的脱敏开关会在 Runbook、AI 上下文和 AI Explain 请求中替换常见 token/password/API Key 形态；运行时 SSH config 生成到 `~/Library/Application Support/MuseTerm/SSH`，本地 zsh/bash/fish shell integration 生成到 `~/Library/Application Support/MuseTerm/ShellIntegration`，远端 shell hook 仅在当前 SSH 会话内临时生效。版本号通过应用内 `AppVersion` 和 Xcode `MARKETING_VERSION` 保持一致，发布最低系统版本通过 Xcode `MACOSX_DEPLOYMENT_TARGET` 管理。
 
 ## 已知问题 / 待办
 
 - [ ] 增加终端配色 palette 的完整 16/256 色映射。
-- [ ] 增加标签重命名、启动目录和自定义启动命令。
-- [ ] 增加导出滚屏内容和搜索面板。
+- [ ] 增加标签重命名、手动选择新标签启动目录和自定义启动命令。
+- [ ] 为远端 fish 与更复杂的 nested shell/tmux 场景增强 shell integration 准确性。
 - [ ] 为 SSH profile 增加导入 `~/.ssh/config` 和分组搜索。

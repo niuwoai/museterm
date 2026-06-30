@@ -4,7 +4,7 @@ import Darwin
 import Foundation
 
 enum TerminalLaunchConfiguration: Equatable {
-    case localShell
+    case localShell(startDirectory: String? = nil)
     case ssh(SSHConnectionProfile)
 
     var connectionLabel: String? {
@@ -28,6 +28,90 @@ enum TerminalLaunchConfiguration: Equatable {
             return L10n.format("ssh.tab.subtitle_with_jumps", clean.target, clean.jumpHosts.count)
         }
     }
+
+    var environment: TerminalEnvironmentKind {
+        switch self {
+        case .localShell:
+            return .local
+        case .ssh(let profile):
+            return profile.normalized.environment
+        }
+    }
+
+    var safetyPolicy: SSHSafetyConfirmationPolicy {
+        switch self {
+        case .localShell:
+            return .inherit
+        case .ssh(let profile):
+            return profile.normalized.safetyPolicy
+        }
+    }
+
+    var localStartDirectory: String? {
+        guard case .localShell(let startDirectory) = self else { return nil }
+        return startDirectory
+    }
+}
+
+struct TerminalCommandBlock: Codable, Equatable, Identifiable {
+    var id: UUID
+    var command: String
+    var workingDirectory: String?
+    var startedAt: Date
+    var endedAt: Date?
+    var exitCode: Int32?
+    var outputTail: String
+    var outputCharacterCount: Int
+    var isInteractive: Bool
+
+    var durationMilliseconds: Int? {
+        guard let endedAt else { return nil }
+        return max(0, Int(endedAt.timeIntervalSince(startedAt) * 1000))
+    }
+
+    var statusText: String {
+        if let exitCode {
+            return exitCode == 0 ? "ok" : "exit(\(exitCode))"
+        }
+        return endedAt == nil ? "running" : "done"
+    }
+
+    var searchableText: String {
+        [
+            command,
+            workingDirectory ?? "",
+            outputTail,
+            statusText
+        ].joined(separator: "\n")
+    }
+
+    var aiContextText: String {
+        aiContextText(includeOutput: true)
+    }
+
+    func aiContextText(includeOutput: Bool) -> String {
+        var lines: [String] = []
+        lines.append("Command: \(command)")
+        if let workingDirectory {
+            lines.append("Directory: \(workingDirectory)")
+        }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        lines.append("Started: \(formatter.string(from: startedAt))")
+        if let endedAt {
+            lines.append("Ended: \(formatter.string(from: endedAt))")
+        }
+        if let durationMilliseconds {
+            lines.append("Duration: \(durationMilliseconds) ms")
+        }
+        lines.append("Status: \(statusText)")
+        if includeOutput, !outputTail.isEmpty {
+            lines.append("")
+            lines.append("Output tail:")
+            lines.append(outputTail)
+        }
+        return lines.joined(separator: "\n")
+    }
 }
 
 final class TerminalSession: ObservableObject, Identifiable {
@@ -47,14 +131,31 @@ final class TerminalSession: ObservableObject, Identifiable {
     @Published private(set) var activeRecordingStartedAt: Date?
     @Published private(set) var isPlayingShortcut = false
     @Published private(set) var fileTransferStatus: TerminalFileTransferStatus?
+    @Published private(set) var commandBlocks: [TerminalCommandBlock] = []
+    @Published private(set) var historySearchSnapshot = ""
 
     lazy var controller = TerminalHostController(session: self)
     private var recorder: TerminalShortcutRecorder?
+    private var pendingCommandBytes: [UInt8] = []
+    private var activeCommandBlockID: UUID?
+    private var activeCommandOutputStartIndex = 0
+    private let maxCommandBlocks = 200
+    private let maxCommandOutputTailCharacters = 12_000
+    private let maxHistorySearchCharacters = 240_000
 
-    init(sequence: Int, launchConfiguration: TerminalLaunchConfiguration = .localShell) {
+    init(sequence: Int, launchConfiguration: TerminalLaunchConfiguration = .localShell()) {
         self.sequence = sequence
         self.launchConfiguration = launchConfiguration
         title = launchConfiguration.connectionLabel ?? L10n.format("tab.default_title", sequence)
+        currentDirectory = launchConfiguration.localStartDirectory
+    }
+
+    var environment: TerminalEnvironmentKind {
+        launchConfiguration.environment
+    }
+
+    var safetyPolicy: SSHSafetyConfirmationPolicy {
+        launchConfiguration.safetyPolicy
     }
 
     func prepareController() {
@@ -104,6 +205,43 @@ final class TerminalSession: ObservableObject, Identifiable {
         recorder?.record(data: data, echoEnabled: echoEnabled)
     }
 
+    func observeProcessInput(data: [UInt8], echoEnabled: Bool, historySnapshot: String) {
+        guard echoEnabled, !data.isEmpty else { return }
+
+        for byte in data {
+            switch byte {
+            case 0x0D, 0x0A:
+                submitPendingCommand(historySnapshot: historySnapshot)
+            case 0x7F, 0x08:
+                if !pendingCommandBytes.isEmpty {
+                    pendingCommandBytes.removeLast()
+                }
+            case 0x03:
+                finishActiveCommand(exitCode: 130, historySnapshot: historySnapshot)
+                pendingCommandBytes.removeAll(keepingCapacity: true)
+            default:
+                if byte == 0x09 || byte >= 0x20 {
+                    pendingCommandBytes.append(byte)
+                    if pendingCommandBytes.count > 8_192 {
+                        pendingCommandBytes.removeFirst(pendingCommandBytes.count - 8_192)
+                    }
+                }
+            }
+        }
+    }
+
+    func observeProcessOutput(historySnapshot: String) {
+        updateHistorySearchSnapshot(historySnapshot)
+        guard let activeCommandBlockID,
+              let index = commandBlocks.firstIndex(where: { $0.id == activeCommandBlockID }) else {
+            return
+        }
+
+        let output = historySuffix(from: activeCommandOutputStartIndex, in: historySnapshot)
+        commandBlocks[index].outputCharacterCount = output.count
+        commandBlocks[index].outputTail = String(output.suffix(maxCommandOutputTailCharacters))
+    }
+
     func playShortcut(_ shortcut: TerminalShortcut) {
         guard case .running = state else { return }
         guard shortcut.isPlayable, !isRecording, !isPlayingShortcut else { return }
@@ -151,6 +289,18 @@ final class TerminalSession: ObservableObject, Identifiable {
 
     func updateFileTransferStatus(_ status: TerminalFileTransferStatus?) {
         fileTransferStatus = status
+    }
+
+    func finishActiveCommand(exitCode: Int32?, historySnapshot: String) {
+        observeProcessOutput(historySnapshot: historySnapshot)
+        guard let activeCommandBlockID,
+              let index = commandBlocks.firstIndex(where: { $0.id == activeCommandBlockID }) else {
+            return
+        }
+        commandBlocks[index].endedAt = Date()
+        commandBlocks[index].exitCode = exitCode
+        self.activeCommandBlockID = nil
+        activeCommandOutputStartIndex = historySnapshot.count
     }
 
     var displayTitle: String {
@@ -287,6 +437,57 @@ final class TerminalSession: ObservableObject, Identifiable {
         formatter.dateFormat = "HH:mm:ss"
         return formatter
     }()
+
+    private func submitPendingCommand(historySnapshot: String) {
+        guard let command = String(bytes: pendingCommandBytes, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !command.isEmpty else {
+            pendingCommandBytes.removeAll(keepingCapacity: true)
+            return
+        }
+
+        if activeCommandBlockID != nil {
+            finishActiveCommand(exitCode: nil, historySnapshot: historySnapshot)
+        }
+
+        let block = TerminalCommandBlock(
+            id: UUID(),
+            command: String(command.prefix(4_000)),
+            workingDirectory: currentDirectory,
+            startedAt: Date(),
+            endedAt: nil,
+            exitCode: nil,
+            outputTail: "",
+            outputCharacterCount: 0,
+            isInteractive: false
+        )
+        commandBlocks.append(block)
+        if commandBlocks.count > maxCommandBlocks {
+            commandBlocks.removeFirst(commandBlocks.count - maxCommandBlocks)
+        }
+        activeCommandBlockID = block.id
+        activeCommandOutputStartIndex = historySnapshot.count
+        pendingCommandBytes.removeAll(keepingCapacity: true)
+    }
+
+    private func historySuffix(from startIndex: Int, in historySnapshot: String) -> String {
+        guard startIndex > 0, startIndex < historySnapshot.count else {
+            return startIndex <= 0 ? historySnapshot : ""
+        }
+        let index = historySnapshot.index(historySnapshot.startIndex, offsetBy: startIndex)
+        return String(historySnapshot[index...])
+    }
+
+    private func updateHistorySearchSnapshot(_ historySnapshot: String) {
+        let nextSnapshot: String
+        if historySnapshot.count > maxHistorySearchCharacters {
+            nextSnapshot = String(historySnapshot.suffix(maxHistorySearchCharacters))
+        } else {
+            nextSnapshot = historySnapshot
+        }
+        guard historySearchSnapshot != nextSnapshot else { return }
+        historySearchSnapshot = nextSnapshot
+    }
 }
 
 final class TerminalWorkspace: ObservableObject {
@@ -315,8 +516,10 @@ final class TerminalWorkspace: ObservableObject {
         return tabs.first { $0.id == selectedID } ?? tabs.first
     }
 
-    func newTab() {
-        let tab = takePreparedTab()
+    func newTab(startDirectory: String? = nil) {
+        let tab = startDirectory == nil
+            ? takePreparedTab()
+            : makeTab(launchConfiguration: .localShell(startDirectory: startDirectory))
         tabs.append(tab)
         selectedID = tab.id
         if automaticallyStartProcesses {
@@ -336,6 +539,72 @@ final class TerminalWorkspace: ObservableObject {
                 tab.startProcessIfNeeded()
             }
         }
+    }
+
+    func saveSnapshot() throws {
+        let snapshotTabs = tabs.map { tab -> TerminalWorkspaceSnapshot.Tab in
+            switch tab.launchConfiguration {
+            case .localShell(let startDirectory):
+                return .local(directory: tab.currentDirectory ?? startDirectory)
+            case .ssh(let profile):
+                return .ssh(profile: profile)
+            }
+        }
+
+        guard !snapshotTabs.isEmpty else {
+            throw TerminalWorkspaceSnapshotError.emptyWorkspace
+        }
+
+        let selectedIndex = selectedTab.flatMap { selected in
+            tabs.firstIndex { $0.id == selected.id }
+        } ?? 0
+
+        let snapshot = TerminalWorkspaceSnapshot(
+            selectedIndex: min(max(selectedIndex, 0), snapshotTabs.count - 1),
+            tabs: snapshotTabs
+        )
+        try TerminalWorkspaceSnapshotStore.save(snapshot)
+    }
+
+    func restoreSnapshot() throws {
+        let snapshot = try TerminalWorkspaceSnapshotStore.load()
+        guard !snapshot.tabs.isEmpty else {
+            throw TerminalWorkspaceSnapshotError.emptyWorkspace
+        }
+
+        let restoredTabs = try snapshot.tabs.map { tabSnapshot -> TerminalSession in
+            switch tabSnapshot.kind {
+            case .local:
+                return makeTab(
+                    launchConfiguration: .localShell(
+                        startDirectory: TerminalWorkingDirectory.normalizedExistingDirectory(tabSnapshot.localDirectory)
+                    )
+                )
+            case .ssh:
+                guard let profile = tabSnapshot.sshProfile else {
+                    throw TerminalWorkspaceSnapshotError.unsupportedTab
+                }
+                return makeTab(launchConfiguration: .ssh(profile.normalized))
+            }
+        }
+
+        preparedTab?.terminate()
+        preparedTab = nil
+        isPreparingNextTab = false
+        tabs.forEach { $0.terminate() }
+        tabs = restoredTabs
+
+        let selectedIndex = min(max(snapshot.selectedIndex, 0), tabs.count - 1)
+        selectedID = tabs[selectedIndex].id
+
+        if automaticallyStartProcesses {
+            let tabsToStart = tabs
+            DispatchQueue.main.async {
+                tabsToStart.forEach { $0.startProcessIfNeeded() }
+            }
+        }
+
+        schedulePrepareNextTab()
     }
 
     func newTabFromShortcut(eventTimestamp: TimeInterval? = nil) {
@@ -529,7 +798,7 @@ final class TerminalWorkspace: ObservableObject {
         return makeTab()
     }
 
-    private func makeTab(launchConfiguration: TerminalLaunchConfiguration = .localShell) -> TerminalSession {
+    private func makeTab(launchConfiguration: TerminalLaunchConfiguration = .localShell()) -> TerminalSession {
         let tab = TerminalSession(sequence: nextSequence, launchConfiguration: launchConfiguration)
         nextSequence += 1
         return tab

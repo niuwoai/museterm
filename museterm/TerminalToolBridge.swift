@@ -51,7 +51,21 @@ struct TerminalToolTabSnapshot: Codable, Equatable {
     let rows: Int
     let screen: String
     let history: String
+    let commandBlocks: [TerminalToolCommandBlockSnapshot]
     let updatedAt: Date
+}
+
+struct TerminalToolCommandBlockSnapshot: Codable, Equatable {
+    let id: String
+    let command: String
+    let workingDirectory: String?
+    let startedAt: Date
+    let endedAt: Date?
+    let exitCode: Int32?
+    let durationMilliseconds: Int?
+    let outputTail: String
+    let outputCharacterCount: Int
+    let isInteractive: Bool
 }
 
 struct TerminalToolRequest: Codable {

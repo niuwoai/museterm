@@ -1,6 +1,50 @@
 import Combine
 import Foundation
 
+enum TerminalEnvironmentKind: String, CaseIterable, Codable, Identifiable {
+    case local
+    case development
+    case staging
+    case production
+
+    var id: String { rawValue }
+
+    var name: String {
+        L10n.string("environment.\(rawValue).name")
+    }
+
+    var shortName: String {
+        L10n.string("environment.\(rawValue).short")
+    }
+}
+
+enum SSHSafetyConfirmationPolicy: String, CaseIterable, Codable, Identifiable {
+    case inherit
+    case forceConfirm
+    case disableConfirmations
+
+    var id: String { rawValue }
+
+    var name: String {
+        L10n.string("ssh.safety_policy.\(rawValue).name")
+    }
+
+    var summary: String {
+        L10n.string("ssh.safety_policy.\(rawValue).summary")
+    }
+
+    func resolves(globalValue: Bool) -> Bool {
+        switch self {
+        case .inherit:
+            return globalValue
+        case .forceConfirm:
+            return true
+        case .disableConfirmations:
+            return false
+        }
+    }
+}
+
 struct SSHJumpHost: Codable, Equatable, Identifiable {
     var id: UUID
     var name: String
@@ -53,6 +97,9 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
     var jumpHosts: [SSHJumpHost]
     var extraOptions: [String]
     var startupCommands: [String]
+    var remoteShellIntegrationEnabled: Bool
+    var environment: TerminalEnvironmentKind
+    var safetyPolicy: SSHSafetyConfirmationPolicy
 
     init(
         id: UUID = UUID(),
@@ -63,7 +110,10 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         identityFiles: [String] = [],
         jumpHosts: [SSHJumpHost] = [],
         extraOptions: [String] = [],
-        startupCommands: [String] = []
+        startupCommands: [String] = [],
+        remoteShellIntegrationEnabled: Bool = true,
+        environment: TerminalEnvironmentKind = .development,
+        safetyPolicy: SSHSafetyConfirmationPolicy? = nil
     ) {
         self.id = id
         self.name = name
@@ -74,6 +124,44 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         self.jumpHosts = jumpHosts
         self.extraOptions = extraOptions
         self.startupCommands = startupCommands
+        self.remoteShellIntegrationEnabled = remoteShellIntegrationEnabled
+        self.environment = environment
+        self.safetyPolicy = safetyPolicy ?? Self.defaultSafetyPolicy(for: environment)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case host
+        case user
+        case port
+        case identityFiles
+        case jumpHosts
+        case extraOptions
+        case startupCommands
+        case remoteShellIntegrationEnabled
+        case environment
+        case safetyPolicy
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        name = try container.decodeIfPresent(String.self, forKey: .name) ?? ""
+        host = try container.decodeIfPresent(String.self, forKey: .host) ?? ""
+        user = try container.decodeIfPresent(String.self, forKey: .user) ?? ""
+        port = try container.decodeIfPresent(Int.self, forKey: .port) ?? 22
+        identityFiles = try container.decodeIfPresent([String].self, forKey: .identityFiles) ?? []
+        jumpHosts = try container.decodeIfPresent([SSHJumpHost].self, forKey: .jumpHosts) ?? []
+        extraOptions = try container.decodeIfPresent([String].self, forKey: .extraOptions) ?? []
+        startupCommands = try container.decodeIfPresent([String].self, forKey: .startupCommands) ?? []
+        remoteShellIntegrationEnabled = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .remoteShellIntegrationEnabled
+        ) ?? true
+        environment = try container.decodeIfPresent(TerminalEnvironmentKind.self, forKey: .environment) ?? .development
+        safetyPolicy = try container.decodeIfPresent(SSHSafetyConfirmationPolicy.self, forKey: .safetyPolicy)
+            ?? Self.defaultSafetyPolicy(for: environment)
     }
 
     var normalized: SSHConnectionProfile {
@@ -86,8 +174,15 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
             identityFiles: identityFiles.cleanedPathList(),
             jumpHosts: jumpHosts.map(\.normalized).filter { !$0.host.isEmpty },
             extraOptions: extraOptions.cleanedLineList(),
-            startupCommands: startupCommands.cleanedLineList()
+            startupCommands: startupCommands.cleanedLineList(),
+            remoteShellIntegrationEnabled: remoteShellIntegrationEnabled,
+            environment: environment,
+            safetyPolicy: safetyPolicy
         )
+    }
+
+    static func defaultSafetyPolicy(for environment: TerminalEnvironmentKind) -> SSHSafetyConfirmationPolicy {
+        environment == .production ? .forceConfirm : .inherit
     }
 
     var displayName: String {

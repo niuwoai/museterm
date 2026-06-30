@@ -38,6 +38,50 @@ enum TerminalCursorShape: String, CaseIterable, Identifiable {
     }
 }
 
+enum AIProviderKind: String, CaseIterable, Identifiable {
+    case openAI
+    case anthropic
+    case google
+    case azureOpenAI
+    case openRouter
+    case ollama
+    case custom
+
+    var id: String { rawValue }
+
+    var name: String {
+        L10n.string("ai.provider.\(rawValue).name")
+    }
+
+    var summary: String {
+        L10n.string("ai.provider.\(rawValue).summary")
+    }
+
+    var defaultModel: String {
+        switch self {
+        case .openAI: return "gpt-4.1"
+        case .anthropic: return "claude-sonnet-4-20250514"
+        case .google: return "gemini-2.5-pro"
+        case .azureOpenAI: return ""
+        case .openRouter: return "openai/gpt-4.1"
+        case .ollama: return "llama3.1"
+        case .custom: return ""
+        }
+    }
+
+    var defaultBaseURL: String {
+        switch self {
+        case .openAI: return "https://api.openai.com/v1"
+        case .anthropic: return "https://api.anthropic.com"
+        case .google: return "https://generativelanguage.googleapis.com/v1beta"
+        case .azureOpenAI: return ""
+        case .openRouter: return "https://openrouter.ai/api/v1"
+        case .ollama: return "http://127.0.0.1:11434/v1"
+        case .custom: return ""
+        }
+    }
+}
+
 final class TerminalPreferences: ObservableObject {
     private enum Keys {
         static let skin = "terminal.skin"
@@ -57,7 +101,14 @@ final class TerminalPreferences: ObservableObject {
         static let showsTabList = "terminal.showsTabList"
         static let cursorShape = "terminal.cursorShape"
         static let cursorBlink = "terminal.cursorBlink"
+        static let confirmMultilinePaste = "terminal.confirmMultilinePaste"
+        static let confirmDangerousCommands = "terminal.confirmDangerousCommands"
+        static let customDangerousCommandRules = "terminal.customDangerousCommandRules"
         static let appIcon = "app.icon"
+        static let aiProvider = "ai.provider"
+        static let aiModel = "ai.model"
+        static let aiBaseURL = "ai.baseURL"
+        static let aiCustomProviderName = "ai.customProviderName"
     }
 
     private let defaults: UserDefaults
@@ -79,6 +130,23 @@ final class TerminalPreferences: ObservableObject {
     @Published var showsTabList: Bool { didSet { defaults.set(showsTabList, forKey: Keys.showsTabList) } }
     @Published var cursorShape: TerminalCursorShape { didSet { defaults.set(cursorShape.rawValue, forKey: Keys.cursorShape) } }
     @Published var cursorBlink: Bool { didSet { defaults.set(cursorBlink, forKey: Keys.cursorBlink) } }
+    @Published var confirmMultilinePaste: Bool { didSet { defaults.set(confirmMultilinePaste, forKey: Keys.confirmMultilinePaste) } }
+    @Published var confirmDangerousCommands: Bool { didSet { defaults.set(confirmDangerousCommands, forKey: Keys.confirmDangerousCommands) } }
+    @Published var customDangerousCommandRules: String { didSet { defaults.set(customDangerousCommandRules, forKey: Keys.customDangerousCommandRules) } }
+    @Published var aiProvider: AIProviderKind {
+        didSet {
+            defaults.set(aiProvider.rawValue, forKey: Keys.aiProvider)
+            if aiModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                aiModel = aiProvider.defaultModel
+            }
+            if aiBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                aiBaseURL = aiProvider.defaultBaseURL
+            }
+        }
+    }
+    @Published var aiModel: String { didSet { defaults.set(aiModel, forKey: Keys.aiModel) } }
+    @Published var aiBaseURL: String { didSet { defaults.set(aiBaseURL, forKey: Keys.aiBaseURL) } }
+    @Published var aiCustomProviderName: String { didSet { defaults.set(aiCustomProviderName, forKey: Keys.aiCustomProviderName) } }
     @Published var appIcon: AppIconChoice {
         didSet {
             defaults.set(appIcon.rawValue, forKey: Keys.appIcon)
@@ -105,6 +173,14 @@ final class TerminalPreferences: ObservableObject {
         showsTabList = defaults.object(forKey: Keys.showsTabList) as? Bool ?? true
         cursorShape = TerminalCursorShape(rawValue: defaults.string(forKey: Keys.cursorShape) ?? "") ?? .block
         cursorBlink = defaults.object(forKey: Keys.cursorBlink) as? Bool ?? true
+        confirmMultilinePaste = defaults.object(forKey: Keys.confirmMultilinePaste) as? Bool ?? true
+        confirmDangerousCommands = defaults.object(forKey: Keys.confirmDangerousCommands) as? Bool ?? true
+        customDangerousCommandRules = defaults.string(forKey: Keys.customDangerousCommandRules) ?? ""
+        let storedAIProvider = AIProviderKind(rawValue: defaults.string(forKey: Keys.aiProvider) ?? "") ?? .openAI
+        aiProvider = storedAIProvider
+        aiModel = defaults.string(forKey: Keys.aiModel) ?? storedAIProvider.defaultModel
+        aiBaseURL = defaults.string(forKey: Keys.aiBaseURL) ?? storedAIProvider.defaultBaseURL
+        aiCustomProviderName = defaults.string(forKey: Keys.aiCustomProviderName) ?? ""
         appIcon = AppIconChoice(rawValue: defaults.string(forKey: Keys.appIcon) ?? "") ?? .defaultTerminal
         AppIconManager.apply(appIcon)
     }
@@ -115,6 +191,36 @@ final class TerminalPreferences: ObservableObject {
             fallbackFamily: fallbackFontFamily,
             size: CGFloat(fontSize)
         )
+    }
+
+    var aiDisplayProviderName: String {
+        let customName = aiCustomProviderName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if aiProvider == .custom, !customName.isEmpty {
+            return customName
+        }
+        return aiProvider.name
+    }
+
+    var hasAIAPIKey: Bool {
+        !MuseTermKeychain.load(account: aiAPIKeyAccount).isEmpty
+    }
+
+    func loadAIAPIKey() -> String {
+        MuseTermKeychain.load(account: aiAPIKeyAccount)
+    }
+
+    func saveAIAPIKey(_ apiKey: String) {
+        MuseTermKeychain.save(apiKey, account: aiAPIKeyAccount)
+        objectWillChange.send()
+    }
+
+    func clearAIAPIKey() {
+        MuseTermKeychain.delete(account: aiAPIKeyAccount)
+        objectWillChange.send()
+    }
+
+    private var aiAPIKeyAccount: String {
+        "ai-provider/\(aiProvider.rawValue)/api-key"
     }
 }
 

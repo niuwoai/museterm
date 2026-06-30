@@ -156,6 +156,20 @@ def command_history(args)
   puts tail_chars(tab["history"], chars)
 end
 
+def command_commands(args)
+  tab_selector, chars, _rest = parse_common(args)
+  tab = require_tab(read_state, tab_selector)
+  blocks = tab.fetch("commandBlocks", [])
+  if chars
+    blocks = blocks.map { |block|
+      copy = block.dup
+      copy["outputTail"] = tail_chars(copy["outputTail"], chars)
+      copy
+    }
+  end
+  print_json(blocks)
+end
+
 def command_input(args)
   tab_selector, _chars, rest = parse_common(args)
   text = rest.join(" ")
@@ -232,6 +246,17 @@ def mcp_tools
       }
     },
     {
+      "name" => "read_commands",
+      "description" => "Read recent structured command blocks from a MuseTerm tab.",
+      "inputSchema" => {
+        "type" => "object",
+        "properties" => {
+          "tab" => { "type" => "string" },
+          "chars" => { "type" => "integer", "description" => "maximum tail characters per command output" }
+        }
+      }
+    },
+    {
       "name" => "send_text",
       "description" => "Send text to a MuseTerm tab.",
       "inputSchema" => {
@@ -272,6 +297,17 @@ def call_tool(name, args)
   when "read_history"
     tab = require_tab(read_state, args["tab"])
     tool_result_text(tail_chars(tab["history"], args["chars"]))
+  when "read_commands"
+    tab = require_tab(read_state, args["tab"])
+    blocks = tab.fetch("commandBlocks", [])
+    if args["chars"]
+      blocks = blocks.map { |block|
+        copy = block.dup
+        copy["outputTail"] = tail_chars(copy["outputTail"], args["chars"])
+        copy
+      }
+    end
+    tool_result_text(JSON.pretty_generate(blocks))
   when "send_text"
     response = send_request(action: "input", tab: args["tab"], text: args.fetch("text"))
     raise(response["error"] || "request failed") unless response["ok"]
@@ -299,7 +335,7 @@ def command_mcp
       when "initialize"
         {
           "protocolVersion" => "2024-11-05",
-          "serverInfo" => { "name" => "museterm", "version" => "1.8.1-rc1" },
+          "serverInfo" => { "name" => "museterm", "version" => "1.29.0" },
           "capabilities" => { "tools" => {} }
         }
       when "tools/list"
@@ -328,6 +364,7 @@ def command_help
       museterm tabs
       museterm screen [--tab selected|INDEX|ID] [--chars N]
       museterm history [--tab selected|INDEX|ID] [--chars N]
+      museterm commands [--tab selected|INDEX|ID] [--chars N]
       museterm input [--tab selected|INDEX|ID] TEXT
       museterm key [--tab selected|INDEX|ID] enter|ctrl-c|tab|escape|up|down|left|right
       museterm mcp
@@ -343,6 +380,7 @@ begin
   when "tabs" then command_tabs(ARGV)
   when "screen" then command_screen(ARGV)
   when "history" then command_history(ARGV)
+  when "commands" then command_commands(ARGV)
   when "input" then command_input(ARGV)
   when "key" then command_key(ARGV)
   when "mcp" then command_mcp

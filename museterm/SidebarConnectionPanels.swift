@@ -188,6 +188,7 @@ struct SSHProfilesSection: View {
                             .lineLimit(1)
                     }
                     Spacer(minLength: 2)
+                    EnvironmentBadge(environment: profile.environment)
                 }
                 // 整块名字区域都可点击直接连接，而非仅文字本身。
                 .contentShape(Rectangle())
@@ -372,6 +373,47 @@ private struct SidebarSection<Content: View>: View {
     }
 }
 
+struct EnvironmentBadge: View {
+    let environment: TerminalEnvironmentKind
+
+    var body: some View {
+        Text(environment.shortName)
+            .font(.system(size: 9, weight: .bold, design: .rounded))
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .foregroundStyle(foreground)
+            .background(background)
+            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+            .help(environment.name)
+    }
+
+    private var background: Color {
+        switch environment {
+        case .local:
+            return Color.secondary.opacity(0.14)
+        case .development:
+            return Color.blue.opacity(0.16)
+        case .staging:
+            return Color.orange.opacity(0.20)
+        case .production:
+            return Color.red.opacity(0.22)
+        }
+    }
+
+    private var foreground: Color {
+        switch environment {
+        case .local:
+            return .secondary
+        case .development:
+            return .blue
+        case .staging:
+            return .orange
+        case .production:
+            return .red
+        }
+    }
+}
+
 private struct TerminalShortcutRenameDraft: Identifiable {
     let id = UUID()
     let shortcutID: UUID
@@ -475,6 +517,9 @@ private struct SSHProfileEditorSheet: View {
     @State private var jumpText: String
     @State private var optionText: String
     @State private var startupText: String
+    @State private var remoteShellIntegrationEnabled: Bool
+    @State private var environment: TerminalEnvironmentKind
+    @State private var safetyPolicy: SSHSafetyConfirmationPolicy
     let onCancel: () -> Void
     let onSave: (SSHConnectionProfile) -> Void
 
@@ -489,6 +534,9 @@ private struct SSHProfileEditorSheet: View {
         _jumpText = State(initialValue: Self.jumpText(from: clean.jumpHosts))
         _optionText = State(initialValue: clean.extraOptions.joined(separator: "\n"))
         _startupText = State(initialValue: clean.startupCommands.joined(separator: "\n"))
+        _remoteShellIntegrationEnabled = State(initialValue: clean.remoteShellIntegrationEnabled)
+        _environment = State(initialValue: clean.environment)
+        _safetyPolicy = State(initialValue: clean.safetyPolicy)
         self.onCancel = onCancel
         self.onSave = onSave
     }
@@ -502,6 +550,9 @@ private struct SSHProfileEditorSheet: View {
                 textRow("ssh.host", text: $host)
                 textRow("ssh.user", text: $user)
                 textRow("ssh.port", text: $portText)
+                environmentRow
+                safetyPolicyRow
+                remoteShellIntegrationRow
             }
 
             labeledEditor("ssh.identities", help: "ssh.identities.help", text: $identityText, height: 58)
@@ -533,8 +584,64 @@ private struct SSHProfileEditorSheet: View {
             identityFiles: identityText.lines,
             jumpHosts: Self.parseJumpHosts(jumpText),
             extraOptions: optionText.lines,
-            startupCommands: startupText.lines
+            startupCommands: startupText.lines,
+            remoteShellIntegrationEnabled: remoteShellIntegrationEnabled,
+            environment: environment,
+            safetyPolicy: safetyPolicy
         )
+    }
+
+    private var remoteShellIntegrationRow: some View {
+        GridRow {
+            Text(L10n.string("ssh.remote_shell_integration"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 96, alignment: .trailing)
+            Toggle(L10n.string("ssh.remote_shell_integration.help"), isOn: $remoteShellIntegrationEnabled)
+                .toggleStyle(.checkbox)
+                .font(.caption)
+        }
+    }
+
+    private var environmentRow: some View {
+        GridRow {
+            Text(L10n.string("ssh.environment"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 96, alignment: .trailing)
+            Picker(L10n.string("ssh.environment"), selection: $environment) {
+                ForEach(TerminalEnvironmentKind.allCases.filter { $0 != .local }) { environment in
+                    Text(environment.name).tag(environment)
+                }
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: environment) { newEnvironment in
+                if newEnvironment == .production, safetyPolicy == .inherit {
+                    safetyPolicy = .forceConfirm
+                }
+            }
+        }
+    }
+
+    private var safetyPolicyRow: some View {
+        GridRow {
+            Text(L10n.string("ssh.safety_policy"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 96, alignment: .trailing)
+            VStack(alignment: .leading, spacing: 4) {
+                Picker(L10n.string("ssh.safety_policy"), selection: $safetyPolicy) {
+                    ForEach(SSHSafetyConfirmationPolicy.allCases) { policy in
+                        Text(policy.name).tag(policy)
+                    }
+                }
+                .pickerStyle(.segmented)
+                Text(safetyPolicy.summary)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     private func textRow(_ key: String, text: Binding<String>) -> some View {
