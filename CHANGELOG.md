@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.103.0] - 2026-07-01
+
+### Changed
+- 将 `RunbookSensitiveRedactor` 从 `ContentView.swift` 拆分到独立的 `RunbookSensitiveRedactor.swift`，让敏感信息脱敏策略可独立维护和测试。
+- 扩展脱敏规则，覆盖 GitHub fine-grained token、Google API Key、npm token、Stripe 风格 key、命令行 `--token` / `--password` 参数、URL basic-auth 密码和 PEM 私钥块。
+
+### Added
+- 新增 `RunbookSensitiveRedactorTests`，覆盖常见 Provider token、命令行密钥参数、URL 凭据、PEM 私钥块和普通输出不误报。
+
 ## [1.102.0] - 2026-07-01
 
 ### Changed

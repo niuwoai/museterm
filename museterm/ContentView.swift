@@ -1516,34 +1516,6 @@ private struct RunbookReplayParameterizer {
     }
 }
 
-enum RunbookSensitiveRedactor {
-    nonisolated private static let replacement = "[REDACTED]"
-    nonisolated private static let patterns: [(String, String)] = [
-        (#"(?i)(authorization:\s*bearer\s+)[A-Za-z0-9._~+/=-]+"#, "$1\(replacement)"),
-        (#"(?i)\b((?:api[_-]?key|token|secret|password|passwd|pwd)\s*[:=]\s*)['"]?[^'"\s]+"#, "$1\(replacement)"),
-        (#"\bAKIA[0-9A-Z]{16}\b"#, replacement),
-        (#"\bASIA[0-9A-Z]{16}\b"#, replacement),
-        (#"\bgh[pousr]_[A-Za-z0-9_]{20,}\b"#, replacement),
-        (#"\bsk-[A-Za-z0-9_-]{20,}\b"#, replacement),
-        (#"(?i)\b(xox[baprs]-[A-Za-z0-9-]{20,})\b"#, replacement),
-        (#"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"#, replacement)
-    ]
-
-    nonisolated static func redact(_ text: String) -> String {
-        patterns.reduce(text) { current, rule in
-            current.replacingOccurrences(
-                of: rule.0,
-                with: rule.1,
-                options: .regularExpression
-            )
-        }
-    }
-
-    nonisolated static func containsSensitiveData(_ text: String) -> Bool {
-        !text.isEmpty && redact(text) != text
-    }
-}
-
 private struct CommandBlockCard: View {
     let block: TerminalCommandBlock
     let skin: TerminalVisualSkin
