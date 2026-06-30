@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.75.0
+> 当前版本基线：v1.76.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,7 +30,7 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.75.0 已完成六十七条纵向切片：
+v1.76.0 已完成六十八条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
@@ -66,6 +66,7 @@ v1.75.0 已完成六十七条纵向切片：
 - 建议排查动作自解释：`suggestedNextAction` 新增 `sourceCategory` 与 `confidence`，单个 action 对象即可说明建议来自哪类诊断以及可信度，减少 MCP/AI 工具拼接旁路字段的成本。
 - 建议排查动作优先级：`suggestedNextAction` 新增 `priorityScore` 与 `priorityFactors`，让 action 对象自身也能排序并解释优先级来源，不必依赖父级 diagnostics 字段。
 - 建议排查动作执行模式：`suggestedNextAction` 新增 `executionMode`，当前统一为 `stage_only`，明确外部工具只能填入或展示建议动作，执行仍必须由用户确认。
+- 建议排查动作执行目标：`suggestedNextAction` 新增 `executionTarget`，用稳定 code 声明建议命令应在当前终端会话、工作目录、shell 环境、Git 仓库或网络命名空间中理解，减少本地/远端/容器/错误目录误用。
 - 建议排查动作重试条件：`suggestedNextAction` 新增 `retryCondition`，用稳定 code 描述用户考虑重跑失败命令前应满足的条件，让排查动作和后续重跑边界更容易被工具串起来。
 - 建议排查动作执行前检查：`suggestedNextAction` 新增 `preflightChecks`，用结构化清单描述填入建议动作前应确认的上下文，避免在目录、权限、Git 状态或失败输出仍不清楚时盲目重试。
 - 建议排查动作自动化护栏：`suggestedNextAction` 新增 `automationGuardrails`，明确建议动作不能自动越过的边界，例如不自动 kill 进程、不自动 sudo/chmod、不自动安装依赖、不自动执行 Git 破坏性操作。

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.76.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `executionTarget`，用稳定 code 声明建议命令应在当前终端会话、工作目录、shell 环境、Git 仓库或网络命名空间中理解。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露执行目标，降低本地、远端、容器或错误目录中误用建议命令的风险。
+
 ## [1.75.0] - 2026-07-01
 
 ### Added

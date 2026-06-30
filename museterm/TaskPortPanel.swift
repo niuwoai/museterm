@@ -751,6 +751,7 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append("Suggested next action title: \(suggestedNextAction.title)")
             lines.append("Suggested next action safety: \(suggestedNextAction.safety.rawValue)")
             lines.append("Suggested next action execution mode: \(suggestedNextAction.executionMode.rawValue)")
+            lines.append("Suggested next action execution target: \(suggestedNextAction.executionTarget.rawValue)")
             lines.append("Suggested next action retry condition: \(suggestedNextAction.retryCondition.rawValue)")
             lines.append("Suggested next action preflight checks: \(suggestedNextAction.preflightChecks.joined(separator: "; "))")
             lines.append("Suggested next action automation guardrails: \(suggestedNextAction.automationGuardrails.joined(separator: "; "))")
@@ -1110,6 +1111,7 @@ struct CommandBlockDiagnostics: Equatable {
                     "If the owner is unclear, inspect the process details before stopping anything."
                 ],
                 safety: .readOnly,
+                executionTarget: .currentTerminalNetworkNamespace,
                 retryCondition: .portConflictResolvedOrOwnerKnown
             )
         case .permission:
@@ -1139,6 +1141,7 @@ struct CommandBlockDiagnostics: Equatable {
                     "If the user is unexpected, check whether the shell, SSH profile, or sudo context changed."
                 ],
                 safety: .readOnly,
+                executionTarget: .currentWorkingDirectory,
                 retryCondition: .permissionsVerified
             )
         case .missingCommand:
@@ -1168,6 +1171,7 @@ struct CommandBlockDiagnostics: Equatable {
                     "If the command exists in another shell, compare login shell startup files and project environment activation."
                 ],
                 safety: .readOnly,
+                executionTarget: .currentShellEnvironment,
                 retryCondition: .commandAvailableOnPath
             )
         case .missingFile:
@@ -1197,6 +1201,7 @@ struct CommandBlockDiagnostics: Equatable {
                     "If the file is generated, rerun the generation or install step before retrying the failed command."
                 ],
                 safety: .readOnly,
+                executionTarget: .currentWorkingDirectory,
                 retryCondition: .fileOrDirectoryVerified
             )
         case .git:
@@ -1226,6 +1231,7 @@ struct CommandBlockDiagnostics: Equatable {
                     "If conflicts or dirty files are present, resolve or stash intentionally before rerunning."
                 ],
                 safety: .readOnly,
+                executionTarget: .currentGitRepository,
                 retryCondition: .gitStateReviewed
             )
         case .repeated:
@@ -1255,6 +1261,7 @@ struct CommandBlockDiagnostics: Equatable {
                     "If context changed between attempts, capture the changed directory, branch, or environment before comparing results."
                 ],
                 safety: .readOnly,
+                executionTarget: .currentTerminalSession,
                 retryCondition: .contextChangedOrFirstFailureInspected
             )
         case .generic:
@@ -1284,6 +1291,7 @@ struct CommandBlockDiagnostics: Equatable {
                     "If the command depends on a service or file, run a read-only health or existence check next."
                 ],
                 safety: .readOnly,
+                executionTarget: .currentTerminalSession,
                 retryCondition: .localContextCaptured
             )
         }
@@ -1381,6 +1389,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let fallbackNextSteps: [String]
     let safety: CommandDiagnosticActionSafety
     let executionMode: CommandDiagnosticActionExecutionMode
+    let executionTarget: CommandDiagnosticActionExecutionTarget
     let retryCondition: CommandDiagnosticActionRetryCondition
     let requiresConfirmation: Bool
 
@@ -1399,6 +1408,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         fallbackNextSteps: [String],
         safety: CommandDiagnosticActionSafety,
         executionMode: CommandDiagnosticActionExecutionMode = .stageOnly,
+        executionTarget: CommandDiagnosticActionExecutionTarget,
         retryCondition: CommandDiagnosticActionRetryCondition,
         requiresConfirmation: Bool = true
     ) {
@@ -1416,6 +1426,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         self.fallbackNextSteps = fallbackNextSteps
         self.safety = safety
         self.executionMode = executionMode
+        self.executionTarget = executionTarget
         self.retryCondition = retryCondition
         self.requiresConfirmation = requiresConfirmation
     }
@@ -1437,6 +1448,14 @@ enum CommandDiagnosticActionSafety: String, Codable, Equatable {
 
 enum CommandDiagnosticActionExecutionMode: String, Codable, Equatable {
     case stageOnly = "stage_only"
+}
+
+enum CommandDiagnosticActionExecutionTarget: String, Codable, Equatable {
+    case currentTerminalSession = "current_terminal_session"
+    case currentTerminalNetworkNamespace = "current_terminal_network_namespace"
+    case currentWorkingDirectory = "current_working_directory"
+    case currentShellEnvironment = "current_shell_environment"
+    case currentGitRepository = "current_git_repository"
 }
 
 enum CommandDiagnosticActionRetryCondition: String, Codable, Equatable {
