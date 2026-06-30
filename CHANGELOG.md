@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.55.0] - 2026-07-01
+
+### Added
+- CLI/MCP 状态快照新增顶层 `schemaVersion`，命令诊断快照新增 `schemaVersion`，方便外部工具判断 JSON 契约版本。
+
+### Changed
+- 工具桥快照编码测试显式运行在 MainActor 上，消除 Swift 6 对主线程快照编码隔离的预警。
+
 ## [1.54.0] - 2026-07-01
 
 ### Added

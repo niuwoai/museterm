@@ -32,11 +32,28 @@ struct TerminalToolPaths {
 }
 
 struct TerminalToolState: Codable {
+    let schemaVersion: Int
     let app: String
     let version: String
     let updatedAt: Date
     let selectedTabID: String?
     let tabs: [TerminalToolTabSnapshot]
+
+    init(
+        schemaVersion: Int = 1,
+        app: String,
+        version: String,
+        updatedAt: Date,
+        selectedTabID: String?,
+        tabs: [TerminalToolTabSnapshot]
+    ) {
+        self.schemaVersion = schemaVersion
+        self.app = app
+        self.version = version
+        self.updatedAt = updatedAt
+        self.selectedTabID = selectedTabID
+        self.tabs = tabs
+    }
 }
 
 struct TerminalToolTabSnapshot: Codable, Equatable {
@@ -57,6 +74,7 @@ struct TerminalToolTabSnapshot: Codable, Equatable {
 }
 
 struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
+    let schemaVersion: Int
     let failedCommandCount: Int
     let diagnosticSeverity: String
     let diagnosticCategory: String
@@ -70,7 +88,8 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
     let suggestedNextCommand: String?
     let suggestedNextAction: TerminalToolDiagnosticActionSnapshot?
 
-    init(diagnostics: CommandBlockDiagnostics) {
+    init(schemaVersion: Int = 1, diagnostics: CommandBlockDiagnostics) {
+        self.schemaVersion = schemaVersion
         failedCommandCount = diagnostics.failedCommandCount
         diagnosticSeverity = diagnostics.diagnosticSeverity.rawValue
         diagnosticCategory = diagnostics.diagnosticCategory.rawValue

@@ -55,6 +55,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(script.contains("send_key"))
     }
 
+    @MainActor
     func testToolTabSnapshotEncodesCommandDiagnostics() throws {
         let diagnostic = "ERROR database is locked"
         let diagnostics = CommandBlockDiagnostics(
@@ -86,7 +87,18 @@ final class musetermTests: XCTestCase {
         let encodedDiagnostics = try XCTUnwrap(object["commandDiagnostics"] as? [String: Any])
         let repeatedFailure = try XCTUnwrap(encodedDiagnostics["repeatedFailureDiagnostic"] as? [String: Any])
         let suggestedNextAction = try XCTUnwrap(encodedDiagnostics["suggestedNextAction"] as? [String: Any])
+        let state = TerminalToolState(
+            app: "MuseTerm",
+            version: "test",
+            updatedAt: Date(timeIntervalSince1970: 130),
+            selectedTabID: "tab-1",
+            tabs: [snapshot]
+        )
+        let stateData = try JSONEncoder().encode(state)
+        let stateObject = try XCTUnwrap(JSONSerialization.jsonObject(with: stateData) as? [String: Any])
 
+        XCTAssertEqual(stateObject["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(encodedDiagnostics["schemaVersion"] as? Int, 1)
         XCTAssertEqual(encodedDiagnostics["failedCommandCount"] as? Int, 3)
         XCTAssertEqual(encodedDiagnostics["diagnosticSeverity"] as? String, CommandDiagnosticSeverity.repeated.rawValue)
         XCTAssertEqual(encodedDiagnostics["diagnosticCategory"] as? String, CommandDiagnosticCategory.repeated.rawValue)
