@@ -1524,6 +1524,9 @@ enum RunbookMarkdownExporter {
                 "- \(L10n.string("runbook.suggested_next_action_execution_target")): \(suggestedNextAction.executionTarget.rawValue)"
             )
             lines.append(
+                "- \(L10n.string("runbook.suggested_next_action_result_validity_scope")): \(suggestedNextAction.resultValidityScope.rawValue)"
+            )
+            lines.append(
                 "- \(L10n.string("runbook.suggested_next_action_retry_condition")): \(suggestedNextAction.retryCondition.rawValue)"
             )
             if !suggestedNextAction.preflightChecks.isEmpty {

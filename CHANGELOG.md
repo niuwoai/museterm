@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.90.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `resultValidityScope`，用稳定 code 声明建议命令结果可在哪个范围内复用，例如当前终端会话、网络命名空间、工作目录、Shell 环境或 Git 仓库。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露结果适用范围，帮助外部工具避免把本地、远端、目录或仓库上下文混用。
+
 ## [1.89.0] - 2026-07-01
 
 ### Added

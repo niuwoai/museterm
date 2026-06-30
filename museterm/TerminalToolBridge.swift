@@ -157,6 +157,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
     let safety: String
     let executionMode: String
     let executionTarget: String
+    let resultValidityScope: String
     let retryCondition: String
     let requiresConfirmation: Bool
 
@@ -189,6 +190,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
         safety = action.safety.rawValue
         executionMode = action.executionMode.rawValue
         executionTarget = action.executionTarget.rawValue
+        resultValidityScope = action.resultValidityScope.rawValue
         retryCondition = action.retryCondition.rawValue
         requiresConfirmation = action.requiresConfirmation
     }
