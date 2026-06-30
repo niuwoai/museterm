@@ -36,7 +36,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     let container = NSView(frame: .zero)
     private let visualEffectView = NSVisualEffectView(frame: .zero)
     private let tintView = NSView(frame: .zero)
-    private let terminalMarginView = NSView(frame: .zero)
+    private let terminalLeadingMarginView = NSView(frame: .zero)
+    private let terminalTrailingMarginView = NSView(frame: .zero)
     private let terminalView = FocusableLocalProcessTerminalView(frame: .zero)
     private weak var session: TerminalSession?
     private var didStart = false
@@ -67,7 +68,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             .cgColor
 
         let background = preferences.skin.terminalBackground.withOpacity(CGFloat(preferences.terminalOpacity))
-        terminalMarginView.layer?.backgroundColor = background.cgColor
+        terminalLeadingMarginView.layer?.backgroundColor = background.cgColor
+        terminalTrailingMarginView.layer?.backgroundColor = background.cgColor
         terminalView.nativeForegroundColor = preferences.skin.terminalForeground
         terminalView.nativeBackgroundColor = background
         terminalView.layer?.backgroundColor = background.cgColor
@@ -90,16 +92,23 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     func layoutTerminalViews() {
         visualEffectView.frame = container.bounds
         tintView.frame = container.bounds
-        let leftInset = max(4, ceil(terminalView.font.pointSize * 0.36))
-        terminalMarginView.frame = CGRect(
+        let horizontalInset = max(4, ceil(terminalView.font.pointSize * 0.36))
+        let marginWidth = min(horizontalInset, container.bounds.width / 2)
+        terminalLeadingMarginView.frame = CGRect(
             x: 0,
             y: 0,
-            width: min(leftInset, container.bounds.width),
+            width: marginWidth,
+            height: container.bounds.height
+        )
+        terminalTrailingMarginView.frame = CGRect(
+            x: max(0, container.bounds.width - marginWidth),
+            y: 0,
+            width: marginWidth,
             height: container.bounds.height
         )
         terminalView.frame = container.bounds
-        terminalView.frame.origin.x += leftInset
-        terminalView.frame.size.width = max(0, terminalView.frame.width - leftInset)
+        terminalView.frame.origin.x += marginWidth
+        terminalView.frame.size.width = max(0, terminalView.frame.width - marginWidth * 2)
     }
 
     func terminate() {
@@ -176,9 +185,13 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         tintView.autoresizingMask = [.width, .height]
         container.addSubview(tintView)
 
-        terminalMarginView.wantsLayer = true
-        terminalMarginView.autoresizingMask = [.height]
-        container.addSubview(terminalMarginView)
+        terminalLeadingMarginView.wantsLayer = true
+        terminalLeadingMarginView.autoresizingMask = [.height]
+        container.addSubview(terminalLeadingMarginView)
+
+        terminalTrailingMarginView.wantsLayer = true
+        terminalTrailingMarginView.autoresizingMask = [.minXMargin, .height]
+        container.addSubview(terminalTrailingMarginView)
 
         terminalView.autoresizingMask = [.width, .height]
         terminalView.processDelegate = self
