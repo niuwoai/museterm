@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.98.0
+> 当前版本基线：v1.99.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,7 +30,7 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.98.0 已完成九十条纵向切片：
+v1.99.0 已完成九十一条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
@@ -43,6 +43,7 @@ v1.98.0 已完成九十条纵向切片：
 - 连续失败提醒：统计面板会在最近连续 3 次以上同一诊断失败时显示重复提醒；最新命令成功或诊断变化时不提示，保持克制。
 - 诊断摘要复用：Runbook 导出与 AI Explain 当前过滤上下文会复用同一套 `CommandBlockDiagnostics`，记录最近失败和连续同类失败摘要，并沿用脱敏策略。
 - CLI/MCP 诊断摘要：工具状态文件为每个 tab 增加 `commandDiagnostics`，`museterm commands` 与 MCP `read_commands` 返回 `diagnostics` + `commands`，外部工具可直接读取最近失败和连续同类失败线索。
+- 诊断动作契约拆分：`CommandDiagnosticAction` 及其稳定 action code 枚举已从 `TaskPortPanel.swift` 拆分到独立 `CommandDiagnosticAction.swift`，让结构化建议排查动作可以继续深化而不拖大面板实现文件。
 - 工具快照序列号：工具状态快照新增单调递增的 `snapshotSequence`，并透传到 CLI/MCP 元数据响应，外部工具轮询时可判断是否读到新快照，不必只比较时间字符串。
 - 工具请求响应元数据：输入/按键请求 response 文件会返回 `schemaVersion`、App 名称、版本、`snapshotSequence`、`action` 和成功目标 `tabID`，让外部工具能定位请求由哪版 App、哪次快照附近处理。
 - CLI 输入响应 JSON 输出：`museterm input --json` 与 `museterm key --json` 会输出完整工具 response 元数据，默认短消息输出保持兼容，便于脚本直接消费请求处理结果。

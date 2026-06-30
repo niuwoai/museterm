@@ -1,6 +1,6 @@
 # Product Overview
 
-> 最后更新：2026-07-01 | 当前版本：v1.98.0
+> 最后更新：2026-07-01 | 当前版本：v1.99.0
 
 ## 项目简介
 
@@ -49,6 +49,7 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 - 终端内核：SwiftTerm
 - 平台：macOS 13.0 及以上（覆盖 macOS 13.7）
 - 本地化：`Localizable.strings`
+- 诊断契约：`CommandDiagnosticAction.swift` 独立承载结构化建议排查动作和稳定 action code，`TaskPortPanel.swift` 保留面板、统计与诊断生成逻辑。
 
 ## 运行
 

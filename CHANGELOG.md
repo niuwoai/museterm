@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.99.0] - 2026-07-01
+
+### Changed
+- 将 `CommandDiagnosticAction` 及其稳定 action code 枚举从 `TaskPortPanel.swift` 拆分到独立的 `CommandDiagnosticAction.swift`，让诊断动作契约和面板实现解耦。
+- `TaskPortPanel.swift` 行数从 2400+ 降到约 2000 行，后续继续深化诊断契约时可以在独立模型文件中维护，减少主面板文件膨胀。
+
 ## [1.98.0] - 2026-07-01
 
 ### Added
