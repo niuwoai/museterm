@@ -85,6 +85,7 @@ final class musetermTests: XCTestCase {
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
         let encodedDiagnostics = try XCTUnwrap(object["commandDiagnostics"] as? [String: Any])
         let repeatedFailure = try XCTUnwrap(encodedDiagnostics["repeatedFailureDiagnostic"] as? [String: Any])
+        let suggestedNextAction = try XCTUnwrap(encodedDiagnostics["suggestedNextAction"] as? [String: Any])
 
         XCTAssertEqual(encodedDiagnostics["failedCommandCount"] as? Int, 3)
         XCTAssertEqual(encodedDiagnostics["diagnosticSeverity"] as? String, CommandDiagnosticSeverity.repeated.rawValue)
@@ -105,6 +106,17 @@ final class musetermTests: XCTestCase {
             encodedDiagnostics["suggestedNextCommand"] as? String,
             "pwd && git status --short --branch 2>/dev/null || true"
         )
+        XCTAssertEqual(suggestedNextAction["title"] as? String, "Inspect repeat context")
+        XCTAssertEqual(
+            suggestedNextAction["rationale"] as? String,
+            "The latest failures repeat, so capture location and Git state before another retry."
+        )
+        XCTAssertEqual(
+            suggestedNextAction["command"] as? String,
+            "pwd && git status --short --branch 2>/dev/null || true"
+        )
+        XCTAssertEqual(suggestedNextAction["safety"] as? String, CommandDiagnosticActionSafety.readOnly.rawValue)
+        XCTAssertEqual(suggestedNextAction["requiresConfirmation"] as? Bool, true)
         XCTAssertEqual(repeatedFailure["diagnostic"] as? String, diagnostic)
         XCTAssertEqual(repeatedFailure["fingerprint"] as? String, "error database is locked")
         XCTAssertEqual(repeatedFailure["matchKind"] as? String, RepeatedFailureMatchKind.exact.rawValue)
@@ -459,6 +471,10 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_inspection")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_command")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_safety")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_confirmation")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_rationale")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_match")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_window")))
@@ -471,6 +487,9 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains("ERROR token=[REDACTED]"))
         XCTAssertTrue(markdown.contains("Inspect the repeated failure output before rerunning"))
         XCTAssertTrue(markdown.contains("pwd && git status --short --branch 2>/dev/null || true"))
+        XCTAssertTrue(markdown.contains("Inspect repeat context"))
+        XCTAssertTrue(markdown.contains(CommandDiagnosticActionSafety.readOnly.rawValue))
+        XCTAssertTrue(markdown.contains("The latest failures repeat, so capture location and Git state before another retry."))
         XCTAssertFalse(markdown.contains(secret))
     }
 
@@ -499,6 +518,10 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Diagnostic category confidence: medium"))
         XCTAssertTrue(context.contains("Suggested next inspection: Inspect the repeated failure output before rerunning"))
         XCTAssertTrue(context.contains("Suggested next command: pwd && git status --short --branch 2>/dev/null || true"))
+        XCTAssertTrue(context.contains("Suggested next action title: Inspect repeat context"))
+        XCTAssertTrue(context.contains("Suggested next action safety: read_only"))
+        XCTAssertTrue(context.contains("Suggested next action rationale: The latest failures repeat"))
+        XCTAssertTrue(context.contains("Suggested next action requires confirmation: true"))
     }
 
     func testCommandBlockDiagnosticsGroupsNormalizedRepeatedFailures() throws {
@@ -561,6 +584,9 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(diagnostics.diagnosticCategoryEvidence, "fatal: permission denied")
         XCTAssertEqual(diagnostics.diagnosticCategoryConfidence, .high)
         XCTAssertEqual(diagnostics.suggestedNextCommand, "pwd && id && ls -ld .")
+        XCTAssertEqual(diagnostics.suggestedNextAction?.title, "Inspect current permissions")
+        XCTAssertEqual(diagnostics.suggestedNextAction?.safety, .readOnly)
+        XCTAssertEqual(diagnostics.suggestedNextAction?.requiresConfirmation, true)
     }
 
     func testCommandBlockDiagnosticsClassifiesCommonFailureCategories() {
@@ -629,21 +655,27 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(portConflict.diagnosticCategoryEvidence, "Error: listen EADDRINUSE: address already in use :::5173")
         XCTAssertEqual(portConflict.diagnosticCategoryConfidence, .high)
         XCTAssertEqual(portConflict.suggestedNextCommand, "lsof -nP -iTCP -sTCP:LISTEN")
+        XCTAssertEqual(portConflict.suggestedNextAction?.title, "List listening TCP ports")
+        XCTAssertEqual(portConflict.suggestedNextAction?.safety, .readOnly)
         XCTAssertEqual(missingCommand.diagnosticCategory, .missingCommand)
         XCTAssertEqual(missingCommand.diagnosticCategoryEvidence, "zsh: command not found: frobnicate")
         XCTAssertEqual(missingCommand.diagnosticCategoryConfidence, .high)
         XCTAssertEqual(missingCommand.suggestedNextCommand, "echo \"$PATH\"")
+        XCTAssertEqual(missingCommand.suggestedNextAction?.title, "Inspect PATH")
         XCTAssertEqual(missingFile.diagnosticCategory, .missingFile)
         XCTAssertEqual(missingFile.diagnosticCategoryEvidence, "cat: config.yml: No such file or directory")
         XCTAssertEqual(missingFile.diagnosticCategoryConfidence, .high)
         XCTAssertEqual(missingFile.suggestedNextCommand, "pwd && ls -la")
+        XCTAssertEqual(missingFile.suggestedNextAction?.title, "Inspect current directory")
         XCTAssertEqual(gitFailure.diagnosticCategory, .git)
         XCTAssertEqual(gitFailure.diagnosticCategoryEvidence, "git pull")
         XCTAssertEqual(gitFailure.diagnosticCategoryConfidence, .medium)
         XCTAssertEqual(gitFailure.suggestedNextCommand, "git status --short --branch")
+        XCTAssertEqual(gitFailure.suggestedNextAction?.title, "Inspect Git state")
         XCTAssertEqual(genericFailure.diagnosticCategory, .generic)
         XCTAssertEqual(genericFailure.diagnosticCategoryEvidence, "ERROR validation failed")
         XCTAssertEqual(genericFailure.diagnosticCategoryConfidence, .low)
+        XCTAssertEqual(genericFailure.suggestedNextAction?.title, "Inspect local context")
     }
 
     func testSessionCommandStatsTracksRecentRedactedFailureDiagnostic() {

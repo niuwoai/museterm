@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.50.0] - 2026-07-01
+
+### Added
+- 命令诊断摘要新增 `suggestedNextAction`，把建议排查步骤结构化为标题、原因、命令、安全级别和是否需要用户确认。
+- Runbook、AI 上下文和 CLI/MCP `diagnostics` 会同步暴露结构化建议动作，同时保留旧的 `suggestedNextCommand` 字段以兼容现有调用方。
+
 ## [1.49.0] - 2026-07-01
 
 ### Added

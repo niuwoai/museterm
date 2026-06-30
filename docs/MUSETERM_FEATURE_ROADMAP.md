@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.49.0
+> 当前版本基线：v1.50.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,7 +30,7 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.49.0 已完成四十一条纵向切片：
+v1.50.0 已完成四十二条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
@@ -48,6 +48,7 @@ v1.49.0 已完成四十一条纵向切片：
 - 诊断分类：`CommandBlockDiagnostics` 新增 `diagnosticCategory`，把最近失败归类为端口占用、权限、缺文件、命令缺失、Git、连续失败或通用问题，并同步给 Runbook、AI 上下文和 CLI/MCP `diagnostics`，让建议命令和外部工具复用同一套判断。
 - 诊断分类依据：`CommandBlockDiagnostics` 新增 `diagnosticCategoryEvidence`，记录分类命中的脱敏证据文本，并同步给 Runbook、AI 上下文和 CLI/MCP `diagnostics`，让外部工具知道分类从哪一行命令或错误得出。
 - 诊断分类可信度：`CommandBlockDiagnostics` 新增 `diagnosticCategoryConfidence`，用 `high` / `medium` / `low` 区分明确错误命中、上下文推断和保守兜底，并同步给 Runbook、AI 上下文和 CLI/MCP `diagnostics`。
+- 结构化建议排查动作：`CommandBlockDiagnostics` 新增 `suggestedNextAction`，把建议排查步骤拆成标题、原因、命令、安全级别和确认要求，并同步给 Runbook、AI 上下文和 CLI/MCP `diagnostics`；旧的 `suggestedNextCommand` 保留以兼容现有调用方。
 - 诊断指纹归一化：最近失败诊断会生成脱敏后的 `recentFailureFingerprint`，连续同类失败改用归一化指纹比较，避免行号、路径、URL、hash 或重试次数变化导致同类失败被拆散。
 - 连续失败时间窗：`RepeatedFailureDiagnostic` 新增 `firstOccurredAt` 与 `latestOccurredAt`，Runbook、AI 上下文和 CLI/MCP `diagnostics` 能直接看到这波同类失败从何时开始、最新一次发生在何时。
 - 连续失败持续时长：`RepeatedFailureDiagnostic` 新增 `durationMilliseconds`，Runbook、AI 上下文和 CLI/MCP `diagnostics` 可直接消费这波失败的持续时间，后续做排序和趋势统计不必重复计算。

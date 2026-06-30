@@ -625,6 +625,7 @@ struct CommandBlockDiagnostics: Equatable {
     let diagnosticCategory: CommandDiagnosticCategory
     let diagnosticCategoryEvidence: String?
     let diagnosticCategoryConfidence: CommandDiagnosticConfidence
+    let suggestedNextAction: CommandDiagnosticAction?
 
     init(blocks: [TerminalCommandBlock], redactSensitiveData: Bool = true) {
         let failedBlocks = blocks.filter(Self.isFailed).sorted(by: Self.mostRecentFirst)
@@ -663,10 +664,11 @@ struct CommandBlockDiagnostics: Equatable {
             recentFailureDiagnostic: recentFailureDiagnostic,
             repeatedFailureDiagnostic: repeatedFailureDiagnostic
         )
-        suggestedNextCommand = Self.suggestedNextCommand(
+        suggestedNextAction = Self.suggestedNextAction(
             failedCommandCount: failedCommandCount,
             diagnosticCategory: diagnosticCategory
         )
+        suggestedNextCommand = suggestedNextAction?.command
     }
 
     var aiContextText: String? {
@@ -710,6 +712,12 @@ struct CommandBlockDiagnostics: Equatable {
         }
         if let suggestedNextCommand {
             lines.append("Suggested next command: \(suggestedNextCommand)")
+        }
+        if let suggestedNextAction {
+            lines.append("Suggested next action title: \(suggestedNextAction.title)")
+            lines.append("Suggested next action safety: \(suggestedNextAction.safety.rawValue)")
+            lines.append("Suggested next action rationale: \(suggestedNextAction.rationale)")
+            lines.append("Suggested next action requires confirmation: \(suggestedNextAction.requiresConfirmation)")
         }
         guard !lines.isEmpty else { return nil }
         return (["Session diagnostics:"] + lines).joined(separator: "\n")
@@ -914,28 +922,63 @@ struct CommandBlockDiagnostics: Equatable {
         return nil
     }
 
-    nonisolated private static func suggestedNextCommand(
+    nonisolated private static func suggestedNextAction(
         failedCommandCount: Int,
         diagnosticCategory: CommandDiagnosticCategory
-    ) -> String? {
+    ) -> CommandDiagnosticAction? {
         guard failedCommandCount > 0 else { return nil }
         switch diagnosticCategory {
         case .none:
             return nil
         case .portConflict:
-            return "lsof -nP -iTCP -sTCP:LISTEN"
+            return CommandDiagnosticAction(
+                title: "List listening TCP ports",
+                rationale: "The latest failure looks like a local port conflict, so inspect listeners before rerunning.",
+                command: "lsof -nP -iTCP -sTCP:LISTEN",
+                safety: .readOnly
+            )
         case .permission:
-            return "pwd && id && ls -ld ."
+            return CommandDiagnosticAction(
+                title: "Inspect current permissions",
+                rationale: "The latest failure mentions permission denied, so check the working directory and current user.",
+                command: "pwd && id && ls -ld .",
+                safety: .readOnly
+            )
         case .missingCommand:
-            return "echo \"$PATH\""
+            return CommandDiagnosticAction(
+                title: "Inspect PATH",
+                rationale: "The latest failure says a command is missing, so check which directories the shell searches.",
+                command: "echo \"$PATH\"",
+                safety: .readOnly
+            )
         case .missingFile:
-            return "pwd && ls -la"
+            return CommandDiagnosticAction(
+                title: "Inspect current directory",
+                rationale: "The latest failure references a missing file, so confirm the current directory and visible files.",
+                command: "pwd && ls -la",
+                safety: .readOnly
+            )
         case .git:
-            return "git status --short --branch"
+            return CommandDiagnosticAction(
+                title: "Inspect Git state",
+                rationale: "The latest failed command or diagnostic is Git-related, so inspect branch and dirty state first.",
+                command: "git status --short --branch",
+                safety: .readOnly
+            )
         case .repeated:
-            return "pwd && git status --short --branch 2>/dev/null || true"
+            return CommandDiagnosticAction(
+                title: "Inspect repeat context",
+                rationale: "The latest failures repeat, so capture location and Git state before another retry.",
+                command: "pwd && git status --short --branch 2>/dev/null || true",
+                safety: .readOnly
+            )
         case .generic:
-            return "pwd && git status --short --branch 2>/dev/null || true"
+            return CommandDiagnosticAction(
+                title: "Inspect local context",
+                rationale: "The failure is not specific enough yet, so capture location and Git state as a safe first step.",
+                command: "pwd && git status --short --branch 2>/dev/null || true",
+                safety: .readOnly
+            )
         }
     }
 
@@ -995,6 +1038,32 @@ enum CommandDiagnosticConfidence: String, Codable, Equatable {
     case low
     case medium
     case high
+}
+
+struct CommandDiagnosticAction: Codable, Equatable {
+    let title: String
+    let rationale: String
+    let command: String
+    let safety: CommandDiagnosticActionSafety
+    let requiresConfirmation: Bool
+
+    nonisolated init(
+        title: String,
+        rationale: String,
+        command: String,
+        safety: CommandDiagnosticActionSafety,
+        requiresConfirmation: Bool = true
+    ) {
+        self.title = title
+        self.rationale = rationale
+        self.command = command
+        self.safety = safety
+        self.requiresConfirmation = requiresConfirmation
+    }
+}
+
+enum CommandDiagnosticActionSafety: String, Codable, Equatable {
+    case readOnly = "read_only"
 }
 
 private struct FailureDiagnosticRecord: Equatable {

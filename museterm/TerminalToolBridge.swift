@@ -68,6 +68,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
     let repeatedFailureDiagnostic: TerminalToolRepeatedFailureSnapshot?
     let suggestedNextInspection: String?
     let suggestedNextCommand: String?
+    let suggestedNextAction: TerminalToolDiagnosticActionSnapshot?
 
     init(diagnostics: CommandBlockDiagnostics) {
         failedCommandCount = diagnostics.failedCommandCount
@@ -93,6 +94,27 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
         }
         suggestedNextInspection = diagnostics.suggestedNextInspection
         suggestedNextCommand = diagnostics.suggestedNextCommand
+        if let suggestedNextAction = diagnostics.suggestedNextAction {
+            self.suggestedNextAction = TerminalToolDiagnosticActionSnapshot(action: suggestedNextAction)
+        } else {
+            self.suggestedNextAction = nil
+        }
+    }
+}
+
+struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
+    let title: String
+    let rationale: String
+    let command: String
+    let safety: String
+    let requiresConfirmation: Bool
+
+    init(action: CommandDiagnosticAction) {
+        title = action.title
+        rationale = action.rationale
+        command = action.command
+        safety = action.safety.rawValue
+        requiresConfirmation = action.requiresConfirmation
     }
 }
 

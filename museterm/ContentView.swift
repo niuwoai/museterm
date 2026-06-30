@@ -1438,6 +1438,18 @@ enum RunbookMarkdownExporter {
         if let suggestedNextCommand = diagnostics.suggestedNextCommand {
             lines.append("- \(L10n.string("runbook.suggested_next_command")): `\(escapeInline(suggestedNextCommand))`")
         }
+        if let suggestedNextAction = diagnostics.suggestedNextAction {
+            lines.append("- \(L10n.string("runbook.suggested_next_action")): \(escapeInline(suggestedNextAction.title))")
+            lines.append(
+                "- \(L10n.string("runbook.suggested_next_action_safety")): \(suggestedNextAction.safety.rawValue)"
+            )
+            lines.append(
+                "- \(L10n.string("runbook.suggested_next_action_confirmation")): \(suggestedNextAction.requiresConfirmation ? L10n.string("runbook.yes") : L10n.string("runbook.no"))"
+            )
+            lines.append(
+                "- \(L10n.string("runbook.suggested_next_action_rationale")): \(escapeInline(suggestedNextAction.rationale))"
+            )
+        }
 
         let cleanedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
         if !cleanedNote.isEmpty {
