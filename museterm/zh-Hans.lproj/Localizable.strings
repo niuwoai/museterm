@@ -15,8 +15,6 @@
 
 "tab.default_title" = "Shell %d";
 
-"terminal.welcome" = "欢迎使用 MuseTerm\n";
-
 "settings.title" = "终端设置";
 "settings.tab.appearance" = "外观";
 "settings.tab.app_icon" = "图标";

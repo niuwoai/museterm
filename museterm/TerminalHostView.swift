@@ -181,7 +181,6 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private func startProcessIfNeeded() {
         guard !didStart else { return }
         didStart = true
-        terminalView.feed(text: L10n.string("terminal.welcome"))
 
         let shell = Self.loginShell()
         let execName = "-" + URL(fileURLWithPath: shell).lastPathComponent

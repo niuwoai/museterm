@@ -15,8 +15,6 @@
 
 "tab.default_title" = "Shell %d";
 
-"terminal.welcome" = "Welcome to MuseTerm\n";
-
 "settings.title" = "Terminal Settings";
 "settings.tab.appearance" = "Appearance";
 "settings.tab.app_icon" = "Icon";

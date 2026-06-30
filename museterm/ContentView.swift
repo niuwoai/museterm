@@ -29,9 +29,6 @@ struct ContentView: View {
                     preferences: preferences
                 )
 
-                Divider()
-                    .overlay(preferences.skin.hairline)
-
                 TerminalPaneView(workspace: workspace, preferences: preferences)
             }
         }
