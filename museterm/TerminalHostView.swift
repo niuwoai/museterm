@@ -88,10 +88,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     func layoutTerminalViews() {
         visualEffectView.frame = container.bounds
         tintView.frame = container.bounds
-        let leftInset = max(4, ceil(terminalView.font.pointSize * 0.36))
-        terminalView.frame = container.bounds.insetBy(dx: 0, dy: 0)
-        terminalView.frame.origin.x += leftInset
-        terminalView.frame.size.width = max(0, terminalView.frame.width - leftInset)
+        terminalView.frame = container.bounds
     }
 
     func terminate() {
