@@ -53,8 +53,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private var pendingStart = false
     private var pendingStartWorkItem: DispatchWorkItem?
     private var startupPromptPollWorkItem: DispatchWorkItem?
-    private var startupPromptRedrawDeadline: TimeInterval = 0
-    private var startupMinCoverageDeadline: TimeInterval = 0
+    private var startupHardDeadline: TimeInterval = 0
+    private var startupLastOutputUptime: TimeInterval = 0
     private var startupRedrawCount = 0
     private var didRunStartupPromptRedraw = false
     private var didReceiveProcessInput = false
@@ -375,6 +375,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     private func handleProcessOutputForZModem(_ data: ArraySlice<UInt8>) -> Bool {
+        noteStartupOutputActivity()
         if let activeZModemTransfer {
             activeZModemTransfer.acceptRemoteData(Array(data))
             return true
@@ -584,19 +585,25 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     // 新建标签时，shell 打印 PS1 后常因启动期 SIGWINCH 或 p10k 实时提示符，把提示符
-    // 在顶部重绘成多条。这里全程用遮罩盖住首屏，在背后用“定时轮询”持续检测：发现重复
-    // 就发 ^L 让 shell 清屏重绘成单条。只有当“已过最小覆盖时长 且 当前画面确实干净”时
-    // 才淡出遮罩——这样既能抓到出现得较晚的重绘，也不会在重绘到来前提前揭开露馅。
+    // 在顶部重绘成多条。关键教训：绝不能在“输出还在抖动”时去发 ^L —— 那会和 WINCH 重绘
+    // 互相打架（清一条又冒一条）。正确做法是全程用遮罩盖住首屏，等输出“安静”一段时间
+    // （说明启动抖动已结束）再判断：若仍重复才发一次 ^L 清屏，再等它安静、确认干净后揭幕。
     private func beginStartupPromptDeduplication() {
         let now = ProcessInfo.processInfo.systemUptime
         didRunStartupPromptRedraw = false
         startupRedrawCount = 0
-        // 最小覆盖时长：必须盖住到这一刻之后才允许揭开，确保覆盖住迟到的启动重绘。
-        startupMinCoverageDeadline = now + 0.5
+        startupLastOutputUptime = now
         // 硬上限：无论如何最多盖这么久，避免极端情况下一直盖着空白。
-        startupPromptRedrawDeadline = now + 2.0
+        startupHardDeadline = now + 3.0
         showStartupCover()
-        scheduleStartupPromptPoll(after: 0.1)
+        scheduleStartupPromptPoll(after: 0.12)
+    }
+
+    // 记录最近一次输出时刻，用于判断输出是否已经“安静”。^L 自身产生的输出也会刷新它，
+    // 从而保证 ^L 之后会再等一轮安静、复检干净后才揭幕。
+    private func noteStartupOutputActivity() {
+        guard !didRunStartupPromptRedraw else { return }
+        startupLastOutputUptime = ProcessInfo.processInfo.systemUptime
     }
 
     private func scheduleStartupPromptPoll(after delay: TimeInterval) {
@@ -609,6 +616,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     private func runStartupPromptPoll() {
+        // 输出安静多久算“启动抖动结束”。
+        let quietThreshold: TimeInterval = 0.2
+
         guard !didRunStartupPromptRedraw else { return }
         if didReceiveProcessInput {
             // 用户已经开始输入，立即放行，别再挡着。
@@ -621,8 +631,12 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         }
 
         let now = ProcessInfo.processInfo.systemUptime
-        if now >= startupPromptRedrawDeadline {
-            // 到硬上限，无论是否干净都揭开，避免一直盖着。
+        if now >= startupHardDeadline {
+            // 到硬上限，最后再尝试清一次（若仍重复），然后无论如何揭开。
+            if startupRedrawCount < 3, visibleScreenLooksLikeDuplicatedStartupPrompt() {
+                terminalView.process.send(data: [0x0C][...])
+                invalidateDisplay()
+            }
             finishStartupPromptDeduplication()
             return
         }
@@ -633,23 +647,28 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             return
         }
 
-        if visibleScreenLooksLikeDuplicatedStartupPrompt() {
-            if startupRedrawCount < 3 {
-                startupRedrawCount += 1
-                terminalView.process.send(data: [0x0C][...])
-                invalidateDisplay()
-            }
-            // 给 ^L 一点时间重绘后再复检；遮罩继续遮挡。
-            scheduleStartupPromptPoll(after: 0.18)
-            return
-        }
-
-        // 当前画面干净。但若还没到最小覆盖时长，继续盖住轮询，以防迟到的重绘露馅。
-        if now < startupMinCoverageDeadline {
+        // 输出尚未安静（WINCH/初始化仍在抖动）——继续盖住等待，绝不此时动手。
+        guard now - startupLastOutputUptime >= quietThreshold else {
             scheduleStartupPromptPoll(after: 0.1)
             return
         }
 
+        // 已安静：启动抖动应已结束，此时判定才可靠。
+        if visibleScreenLooksLikeDuplicatedStartupPrompt() {
+            guard startupRedrawCount < 3 else {
+                // 多次清屏仍重复，放手，避免无限纠缠。
+                finishStartupPromptDeduplication()
+                return
+            }
+            startupRedrawCount += 1
+            terminalView.process.send(data: [0x0C][...])
+            invalidateDisplay()
+            // ^L 会产生输出并刷新安静计时；下一轮等它安静后复检。
+            scheduleStartupPromptPoll(after: 0.1)
+            return
+        }
+
+        // 安静且干净 → 揭幕。
         finishStartupPromptDeduplication()
     }
 
