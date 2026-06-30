@@ -64,6 +64,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
     let recentFailureFingerprint: String?
     let repeatedFailureDiagnostic: TerminalToolRepeatedFailureSnapshot?
     let suggestedNextInspection: String?
+    let suggestedNextCommand: String?
 
     init(diagnostics: CommandBlockDiagnostics) {
         failedCommandCount = diagnostics.failedCommandCount
@@ -85,6 +86,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
             self.repeatedFailureDiagnostic = nil
         }
         suggestedNextInspection = diagnostics.suggestedNextInspection
+        suggestedNextCommand = diagnostics.suggestedNextCommand
     }
 }
 

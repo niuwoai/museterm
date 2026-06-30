@@ -95,6 +95,10 @@ final class musetermTests: XCTestCase {
             encodedDiagnostics["suggestedNextInspection"] as? String,
             "Inspect the repeated failure output before rerunning: \(diagnostic)"
         )
+        XCTAssertEqual(
+            encodedDiagnostics["suggestedNextCommand"] as? String,
+            "pwd && git status --short --branch 2>/dev/null || true"
+        )
         XCTAssertEqual(repeatedFailure["diagnostic"] as? String, diagnostic)
         XCTAssertEqual(repeatedFailure["fingerprint"] as? String, "error database is locked")
         XCTAssertEqual(repeatedFailure["matchKind"] as? String, RepeatedFailureMatchKind.exact.rawValue)
@@ -445,6 +449,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.failure_fingerprint")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_inspection")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_command")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_match")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_window")))
@@ -454,6 +459,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains("make test"))
         XCTAssertTrue(markdown.contains("ERROR token=[REDACTED]"))
         XCTAssertTrue(markdown.contains("Inspect the repeated failure output before rerunning"))
+        XCTAssertTrue(markdown.contains("pwd && git status --short --branch 2>/dev/null || true"))
         XCTAssertFalse(markdown.contains(secret))
     }
 
@@ -478,6 +484,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Repeated failure duration: 20000 ms"))
         XCTAssertTrue(context.contains("Diagnostic severity: repeated"))
         XCTAssertTrue(context.contains("Suggested next inspection: Inspect the repeated failure output before rerunning"))
+        XCTAssertTrue(context.contains("Suggested next command: pwd && git status --short --branch 2>/dev/null || true"))
     }
 
     func testCommandBlockDiagnosticsGroupsNormalizedRepeatedFailures() throws {
@@ -536,6 +543,7 @@ final class musetermTests: XCTestCase {
 
         XCTAssertEqual(diagnostics.failedCommandCount, 1)
         XCTAssertEqual(diagnostics.diagnosticSeverity, .critical)
+        XCTAssertEqual(diagnostics.suggestedNextCommand, "pwd && id && ls -ld .")
     }
 
     func testSessionCommandStatsTracksRecentRedactedFailureDiagnostic() {

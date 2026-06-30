@@ -1424,6 +1424,9 @@ enum RunbookMarkdownExporter {
         if let suggestedNextInspection = diagnostics.suggestedNextInspection {
             lines.append("- \(L10n.string("runbook.suggested_next_inspection")): \(escapeInline(suggestedNextInspection))")
         }
+        if let suggestedNextCommand = diagnostics.suggestedNextCommand {
+            lines.append("- \(L10n.string("runbook.suggested_next_command")): `\(escapeInline(suggestedNextCommand))`")
+        }
 
         let cleanedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
         if !cleanedNote.isEmpty {

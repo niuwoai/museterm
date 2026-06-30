@@ -620,6 +620,7 @@ struct CommandBlockDiagnostics: Equatable {
     let recentFailureFingerprint: String?
     let repeatedFailureDiagnostic: RepeatedFailureDiagnostic?
     let suggestedNextInspection: String?
+    let suggestedNextCommand: String?
     let diagnosticSeverity: CommandDiagnosticSeverity
 
     init(blocks: [TerminalCommandBlock], redactSensitiveData: Bool = true) {
@@ -645,6 +646,12 @@ struct CommandBlockDiagnostics: Equatable {
             repeatedFailureDiagnostic: repeatedFailureDiagnostic
         )
         suggestedNextInspection = Self.suggestedNextInspection(
+            failedCommandCount: failedCommandCount,
+            latestFailedCommand: latestFailedCommand,
+            recentFailureDiagnostic: recentFailureDiagnostic,
+            repeatedFailureDiagnostic: repeatedFailureDiagnostic
+        )
+        suggestedNextCommand = Self.suggestedNextCommand(
             failedCommandCount: failedCommandCount,
             latestFailedCommand: latestFailedCommand,
             recentFailureDiagnostic: recentFailureDiagnostic,
@@ -681,6 +688,9 @@ struct CommandBlockDiagnostics: Equatable {
         }
         if let suggestedNextInspection {
             lines.append("Suggested next inspection: \(suggestedNextInspection)")
+        }
+        if let suggestedNextCommand {
+            lines.append("Suggested next command: \(suggestedNextCommand)")
         }
         guard !lines.isEmpty else { return nil }
         return (["Session diagnostics:"] + lines).joined(separator: "\n")
@@ -826,6 +836,43 @@ struct CommandBlockDiagnostics: Equatable {
             return "Inspect the latest failed command exit status: \(latestFailedCommand)"
         }
         return nil
+    }
+
+    nonisolated private static func suggestedNextCommand(
+        failedCommandCount: Int,
+        latestFailedCommand: String?,
+        recentFailureDiagnostic: String?,
+        repeatedFailureDiagnostic: RepeatedFailureDiagnostic?
+    ) -> String? {
+        guard failedCommandCount > 0 else { return nil }
+        let command = latestFailedCommand?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        let diagnostic = recentFailureDiagnostic?.lowercased() ?? ""
+        if diagnostic.contains("address already in use")
+            || diagnostic.contains("eaddrinuse")
+            || diagnostic.contains("port already")
+            || diagnostic.contains("listen tcp") {
+            return "lsof -nP -iTCP -sTCP:LISTEN"
+        }
+        if diagnostic.contains("permission denied") {
+            return "pwd && id && ls -ld ."
+        }
+        if diagnostic.contains("command not found") {
+            return "echo \"$PATH\""
+        }
+        if diagnostic.contains("no such file")
+            || diagnostic.contains("not found")
+            || diagnostic.contains("cannot find") {
+            return "pwd && ls -la"
+        }
+        if command.hasPrefix("git ")
+            || command == "git"
+            || diagnostic.contains("fatal:") {
+            return "git status --short --branch"
+        }
+        if repeatedFailureDiagnostic != nil {
+            return "pwd && git status --short --branch 2>/dev/null || true"
+        }
+        return "pwd && git status --short --branch 2>/dev/null || true"
     }
 
     nonisolated private static func occurrenceDate(for block: TerminalCommandBlock) -> Date {
