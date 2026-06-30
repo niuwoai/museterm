@@ -1453,6 +1453,15 @@ enum RunbookMarkdownExporter {
             lines.append(
                 "- \(L10n.string("runbook.suggested_next_action_confidence")): \(suggestedNextAction.confidence.rawValue)"
             )
+            lines.append(
+                "- \(L10n.string("runbook.suggested_next_action_priority_score")): \(suggestedNextAction.priorityScore)"
+            )
+            if !suggestedNextAction.priorityFactors.isEmpty {
+                let priorityFactors = suggestedNextAction.priorityFactors.map(\.rawValue).joined(separator: ", ")
+                lines.append(
+                    "- \(L10n.string("runbook.suggested_next_action_priority_factors")): \(priorityFactors)"
+                )
+            }
             lines.append("- \(L10n.string("runbook.suggested_next_action")): \(escapeInline(suggestedNextAction.title))")
             lines.append(
                 "- \(L10n.string("runbook.suggested_next_action_safety")): \(suggestedNextAction.safety.rawValue)"

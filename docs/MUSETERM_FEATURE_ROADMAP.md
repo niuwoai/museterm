@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.70.0
+> 当前版本基线：v1.71.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,7 +30,7 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.70.0 已完成六十二条纵向切片：
+v1.71.0 已完成六十三条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
@@ -64,6 +64,7 @@ v1.70.0 已完成六十二条纵向切片：
 - 结构化建议排查动作：`CommandBlockDiagnostics` 新增 `suggestedNextAction`，把建议排查步骤拆成标题、原因、命令、安全级别和确认要求，并同步给 Runbook、AI 上下文和 CLI/MCP `diagnostics`；旧的 `suggestedNextCommand` 保留以兼容现有调用方。
 - 建议排查动作 ID：`suggestedNextAction` 新增稳定 `id`，例如 `inspect_git_state`、`inspect_repeat_context`，Runbook、AI 上下文和 CLI/MCP 可按动作类型消费，不必依赖可变标题文案。
 - 建议排查动作自解释：`suggestedNextAction` 新增 `sourceCategory` 与 `confidence`，单个 action 对象即可说明建议来自哪类诊断以及可信度，减少 MCP/AI 工具拼接旁路字段的成本。
+- 建议排查动作优先级：`suggestedNextAction` 新增 `priorityScore` 与 `priorityFactors`，让 action 对象自身也能排序并解释优先级来源，不必依赖父级 diagnostics 字段。
 - 建议排查动作观察信号：`suggestedNextAction` 新增 `expectedSignals`，描述执行只读排查命令后应该重点观察什么，让 Runbook 和 AI 上下文更容易转成复盘步骤。
 - 建议排查动作降级步骤：`suggestedNextAction` 新增 `fallbackNextSteps`，描述观察不到预期信号时下一步应该怎样保守排查，并同步给 Runbook、AI 上下文和 CLI/MCP `diagnostics`。
 - 诊断指纹归一化：最近失败诊断会生成脱敏后的 `recentFailureFingerprint`，连续同类失败改用归一化指纹比较，避免行号、路径、URL、hash 或重试次数变化导致同类失败被拆散。

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.71.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `priorityScore` 与 `priorityFactors`，让单个建议排查动作也能独立说明排序权重和原因。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露建议动作优先级字段，减少外部工具拼接父级诊断字段的成本。
+
 ## [1.70.0] - 2026-07-01
 
 ### Added

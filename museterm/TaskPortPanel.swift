@@ -683,7 +683,9 @@ struct CommandBlockDiagnostics: Equatable {
         suggestedNextAction = Self.suggestedNextAction(
             failedCommandCount: failedCommandCount,
             diagnosticCategory: diagnosticCategory,
-            diagnosticCategoryConfidence: diagnosticCategoryConfidence
+            diagnosticCategoryConfidence: diagnosticCategoryConfidence,
+            diagnosticPriorityScore: diagnosticPriorityScore,
+            diagnosticPriorityFactors: diagnosticPriorityFactors
         )
         suggestedNextCommand = suggestedNextAction?.command
     }
@@ -741,6 +743,11 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append("Suggested next action id: \(suggestedNextAction.id.rawValue)")
             lines.append("Suggested next action source category: \(suggestedNextAction.sourceCategory.rawValue)")
             lines.append("Suggested next action confidence: \(suggestedNextAction.confidence.rawValue)")
+            lines.append("Suggested next action priority score: \(suggestedNextAction.priorityScore)")
+            if !suggestedNextAction.priorityFactors.isEmpty {
+                let priorityFactors = suggestedNextAction.priorityFactors.map(\.rawValue).joined(separator: "; ")
+                lines.append("Suggested next action priority factors: \(priorityFactors)")
+            }
             lines.append("Suggested next action title: \(suggestedNextAction.title)")
             lines.append("Suggested next action safety: \(suggestedNextAction.safety.rawValue)")
             lines.append("Suggested next action rationale: \(suggestedNextAction.rationale)")
@@ -1064,7 +1071,9 @@ struct CommandBlockDiagnostics: Equatable {
     nonisolated private static func suggestedNextAction(
         failedCommandCount: Int,
         diagnosticCategory: CommandDiagnosticCategory,
-        diagnosticCategoryConfidence: CommandDiagnosticConfidence
+        diagnosticCategoryConfidence: CommandDiagnosticConfidence,
+        diagnosticPriorityScore: Int,
+        diagnosticPriorityFactors: [CommandDiagnosticPriorityFactor]
     ) -> CommandDiagnosticAction? {
         guard failedCommandCount > 0 else { return nil }
         switch diagnosticCategory {
@@ -1075,6 +1084,8 @@ struct CommandBlockDiagnostics: Equatable {
                 id: .listListeningPorts,
                 sourceCategory: diagnosticCategory,
                 confidence: diagnosticCategoryConfidence,
+                priorityScore: diagnosticPriorityScore,
+                priorityFactors: diagnosticPriorityFactors,
                 title: "List listening TCP ports",
                 rationale: "The latest failure looks like a local port conflict, so inspect listeners before rerunning.",
                 command: "lsof -nP -iTCP -sTCP:LISTEN",
@@ -1093,6 +1104,8 @@ struct CommandBlockDiagnostics: Equatable {
                 id: .inspectPermissions,
                 sourceCategory: diagnosticCategory,
                 confidence: diagnosticCategoryConfidence,
+                priorityScore: diagnosticPriorityScore,
+                priorityFactors: diagnosticPriorityFactors,
                 title: "Inspect current permissions",
                 rationale: "The latest failure mentions permission denied, so check the working directory and current user.",
                 command: "pwd && id && ls -ld .",
@@ -1111,6 +1124,8 @@ struct CommandBlockDiagnostics: Equatable {
                 id: .inspectPath,
                 sourceCategory: diagnosticCategory,
                 confidence: diagnosticCategoryConfidence,
+                priorityScore: diagnosticPriorityScore,
+                priorityFactors: diagnosticPriorityFactors,
                 title: "Inspect PATH",
                 rationale: "The latest failure says a command is missing, so check which directories the shell searches.",
                 command: "echo \"$PATH\"",
@@ -1129,6 +1144,8 @@ struct CommandBlockDiagnostics: Equatable {
                 id: .inspectDirectory,
                 sourceCategory: diagnosticCategory,
                 confidence: diagnosticCategoryConfidence,
+                priorityScore: diagnosticPriorityScore,
+                priorityFactors: diagnosticPriorityFactors,
                 title: "Inspect current directory",
                 rationale: "The latest failure references a missing file, so confirm the current directory and visible files.",
                 command: "pwd && ls -la",
@@ -1147,6 +1164,8 @@ struct CommandBlockDiagnostics: Equatable {
                 id: .inspectGitState,
                 sourceCategory: diagnosticCategory,
                 confidence: diagnosticCategoryConfidence,
+                priorityScore: diagnosticPriorityScore,
+                priorityFactors: diagnosticPriorityFactors,
                 title: "Inspect Git state",
                 rationale: "The latest failed command or diagnostic is Git-related, so inspect branch and dirty state first.",
                 command: "git status --short --branch",
@@ -1165,6 +1184,8 @@ struct CommandBlockDiagnostics: Equatable {
                 id: .inspectRepeatContext,
                 sourceCategory: diagnosticCategory,
                 confidence: diagnosticCategoryConfidence,
+                priorityScore: diagnosticPriorityScore,
+                priorityFactors: diagnosticPriorityFactors,
                 title: "Inspect repeat context",
                 rationale: "The latest failures repeat, so capture location and Git state before another retry.",
                 command: "pwd && git status --short --branch 2>/dev/null || true",
@@ -1183,6 +1204,8 @@ struct CommandBlockDiagnostics: Equatable {
                 id: .inspectLocalContext,
                 sourceCategory: diagnosticCategory,
                 confidence: diagnosticCategoryConfidence,
+                priorityScore: diagnosticPriorityScore,
+                priorityFactors: diagnosticPriorityFactors,
                 title: "Inspect local context",
                 rationale: "The failure is not specific enough yet, so capture location and Git state as a safe first step.",
                 command: "pwd && git status --short --branch 2>/dev/null || true",
@@ -1280,6 +1303,8 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let id: CommandDiagnosticActionID
     let sourceCategory: CommandDiagnosticCategory
     let confidence: CommandDiagnosticConfidence
+    let priorityScore: Int
+    let priorityFactors: [CommandDiagnosticPriorityFactor]
     let title: String
     let rationale: String
     let command: String
@@ -1292,6 +1317,8 @@ struct CommandDiagnosticAction: Codable, Equatable {
         id: CommandDiagnosticActionID,
         sourceCategory: CommandDiagnosticCategory,
         confidence: CommandDiagnosticConfidence,
+        priorityScore: Int,
+        priorityFactors: [CommandDiagnosticPriorityFactor],
         title: String,
         rationale: String,
         command: String,
@@ -1303,6 +1330,8 @@ struct CommandDiagnosticAction: Codable, Equatable {
         self.id = id
         self.sourceCategory = sourceCategory
         self.confidence = confidence
+        self.priorityScore = priorityScore
+        self.priorityFactors = priorityFactors
         self.title = title
         self.rationale = rationale
         self.command = command
