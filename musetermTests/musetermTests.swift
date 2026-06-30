@@ -144,6 +144,43 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(payload["truncated"] as? Bool, true)
     }
 
+    func testMCPListTabsReportsMetadata() throws {
+        let fixture = try makeMuseTermCLITestFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let response = try runMuseTermMCPRequest(
+            fixture.scriptURL,
+            home: fixture.root,
+            request: [
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": [
+                    "name": "list_tabs",
+                    "arguments": [
+                        "metadata": true
+                    ]
+                ]
+            ]
+        )
+        let result = try XCTUnwrap(response["result"] as? [String: Any])
+        let content = try XCTUnwrap(result["content"] as? [[String: Any]])
+        let text = try XCTUnwrap(content.first?["text"] as? String)
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]
+        )
+        let tabs = try XCTUnwrap(payload["tabs"] as? [[String: Any]])
+        let tab = try XCTUnwrap(tabs.first)
+
+        XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(payload["app"] as? String, "MuseTerm")
+        XCTAssertEqual(payload["version"] as? String, "test")
+        XCTAssertEqual(payload["selectedTabID"] as? String, "tab-1")
+        XCTAssertEqual(tab["id"] as? String, "tab-1")
+        XCTAssertEqual(tab["title"] as? String, "project")
+        XCTAssertEqual(tab["isSelected"] as? Bool, true)
+    }
+
     @MainActor
     func testToolTabSnapshotEncodesCommandDiagnostics() throws {
         let diagnostic = "ERROR database is locked"

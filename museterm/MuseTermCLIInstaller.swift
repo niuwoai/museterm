@@ -117,6 +117,22 @@ def text_payload(state, tab, field, chars)
   }
 end
 
+def tab_summaries(state)
+  state.fetch("tabs", []).map { |tab|
+    tab.slice("id", "index", "title", "subtitle", "currentDirectory", "isSelected", "state", "columns", "rows", "updatedAt")
+  }
+end
+
+def tabs_payload(state)
+  {
+    "schemaVersion" => state["schemaVersion"],
+    "app" => state["app"],
+    "version" => state["version"],
+    "selectedTabID" => state["selectedTabID"],
+    "tabs" => tab_summaries(state)
+  }
+end
+
 def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, timeout_seconds: 3.0)
   ensure_dirs
   id = SecureRandom.uuid
@@ -153,15 +169,7 @@ end
 
 def command_tabs(args)
   state = read_state
-  print_json(
-    "schemaVersion" => state["schemaVersion"],
-    "app" => state["app"],
-    "version" => state["version"],
-    "selectedTabID" => state["selectedTabID"],
-    "tabs" => state.fetch("tabs", []).map { |tab|
-      tab.slice("id", "index", "title", "subtitle", "currentDirectory", "isSelected", "state", "columns", "rows", "updatedAt")
-    }
-  )
+  print_json(tabs_payload(state))
 end
 
 def command_screen(args)
@@ -266,7 +274,12 @@ def mcp_tools
     {
       "name" => "list_tabs",
       "description" => "List MuseTerm tabs and their ids, titles, selection state, size, and working directory.",
-      "inputSchema" => { "type" => "object", "properties" => {} }
+      "inputSchema" => {
+        "type" => "object",
+        "properties" => {
+          "metadata" => { "type" => "boolean", "description" => "return schema/version metadata with tabs" }
+        }
+      }
     },
     {
       "name" => "read_screen",
@@ -335,9 +348,8 @@ def call_tool(name, args)
   case name
   when "list_tabs"
     state = read_state
-    tool_result_text(JSON.pretty_generate(state.fetch("tabs", []).map { |tab|
-      tab.slice("id", "index", "title", "subtitle", "currentDirectory", "isSelected", "state", "columns", "rows", "updatedAt")
-    }))
+    payload = args["metadata"] ? tabs_payload(state) : tab_summaries(state)
+    tool_result_text(JSON.pretty_generate(payload))
   when "read_screen"
     state = read_state
     tab = require_tab(state, args["tab"])

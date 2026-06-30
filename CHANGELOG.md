@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.62.0] - 2026-07-01
+
+### Added
+- MCP `list_tabs` 支持 `metadata: true`，返回 `schemaVersion`、App 名称、版本、选中标签 ID 和标签数组；默认数组输出保持兼容。
+- 新增真实 JSON-RPC 端到端测试，验证外部工具可通过 MCP 读取标签列表元数据。
+
 ## [1.61.0] - 2026-07-01
 
 ### Changed
