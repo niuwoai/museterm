@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.56.0] - 2026-07-01
+
+### Added
+- `museterm tabs`、`museterm commands` 和 MCP `read_commands` 响应会透传顶层 `schemaVersion`，外部工具无需读取原始状态文件也能判断 JSON 契约版本。
+
 ## [1.55.0] - 2026-07-01
 
 ### Added

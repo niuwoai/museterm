@@ -135,6 +135,7 @@ end
 def command_tabs(args)
   state = read_state
   print_json(
+    "schemaVersion" => state["schemaVersion"],
     "app" => state["app"],
     "version" => state["version"],
     "selectedTabID" => state["selectedTabID"],
@@ -158,11 +159,12 @@ end
 
 def command_commands(args)
   tab_selector, chars, _rest = parse_common(args)
-  tab = require_tab(read_state, tab_selector)
-  print_json(commands_payload(tab, chars))
+  state = read_state
+  tab = require_tab(state, tab_selector)
+  print_json(commands_payload(state, tab, chars))
 end
 
-def commands_payload(tab, chars)
+def commands_payload(state, tab, chars)
   blocks = tab.fetch("commandBlocks", [])
   if chars
     blocks = blocks.map { |block|
@@ -172,6 +174,7 @@ def commands_payload(tab, chars)
     }
   end
   {
+    "schemaVersion" => state["schemaVersion"],
     "diagnostics" => tab.fetch("commandDiagnostics", {}),
     "commands" => blocks
   }
@@ -305,8 +308,9 @@ def call_tool(name, args)
     tab = require_tab(read_state, args["tab"])
     tool_result_text(tail_chars(tab["history"], args["chars"]))
   when "read_commands"
-    tab = require_tab(read_state, args["tab"])
-    tool_result_text(JSON.pretty_generate(commands_payload(tab, args["chars"])))
+    state = read_state
+    tab = require_tab(state, args["tab"])
+    tool_result_text(JSON.pretty_generate(commands_payload(state, tab, args["chars"])))
   when "send_text"
     response = send_request(action: "input", tab: args["tab"], text: args.fetch("text"))
     raise(response["error"] || "request failed") unless response["ok"]
@@ -334,7 +338,7 @@ def command_mcp
       when "initialize"
         {
           "protocolVersion" => "2024-11-05",
-          "serverInfo" => { "name" => "museterm", "version" => "1.55.0" },
+          "serverInfo" => { "name" => "museterm", "version" => "1.56.0" },
           "capabilities" => { "tools" => {} }
         }
       when "tools/list"

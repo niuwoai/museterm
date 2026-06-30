@@ -1,6 +1,6 @@
 import Foundation
 
 enum AppVersion {
-    static let value = "1.55.0"
+    static let value = "1.56.0"
     static let displayValue = "v\(value)"
 }
