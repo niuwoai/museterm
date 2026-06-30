@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- 规划文档补充 SwiftTerm 可行性决策矩阵、实现层分工、优先落地口径和 MVP 验证清单，明确哪些 terminal 设想由 SwiftTerm 支撑、哪些应由 MuseTerm 外层实现。
+
 ## [1.53.0] - 2026-07-01
 
 ### Added
