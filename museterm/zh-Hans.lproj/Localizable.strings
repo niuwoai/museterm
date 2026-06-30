@@ -353,6 +353,7 @@
 "runbook.suggested_next_action" = "建议排查动作";
 "runbook.suggested_next_action_safety" = "建议动作安全级别";
 "runbook.suggested_next_action_expected_signals" = "建议动作观察信号";
+"runbook.suggested_next_action_fallback_steps" = "建议动作降级步骤";
 "runbook.suggested_next_action_confirmation" = "建议动作需要确认";
 "runbook.suggested_next_action_rationale" = "建议动作原因";
 "runbook.filter_query" = "搜索过滤";

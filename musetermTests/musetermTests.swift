@@ -121,6 +121,9 @@ final class musetermTests: XCTestCase {
         let expectedSignals = try XCTUnwrap(suggestedNextAction["expectedSignals"] as? [String])
         XCTAssertEqual(expectedSignals.count, 2)
         XCTAssertTrue(expectedSignals[0].contains("expected working directory"))
+        let fallbackNextSteps = try XCTUnwrap(suggestedNextAction["fallbackNextSteps"] as? [String])
+        XCTAssertEqual(fallbackNextSteps.count, 2)
+        XCTAssertTrue(fallbackNextSteps[0].contains("first repeated failure output"))
         XCTAssertEqual(suggestedNextAction["safety"] as? String, CommandDiagnosticActionSafety.readOnly.rawValue)
         XCTAssertEqual(suggestedNextAction["requiresConfirmation"] as? Bool, true)
         XCTAssertEqual(repeatedFailure["diagnostic"] as? String, diagnostic)
@@ -483,6 +486,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_safety")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_expected_signals")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_fallback_steps")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_confirmation")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_rationale")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure")))
@@ -501,6 +505,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains("Inspect repeat context"))
         XCTAssertTrue(markdown.contains(CommandDiagnosticActionSafety.readOnly.rawValue))
         XCTAssertTrue(markdown.contains("expected working directory"))
+        XCTAssertTrue(markdown.contains("first repeated failure output"))
         XCTAssertTrue(markdown.contains("The latest failures repeat, so capture location and Git state before another retry."))
         XCTAssertFalse(markdown.contains(secret))
     }
@@ -538,6 +543,8 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Suggested next action rationale: The latest failures repeat"))
         XCTAssertTrue(context.contains("Suggested next action expected signals:"))
         XCTAssertTrue(context.contains("expected working directory"))
+        XCTAssertTrue(context.contains("Suggested next action fallback steps:"))
+        XCTAssertTrue(context.contains("first repeated failure output"))
         XCTAssertTrue(context.contains("Suggested next action requires confirmation: true"))
     }
 
@@ -608,6 +615,8 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(diagnostics.suggestedNextAction?.safety, .readOnly)
         XCTAssertEqual(diagnostics.suggestedNextAction?.expectedSignals.count, 2)
         XCTAssertTrue(diagnostics.suggestedNextAction?.expectedSignals.first?.contains("expected directory") == true)
+        XCTAssertEqual(diagnostics.suggestedNextAction?.fallbackNextSteps.count, 2)
+        XCTAssertTrue(diagnostics.suggestedNextAction?.fallbackNextSteps.first?.contains("parent directory") == true)
         XCTAssertEqual(diagnostics.suggestedNextAction?.requiresConfirmation, true)
     }
 
@@ -683,6 +692,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(portConflict.suggestedNextAction?.title, "List listening TCP ports")
         XCTAssertEqual(portConflict.suggestedNextAction?.safety, .readOnly)
         XCTAssertTrue(portConflict.suggestedNextAction?.expectedSignals.first?.contains("conflicting local port") == true)
+        XCTAssertTrue(portConflict.suggestedNextAction?.fallbackNextSteps.first?.contains("container") == true)
         XCTAssertEqual(missingCommand.diagnosticCategory, .missingCommand)
         XCTAssertEqual(missingCommand.diagnosticCategoryEvidence, "zsh: command not found: frobnicate")
         XCTAssertEqual(missingCommand.diagnosticCategoryConfidence, .high)
@@ -692,6 +702,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(missingCommand.suggestedNextAction?.confidence, .high)
         XCTAssertEqual(missingCommand.suggestedNextAction?.title, "Inspect PATH")
         XCTAssertTrue(missingCommand.suggestedNextAction?.expectedSignals.first?.contains("PATH") == true)
+        XCTAssertTrue(missingCommand.suggestedNextAction?.fallbackNextSteps.first?.contains("command -v") == true)
         XCTAssertEqual(missingFile.diagnosticCategory, .missingFile)
         XCTAssertEqual(missingFile.diagnosticCategoryEvidence, "cat: config.yml: No such file or directory")
         XCTAssertEqual(missingFile.diagnosticCategoryConfidence, .high)
@@ -701,6 +712,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(missingFile.suggestedNextAction?.confidence, .high)
         XCTAssertEqual(missingFile.suggestedNextAction?.title, "Inspect current directory")
         XCTAssertTrue(missingFile.suggestedNextAction?.expectedSignals.first?.contains("should contain the file") == true)
+        XCTAssertTrue(missingFile.suggestedNextAction?.fallbackNextSteps.first?.contains("project tree") == true)
         XCTAssertEqual(gitFailure.diagnosticCategory, .git)
         XCTAssertEqual(gitFailure.diagnosticCategoryEvidence, "git pull")
         XCTAssertEqual(gitFailure.diagnosticCategoryConfidence, .medium)
@@ -710,6 +722,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(gitFailure.suggestedNextAction?.confidence, .medium)
         XCTAssertEqual(gitFailure.suggestedNextAction?.title, "Inspect Git state")
         XCTAssertTrue(gitFailure.suggestedNextAction?.expectedSignals.first?.contains("current branch") == true)
+        XCTAssertTrue(gitFailure.suggestedNextAction?.fallbackNextSteps.first?.contains("remote") == true)
         XCTAssertEqual(genericFailure.diagnosticCategory, .generic)
         XCTAssertEqual(genericFailure.diagnosticCategoryEvidence, "ERROR validation failed")
         XCTAssertEqual(genericFailure.diagnosticCategoryConfidence, .low)
@@ -718,6 +731,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(genericFailure.suggestedNextAction?.confidence, .low)
         XCTAssertEqual(genericFailure.suggestedNextAction?.title, "Inspect local context")
         XCTAssertTrue(genericFailure.suggestedNextAction?.expectedSignals.first?.contains("working directory") == true)
+        XCTAssertTrue(genericFailure.suggestedNextAction?.fallbackNextSteps.first?.contains("exit code") == true)
     }
 
     func testSessionCommandStatsTracksRecentRedactedFailureDiagnostic() {

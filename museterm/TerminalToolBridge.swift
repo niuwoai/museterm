@@ -110,6 +110,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
     let rationale: String
     let command: String
     let expectedSignals: [String]
+    let fallbackNextSteps: [String]
     let safety: String
     let requiresConfirmation: Bool
 
@@ -121,6 +122,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
         rationale = action.rationale
         command = action.command
         expectedSignals = action.expectedSignals
+        fallbackNextSteps = action.fallbackNextSteps
         safety = action.safety.rawValue
         requiresConfirmation = action.requiresConfirmation
     }

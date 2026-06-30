@@ -1,8 +1,10 @@
 # Changelog
 
-## [Unreleased]
+## [1.54.0] - 2026-07-01
 
 ### Added
+- 结构化建议排查动作新增 `fallbackNextSteps`，记录观察不到预期信号时的只读降级排查方向。
+- Runbook、AI 上下文和 CLI/MCP `diagnostics.suggestedNextAction` 会同步暴露降级步骤，让失败排查从“下一条命令”延展为可复盘的小路径。
 - 规划文档补充 SwiftTerm 可行性决策矩阵、实现层分工、优先落地口径和 MVP 验证清单，明确哪些 terminal 设想由 SwiftTerm 支撑、哪些应由 MuseTerm 外层实现。
 
 ## [1.53.0] - 2026-07-01
