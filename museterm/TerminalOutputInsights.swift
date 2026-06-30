@@ -1,6 +1,6 @@
 import Foundation
 
-enum TerminalOutputInsightKind: String, CaseIterable {
+enum TerminalOutputInsightKind: String, CaseIterable, Codable {
     case error
     case warning
     case url
@@ -15,13 +15,71 @@ enum TerminalOutputInsightKind: String, CaseIterable {
     }
 }
 
-struct TerminalOutputInsight: Identifiable, Equatable {
+struct TerminalOutputInsight: Identifiable, Equatable, Codable {
     let kind: TerminalOutputInsightKind
     let value: String
     let line: String
 
     var id: String {
         "\(kind.rawValue):\(value):\(line)"
+    }
+}
+
+struct TerminalOutputSummary: Codable, Equatable {
+    var insightKinds: [TerminalOutputInsightKind]
+    var errorLine: String?
+    var warningLine: String?
+    var url: String?
+    var filePath: String?
+    var commitHash: String?
+    var stackTraceLine: String?
+
+    var isEmpty: Bool {
+        insightKinds.isEmpty
+            && errorLine == nil
+            && warningLine == nil
+            && url == nil
+            && filePath == nil
+            && commitHash == nil
+            && stackTraceLine == nil
+    }
+
+    var searchableText: String {
+        [
+            insightKinds.map(\.rawValue).joined(separator: " "),
+            errorLine ?? "",
+            warningLine ?? "",
+            url ?? "",
+            filePath ?? "",
+            commitHash ?? "",
+            stackTraceLine ?? ""
+        ].joined(separator: "\n")
+    }
+
+    var aiContextText: String {
+        var lines: [String] = []
+        if !insightKinds.isEmpty {
+            lines.append("Output insight kinds: \(insightKinds.map(\.rawValue).joined(separator: ", "))")
+        }
+        if let errorLine {
+            lines.append("Output error: \(errorLine)")
+        }
+        if let warningLine {
+            lines.append("Output warning: \(warningLine)")
+        }
+        if let url {
+            lines.append("Output URL: \(url)")
+        }
+        if let filePath {
+            lines.append("Output path: \(filePath)")
+        }
+        if let commitHash {
+            lines.append("Output commit: \(commitHash)")
+        }
+        if let stackTraceLine {
+            lines.append("Output stack: \(stackTraceLine)")
+        }
+        return lines.joined(separator: "\n")
     }
 }
 
@@ -112,6 +170,25 @@ enum TerminalOutputInsightAnalyzer {
         return lines.joined(separator: "\n")
     }
 
+    static func outputSummary(in text: String) -> TerminalOutputSummary? {
+        let insights = insights(in: text)
+        guard !insights.isEmpty else { return nil }
+
+        let kinds = TerminalOutputInsightKind.allCases.filter { kind in
+            insights.contains { $0.kind == kind }
+        }
+        let result = TerminalOutputSummary(
+            insightKinds: kinds,
+            errorLine: firstLine(for: .error, in: insights),
+            warningLine: firstLine(for: .warning, in: insights),
+            url: firstValue(for: .url, in: insights),
+            filePath: firstValue(for: .filePath, in: insights),
+            commitHash: firstValue(for: .commitHash, in: insights),
+            stackTraceLine: firstLine(for: .stackTrace, in: insights)
+        )
+        return result.isEmpty ? nil : result
+    }
+
     static func formattedJSON(in text: String) -> String? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard looksLikeJSON(trimmed), let data = trimmed.data(using: .utf8) else {
@@ -160,6 +237,14 @@ enum TerminalOutputInsightAnalyzer {
     private static func limit(_ text: String, to maxCharacters: Int) -> String {
         guard text.count > maxCharacters else { return text }
         return String(text.prefix(maxCharacters)) + "\n..."
+    }
+
+    private static func firstValue(for kind: TerminalOutputInsightKind, in insights: [TerminalOutputInsight]) -> String? {
+        insights.first { $0.kind == kind }?.value
+    }
+
+    private static func firstLine(for kind: TerminalOutputInsightKind, in insights: [TerminalOutputInsight]) -> String? {
+        insights.first { $0.kind == kind }?.line
     }
 
     private static func matches(in text: String, pattern: String) -> [String] {

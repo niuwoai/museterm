@@ -102,6 +102,7 @@ struct TerminalCommandBlock: Codable, Equatable, Identifiable {
     var exitCode: Int32?
     var outputTail: String
     var outputCharacterCount: Int
+    var outputSummary: TerminalOutputSummary?
     var isInteractive: Bool
     var commandStartSource: TerminalCommandStartSource?
     var completionSource: TerminalCommandCompletionSource?
@@ -123,6 +124,7 @@ struct TerminalCommandBlock: Codable, Equatable, Identifiable {
             command,
             workingDirectory ?? "",
             outputTail,
+            outputSummary?.searchableText ?? "",
             statusText,
             commandStartSource?.contextLabel ?? "",
             completionSource?.contextLabel ?? ""
@@ -154,6 +156,11 @@ struct TerminalCommandBlock: Codable, Equatable, Identifiable {
         lines.append("Status: \(statusText)")
         if let completionSource {
             lines.append("Completion source: \(completionSource.contextLabel)")
+        }
+        if let outputSummary, !outputSummary.isEmpty {
+            lines.append("")
+            lines.append("Output summary:")
+            lines.append(outputSummary.aiContextText)
         }
         if includeOutput, !outputTail.isEmpty {
             lines.append("")
@@ -302,6 +309,7 @@ final class TerminalSession: ObservableObject, Identifiable {
         let output = historySuffix(from: activeCommandOutputStartIndex, in: historySnapshot)
         commandBlocks[index].outputCharacterCount = output.count
         commandBlocks[index].outputTail = String(output.suffix(maxCommandOutputTailCharacters))
+        commandBlocks[index].outputSummary = TerminalOutputInsightAnalyzer.outputSummary(in: output)
     }
 
     func playShortcut(_ shortcut: TerminalShortcut) {
@@ -557,6 +565,7 @@ final class TerminalSession: ObservableObject, Identifiable {
             exitCode: nil,
             outputTail: "",
             outputCharacterCount: 0,
+            outputSummary: nil,
             isInteractive: false,
             commandStartSource: startSource,
             completionSource: nil

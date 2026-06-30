@@ -236,6 +236,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                     durationMilliseconds: block.durationMilliseconds,
                     outputTail: block.outputTail,
                     outputCharacterCount: block.outputCharacterCount,
+                    outputSummary: block.outputSummary,
                     isInteractive: block.isInteractive
                 )
             } ?? [],

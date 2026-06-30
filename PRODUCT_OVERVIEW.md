@@ -1,6 +1,6 @@
 # Product Overview
 
-> 最后更新：2026-07-01 | 当前版本：v1.32.0
+> 最后更新：2026-07-01 | 当前版本：v1.33.0
 
 ## 项目简介
 
@@ -23,7 +23,7 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 - 传输依赖提示：开始传输前检查远端 `rz`/`sz` 支持；远端缺少 `lrzsz` 时会在终端提示常见 Linux 发行版和 macOS 的安装命令，本机缺少 `lrzsz` 时提示使用 Homebrew 安装。
 - 标签保活：切换标签时终端渲染视图常驻，避免已有输出丢失或变空白。
 - 终端状态：自动同步终端标题、当前目录和进程退出状态。
-- 结构化命令块：旁路记录用户提交的命令、工作目录、时间、输出尾部、命令开始来源、退出/中断状态和完成来源，可区分 shell hook、用户输入推断、进程退出兜底、用户中断与覆盖结束，为历史搜索、Runbook 和 AI Explain 提供基础数据。
+- 结构化命令块：旁路记录用户提交的命令、工作目录、时间、输出尾部、紧凑输出摘要、命令开始来源、退出/中断状态和完成来源，可区分 shell hook、用户输入推断、进程退出兜底、用户中断与覆盖结束，为历史搜索、Runbook 和 AI Explain 提供基础数据。
 - Shell integration：本地 zsh 和 fish 会加载 MuseTerm 专用 preexec/postexec hook 以回传命令开始和真实退出码，本地 bash 通过生成 rcfile 挂载 `PROMPT_COMMAND` 回传退出码；SSH profile 可为远端 zsh 回传命令开始和退出码，为远端 bash 回传退出码，不写入远端启动文件；其他 shell 暂时使用保守识别。
 - 命令搜索面板：右侧检查面板可搜索当前标签的命令、目录、命令块输出和原始滚屏历史，支持仅看失败命令；命令块会轻量识别错误、警告、URL、文件路径、JSON/YAML、堆栈和 commit hash，并可复制命令、输出尾部、输出摘要、滚屏片段或 AI 上下文；JSON 输出摘要会自动带上格式化后的 pretty JSON。
 - 任务与端口面板：右侧面板可查看运行中的结构化命令块和本机监听 TCP 端口，支持刷新、打开 `localhost` URL、复制监听地址，并可将本机 `kill PID` 填入本地终端等待确认执行；当前会话工具可向本地或 SSH 标签填入端口扫描、进程列表、PID 详情、SIGTERM 和 SIGKILL 命令；面板还展示本次会话命令统计、当天跨重启累计统计、最长耗时和轻量成就徽章。
@@ -58,7 +58,7 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 
 ## API 概览
 
-本项目当前没有网络服务端 API。CLI/MCP 通过本机 `~/Library/Application Support/MuseTerm/Tools` 目录交换状态与输入请求，状态包含标签页屏幕、历史文本和最近结构化命令块；命令块包含开始来源和完成来源，便于外部工具判断命令边界来自 shell hook 还是输入推断、退出码来自 shell hook 还是进程退出兜底；CLI 支持 `tabs`、`screen`、`history`、`commands`、`input`、`key` 和 `mcp`。任务与端口面板通过系统 `lsof` 读取本机监听 TCP 端口，只展示并填入命令，不会直接结束进程；当前会话进程工具同样只向选中终端填入命令，是否执行由用户按回车确认。录制捷径保存在 `~/Library/Application Support/MuseTerm/TerminalShortcuts/shortcuts.json`，工作区快照保存在 `~/Library/Application Support/MuseTerm/Workspaces/last-workspace.json`，每日命令统计保存在 `~/Library/Application Support/MuseTerm/Stats/daily-command-stats.json`，SSH profile 与 AI Provider 非敏感配置保存在用户偏好中，AI API Key 通过 Keychain 保存，仅在 AI Explain 请求时进入对应 Provider 的请求 header 或 query，不写入 Runbook、MCP 状态或剪贴板上下文；命令搜索面板的脱敏开关会在 Runbook、AI 上下文和 AI Explain 请求中替换常见 token/password/API Key 形态；运行时 SSH config 生成到 `~/Library/Application Support/MuseTerm/SSH`，本地 zsh/bash/fish shell integration 生成到 `~/Library/Application Support/MuseTerm/ShellIntegration`，远端 shell hook 仅在当前 SSH 会话内临时生效。版本号通过应用内 `AppVersion` 和 Xcode `MARKETING_VERSION` 保持一致，发布最低系统版本通过 Xcode `MACOSX_DEPLOYMENT_TARGET` 管理。
+本项目当前没有网络服务端 API。CLI/MCP 通过本机 `~/Library/Application Support/MuseTerm/Tools` 目录交换状态与输入请求，状态包含标签页屏幕、历史文本和最近结构化命令块；命令块包含开始来源、完成来源和紧凑输出摘要，便于外部工具判断命令边界来自 shell hook 还是输入推断、退出码来自 shell hook 还是进程退出兜底，并直接读取错误、URL、路径和 commit 等关键线索；CLI 支持 `tabs`、`screen`、`history`、`commands`、`input`、`key` 和 `mcp`。任务与端口面板通过系统 `lsof` 读取本机监听 TCP 端口，只展示并填入命令，不会直接结束进程；当前会话进程工具同样只向选中终端填入命令，是否执行由用户按回车确认。录制捷径保存在 `~/Library/Application Support/MuseTerm/TerminalShortcuts/shortcuts.json`，工作区快照保存在 `~/Library/Application Support/MuseTerm/Workspaces/last-workspace.json`，每日命令统计保存在 `~/Library/Application Support/MuseTerm/Stats/daily-command-stats.json`，SSH profile 与 AI Provider 非敏感配置保存在用户偏好中，AI API Key 通过 Keychain 保存，仅在 AI Explain 请求时进入对应 Provider 的请求 header 或 query，不写入 Runbook、MCP 状态或剪贴板上下文；命令搜索面板的脱敏开关会在 Runbook、AI 上下文和 AI Explain 请求中替换常见 token/password/API Key 形态；运行时 SSH config 生成到 `~/Library/Application Support/MuseTerm/SSH`，本地 zsh/bash/fish shell integration 生成到 `~/Library/Application Support/MuseTerm/ShellIntegration`，远端 shell hook 仅在当前 SSH 会话内临时生效。版本号通过应用内 `AppVersion` 和 Xcode `MARKETING_VERSION` 保持一致，发布最低系统版本通过 Xcode `MACOSX_DEPLOYMENT_TARGET` 管理。
 
 ## 已知问题 / 待办
 

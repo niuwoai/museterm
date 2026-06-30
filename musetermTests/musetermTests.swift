@@ -201,6 +201,24 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(summary.contains("json:"))
     }
 
+    func testOutputInsightAnalyzerBuildsCompactOutputSummary() throws {
+        let output = """
+        ERROR failed to compile Sources/App.swift:42
+        See https://example.com/build/123
+        commit abc1234 fixed the issue
+        """
+
+        let summary = try XCTUnwrap(TerminalOutputInsightAnalyzer.outputSummary(in: output))
+
+        XCTAssertEqual(summary.errorLine, "ERROR failed to compile Sources/App.swift:42")
+        XCTAssertEqual(summary.url, "https://example.com/build/123")
+        XCTAssertEqual(summary.filePath, "Sources/App.swift:42")
+        XCTAssertEqual(summary.commitHash, "abc1234")
+        XCTAssertTrue(summary.insightKinds.contains(.error))
+        XCTAssertTrue(summary.searchableText.contains("abc1234"))
+        XCTAssertTrue(summary.aiContextText.contains("Output error:"))
+    }
+
     func testShellIntegrationParserAcceptsSplitCompletionMarker() {
         let parser = TerminalShellIntegrationParser()
 
@@ -262,6 +280,27 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(block.commandStartSource, .shellIntegration)
         XCTAssertTrue(block.searchableText.contains("shellIntegration"))
         XCTAssertTrue(block.aiContextText.contains("Command source: shellIntegration"))
+    }
+
+    func testCommandBlockStoresOutputSummary() throws {
+        let tab = TerminalSession(sequence: 1)
+
+        tab.observeProcessInput(
+            data: Array("swift build\r".utf8),
+            echoEnabled: true,
+            historySnapshot: "$ swift build\n"
+        )
+        tab.observeProcessOutput(
+            historySnapshot: "$ swift build\nERROR failed Sources/App.swift:42\nhttps://example.com/build\n"
+        )
+
+        let block = try XCTUnwrap(tab.commandBlocks.first)
+        let summary = try XCTUnwrap(block.outputSummary)
+        XCTAssertEqual(summary.errorLine, "ERROR failed Sources/App.swift:42")
+        XCTAssertEqual(summary.filePath, "Sources/App.swift:42")
+        XCTAssertEqual(summary.url, "https://example.com/build")
+        XCTAssertTrue(block.searchableText.contains("Sources/App.swift:42"))
+        XCTAssertTrue(block.aiContextText.contains("Output summary:"))
     }
 
 }

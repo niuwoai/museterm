@@ -67,6 +67,7 @@ struct TerminalToolCommandBlockSnapshot: Codable, Equatable {
     let durationMilliseconds: Int?
     let outputTail: String
     let outputCharacterCount: Int
+    let outputSummary: TerminalOutputSummary?
     let isInteractive: Bool
 }
 
