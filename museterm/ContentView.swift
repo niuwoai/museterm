@@ -155,6 +155,7 @@ private struct TabRowView: View {
     let shortcutNumber: Int?
     let skin: TerminalVisualSkin
     let closeAction: () -> Void
+    @State private var isHovering = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -191,6 +192,9 @@ private struct TabRowView: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
+            .opacity(isHovering ? 1 : 0)
+            .disabled(!isHovering)
+            .accessibilityHidden(!isHovering)
             .help(L10n.string("action.close_tab"))
         }
         .padding(.horizontal, 9)
@@ -202,6 +206,9 @@ private struct TabRowView: View {
                 .strokeBorder(isSelected ? skin.hairline : Color.clear, lineWidth: 1)
         )
         .contentShape(Rectangle())
+        .onHover { hovering in
+            isHovering = hovering
+        }
     }
 
     private var statusColor: Color {
