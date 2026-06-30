@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.94.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `resultReuseValidationChecks`，用稳定 code 描述复用历史建议命令结果前应完成的机器可读检查，例如刷新动态快照、匹配工作目录、Shell 环境、用户身份、Git 状态或失败指纹。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露结果复用验证检查，让外部工具在复用历史诊断前有明确的验证清单。
+
 ## [1.93.0] - 2026-07-01
 
 ### Added

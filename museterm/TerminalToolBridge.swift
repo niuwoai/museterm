@@ -161,6 +161,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
     let resultFreshnessPolicy: String
     let resultReuseKeyFields: [String]
     let resultReusePolicy: String
+    let resultReuseValidationChecks: [String]
     let retryCondition: String
     let requiresConfirmation: Bool
 
@@ -197,6 +198,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
         resultFreshnessPolicy = action.resultFreshnessPolicy.rawValue
         resultReuseKeyFields = action.resultReuseKeyFields.map(\.rawValue)
         resultReusePolicy = action.resultReusePolicy.rawValue
+        resultReuseValidationChecks = action.resultReuseValidationChecks.map(\.rawValue)
         retryCondition = action.retryCondition.rawValue
         requiresConfirmation = action.requiresConfirmation
     }

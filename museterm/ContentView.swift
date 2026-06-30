@@ -1538,6 +1538,12 @@ enum RunbookMarkdownExporter {
             lines.append(
                 "- \(L10n.string("runbook.suggested_next_action_result_reuse_policy")): \(suggestedNextAction.resultReusePolicy.rawValue)"
             )
+            if !suggestedNextAction.resultReuseValidationChecks.isEmpty {
+                let checks = suggestedNextAction.resultReuseValidationChecks.map(\.rawValue).joined(separator: ", ")
+                lines.append(
+                    "- \(L10n.string("runbook.suggested_next_action_result_reuse_validation_checks")): \(checks)"
+                )
+            }
             lines.append(
                 "- \(L10n.string("runbook.suggested_next_action_retry_condition")): \(suggestedNextAction.retryCondition.rawValue)"
             )

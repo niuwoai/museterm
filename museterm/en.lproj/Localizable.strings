@@ -373,6 +373,7 @@
 "runbook.suggested_next_action_result_freshness_policy" = "Suggested action result freshness policy";
 "runbook.suggested_next_action_result_reuse_key_fields" = "Suggested action result reuse key fields";
 "runbook.suggested_next_action_result_reuse_policy" = "Suggested action result reuse policy";
+"runbook.suggested_next_action_result_reuse_validation_checks" = "Suggested action result reuse validation checks";
 "runbook.suggested_next_action_retry_condition" = "Suggested action retry condition";
 "runbook.suggested_next_action_preflight_checks" = "Suggested action preflight checks";
 "runbook.suggested_next_action_automation_guardrails" = "Suggested action automation guardrails";
