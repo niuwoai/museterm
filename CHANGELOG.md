@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.45.0] - 2026-07-01
+
+### Added
+- 连续同类失败诊断新增 `matchKind`，区分完全相同的 `exact` 重复与归一化指纹命中的 `normalized` 同类失败。
+- Runbook、AI 上下文和 CLI/MCP `diagnostics` 会暴露连续失败匹配方式，便于外部工具判断诊断聚合可信度。
+
 ## [1.44.0] - 2026-07-01
 
 ### Added

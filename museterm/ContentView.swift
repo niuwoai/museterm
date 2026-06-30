@@ -1408,6 +1408,9 @@ enum RunbookMarkdownExporter {
                 "`\(escapeInline(repeatedFailureDiagnostic.diagnostic))`"
             )
             lines.append("- \(L10n.string("runbook.repeated_failure")): \(repeatedText)")
+            lines.append(
+                "- \(L10n.string("runbook.repeated_failure_match")): \(repeatedFailureDiagnostic.matchKind.rawValue)"
+            )
             let windowText = L10n.format(
                 "runbook.repeated_failure_window_value",
                 timestamp(repeatedFailureDiagnostic.firstOccurredAt),

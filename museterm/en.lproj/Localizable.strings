@@ -338,6 +338,7 @@
 "runbook.failure_fingerprint" = "Failure fingerprint";
 "runbook.repeated_failure" = "Repeated failure";
 "runbook.repeated_failure_value" = "%d times: %@";
+"runbook.repeated_failure_match" = "Repeated failure match";
 "runbook.repeated_failure_window" = "Repeated failure window";
 "runbook.repeated_failure_window_value" = "%@ to %@";
 "runbook.repeated_failure_duration" = "Repeated failure duration";

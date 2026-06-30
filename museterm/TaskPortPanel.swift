@@ -670,6 +670,7 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append(
                 "Repeated failure diagnostic: \(repeatedFailureDiagnostic.count)x \(repeatedFailureDiagnostic.diagnostic)"
             )
+            lines.append("Repeated failure match: \(repeatedFailureDiagnostic.matchKind.rawValue)")
             lines.append(
                 "Repeated failure window: \(Self.isoTimestamp(repeatedFailureDiagnostic.firstOccurredAt)) to \(Self.isoTimestamp(repeatedFailureDiagnostic.latestOccurredAt))"
             )
@@ -757,22 +758,29 @@ struct CommandBlockDiagnostics: Equatable {
 
         var count = 0
         var matchedBlocks: [TerminalCommandBlock] = []
+        var matchedRecords: [FailureDiagnosticRecord] = []
         for block in endedBlocks {
             guard isFailed(block),
-                  failureDiagnosticRecord(for: block, redactSensitiveData: redactSensitiveData)?.fingerprint == latestRecord.fingerprint else {
+                  let record = failureDiagnosticRecord(for: block, redactSensitiveData: redactSensitiveData),
+                  record.fingerprint == latestRecord.fingerprint else {
                 break
             }
             count += 1
             matchedBlocks.append(block)
+            matchedRecords.append(record)
         }
         guard count >= Self.repeatedFailureThreshold,
               let latestMatchedBlock = matchedBlocks.first,
               let firstMatchedBlock = matchedBlocks.last else {
             return nil
         }
+        let matchKind: RepeatedFailureMatchKind = matchedRecords.allSatisfy { $0.diagnostic == latestRecord.diagnostic }
+            ? .exact
+            : .normalized
         return RepeatedFailureDiagnostic(
             diagnostic: latestRecord.diagnostic,
             fingerprint: latestRecord.fingerprint,
+            matchKind: matchKind,
             firstOccurredAt: occurrenceDate(for: firstMatchedBlock),
             latestOccurredAt: occurrenceDate(for: latestMatchedBlock),
             durationMilliseconds: failureDurationMilliseconds(
@@ -841,10 +849,16 @@ struct CommandBlockDiagnostics: Equatable {
 struct RepeatedFailureDiagnostic: Equatable {
     let diagnostic: String
     let fingerprint: String
+    let matchKind: RepeatedFailureMatchKind
     let firstOccurredAt: Date
     let latestOccurredAt: Date
     let durationMilliseconds: Int
     let count: Int
+}
+
+enum RepeatedFailureMatchKind: String, Codable, Equatable {
+    case exact
+    case normalized
 }
 
 enum CommandDiagnosticSeverity: String, Codable, Equatable {

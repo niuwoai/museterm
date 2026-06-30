@@ -75,6 +75,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
             self.repeatedFailureDiagnostic = TerminalToolRepeatedFailureSnapshot(
                 diagnostic: repeatedFailureDiagnostic.diagnostic,
                 fingerprint: repeatedFailureDiagnostic.fingerprint,
+                matchKind: repeatedFailureDiagnostic.matchKind.rawValue,
                 firstOccurredAt: repeatedFailureDiagnostic.firstOccurredAt,
                 latestOccurredAt: repeatedFailureDiagnostic.latestOccurredAt,
                 durationMilliseconds: repeatedFailureDiagnostic.durationMilliseconds,
@@ -90,6 +91,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
 struct TerminalToolRepeatedFailureSnapshot: Codable, Equatable {
     let diagnostic: String
     let fingerprint: String
+    let matchKind: String
     let firstOccurredAt: Date
     let latestOccurredAt: Date
     let durationMilliseconds: Int
