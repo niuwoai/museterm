@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.1-rc4] - 2026-06-30
+
+### Fixed
+- 修复在设置里改「光标样式」后屏幕上仍是块状：Metal 渲染器按 `terminal.options.cursorStyle` 画光标，而旧实现只改了 `caretView.style`（仅非 Metal 路径生效）。改为调用 `terminal.setCursorStyle(_:)`，同时更新 Metal 与非 Metal 两条路径。
+- 修复在设置里改 ANSI 配色方案后不及时刷新：Metal 的 MTKView 为按需重绘（isPaused），而 SwiftTerm 的 `colorsChanged()` 只触发了 CoreText 路径、未请求 Metal 重绘，导致需等下次输出才更新。现在应用设置后统一强制刷新一次（Metal 经 `metalScaleFactorOverride` 触发重绘后落回默认，画面比例不变）。
+
 ## [1.7.1-rc3] - 2026-06-30
 
 ### Fixed

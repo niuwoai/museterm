@@ -109,7 +109,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
 
         configureMetalIfNeeded()
 
-        terminalView.needsDisplay = true
+        requestTerminalRepaint()
     }
 
     func layoutTerminalViews() {
@@ -177,7 +177,21 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         case .underline:
             style = blink ? .blinkUnderline : .steadyUnderline
         }
-        terminalView.cursorStyleChanged(source: terminal, newStyle: style)
+        // 必须走 setCursorStyle：它会更新 terminal.options.cursorStyle（Metal 渲染器据此
+        // 画光标）以及 caretView（非 Metal 路径）。仅调 cursorStyleChanged 只改 caretView，
+        // 在 Metal 开启时对屏幕上的光标无效。
+        terminal.setCursorStyle(style)
+    }
+
+    // Metal 渲染器是按需重绘（MTKView isPaused=true），颜色/光标/字体等设置变更不会自动
+    // 触发它重绘，于是“改了设置不及时生效”。这里在应用设置后强制刷新一次：CoreText 路径
+    // 用 needsDisplay；Metal 路径借 metalScaleFactorOverride 的 didSet 触发 requestMetalDisplay，
+    // 最终落回 nil（默认 backing scale），所以画面比例不变，只是被重画一次。
+    private func requestTerminalRepaint() {
+        terminalView.needsDisplay = true
+        guard terminalView.isUsingMetalRenderer else { return }
+        terminalView.metalScaleFactorOverride = 1
+        terminalView.metalScaleFactorOverride = nil
     }
 
     func toolSnapshot(
