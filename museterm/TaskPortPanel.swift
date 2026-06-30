@@ -617,6 +617,7 @@ struct CommandBlockDiagnostics: Equatable {
     let failedCommandCount: Int
     let latestFailedCommand: String?
     let recentFailureDiagnostic: String?
+    let recentFailureFingerprint: String?
     let repeatedFailureDiagnostic: RepeatedFailureDiagnostic?
     let suggestedNextInspection: String?
     let diagnosticSeverity: CommandDiagnosticSeverity
@@ -628,10 +629,12 @@ struct CommandBlockDiagnostics: Equatable {
             let command = block.command.trimmingCharacters(in: .whitespacesAndNewlines)
             return redactSensitiveData ? RunbookSensitiveRedactor.redact(command) : command
         }
-        recentFailureDiagnostic = failedBlocks
+        let recentFailureRecord = failedBlocks
             .sorted(by: Self.mostRecentFirst)
-            .compactMap { Self.failureDiagnostic(for: $0, redactSensitiveData: redactSensitiveData) }
+            .compactMap { Self.failureDiagnosticRecord(for: $0, redactSensitiveData: redactSensitiveData) }
             .first
+        recentFailureDiagnostic = recentFailureRecord?.diagnostic
+        recentFailureFingerprint = recentFailureRecord?.fingerprint
         repeatedFailureDiagnostic = Self.repeatedFailureDiagnostic(
             in: blocks,
             redactSensitiveData: redactSensitiveData
@@ -659,6 +662,9 @@ struct CommandBlockDiagnostics: Equatable {
         }
         if let recentFailureDiagnostic {
             lines.append("Recent failure diagnostic: \(recentFailureDiagnostic)")
+        }
+        if let recentFailureFingerprint {
+            lines.append("Recent failure fingerprint: \(recentFailureFingerprint)")
         }
         if let repeatedFailureDiagnostic {
             lines.append(
@@ -696,6 +702,42 @@ struct CommandBlockDiagnostics: Equatable {
         return redactSensitiveData ? RunbookSensitiveRedactor.redact(cleaned) : cleaned
     }
 
+    nonisolated private static func failureDiagnosticRecord(
+        for block: TerminalCommandBlock,
+        redactSensitiveData: Bool
+    ) -> FailureDiagnosticRecord? {
+        guard let diagnostic = failureDiagnostic(for: block, redactSensitiveData: redactSensitiveData) else {
+            return nil
+        }
+        return FailureDiagnosticRecord(
+            diagnostic: diagnostic,
+            fingerprint: failureDiagnosticFingerprint(for: diagnostic)
+        )
+    }
+
+    nonisolated private static func failureDiagnosticFingerprint(for diagnostic: String) -> String {
+        let redacted = RunbookSensitiveRedactor.redact(diagnostic)
+        var normalized = redacted.lowercased()
+        let replacements: [(pattern: String, value: String)] = [
+            (#"https?://\S+"#, "<url>"),
+            (#"\b[\w.%+-]+@[\w.-]+\.[a-z]{2,}\b"#, "<email>"),
+            (#"(?:/[a-z0-9._~+\-]+)+"#, "<path>"),
+            (#"[a-z]:\\[^\s]+"#, "<path>"),
+            (#"\b0x[0-9a-f]+\b"#, "<hex>"),
+            (#"\b[0-9a-f]{7,40}\b"#, "<hash>"),
+            (#"\b\d+(?:\.\d+)?\b"#, "<num>"),
+            (#"\s+"#, " ")
+        ]
+        for replacement in replacements {
+            normalized = normalized.replacingOccurrences(
+                of: replacement.pattern,
+                with: replacement.value,
+                options: .regularExpression
+            )
+        }
+        return String(normalized.trimmingCharacters(in: .whitespacesAndNewlines).prefix(180))
+    }
+
     nonisolated private static func repeatedFailureDiagnostic(
         in blocks: [TerminalCommandBlock],
         redactSensitiveData: Bool
@@ -705,20 +747,24 @@ struct CommandBlockDiagnostics: Equatable {
             .sorted(by: mostRecentFirst)
         guard let latest = endedBlocks.first,
               isFailed(latest),
-              let diagnostic = failureDiagnostic(for: latest, redactSensitiveData: redactSensitiveData) else {
+              let latestRecord = failureDiagnosticRecord(for: latest, redactSensitiveData: redactSensitiveData) else {
             return nil
         }
 
         var count = 0
         for block in endedBlocks {
             guard isFailed(block),
-                  failureDiagnostic(for: block, redactSensitiveData: redactSensitiveData) == diagnostic else {
+                  failureDiagnosticRecord(for: block, redactSensitiveData: redactSensitiveData)?.fingerprint == latestRecord.fingerprint else {
                 break
             }
             count += 1
         }
         guard count >= Self.repeatedFailureThreshold else { return nil }
-        return RepeatedFailureDiagnostic(diagnostic: diagnostic, count: count)
+        return RepeatedFailureDiagnostic(
+            diagnostic: latestRecord.diagnostic,
+            fingerprint: latestRecord.fingerprint,
+            count: count
+        )
     }
 
     nonisolated private static func diagnosticSeverity(
@@ -763,6 +809,7 @@ struct CommandBlockDiagnostics: Equatable {
 
 struct RepeatedFailureDiagnostic: Equatable {
     let diagnostic: String
+    let fingerprint: String
     let count: Int
 }
 
@@ -771,6 +818,11 @@ enum CommandDiagnosticSeverity: String, Codable, Equatable {
     case failed
     case repeated
     case critical
+}
+
+private struct FailureDiagnosticRecord: Equatable {
+    let diagnostic: String
+    let fingerprint: String
 }
 
 private struct PersistentCommandStatsSnapshot: Codable, Equatable {

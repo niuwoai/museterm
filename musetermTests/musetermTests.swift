@@ -90,11 +90,13 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(encodedDiagnostics["diagnosticSeverity"] as? String, CommandDiagnosticSeverity.repeated.rawValue)
         XCTAssertEqual(encodedDiagnostics["latestFailedCommand"] as? String, "make test")
         XCTAssertEqual(encodedDiagnostics["recentFailureDiagnostic"] as? String, diagnostic)
+        XCTAssertEqual(encodedDiagnostics["recentFailureFingerprint"] as? String, "error database is locked")
         XCTAssertEqual(
             encodedDiagnostics["suggestedNextInspection"] as? String,
             "Inspect the repeated failure output before rerunning: \(diagnostic)"
         )
         XCTAssertEqual(repeatedFailure["diagnostic"] as? String, diagnostic)
+        XCTAssertEqual(repeatedFailure["fingerprint"] as? String, "error database is locked")
         XCTAssertEqual(repeatedFailure["count"] as? Int, 3)
     }
 
@@ -436,6 +438,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failure")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.failed_commands")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.diagnostic_severity")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.failure_fingerprint")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_inspection")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure")))
@@ -461,9 +464,46 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Failed commands: 3"))
         XCTAssertTrue(context.contains("Latest failed command: make test"))
         XCTAssertTrue(context.contains("Recent failure diagnostic: ERROR database is locked"))
+        XCTAssertTrue(context.contains("Recent failure fingerprint: error database is locked"))
         XCTAssertTrue(context.contains("Repeated failure diagnostic: 3x ERROR database is locked"))
         XCTAssertTrue(context.contains("Diagnostic severity: repeated"))
         XCTAssertTrue(context.contains("Suggested next inspection: Inspect the repeated failure output before rerunning"))
+    }
+
+    func testCommandBlockDiagnosticsGroupsNormalizedRepeatedFailures() throws {
+        let diagnostics = CommandBlockDiagnostics(
+            blocks: [
+                commandBlock(
+                    command: "make test",
+                    startedAt: 100,
+                    endedAt: 101,
+                    exitCode: 1,
+                    errorLine: "ERROR retry 1 failed at /tmp/build-1/output.log"
+                ),
+                commandBlock(
+                    command: "make test",
+                    startedAt: 110,
+                    endedAt: 111,
+                    exitCode: 1,
+                    errorLine: "ERROR retry 2 failed at /tmp/build-2/output.log"
+                ),
+                commandBlock(
+                    command: "make test",
+                    startedAt: 120,
+                    endedAt: 121,
+                    exitCode: 1,
+                    errorLine: "ERROR retry 3 failed at /tmp/build-3/output.log"
+                )
+            ],
+            redactSensitiveData: false
+        )
+        let repeated = try XCTUnwrap(diagnostics.repeatedFailureDiagnostic)
+
+        XCTAssertEqual(diagnostics.recentFailureFingerprint, "error retry <num> failed at <path>")
+        XCTAssertEqual(repeated.count, 3)
+        XCTAssertEqual(repeated.diagnostic, "ERROR retry 3 failed at /tmp/build-3/output.log")
+        XCTAssertEqual(repeated.fingerprint, "error retry <num> failed at <path>")
+        XCTAssertEqual(diagnostics.diagnosticSeverity, .repeated)
     }
 
     func testCommandBlockDiagnosticsMarksCriticalFailure() {

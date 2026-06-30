@@ -335,6 +335,7 @@
 "runbook.diagnostic_severity" = "诊断严重级别";
 "runbook.latest_failed_command" = "最近失败命令";
 "runbook.latest_failure" = "最近失败";
+"runbook.failure_fingerprint" = "失败指纹";
 "runbook.repeated_failure" = "连续同类失败";
 "runbook.repeated_failure_value" = "连续 %d 次：%@";
 "runbook.suggested_next_inspection" = "建议下一步查看";

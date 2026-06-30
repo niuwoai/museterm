@@ -61,6 +61,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
     let diagnosticSeverity: String
     let latestFailedCommand: String?
     let recentFailureDiagnostic: String?
+    let recentFailureFingerprint: String?
     let repeatedFailureDiagnostic: TerminalToolRepeatedFailureSnapshot?
     let suggestedNextInspection: String?
 
@@ -69,9 +70,11 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
         diagnosticSeverity = diagnostics.diagnosticSeverity.rawValue
         latestFailedCommand = diagnostics.latestFailedCommand
         recentFailureDiagnostic = diagnostics.recentFailureDiagnostic
+        recentFailureFingerprint = diagnostics.recentFailureFingerprint
         if let repeatedFailureDiagnostic = diagnostics.repeatedFailureDiagnostic {
             self.repeatedFailureDiagnostic = TerminalToolRepeatedFailureSnapshot(
                 diagnostic: repeatedFailureDiagnostic.diagnostic,
+                fingerprint: repeatedFailureDiagnostic.fingerprint,
                 count: repeatedFailureDiagnostic.count
             )
         } else {
@@ -83,6 +86,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
 
 struct TerminalToolRepeatedFailureSnapshot: Codable, Equatable {
     let diagnostic: String
+    let fingerprint: String
     let count: Int
 }
 

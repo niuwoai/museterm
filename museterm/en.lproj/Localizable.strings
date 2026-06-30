@@ -335,6 +335,7 @@
 "runbook.diagnostic_severity" = "Diagnostic severity";
 "runbook.latest_failed_command" = "Latest failed command";
 "runbook.latest_failure" = "Latest failure";
+"runbook.failure_fingerprint" = "Failure fingerprint";
 "runbook.repeated_failure" = "Repeated failure";
 "runbook.repeated_failure_value" = "%d times: %@";
 "runbook.suggested_next_inspection" = "Suggested next inspection";

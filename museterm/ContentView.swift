@@ -1398,6 +1398,9 @@ enum RunbookMarkdownExporter {
         if let recentFailureDiagnostic = diagnostics.recentFailureDiagnostic {
             lines.append("- \(L10n.string("runbook.latest_failure")): `\(escapeInline(recentFailureDiagnostic))`")
         }
+        if let recentFailureFingerprint = diagnostics.recentFailureFingerprint {
+            lines.append("- \(L10n.string("runbook.failure_fingerprint")): `\(escapeInline(recentFailureFingerprint))`")
+        }
         if let repeatedFailureDiagnostic = diagnostics.repeatedFailureDiagnostic {
             let repeatedText = L10n.format(
                 "runbook.repeated_failure_value",
