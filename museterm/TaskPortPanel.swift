@@ -670,6 +670,9 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append(
                 "Repeated failure diagnostic: \(repeatedFailureDiagnostic.count)x \(repeatedFailureDiagnostic.diagnostic)"
             )
+            lines.append(
+                "Repeated failure window: \(Self.isoTimestamp(repeatedFailureDiagnostic.firstOccurredAt)) to \(Self.isoTimestamp(repeatedFailureDiagnostic.latestOccurredAt))"
+            )
         }
         if diagnosticSeverity != .none {
             lines.append("Diagnostic severity: \(diagnosticSeverity.rawValue)")
@@ -752,17 +755,25 @@ struct CommandBlockDiagnostics: Equatable {
         }
 
         var count = 0
+        var matchedBlocks: [TerminalCommandBlock] = []
         for block in endedBlocks {
             guard isFailed(block),
                   failureDiagnosticRecord(for: block, redactSensitiveData: redactSensitiveData)?.fingerprint == latestRecord.fingerprint else {
                 break
             }
             count += 1
+            matchedBlocks.append(block)
         }
-        guard count >= Self.repeatedFailureThreshold else { return nil }
+        guard count >= Self.repeatedFailureThreshold,
+              let latestMatchedBlock = matchedBlocks.first,
+              let firstMatchedBlock = matchedBlocks.last else {
+            return nil
+        }
         return RepeatedFailureDiagnostic(
             diagnostic: latestRecord.diagnostic,
             fingerprint: latestRecord.fingerprint,
+            firstOccurredAt: occurrenceDate(for: firstMatchedBlock),
+            latestOccurredAt: occurrenceDate(for: latestMatchedBlock),
             count: count
         )
     }
@@ -804,12 +815,22 @@ struct CommandBlockDiagnostics: Equatable {
         return nil
     }
 
+    nonisolated private static func occurrenceDate(for block: TerminalCommandBlock) -> Date {
+        block.endedAt ?? block.startedAt
+    }
+
+    nonisolated private static func isoTimestamp(_ date: Date) -> String {
+        ISO8601DateFormatter().string(from: date)
+    }
+
     nonisolated private static let repeatedFailureThreshold = 3
 }
 
 struct RepeatedFailureDiagnostic: Equatable {
     let diagnostic: String
     let fingerprint: String
+    let firstOccurredAt: Date
+    let latestOccurredAt: Date
     let count: Int
 }
 

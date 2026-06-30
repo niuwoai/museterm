@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.43.0] - 2026-07-01
+
+### Added
+- 连续同类失败诊断新增首末发生时间，Runbook、AI 上下文和 CLI/MCP `diagnostics` 可直接看到这波失败的时间窗口。
+- `RepeatedFailureDiagnostic` 会记录 `firstOccurredAt` 与 `latestOccurredAt`，为后续失败趋势、回放和排查排序打基础。
+
 ## [1.42.0] - 2026-07-01
 
 ### Added

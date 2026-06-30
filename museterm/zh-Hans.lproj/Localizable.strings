@@ -338,6 +338,8 @@
 "runbook.failure_fingerprint" = "失败指纹";
 "runbook.repeated_failure" = "连续同类失败";
 "runbook.repeated_failure_value" = "连续 %d 次：%@";
+"runbook.repeated_failure_window" = "连续失败时间窗";
+"runbook.repeated_failure_window_value" = "%@ 至 %@";
 "runbook.suggested_next_inspection" = "建议下一步查看";
 "runbook.filter_query" = "搜索过滤";
 "runbook.filter_failures" = "仅失败命令";

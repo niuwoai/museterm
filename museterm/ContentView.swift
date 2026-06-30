@@ -1408,6 +1408,12 @@ enum RunbookMarkdownExporter {
                 "`\(escapeInline(repeatedFailureDiagnostic.diagnostic))`"
             )
             lines.append("- \(L10n.string("runbook.repeated_failure")): \(repeatedText)")
+            let windowText = L10n.format(
+                "runbook.repeated_failure_window_value",
+                timestamp(repeatedFailureDiagnostic.firstOccurredAt),
+                timestamp(repeatedFailureDiagnostic.latestOccurredAt)
+            )
+            lines.append("- \(L10n.string("runbook.repeated_failure_window")): \(windowText)")
         }
         if let suggestedNextInspection = diagnostics.suggestedNextInspection {
             lines.append("- \(L10n.string("runbook.suggested_next_inspection")): \(escapeInline(suggestedNextInspection))")

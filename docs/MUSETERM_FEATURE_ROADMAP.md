@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.42.0
+> 当前版本基线：v1.43.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,7 +30,7 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.42.0 已完成三十四条纵向切片：
+v1.43.0 已完成三十五条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
@@ -46,6 +46,7 @@ v1.42.0 已完成三十四条纵向切片：
 - 诊断摘要可操作化：`CommandBlockDiagnostics` 新增失败命令数、最近失败命令和建议下一步查看项，并同步进入 Runbook、AI 当前过滤上下文与 CLI/MCP `diagnostics`。
 - 诊断严重级别：`CommandBlockDiagnostics` 新增 `diagnosticSeverity`，将 none/failed/repeated/critical 暴露到 Runbook、AI 上下文和 CLI/MCP `diagnostics`，帮助外部工具先判断排查优先级。
 - 诊断指纹归一化：最近失败诊断会生成脱敏后的 `recentFailureFingerprint`，连续同类失败改用归一化指纹比较，避免行号、路径、URL、hash 或重试次数变化导致同类失败被拆散。
+- 连续失败时间窗：`RepeatedFailureDiagnostic` 新增 `firstOccurredAt` 与 `latestOccurredAt`，Runbook、AI 上下文和 CLI/MCP `diagnostics` 能直接看到这波同类失败从何时开始、最新一次发生在何时。
 - CLI/MCP 命令块读取：已新增 `museterm commands` 和 MCP `read_commands`。
 - 命令搜索 UI：已提供右侧命令搜索面板，可按命令、目录和输出搜索，并支持失败过滤。
 - 滚屏历史搜索：命令搜索面板会同时搜索当前标签原始滚屏历史，展示脱敏后的命中片段和命中数量，覆盖尚未形成结构化命令块的输出。
