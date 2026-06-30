@@ -1489,6 +1489,12 @@ enum RunbookMarkdownExporter {
                     "- \(L10n.string("runbook.suggested_next_action_automation_guardrails")): \(automationGuardrails)"
                 )
             }
+            if !suggestedNextAction.userDecisionPoints.isEmpty {
+                let userDecisionPoints = suggestedNextAction.userDecisionPoints
+                    .map { "`\(escapeInline($0))`" }
+                    .joined(separator: ", ")
+                lines.append("- \(L10n.string("runbook.suggested_next_action_user_decision_points")): \(userDecisionPoints)")
+            }
             if !suggestedNextAction.expectedSignals.isEmpty {
                 let expectedSignals = suggestedNextAction.expectedSignals
                     .map { "`\(escapeInline($0))`" }

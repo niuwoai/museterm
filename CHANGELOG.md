@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.77.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `userDecisionPoints`，用结构化清单说明哪些判断必须交给用户拍板。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露用户决策点，例如是否停进程、提权、安装依赖、恢复文件或处理 Git 状态。
+
 ## [1.76.0] - 2026-07-01
 
 ### Added
