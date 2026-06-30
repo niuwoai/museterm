@@ -53,6 +53,29 @@ enum TerminalLaunchConfiguration: Equatable {
     }
 }
 
+enum TerminalCommandCompletionSource: String, Codable, Equatable {
+    case shellIntegration
+    case processExit
+    case userInterrupt
+    case superseded
+    case unknown
+
+    var contextLabel: String {
+        switch self {
+        case .shellIntegration:
+            return "shellIntegration"
+        case .processExit:
+            return "processExit"
+        case .userInterrupt:
+            return "userInterrupt"
+        case .superseded:
+            return "superseded"
+        case .unknown:
+            return "unknown"
+        }
+    }
+}
+
 struct TerminalCommandBlock: Codable, Equatable, Identifiable {
     var id: UUID
     var command: String
@@ -63,6 +86,7 @@ struct TerminalCommandBlock: Codable, Equatable, Identifiable {
     var outputTail: String
     var outputCharacterCount: Int
     var isInteractive: Bool
+    var completionSource: TerminalCommandCompletionSource?
 
     var durationMilliseconds: Int? {
         guard let endedAt else { return nil }
@@ -81,7 +105,8 @@ struct TerminalCommandBlock: Codable, Equatable, Identifiable {
             command,
             workingDirectory ?? "",
             outputTail,
-            statusText
+            statusText,
+            completionSource?.contextLabel ?? ""
         ].joined(separator: "\n")
     }
 
@@ -105,6 +130,9 @@ struct TerminalCommandBlock: Codable, Equatable, Identifiable {
             lines.append("Duration: \(durationMilliseconds) ms")
         }
         lines.append("Status: \(statusText)")
+        if let completionSource {
+            lines.append("Completion source: \(completionSource.contextLabel)")
+        }
         if includeOutput, !outputTail.isEmpty {
             lines.append("")
             lines.append("Output tail:")
@@ -217,7 +245,11 @@ final class TerminalSession: ObservableObject, Identifiable {
                     pendingCommandBytes.removeLast()
                 }
             case 0x03:
-                finishActiveCommand(exitCode: 130, historySnapshot: historySnapshot)
+                finishActiveCommand(
+                    exitCode: 130,
+                    completionSource: .userInterrupt,
+                    historySnapshot: historySnapshot
+                )
                 pendingCommandBytes.removeAll(keepingCapacity: true)
             default:
                 if byte == 0x09 || byte >= 0x20 {
@@ -291,7 +323,11 @@ final class TerminalSession: ObservableObject, Identifiable {
         fileTransferStatus = status
     }
 
-    func finishActiveCommand(exitCode: Int32?, historySnapshot: String) {
+    func finishActiveCommand(
+        exitCode: Int32?,
+        completionSource: TerminalCommandCompletionSource = .unknown,
+        historySnapshot: String
+    ) {
         observeProcessOutput(historySnapshot: historySnapshot)
         guard let activeCommandBlockID,
               let index = commandBlocks.firstIndex(where: { $0.id == activeCommandBlockID }) else {
@@ -299,6 +335,7 @@ final class TerminalSession: ObservableObject, Identifiable {
         }
         commandBlocks[index].endedAt = Date()
         commandBlocks[index].exitCode = exitCode
+        commandBlocks[index].completionSource = completionSource
         self.activeCommandBlockID = nil
         activeCommandOutputStartIndex = historySnapshot.count
     }
@@ -447,7 +484,11 @@ final class TerminalSession: ObservableObject, Identifiable {
         }
 
         if activeCommandBlockID != nil {
-            finishActiveCommand(exitCode: nil, historySnapshot: historySnapshot)
+            finishActiveCommand(
+                exitCode: nil,
+                completionSource: .superseded,
+                historySnapshot: historySnapshot
+            )
         }
 
         let block = TerminalCommandBlock(
@@ -459,7 +500,8 @@ final class TerminalSession: ObservableObject, Identifiable {
             exitCode: nil,
             outputTail: "",
             outputCharacterCount: 0,
-            isInteractive: false
+            isInteractive: false,
+            completionSource: nil
         )
         commandBlocks.append(block)
         if commandBlocks.count > maxCommandBlocks {

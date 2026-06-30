@@ -62,6 +62,7 @@ struct TerminalToolCommandBlockSnapshot: Codable, Equatable {
     let startedAt: Date
     let endedAt: Date?
     let exitCode: Int32?
+    let completionSource: String?
     let durationMilliseconds: Int?
     let outputTail: String
     let outputCharacterCount: Int

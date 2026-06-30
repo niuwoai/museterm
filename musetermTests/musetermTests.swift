@@ -201,4 +201,38 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(summary.contains("json:"))
     }
 
+    func testShellIntegrationParserAcceptsSplitCompletionMarker() {
+        let parser = TerminalShellIntegrationParser()
+
+        let firstChunk = Array("\u{1B}]777;MuseTerm;".utf8)
+        let secondChunk = Array("end=127\u{7}".utf8)
+
+        XCTAssertEqual(parser.accept(firstChunk[...]), [])
+        XCTAssertEqual(parser.accept(secondChunk[...]), [.commandFinished(127)])
+    }
+
+    func testCommandBlockStoresCompletionSource() throws {
+        let tab = TerminalSession(sequence: 1)
+
+        tab.observeProcessInput(
+            data: Array("swift test\r".utf8),
+            echoEnabled: true,
+            historySnapshot: "$ swift test\n"
+        )
+        XCTAssertEqual(tab.commandBlocks.count, 1)
+        XCTAssertNil(tab.commandBlocks[0].completionSource)
+
+        tab.finishActiveCommand(
+            exitCode: 1,
+            completionSource: .shellIntegration,
+            historySnapshot: "$ swift test\nTests failed\n"
+        )
+
+        let block = try XCTUnwrap(tab.commandBlocks.first)
+        XCTAssertEqual(block.exitCode, 1)
+        XCTAssertEqual(block.completionSource, .shellIntegration)
+        XCTAssertTrue(block.searchableText.contains("shellIntegration"))
+        XCTAssertTrue(block.aiContextText.contains("Completion source: shellIntegration"))
+    }
+
 }

@@ -231,6 +231,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                     startedAt: block.startedAt,
                     endedAt: block.endedAt,
                     exitCode: block.exitCode,
+                    completionSource: block.completionSource?.rawValue,
                     durationMilliseconds: block.durationMilliseconds,
                     outputTail: block.outputTail,
                     outputCharacterCount: block.outputCharacterCount,
@@ -347,7 +348,11 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func processTerminated(source: TerminalView, exitCode: Int32?) {
-        session?.finishActiveCommand(exitCode: exitCode, historySnapshot: fullHistoryText())
+        session?.finishActiveCommand(
+            exitCode: exitCode,
+            completionSource: .processExit,
+            historySnapshot: fullHistoryText()
+        )
         session?.state = .exited(exitCode)
     }
 
@@ -472,7 +477,11 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         for event in events {
             switch event {
             case .commandFinished(let exitCode):
-                session?.finishActiveCommand(exitCode: exitCode, historySnapshot: historySnapshot)
+                session?.finishActiveCommand(
+                    exitCode: exitCode,
+                    completionSource: .shellIntegration,
+                    historySnapshot: historySnapshot
+                )
             }
         }
     }
@@ -1825,7 +1834,7 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
     }
 }
 
-private enum TerminalShellIntegrationEvent: Equatable {
+enum TerminalShellIntegrationEvent: Equatable {
     case commandFinished(Int32)
 }
 
@@ -1972,7 +1981,7 @@ private final class SafetyPreviewTextView: NSScrollView {
     }
 }
 
-private final class TerminalShellIntegrationParser {
+final class TerminalShellIntegrationParser {
     private static let markerPrefix = "\u{1B}]777;MuseTerm;"
     private static let markerTerminator: Character = "\u{7}"
     private static let maxBufferCharacters = 8_192
