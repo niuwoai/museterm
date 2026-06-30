@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.81.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `expectedResultKind`，用稳定 code 标明建议命令预期产出的结果类型，例如监听端口列表、身份与权限信息、PATH、目录列表、Git 状态或上下文快照。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露预期结果类型，便于外部工具按结果形态解释后续输出。
+
 ## [1.80.0] - 2026-07-01
 
 ### Added

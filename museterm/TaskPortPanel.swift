@@ -758,6 +758,7 @@ struct CommandBlockDiagnostics: Equatable {
                 lines.append("Suggested next action evidence anchors: \(evidenceAnchors)")
             }
             lines.append("Suggested next action scope: \(suggestedNextAction.actionScope.rawValue)")
+            lines.append("Suggested next action expected result kind: \(suggestedNextAction.expectedResultKind.rawValue)")
             lines.append("Suggested next action title: \(suggestedNextAction.title)")
             lines.append("Suggested next action safety: \(suggestedNextAction.safety.rawValue)")
             lines.append("Suggested next action execution mode: \(suggestedNextAction.executionMode.rawValue)")
@@ -1117,6 +1118,7 @@ struct CommandBlockDiagnostics: Equatable {
                 priorityFactors: diagnosticPriorityFactors,
                 evidenceAnchors: evidenceAnchors,
                 actionScope: .localNetwork,
+                expectedResultKind: .listeningPorts,
                 title: "List listening TCP ports",
                 rationale: "The latest failure looks like a local port conflict, so inspect listeners before rerunning.",
                 command: "lsof -nP -iTCP -sTCP:LISTEN",
@@ -1157,6 +1159,7 @@ struct CommandBlockDiagnostics: Equatable {
                 priorityFactors: diagnosticPriorityFactors,
                 evidenceAnchors: evidenceAnchors,
                 actionScope: .permissionBoundary,
+                expectedResultKind: .identityAndPermissions,
                 title: "Inspect current permissions",
                 rationale: "The latest failure mentions permission denied, so check the working directory and current user.",
                 command: "pwd && id && ls -ld .",
@@ -1197,6 +1200,7 @@ struct CommandBlockDiagnostics: Equatable {
                 priorityFactors: diagnosticPriorityFactors,
                 evidenceAnchors: evidenceAnchors,
                 actionScope: .shellEnvironment,
+                expectedResultKind: .shellPath,
                 title: "Inspect PATH",
                 rationale: "The latest failure says a command is missing, so check which directories the shell searches.",
                 command: "echo \"$PATH\"",
@@ -1237,6 +1241,7 @@ struct CommandBlockDiagnostics: Equatable {
                 priorityFactors: diagnosticPriorityFactors,
                 evidenceAnchors: evidenceAnchors,
                 actionScope: .workingDirectory,
+                expectedResultKind: .directoryListing,
                 title: "Inspect current directory",
                 rationale: "The latest failure references a missing file, so confirm the current directory and visible files.",
                 command: "pwd && ls -la",
@@ -1277,6 +1282,7 @@ struct CommandBlockDiagnostics: Equatable {
                 priorityFactors: diagnosticPriorityFactors,
                 evidenceAnchors: evidenceAnchors,
                 actionScope: .gitRepository,
+                expectedResultKind: .gitStatus,
                 title: "Inspect Git state",
                 rationale: "The latest failed command or diagnostic is Git-related, so inspect branch and dirty state first.",
                 command: "git status --short --branch",
@@ -1317,6 +1323,7 @@ struct CommandBlockDiagnostics: Equatable {
                 priorityFactors: diagnosticPriorityFactors,
                 evidenceAnchors: evidenceAnchors,
                 actionScope: .repeatedFailureContext,
+                expectedResultKind: .contextSnapshot,
                 title: "Inspect repeat context",
                 rationale: "The latest failures repeat, so capture location and Git state before another retry.",
                 command: "pwd && git status --short --branch 2>/dev/null || true",
@@ -1357,6 +1364,7 @@ struct CommandBlockDiagnostics: Equatable {
                 priorityFactors: diagnosticPriorityFactors,
                 evidenceAnchors: evidenceAnchors,
                 actionScope: .terminalSession,
+                expectedResultKind: .contextSnapshot,
                 title: "Inspect local context",
                 rationale: "The failure is not specific enough yet, so capture location and Git state as a safe first step.",
                 command: "pwd && git status --short --branch 2>/dev/null || true",
@@ -1502,6 +1510,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let priorityFactors: [CommandDiagnosticPriorityFactor]
     let evidenceAnchors: [CommandDiagnosticEvidenceAnchor]
     let actionScope: CommandDiagnosticActionScope
+    let expectedResultKind: CommandDiagnosticActionResultKind
     let title: String
     let rationale: String
     let command: String
@@ -1525,6 +1534,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         priorityFactors: [CommandDiagnosticPriorityFactor],
         evidenceAnchors: [CommandDiagnosticEvidenceAnchor],
         actionScope: CommandDiagnosticActionScope,
+        expectedResultKind: CommandDiagnosticActionResultKind,
         title: String,
         rationale: String,
         command: String,
@@ -1547,6 +1557,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         self.priorityFactors = priorityFactors
         self.evidenceAnchors = evidenceAnchors
         self.actionScope = actionScope
+        self.expectedResultKind = expectedResultKind
         self.title = title
         self.rationale = rationale
         self.command = command
@@ -1598,6 +1609,15 @@ enum CommandDiagnosticActionScope: String, Codable, Equatable {
     case workingDirectory = "working_directory"
     case gitRepository = "git_repository"
     case repeatedFailureContext = "repeated_failure_context"
+}
+
+enum CommandDiagnosticActionResultKind: String, Codable, Equatable {
+    case listeningPorts = "listening_ports"
+    case identityAndPermissions = "identity_and_permissions"
+    case shellPath = "shell_path"
+    case directoryListing = "directory_listing"
+    case gitStatus = "git_status"
+    case contextSnapshot = "context_snapshot"
 }
 
 enum CommandDiagnosticActionExecutionTarget: String, Codable, Equatable {

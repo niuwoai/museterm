@@ -1471,6 +1471,9 @@ enum RunbookMarkdownExporter {
             lines.append(
                 "- \(L10n.string("runbook.suggested_next_action_scope")): \(suggestedNextAction.actionScope.rawValue)"
             )
+            lines.append(
+                "- \(L10n.string("runbook.suggested_next_action_expected_result_kind")): \(suggestedNextAction.expectedResultKind.rawValue)"
+            )
             lines.append("- \(L10n.string("runbook.suggested_next_action")): \(escapeInline(suggestedNextAction.title))")
             lines.append(
                 "- \(L10n.string("runbook.suggested_next_action_safety")): \(suggestedNextAction.safety.rawValue)"
