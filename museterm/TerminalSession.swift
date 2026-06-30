@@ -45,6 +45,7 @@ final class TerminalSession: ObservableObject, Identifiable {
     @Published var state: State = .running
     @Published private(set) var activeRecordingStartedAt: Date?
     @Published private(set) var isPlayingShortcut = false
+    @Published private(set) var fileTransferStatus: TerminalFileTransferStatus?
 
     lazy var controller = TerminalHostController(session: self)
     private var recorder: TerminalShortcutRecorder?
@@ -133,6 +134,22 @@ final class TerminalSession: ObservableObject, Identifiable {
                 self?.isPlayingShortcut = false
             }
         }
+    }
+
+    func startZModemUpload(fileURLs: [URL]) {
+        guard case .running = state else { return }
+        startProcessIfNeeded()
+        controller.startZModemUpload(fileURLs: fileURLs)
+    }
+
+    func startZModemDownload(remotePath: String, destinationFile: URL) {
+        guard case .running = state else { return }
+        startProcessIfNeeded()
+        controller.startZModemDownload(remotePath: remotePath, destinationFile: destinationFile)
+    }
+
+    func updateFileTransferStatus(_ status: TerminalFileTransferStatus?) {
+        fileTransferStatus = status
     }
 
     var displayTitle: String {
@@ -393,6 +410,16 @@ final class TerminalWorkspace: ObservableObject {
     func playShortcut(_ shortcut: TerminalShortcut) {
         guard !isRecording else { return }
         selectedTab?.playShortcut(shortcut)
+        objectWillChange.send()
+    }
+
+    func startZModemUpload(fileURLs: [URL]) {
+        selectedTab?.startZModemUpload(fileURLs: fileURLs)
+        objectWillChange.send()
+    }
+
+    func startZModemDownload(remotePath: String, destinationFile: URL) {
+        selectedTab?.startZModemDownload(remotePath: remotePath, destinationFile: destinationFile)
         objectWillChange.send()
     }
 

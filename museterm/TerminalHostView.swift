@@ -36,6 +36,10 @@ struct TerminalHostView: NSViewRepresentable {
 
 final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private static let minimumStartSize = CGSize(width: 120, height: 80)
+    private static let uploadReadyMarker = "__MUSETERM_ZMODEM_UPLOAD_READY__"
+    private static let uploadMissingMarker = "__MUSETERM_ZMODEM_UPLOAD_MISSING__"
+    private static let downloadReadyMarker = "__MUSETERM_ZMODEM_DOWNLOAD_READY__"
+    private static let downloadMissingMarker = "__MUSETERM_ZMODEM_DOWNLOAD_MISSING__"
 
     let container = NSView(frame: .zero)
     private let visualEffectView = NSVisualEffectView(frame: .zero)
@@ -43,11 +47,21 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private let terminalLeadingMarginView = NSView(frame: .zero)
     private let terminalTrailingMarginView = NSView(frame: .zero)
     private let terminalView = FocusableLocalProcessTerminalView(frame: .zero)
+    private let startupCoverView = NSView(frame: .zero)
     private weak var session: TerminalSession?
     private var didStart = false
     private var pendingStart = false
+    private var pendingStartWorkItem: DispatchWorkItem?
+    private var startupPromptSettleWorkItem: DispatchWorkItem?
+    private var startupCoverFallbackWorkItem: DispatchWorkItem?
+    private var startupPromptRedrawDeadline: TimeInterval = 0
+    private var didRunStartupPromptRedraw = false
+    private var didSendStartupRedraw = false
+    private var didReceiveProcessInput = false
     private var didConfigureMetal = false
     private var lastAppliedPreferences: TerminalPreferenceSignature?
+    private var pendingZModemProbe: PendingZModemProbe?
+    private var activeZModemTransfer: ZModemBridgeProcess?
 
     init(session: TerminalSession) {
         self.session = session
@@ -75,6 +89,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         let background = preferences.skin.terminalBackground.withOpacity(CGFloat(preferences.terminalOpacity))
         terminalLeadingMarginView.layer?.backgroundColor = background.cgColor
         terminalTrailingMarginView.layer?.backgroundColor = background.cgColor
+        // 遮罩用不透明的终端背景色，保证完全遮住底下的文字（背景本身可能半透明）。
+        startupCoverView.layer?.backgroundColor = preferences.skin.terminalBackground.cgColor
         terminalView.nativeForegroundColor = preferences.skin.terminalForeground
         terminalView.nativeBackgroundColor = background
         terminalView.layer?.backgroundColor = background.cgColor
@@ -85,6 +101,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.lineSpacing = CGFloat(preferences.lineHeight)
         terminalView.optionAsMetaKey = preferences.optionAsMeta
         terminalView.allowMouseReporting = preferences.mouseReporting
+        applyCursorStyle(shape: preferences.cursorShape, blink: preferences.cursorBlink)
         terminalView.customBlockGlyphs = true
         terminalView.antiAliasCustomBlockGlyphs = true
         terminalView.useBrightColors = true
@@ -114,7 +131,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.frame = container.bounds
         terminalView.frame.origin.x += marginWidth
         terminalView.frame.size.width = max(0, terminalView.frame.width - marginWidth * 2)
-        startPendingProcessIfReady()
+        startupCoverView.frame = container.bounds
+        schedulePendingProcessStartIfReady()
     }
 
     func terminate() {
@@ -123,9 +141,11 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
 
     func ensureProcessStarted() {
         if canStartProcess {
-            startProcessIfNeeded()
+            pendingStart = true
+            schedulePendingProcessStartIfReady()
         } else {
             pendingStart = true
+            pendingStartWorkItem?.cancel()
         }
     }
 
@@ -143,6 +163,20 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     func invalidateDisplay() {
         terminalView.needsDisplay = true
         terminalView.layer?.setNeedsDisplay()
+    }
+
+    private func applyCursorStyle(shape: TerminalCursorShape, blink: Bool) {
+        guard let terminal = terminalView.terminal else { return }
+        let style: CursorStyle
+        switch shape {
+        case .block:
+            style = blink ? .blinkBlock : .steadyBlock
+        case .bar:
+            style = blink ? .blinkBar : .steadyBar
+        case .underline:
+            style = blink ? .blinkUnderline : .steadyUnderline
+        }
+        terminalView.cursorStyleChanged(source: terminal, newStyle: style)
     }
 
     func toolSnapshot(
@@ -175,6 +209,86 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
 
     func sendProcessInput(bytes: [UInt8]) {
         terminalView.send(source: terminalView, data: bytes[...])
+    }
+
+    func startZModemUpload(fileURLs: [URL]) {
+        guard didStart, terminalView.process.running else {
+            reportFileTransferFailure(kind: .upload, reason: L10n.string("file_transfer.error.process_unavailable"))
+            return
+        }
+        guard !fileURLs.isEmpty else {
+            reportFileTransferFailure(kind: .upload, reason: L10n.string("file_transfer.error.no_file"))
+            return
+        }
+        guard let toolURL = ZModemLocalTool.executable(named: "sz") else {
+            reportLocalToolMissing(kind: .upload, toolName: "sz")
+            return
+        }
+
+        cancelActiveZModemTransfer()
+        let probe = PendingZModemProbe(
+            kind: .upload,
+            readyMarker: Self.uploadReadyMarker,
+            missingMarker: Self.uploadMissingMarker,
+            startLocalTransfer: { [weak self] initialRemoteBytes in
+                self?.startLocalZModemTransfer(
+                    kind: .upload,
+                    executableURL: toolURL,
+                    arguments: ["-b"] + fileURLs.map(\.path),
+                    currentDirectory: nil,
+                    initialRemoteBytes: initialRemoteBytes
+                )
+            }
+        )
+        pendingZModemProbe = probe
+        session?.updateFileTransferStatus(.checkingRemote(kind: .upload))
+        sendProcessInput(bytes: Array(remoteUploadProbeCommand.utf8))
+        scheduleZModemProbeTimeout(probeID: probe.id)
+    }
+
+    func startZModemDownload(remotePath: String, destinationFile: URL) {
+        guard didStart, terminalView.process.running else {
+            reportFileTransferFailure(kind: .download, reason: L10n.string("file_transfer.error.process_unavailable"))
+            return
+        }
+        let cleanedRemotePath = remotePath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanedRemotePath.isEmpty else {
+            reportFileTransferFailure(kind: .download, reason: L10n.string("file_transfer.error.no_remote_path"))
+            return
+        }
+        guard let toolURL = ZModemLocalTool.executable(named: "rz") else {
+            reportLocalToolMissing(kind: .download, toolName: "rz")
+            return
+        }
+
+        let downloadPlan: ZModemDownloadPlan
+        do {
+            downloadPlan = try ZModemDownloadPlan(remotePath: cleanedRemotePath, destinationFile: destinationFile)
+        } catch {
+            reportFileTransferFailure(kind: .download, reason: error.localizedDescription)
+            return
+        }
+
+        cancelActiveZModemTransfer()
+        let probe = PendingZModemProbe(
+            kind: .download,
+            readyMarker: Self.downloadReadyMarker,
+            missingMarker: Self.downloadMissingMarker,
+            startLocalTransfer: { [weak self] initialRemoteBytes in
+                self?.startLocalZModemTransfer(
+                    kind: .download,
+                    executableURL: toolURL,
+                    arguments: ["-E"],
+                    currentDirectory: downloadPlan.temporaryDirectory,
+                    initialRemoteBytes: initialRemoteBytes,
+                    downloadPlan: downloadPlan
+                )
+            }
+        )
+        pendingZModemProbe = probe
+        session?.updateFileTransferStatus(.checkingRemote(kind: .download))
+        sendProcessInput(bytes: Array(remoteDownloadProbeCommand(remotePath: cleanedRemotePath).utf8))
+        scheduleZModemProbeTimeout(probeID: probe.id)
     }
 
     var terminalEchoEnabled: Bool {
@@ -221,7 +335,21 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             self?.focusTerminal()
         }
         terminalView.onReadyForProcessStart = { [weak self] in
-            self?.startPendingProcessIfReady()
+            self?.schedulePendingProcessStartIfReady()
+        }
+        terminalView.onStableTerminalResize = { [weak self] cols, rows in
+            self?.applyStablePTYSize(newCols: cols, newRows: rows)
+        }
+        terminalView.onProcessInputSent = { [weak self] in
+            self?.didReceiveProcessInput = true
+        }
+        terminalView.onTerminalTitle = { [weak self] title in
+            guard let self else { return }
+            self.setTerminalTitle(source: self.terminalView, title: title)
+        }
+        terminalView.onCurrentDirectory = { [weak self] directory in
+            guard let self else { return }
+            self.hostCurrentDirectoryUpdate(source: self.terminalView, directory: directory)
         }
         terminalView.shouldRecordInput = { [weak self] in
             guard let session = self?.session else { return false }
@@ -230,19 +358,163 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.onSendToProcess = { [weak self] data, echoEnabled in
             self?.session?.recordInputIfNeeded(data: data, echoEnabled: echoEnabled)
         }
+        terminalView.onReceivedProcessData = { [weak self] data in
+            self?.handleProcessOutputForZModem(data) ?? false
+        }
         container.addSubview(terminalView)
+
+        // 启动期遮罩：盖在终端最上层，新建标签时遮住首屏 PS1 的抖动/重绘/清屏，
+        // 待画面稳定后淡出，避免用户看到“先两条再变一条”的闪烁。
+        startupCoverView.wantsLayer = true
+        startupCoverView.autoresizingMask = [.width, .height]
+        startupCoverView.isHidden = true
+        startupCoverView.layer?.opacity = 1
+        container.addSubview(startupCoverView)
+
         layoutTerminalViews()
+    }
+
+    private func handleProcessOutputForZModem(_ data: ArraySlice<UInt8>) -> Bool {
+        noteStartupOutputActivity()
+        if let activeZModemTransfer {
+            activeZModemTransfer.acceptRemoteData(Array(data))
+            return true
+        }
+
+        guard let pendingZModemProbe else { return false }
+        let bytes = Array(data)
+        if let result = pendingZModemProbe.acceptRemoteProbeData(bytes) {
+            self.pendingZModemProbe = nil
+            switch result {
+            case .ready(let initialRemoteBytes):
+                pendingZModemProbe.startLocalTransfer(initialRemoteBytes)
+            case .missing:
+                reportRemoteToolMissing(kind: pendingZModemProbe.kind)
+            }
+        }
+        return true
+    }
+
+    private func startLocalZModemTransfer(
+        kind: TerminalFileTransferKind,
+        executableURL: URL,
+        arguments: [String],
+        currentDirectory: URL?,
+        initialRemoteBytes: [UInt8],
+        downloadPlan: ZModemDownloadPlan? = nil
+    ) {
+        do {
+            let transfer = try ZModemBridgeProcess(
+                executableURL: executableURL,
+                arguments: arguments,
+                currentDirectory: currentDirectory,
+                onOutput: { [weak self] output in
+                    DispatchQueue.main.async {
+                        guard let self, self.terminalView.process.running else { return }
+                        self.terminalView.send(source: self.terminalView, data: output[...])
+                    }
+                },
+                onProgress: { [weak self] progress in
+                    DispatchQueue.main.async {
+                        self?.session?.updateFileTransferStatus(.transferring(kind: kind, progress: progress))
+                    }
+                },
+                onExit: { [weak self] exitCode in
+                    DispatchQueue.main.async {
+                        self?.finishZModemTransfer(kind: kind, exitCode: exitCode, downloadPlan: downloadPlan)
+                    }
+                }
+            )
+            activeZModemTransfer = transfer
+            session?.updateFileTransferStatus(.transferring(kind: kind, progress: nil))
+            if !initialRemoteBytes.isEmpty {
+                transfer.acceptRemoteData(initialRemoteBytes)
+            }
+        } catch {
+            reportFileTransferFailure(kind: kind, reason: error.localizedDescription)
+        }
+    }
+
+    private func finishZModemTransfer(kind: TerminalFileTransferKind, exitCode: Int32, downloadPlan: ZModemDownloadPlan?) {
+        activeZModemTransfer = nil
+        if exitCode == 0 {
+            do {
+                try downloadPlan?.moveDownloadedFileToDestination()
+                session?.updateFileTransferStatus(.completed(kind: kind))
+                terminalView.feed(text: "\n\(L10n.string(kind == .upload ? "file_transfer.upload.completed" : "file_transfer.download.completed"))\n")
+            } catch {
+                reportFileTransferFailure(kind: kind, reason: error.localizedDescription)
+            }
+            downloadPlan?.cleanup()
+        } else {
+            reportFileTransferFailure(kind: kind, reason: L10n.format("file_transfer.error.local_exit", exitCode))
+            downloadPlan?.cleanup()
+        }
+    }
+
+    private func cancelActiveZModemTransfer() {
+        pendingZModemProbe = nil
+        activeZModemTransfer?.terminate()
+        activeZModemTransfer = nil
+    }
+
+    private func reportLocalToolMissing(kind: TerminalFileTransferKind, toolName: String) {
+        let reason = L10n.format("file_transfer.error.local_tool_missing", toolName)
+        reportFileTransferFailure(kind: kind, reason: reason)
+        terminalView.feed(text: "\n\(reason)\n\(L10n.string("file_transfer.local_install"))\n")
+    }
+
+    private func reportRemoteToolMissing(kind: TerminalFileTransferKind) {
+        let toolName = kind == .upload ? "rz" : "sz"
+        let reason = L10n.format("file_transfer.error.remote_tool_missing", toolName)
+        reportFileTransferFailure(kind: kind, reason: reason)
+        terminalView.feed(text: "\n\(reason)\n\(L10n.string("file_transfer.remote_install"))\n")
+    }
+
+    private func reportFileTransferFailure(kind: TerminalFileTransferKind, reason: String) {
+        session?.updateFileTransferStatus(.failed(kind: kind, reason: reason))
+    }
+
+    private func scheduleZModemProbeTimeout(probeID: UUID) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+            guard let self, self.pendingZModemProbe?.id == probeID else { return }
+            let kind = self.pendingZModemProbe?.kind ?? .upload
+            self.pendingZModemProbe = nil
+            self.reportFileTransferFailure(kind: kind, reason: L10n.string("file_transfer.error.remote_probe_timeout"))
+        }
+    }
+
+    private var remoteUploadProbeCommand: String {
+        """
+        if command -v rz >/dev/null 2>&1; then printf '\\n\(Self.uploadReadyMarker)\\n'; rz -E; else printf '\\n\(Self.uploadMissingMarker)\\n'; fi
+        """
+        + "\n"
+    }
+
+    private func remoteDownloadProbeCommand(remotePath: String) -> String {
+        """
+        if command -v sz >/dev/null 2>&1; then printf '\\n\(Self.downloadReadyMarker)\\n'; sz -e -- \(Self.shellQuoted(remotePath)); else printf '\\n\(Self.downloadMissingMarker)\\n'; fi
+        """
+        + "\n"
+    }
+
+    private static func shellQuoted(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     private func startProcessIfNeeded() {
         guard !didStart else { return }
         pendingStart = false
+        pendingStartWorkItem?.cancel()
+        pendingStartWorkItem = nil
         didStart = true
 
         switch session?.launchConfiguration ?? .localShell {
         case .localShell:
             let shell = Self.loginShell()
             let execName = "-" + URL(fileURLWithPath: shell).lastPathComponent
+            // 先盖上遮罩，再启动进程：保证 shell 的第一条 PS1 输出抵达前画面已被遮住。
+            beginStartupPromptDeduplication()
             terminalView.startProcess(
                 executable: shell,
                 environment: Self.environmentArray(),
@@ -285,9 +557,151 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             && terminalView.bounds.height >= Self.minimumStartSize.height
     }
 
-    private func startPendingProcessIfReady() {
+    private func schedulePendingProcessStartIfReady() {
+        pendingStartWorkItem?.cancel()
         guard pendingStart, canStartProcess else { return }
-        startProcessIfNeeded()
+        let scheduledSize = terminalView.bounds.size
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            guard self.pendingStart, self.canStartProcess else { return }
+            guard self.terminalView.bounds.size == scheduledSize else {
+                self.schedulePendingProcessStartIfReady()
+                return
+            }
+            self.startProcessIfNeeded()
+        }
+        pendingStartWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: workItem)
+    }
+
+    private func applyStablePTYSize(newCols: Int, newRows: Int) {
+        guard terminalView.process.running else { return }
+        var size = terminalView.getWindowSize()
+        let _ = PseudoTerminalHelpers.setWinSize(
+            masterPtyDescriptor: terminalView.process.childfd,
+            windowSize: &size
+        )
+        sizeChanged(source: terminalView, newCols: newCols, newRows: newRows)
+    }
+
+    // 新建标签时，shell 打印 PS1 后常因启动期 SIGWINCH（窗口尺寸尚未稳定）触发
+    // zle reset-prompt，把提示符在顶部重绘成多条。这里全程用遮罩盖住首屏，在背后
+    // 等输出停止抖动再检测：若发现重复提示符就发 ^L 让 shell 清屏重绘成单条，等画面
+    // 真正干净后再把遮罩淡出。用户因此只会看到一条干净 PS1 平滑出现，看不到中间过程。
+    private func beginStartupPromptDeduplication() {
+        didRunStartupPromptRedraw = false
+        didSendStartupRedraw = false
+        // 启动窗口：超过该时限即收手（兜底淡出遮罩），避免极端情况下一直盖着空白。
+        startupPromptRedrawDeadline = ProcessInfo.processInfo.systemUptime + 1.0
+        showStartupCover()
+
+        let fallback = DispatchWorkItem { [weak self] in
+            self?.finishStartupPromptDeduplication()
+        }
+        startupCoverFallbackWorkItem = fallback
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: fallback)
+    }
+
+    // 每当有新输出抵达就重排一次“静默后检测”，确保只在所有启动抖动结束后才判定，
+    // 无论重复提示符是立刻出现还是在 shell 初始化稍慢后才出现都能覆盖。
+    private func noteStartupOutputActivity() {
+        guard !didRunStartupPromptRedraw, !didSendStartupRedraw, !didReceiveProcessInput else { return }
+        scheduleStartupPromptSettleCheck()
+    }
+
+    private func scheduleStartupPromptSettleCheck() {
+        startupPromptSettleWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            guard !self.didRunStartupPromptRedraw else { return }
+            if self.didReceiveProcessInput {
+                // 用户已经开始输入，立即放行，别再挡着。
+                self.finishStartupPromptDeduplication()
+                return
+            }
+            guard self.terminalView.process.running else {
+                self.finishStartupPromptDeduplication()
+                return
+            }
+            // 还没有任何可见输出（PS1 尚未打印）——继续等后续输出或兜底淡出。
+            guard self.hasVisibleStartupContent() else { return }
+
+            let withinWindow = ProcessInfo.processInfo.systemUptime < self.startupPromptRedrawDeadline
+            if withinWindow, self.visibleScreenLooksLikeDuplicatedStartupPrompt() {
+                self.didSendStartupRedraw = true
+                self.terminalView.process.send(data: [0x0C][...])
+                self.invalidateDisplay()
+                // ^L 只重绘一条干净 PS1，很快；用固定短延时淡出，不再等一整轮静默。
+                let finish = DispatchWorkItem { [weak self] in
+                    self?.finishStartupPromptDeduplication()
+                }
+                self.startupPromptSettleWorkItem = finish
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: finish)
+            } else {
+                // 画面已稳定且无重复（本就干净，或 ^L 已清理完成）→ 淡出遮罩。
+                self.finishStartupPromptDeduplication()
+            }
+        }
+        startupPromptSettleWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: workItem)
+    }
+
+    private func finishStartupPromptDeduplication() {
+        guard !didRunStartupPromptRedraw else { return }
+        didRunStartupPromptRedraw = true
+        startupPromptSettleWorkItem?.cancel()
+        startupCoverFallbackWorkItem?.cancel()
+        hideStartupCover()
+    }
+
+    private func showStartupCover() {
+        startupCoverView.layer?.removeAllAnimations()
+        startupCoverView.layer?.opacity = 1
+        startupCoverView.isHidden = false
+    }
+
+    private func hideStartupCover() {
+        guard !startupCoverView.isHidden else { return }
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = startupCoverView.layer?.presentation()?.opacity ?? 1
+        fade.toValue = 0
+        fade.duration = 0.12
+        fade.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        startupCoverView.layer?.add(fade, forKey: "fadeOut")
+        startupCoverView.layer?.opacity = 0
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) { [weak self] in
+            guard let self, self.startupCoverView.layer?.opacity == 0 else { return }
+            self.startupCoverView.isHidden = true
+        }
+    }
+
+    private func hasVisibleStartupContent() -> Bool {
+        visibleScreenText().contains { !$0.isWhitespace && !$0.isNewline }
+    }
+
+    private func visibleScreenLooksLikeDuplicatedStartupPrompt() -> Bool {
+        let lines = visibleScreenText()
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        // 主判据（与主题无关）：当前活动提示符是最后一条非空行，如果它在上方还有
+        // 一模一样的副本，说明提示符被渲染了不止一次。对 powerline/agnoster/p10k/
+        // 纯文本提示符都成立。
+        if let prompt = lines.last, prompt.count >= 3 {
+            let duplicates = lines.dropLast().filter { $0 == prompt }.count
+            if duplicates >= 1 {
+                return true
+            }
+        }
+
+        // 兜底：两次重绘内容不完全一致时（例如右侧时钟在两次渲染间跳了一秒），
+        // 退回到“顶部出现多条 powerline / 右对齐时间提示符”的弱判据。
+        let promptLike = lines.prefix(8).filter { line in
+            line.contains(" at ")
+                || (line.contains("\u{e0b0}") && line.contains("\u{e0b2}"))
+        }
+        return promptLike.count >= 2
     }
 
     private func configureMetalIfNeeded() {
@@ -337,7 +751,427 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         environment["TERM"] = "xterm-256color"
         environment["LANG"] = environment["LANG"] ?? "en_US.UTF-8"
         environment["MUSETERM_TERMINAL"] = "1"
+        environment["POWERLEVEL9K_INSTANT_PROMPT"] = environment["POWERLEVEL9K_INSTANT_PROMPT"] ?? "off"
+        environment["MUSETERM_ORIGINAL_XDG_CACHE_HOME"] = environment["XDG_CACHE_HOME"] ?? ""
+        environment["XDG_CACHE_HOME"] = museTermShellCacheDirectory()
         return environment.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }
+    }
+
+    private static func museTermShellCacheDirectory() -> String {
+        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        let url = base
+            .appendingPathComponent("MuseTerm", isDirectory: true)
+            .appendingPathComponent("ShellCache", isDirectory: true)
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        removePowerlevelInstantPromptCache(in: url)
+        return url.path
+    }
+
+    private static func removePowerlevelInstantPromptCache(in directory: URL) {
+        guard let urls = try? FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil
+        ) else {
+            return
+        }
+        for url in urls where url.lastPathComponent.hasPrefix("p10k-instant-prompt-") {
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+}
+
+enum TerminalFileTransferKind: Equatable {
+    case upload
+    case download
+}
+
+enum TerminalFileTransferPhase: Equatable {
+    case checkingRemote
+    case transferring
+    case completed
+    case failed
+}
+
+struct TerminalFileTransferStatus: Equatable {
+    let kind: TerminalFileTransferKind
+    let phase: TerminalFileTransferPhase
+    let reason: String?
+    let progress: TerminalFileTransferProgress?
+
+    var isActive: Bool {
+        phase == .checkingRemote || phase == .transferring
+    }
+
+    var localizedSummary: String {
+        if let reason, phase == .failed {
+            return reason
+        }
+
+        switch (kind, phase) {
+        case (.upload, .checkingRemote):
+            return L10n.string("file_transfer.upload.checking")
+        case (.upload, .transferring):
+            return L10n.string("file_transfer.upload.running")
+        case (.upload, .completed):
+            return L10n.string("file_transfer.upload.completed")
+        case (.upload, .failed):
+            return L10n.string("file_transfer.upload.failed")
+        case (.download, .checkingRemote):
+            return L10n.string("file_transfer.download.checking")
+        case (.download, .transferring):
+            return L10n.string("file_transfer.download.running")
+        case (.download, .completed):
+            return L10n.string("file_transfer.download.completed")
+        case (.download, .failed):
+            return L10n.string("file_transfer.download.failed")
+        }
+    }
+
+    static func checkingRemote(kind: TerminalFileTransferKind) -> Self {
+        Self(kind: kind, phase: .checkingRemote, reason: nil, progress: nil)
+    }
+
+    static func transferring(kind: TerminalFileTransferKind, progress: TerminalFileTransferProgress?) -> Self {
+        Self(kind: kind, phase: .transferring, reason: nil, progress: progress)
+    }
+
+    static func completed(kind: TerminalFileTransferKind) -> Self {
+        Self(kind: kind, phase: .completed, reason: nil, progress: TerminalFileTransferProgress(percent: 1, fileName: nil, detail: nil))
+    }
+
+    static func failed(kind: TerminalFileTransferKind, reason: String) -> Self {
+        Self(kind: kind, phase: .failed, reason: reason, progress: nil)
+    }
+}
+
+struct TerminalFileTransferProgress: Equatable {
+    let percent: Double?
+    let fileName: String?
+    let detail: String?
+
+    init(percent: Double?, fileName: String?, detail: String?) {
+        self.percent = percent.map { min(1, max(0, $0)) }
+        self.fileName = fileName
+        self.detail = detail
+    }
+}
+
+private final class PendingZModemProbe {
+    enum Result {
+        case ready(initialRemoteBytes: [UInt8])
+        case missing
+    }
+
+    let id = UUID()
+    let kind: TerminalFileTransferKind
+    let startLocalTransfer: ([UInt8]) -> Void
+    private let readyMarker: [UInt8]
+    private let missingMarker: [UInt8]
+    private var buffer: [UInt8] = []
+    private let maxProbeBufferSize = 16_384
+
+    init(
+        kind: TerminalFileTransferKind,
+        readyMarker: String,
+        missingMarker: String,
+        startLocalTransfer: @escaping ([UInt8]) -> Void
+    ) {
+        self.kind = kind
+        self.readyMarker = Array(readyMarker.utf8)
+        self.missingMarker = Array(missingMarker.utf8)
+        self.startLocalTransfer = startLocalTransfer
+    }
+
+    func acceptRemoteProbeData(_ bytes: [UInt8]) -> Result? {
+        buffer.append(contentsOf: bytes)
+        if buffer.count > maxProbeBufferSize {
+            buffer.removeFirst(buffer.count - maxProbeBufferSize)
+        }
+
+        if buffer.firstRange(of: missingMarker) != nil {
+            return .missing
+        }
+
+        guard let readyRange = buffer.firstRange(of: readyMarker) else {
+            return nil
+        }
+
+        let trailingBytes = Array(buffer[readyRange.upperBound...])
+        return .ready(initialRemoteBytes: trailingBytes)
+    }
+}
+
+private extension Array where Element == UInt8 {
+    func firstRange(of marker: [UInt8]) -> Range<Int>? {
+        guard !marker.isEmpty, marker.count <= count else { return nil }
+        for index in 0...(count - marker.count) {
+            if self[index..<(index + marker.count)].elementsEqual(marker) {
+                return index..<(index + marker.count)
+            }
+        }
+        return nil
+    }
+}
+
+private struct ZModemDownloadPlan {
+    let remoteBasename: String
+    let destinationFile: URL
+    let temporaryDirectory: URL
+
+    init(remotePath: String, destinationFile: URL) throws {
+        let remoteBasename = Self.basename(from: remotePath)
+        guard !remoteBasename.isEmpty else {
+            throw NSError(
+                domain: "MuseTermZModem",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: L10n.string("file_transfer.error.remote_basename")]
+            )
+        }
+
+        let temporaryDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MuseTermZModem", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
+
+        self.remoteBasename = remoteBasename
+        self.destinationFile = destinationFile
+        self.temporaryDirectory = temporaryDirectory
+    }
+
+    func moveDownloadedFileToDestination() throws {
+        let expected = temporaryDirectory.appendingPathComponent(remoteBasename)
+        let source: URL
+        if FileManager.default.fileExists(atPath: expected.path) {
+            source = expected
+        } else {
+            let receivedFiles = try FileManager.default.contentsOfDirectory(
+                at: temporaryDirectory,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles]
+            ).filter { url in
+                (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
+            }
+            guard let first = receivedFiles.first else {
+                throw NSError(
+                    domain: "MuseTermZModem",
+                    code: 2,
+                    userInfo: [NSLocalizedDescriptionKey: L10n.string("file_transfer.error.download_missing")]
+                )
+            }
+            source = first
+        }
+
+        let destinationDirectory = destinationFile.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: destinationDirectory, withIntermediateDirectories: true)
+        if FileManager.default.fileExists(atPath: destinationFile.path) {
+            try FileManager.default.removeItem(at: destinationFile)
+        }
+        try FileManager.default.moveItem(at: source, to: destinationFile)
+    }
+
+    func cleanup() {
+        try? FileManager.default.removeItem(at: temporaryDirectory)
+    }
+
+    private static func basename(from remotePath: String) -> String {
+        let trimmed = remotePath.trimmingCharacters(in: .whitespacesAndNewlines)
+        let withoutTrailingSlash = trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return withoutTrailingSlash.split(separator: "/").last.map(String.init) ?? ""
+    }
+}
+
+private final class ZModemProgressParser {
+    private var bufferedText = ""
+    private var lastFileName: String?
+    private let maxBufferedTextLength = 8_192
+
+    func accept(stderrData: Data) -> TerminalFileTransferProgress? {
+        let text = String(data: stderrData, encoding: .utf8)
+            ?? String(data: stderrData, encoding: .isoLatin1)
+            ?? ""
+        guard !text.isEmpty else { return nil }
+
+        bufferedText.append(text)
+        if bufferedText.count > maxBufferedTextLength {
+            bufferedText.removeFirst(bufferedText.count - maxBufferedTextLength)
+        }
+
+        let candidates = bufferedText
+            .components(separatedBy: CharacterSet(charactersIn: "\r\n"))
+            .map(Self.cleanProgressLine)
+            .filter { !$0.isEmpty }
+        guard let line = candidates.last else { return nil }
+
+        if let fileName = Self.fileName(from: line) {
+            lastFileName = fileName
+        }
+
+        let percent = Self.percent(from: line)
+        return TerminalFileTransferProgress(
+            percent: percent,
+            fileName: lastFileName,
+            detail: line
+        )
+    }
+
+    nonisolated private static func cleanProgressLine(_ line: String) -> String {
+        line
+            .replacingOccurrences(of: "\u{1B}\\[[0-9;?]*[ -/]*[@-~]", with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    nonisolated private static func fileName(from line: String) -> String? {
+        let prefixes = ["Sending:", "Receiving:"]
+        for prefix in prefixes where line.localizedCaseInsensitiveContains(prefix) {
+            let parts = line.components(separatedBy: ":")
+            guard parts.count > 1 else { continue }
+            let candidate = parts.dropFirst().joined(separator: ":")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !candidate.isEmpty {
+                return URL(fileURLWithPath: candidate).lastPathComponent
+            }
+        }
+        return nil
+    }
+
+    nonisolated private static func percent(from line: String) -> Double? {
+        if let percentText = firstMatch(in: line, pattern: #"(\d{1,3})(?:\.\d+)?\s*%"#),
+           let percent = Double(percentText) {
+            return percent / 100
+        }
+
+        if let fraction = firstFraction(in: line), fraction.total > 0 {
+            return Double(fraction.current) / Double(fraction.total)
+        }
+
+        return nil
+    }
+
+    nonisolated private static func firstMatch(in line: String, pattern: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(line.startIndex..<line.endIndex, in: line)
+        guard let match = regex.firstMatch(in: line, range: range), match.numberOfRanges > 1 else {
+            return nil
+        }
+        guard let valueRange = Range(match.range(at: 1), in: line) else { return nil }
+        return String(line[valueRange])
+    }
+
+    nonisolated private static func firstFraction(in line: String) -> (current: Int64, total: Int64)? {
+        guard let regex = try? NSRegularExpression(pattern: #"(\d+)\s*/\s*(\d+)"#) else { return nil }
+        let range = NSRange(line.startIndex..<line.endIndex, in: line)
+        guard let match = regex.firstMatch(in: line, range: range), match.numberOfRanges > 2 else {
+            return nil
+        }
+        guard
+            let currentRange = Range(match.range(at: 1), in: line),
+            let totalRange = Range(match.range(at: 2), in: line),
+            let current = Int64(line[currentRange]),
+            let total = Int64(line[totalRange])
+        else {
+            return nil
+        }
+        return (current, total)
+    }
+}
+
+private final class ZModemBridgeProcess {
+    private let process = Process()
+    private let stdinPipe = Pipe()
+    private let stdoutPipe = Pipe()
+    private let stderrPipe = Pipe()
+    private let writeQueue = DispatchQueue(label: "app.museterm.zmodem.stdin")
+    private let progressParser = ZModemProgressParser()
+
+    init(
+        executableURL: URL,
+        arguments: [String],
+        currentDirectory: URL?,
+        onOutput: @escaping ([UInt8]) -> Void,
+        onProgress: @escaping (TerminalFileTransferProgress) -> Void,
+        onExit: @escaping (Int32) -> Void
+    ) throws {
+        process.executableURL = executableURL
+        process.arguments = arguments
+        process.standardInput = stdinPipe
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+        if let currentDirectory {
+            process.currentDirectoryURL = currentDirectory
+        }
+
+        stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            guard !data.isEmpty else { return }
+            onOutput(Array(data))
+        }
+        stderrPipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            guard !data.isEmpty else { return }
+            if let progress = self.progressParser.accept(stderrData: data) {
+                onProgress(progress)
+            }
+        }
+        process.terminationHandler = { process in
+            self.stdoutPipe.fileHandleForReading.readabilityHandler = nil
+            self.stderrPipe.fileHandleForReading.readabilityHandler = nil
+            onExit(process.terminationStatus)
+        }
+
+        try process.run()
+    }
+
+    func acceptRemoteData(_ bytes: [UInt8]) {
+        guard !bytes.isEmpty else { return }
+        let data = Data(bytes)
+        writeQueue.async { [stdinPipe] in
+            do {
+                try stdinPipe.fileHandleForWriting.write(contentsOf: data)
+            } catch {
+                stdinPipe.fileHandleForWriting.closeFile()
+            }
+        }
+    }
+
+    func terminate() {
+        stdoutPipe.fileHandleForReading.readabilityHandler = nil
+        stderrPipe.fileHandleForReading.readabilityHandler = nil
+        if process.isRunning {
+            process.terminate()
+        }
+        stdinPipe.fileHandleForWriting.closeFile()
+    }
+}
+
+private enum ZModemLocalTool {
+    static func executable(named name: String) -> URL? {
+        searchDirectories
+            .lazy
+            .map { $0.appendingPathComponent(name) }
+            .first { FileManager.default.isExecutableFile(atPath: $0.path) }
+    }
+
+    private static var searchDirectories: [URL] {
+        let pathDirectories = (ProcessInfo.processInfo.environment["PATH"] ?? "")
+            .split(separator: ":")
+            .map { URL(fileURLWithPath: String($0), isDirectory: true) }
+
+        let commonDirectories = [
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            "/usr/bin",
+            "/bin"
+        ].map { URL(fileURLWithPath: $0, isDirectory: true) }
+
+        var seen = Set<String>()
+        return (pathDirectories + commonDirectories).filter { url in
+            let key = url.standardizedFileURL.path
+            guard !seen.contains(key) else { return false }
+            seen.insert(key)
+            return true
+        }
     }
 }
 
@@ -355,6 +1189,8 @@ private struct TerminalPreferenceSignature: Equatable {
     let tintOpacity: Double
     let optionAsMeta: Bool
     let mouseReporting: Bool
+    let cursorShape: TerminalCursorShape
+    let cursorBlink: Bool
 
     init(preferences: TerminalPreferences) {
         skin = preferences.skin
@@ -370,19 +1206,44 @@ private struct TerminalPreferenceSignature: Equatable {
         tintOpacity = preferences.tintOpacity
         optionAsMeta = preferences.optionAsMeta
         mouseReporting = preferences.mouseReporting
+        cursorShape = preferences.cursorShape
+        cursorBlink = preferences.cursorBlink
     }
 }
 
 private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     var onNeedsFocus: (() -> Void)?
     var onReadyForProcessStart: (() -> Void)?
+    var onStableTerminalResize: ((_ cols: Int, _ rows: Int) -> Void)?
+    var onProcessInputSent: (() -> Void)?
+    var onTerminalTitle: ((_ title: String) -> Void)?
+    var onCurrentDirectory: ((_ directory: String?) -> Void)?
     var shouldRecordInput: (() -> Bool)?
     var onSendToProcess: ((_ data: [UInt8], _ echoEnabled: Bool) -> Void)?
+    var onReceivedProcessData: ((_ data: ArraySlice<UInt8>) -> Bool)?
+    private var terminalDelegateRouter: TerminalDelegateRouter?
+    private var pendingResizeWorkItem: DispatchWorkItem?
     private var cachedEchoEnabled: Bool?
     private var cachedEchoCheckedAt: TimeInterval = 0
     private var pendingEchoBytes: [UInt8] = []
     private let maxEchoCacheAge: TimeInterval = 1.0
     private let maxPendingEchoBytes = 2_048
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        installTerminalDelegateRouter()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        installTerminalDelegateRouter()
+    }
+
+    private func installTerminalDelegateRouter() {
+        let router = TerminalDelegateRouter(owner: self)
+        terminalDelegateRouter = router
+        terminalDelegate = router
+    }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
@@ -428,6 +1289,7 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
     }
 
     override func send(source: TerminalView, data: ArraySlice<UInt8>) {
+        onProcessInputSent?()
         if shouldRecordInput?() == true {
             let bytes = Array(data)
             let echoEnabled = cachedTerminalEchoEnabled()
@@ -439,7 +1301,57 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
         super.send(source: source, data: data)
     }
 
+    fileprivate func terminalDidResize(newCols: Int, newRows: Int) {
+        pendingResizeWorkItem?.cancel()
+        guard process.running else { return }
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self, self.process.running else { return }
+            guard self.terminal.cols == newCols, self.terminal.rows == newRows else {
+                self.terminalDidResize(newCols: self.terminal.cols, newRows: self.terminal.rows)
+                return
+            }
+            self.onStableTerminalResize?(newCols, newRows)
+        }
+        pendingResizeWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18, execute: workItem)
+    }
+
+    fileprivate func terminalDidSetTitle(_ title: String) {
+        onTerminalTitle?(title)
+    }
+
+    fileprivate func terminalDidUpdateCurrentDirectory(_ directory: String?) {
+        onCurrentDirectory?(directory)
+    }
+
+    fileprivate func terminalDidSend(data: ArraySlice<UInt8>) {
+        send(source: self, data: data)
+    }
+
+    fileprivate func terminalDidCopyToClipboard(_ content: Data) {
+        guard let string = String(bytes: content, encoding: .utf8) else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.writeObjects([string as NSString])
+    }
+
+    fileprivate func terminalClipboardData() -> Data? {
+        NSPasteboard.general.string(forType: .string)?.data(using: .utf8)
+    }
+
+    fileprivate func terminalDidRequestOpenLink(_ link: String) {
+        guard let url = URL(string: link) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    fileprivate func terminalDidBell() {
+        NSSound.beep()
+    }
+
     override func dataReceived(slice: ArraySlice<UInt8>) {
+        if onReceivedProcessData?(slice) == true {
+            return
+        }
         if shouldRecordInput?() == true, !isExpectedEcho(slice) {
             invalidateTerminalEchoCache()
         }
@@ -485,4 +1397,50 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
         pendingEchoBytes.removeFirst(bytes.count)
         return true
     }
+}
+
+private final class TerminalDelegateRouter: TerminalViewDelegate {
+    private weak var owner: FocusableLocalProcessTerminalView?
+
+    init(owner: FocusableLocalProcessTerminalView) {
+        self.owner = owner
+    }
+
+    func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
+        owner?.terminalDidResize(newCols: newCols, newRows: newRows)
+    }
+
+    func setTerminalTitle(source: TerminalView, title: String) {
+        owner?.terminalDidSetTitle(title)
+    }
+
+    func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {
+        owner?.terminalDidUpdateCurrentDirectory(directory)
+    }
+
+    func send(source: TerminalView, data: ArraySlice<UInt8>) {
+        owner?.terminalDidSend(data: data)
+    }
+
+    func scrolled(source: TerminalView, position: Double) {}
+
+    func requestOpenLink(source: TerminalView, link: String, params: [String: String]) {
+        owner?.terminalDidRequestOpenLink(link)
+    }
+
+    func bell(source: TerminalView) {
+        owner?.terminalDidBell()
+    }
+
+    func clipboardCopy(source: TerminalView, content: Data) {
+        owner?.terminalDidCopyToClipboard(content)
+    }
+
+    func clipboardRead(source: TerminalView) -> Data? {
+        owner?.terminalClipboardData()
+    }
+
+    func iTermContent(source: TerminalView, content: ArraySlice<UInt8>) {}
+
+    func rangeChanged(source: TerminalView, startY: Int, endY: Int) {}
 }

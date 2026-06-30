@@ -77,6 +77,9 @@ private struct SidebarView: View {
                         TerminalShortcutSection(workspace: workspace, skin: preferences.skin)
                             .padding(.top, 4)
 
+                        FileTransferSection(workspace: workspace, skin: preferences.skin)
+                            .padding(.top, 4)
+
                         SSHProfilesSection(
                             workspace: workspace,
                             store: sshStore,
@@ -119,7 +122,9 @@ private struct SidebarView: View {
                 Text(L10n.string("app.name"))
                     .font(.headline)
                 Spacer()
-                CompactNewConnectionMenu(workspace: workspace, sshStore: sshStore)
+                IconButton(systemName: "plus", title: L10n.string("action.new_tab")) {
+                    workspace.newTab()
+                }
                 IconButton(
                     systemName: "sidebar.left",
                     title: L10n.string("action.hide_tab_list")
@@ -135,7 +140,9 @@ private struct SidebarView: View {
                 IconButton(systemName: "sidebar.right", title: L10n.string("action.show_tab_list")) {
                     preferences.showsTabList = true
                 }
-                CompactNewConnectionMenu(workspace: workspace, sshStore: sshStore)
+                IconButton(systemName: "plus", title: L10n.string("action.new_tab")) {
+                    workspace.newTab()
+                }
             }
         }
     }

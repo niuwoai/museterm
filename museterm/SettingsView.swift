@@ -201,6 +201,21 @@ struct SettingsView: View {
             Toggle(L10n.string("settings.show_tab_list"), isOn: $preferences.showsTabList)
             Toggle(L10n.string("settings.option_as_meta"), isOn: $preferences.optionAsMeta)
             Toggle(L10n.string("settings.mouse_reporting"), isOn: $preferences.mouseReporting)
+
+            HStack {
+                Text(L10n.string("settings.cursor_shape"))
+                Spacer()
+                Picker(L10n.string("settings.cursor_shape"), selection: $preferences.cursorShape) {
+                    ForEach(TerminalCursorShape.allCases) { shape in
+                        Text(shape.name).tag(shape)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 240)
+            }
+            .padding(.top, 4)
+            Toggle(L10n.string("settings.cursor_blink"), isOn: $preferences.cursorBlink)
         }
     }
 
@@ -340,6 +355,8 @@ private struct SettingsTabBar: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .frame(maxWidth: .infinity)
+                        // 让整块胶囊（含内边距/留白）都可点击，而非仅文字本身。
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .focusable(false)

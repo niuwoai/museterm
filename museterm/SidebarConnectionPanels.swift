@@ -1,38 +1,6 @@
 import AppKit
 import SwiftUI
 
-struct CompactNewConnectionMenu: View {
-    @ObservedObject var workspace: TerminalWorkspace
-    @ObservedObject var sshStore: SSHConnectionStore
-
-    var body: some View {
-        Menu {
-            Button {
-                workspace.newTab()
-            } label: {
-                Label(L10n.string("action.new_tab"), systemImage: "terminal")
-            }
-
-            if !sshStore.profiles.isEmpty {
-                Divider()
-                ForEach(sshStore.profiles) { profile in
-                    Button {
-                        workspace.openSSH(profile: profile)
-                    } label: {
-                        Label(profile.displayName, systemImage: "network")
-                    }
-                }
-            }
-        } label: {
-            Image(systemName: "plus")
-                .frame(width: 28, height: 28)
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .help(L10n.string("action.new_connection"))
-    }
-}
-
 struct TerminalShortcutSection: View {
     @ObservedObject var workspace: TerminalWorkspace
     let skin: TerminalVisualSkin
@@ -251,6 +219,136 @@ struct SSHProfilesSection: View {
         .background(skin.controlFill)
         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         .help(profile.jumpHosts.isEmpty ? profile.target : L10n.format("ssh.tooltip_with_jumps", profile.target, profile.jumpHosts.count))
+    }
+}
+
+struct FileTransferSection: View {
+    @ObservedObject var workspace: TerminalWorkspace
+    let skin: TerminalVisualSkin
+
+    var body: some View {
+        SidebarSection(title: L10n.string("file_transfer.section"), systemImage: "arrow.up.arrow.down.square", skin: skin) {
+            if let selectedTab = workspace.selectedTab {
+                FileTransferControls(workspace: workspace, tab: selectedTab, skin: skin)
+            } else {
+                Text(L10n.string("file_transfer.no_tab"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
+
+private struct FileTransferControls: View {
+    @ObservedObject var workspace: TerminalWorkspace
+    @ObservedObject var tab: TerminalSession
+    let skin: TerminalVisualSkin
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 6) {
+                Button {
+                    openUploadPanel()
+                } label: {
+                    Label(L10n.string("file_transfer.upload"), systemImage: "tray.and.arrow.up.fill")
+                        .font(.caption.weight(.medium))
+                        .labelStyle(.titleAndIcon)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(skin.controlFill)
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .disabled(isTransferActive)
+                .help(L10n.string("file_transfer.upload.help"))
+
+                Button {
+                    openDownloadPrompt()
+                } label: {
+                    Label(L10n.string("file_transfer.download"), systemImage: "tray.and.arrow.down.fill")
+                        .font(.caption.weight(.medium))
+                        .labelStyle(.titleAndIcon)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(skin.controlFill)
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .disabled(isTransferActive)
+                .help(L10n.string("file_transfer.download.help"))
+            }
+
+            Text(tab.fileTransferStatus?.localizedSummary ?? L10n.string("file_transfer.empty"))
+                .font(.caption2)
+                .foregroundStyle(tab.fileTransferStatus?.phase == .failed ? Color.red : Color.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if let status = tab.fileTransferStatus, status.isActive {
+                if let percent = status.progress?.percent {
+                    ProgressView(value: percent)
+                        .progressViewStyle(.linear)
+                } else {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+
+                if let progressText = progressText(for: status) {
+                    Text(progressText)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+        }
+    }
+
+    private var isTransferActive: Bool {
+        tab.fileTransferStatus?.isActive == true
+    }
+
+    private func openUploadPanel() {
+        let panel = NSOpenPanel()
+        panel.title = L10n.string("file_transfer.upload.panel_title")
+        panel.prompt = L10n.string("file_transfer.upload")
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = true
+        guard panel.runModal() == .OK else { return }
+        workspace.startZModemUpload(fileURLs: panel.urls)
+    }
+
+    private func openDownloadPrompt() {
+        let savePanel = NSSavePanel()
+        savePanel.title = L10n.string("file_transfer.download.save_title")
+        savePanel.prompt = L10n.string("file_transfer.download")
+        savePanel.nameFieldStringValue = L10n.string("file_transfer.download.default_filename")
+        guard savePanel.runModal() == .OK, let destinationFile = savePanel.url else { return }
+
+        let alert = NSAlert()
+        alert.messageText = L10n.string("file_transfer.download.prompt_title")
+        alert.informativeText = L10n.string("file_transfer.download.prompt_message")
+        alert.addButton(withTitle: L10n.string("action.save"))
+        alert.addButton(withTitle: L10n.string("action.cancel"))
+
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
+        input.placeholderString = L10n.string("file_transfer.download.placeholder")
+        alert.accessoryView = input
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let remotePath = input.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !remotePath.isEmpty else { return }
+        workspace.startZModemDownload(remotePath: remotePath, destinationFile: destinationFile)
+    }
+
+    private func progressText(for status: TerminalFileTransferStatus) -> String? {
+        if let fileName = status.progress?.fileName, let percent = status.progress?.percent {
+            return L10n.format("file_transfer.progress.with_percent", fileName, Int((percent * 100).rounded()))
+        }
+        if let fileName = status.progress?.fileName {
+            return fileName
+        }
+        return status.progress?.detail
     }
 }
 

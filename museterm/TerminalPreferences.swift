@@ -26,6 +26,18 @@ enum GlassMaterial: String, CaseIterable, Identifiable {
     }
 }
 
+enum TerminalCursorShape: String, CaseIterable, Identifiable {
+    case block
+    case bar
+    case underline
+
+    var id: String { rawValue }
+
+    var name: String {
+        L10n.string("cursor.shape.\(rawValue)")
+    }
+}
+
 final class TerminalPreferences: ObservableObject {
     private enum Keys {
         static let skin = "terminal.skin"
@@ -43,6 +55,8 @@ final class TerminalPreferences: ObservableObject {
         static let optionAsMeta = "terminal.optionAsMeta"
         static let mouseReporting = "terminal.mouseReporting"
         static let showsTabList = "terminal.showsTabList"
+        static let cursorShape = "terminal.cursorShape"
+        static let cursorBlink = "terminal.cursorBlink"
         static let appIcon = "app.icon"
     }
 
@@ -63,6 +77,8 @@ final class TerminalPreferences: ObservableObject {
     @Published var optionAsMeta: Bool { didSet { defaults.set(optionAsMeta, forKey: Keys.optionAsMeta) } }
     @Published var mouseReporting: Bool { didSet { defaults.set(mouseReporting, forKey: Keys.mouseReporting) } }
     @Published var showsTabList: Bool { didSet { defaults.set(showsTabList, forKey: Keys.showsTabList) } }
+    @Published var cursorShape: TerminalCursorShape { didSet { defaults.set(cursorShape.rawValue, forKey: Keys.cursorShape) } }
+    @Published var cursorBlink: Bool { didSet { defaults.set(cursorBlink, forKey: Keys.cursorBlink) } }
     @Published var appIcon: AppIconChoice {
         didSet {
             defaults.set(appIcon.rawValue, forKey: Keys.appIcon)
@@ -87,6 +103,8 @@ final class TerminalPreferences: ObservableObject {
         optionAsMeta = defaults.object(forKey: Keys.optionAsMeta) as? Bool ?? true
         mouseReporting = defaults.object(forKey: Keys.mouseReporting) as? Bool ?? true
         showsTabList = defaults.object(forKey: Keys.showsTabList) as? Bool ?? true
+        cursorShape = TerminalCursorShape(rawValue: defaults.string(forKey: Keys.cursorShape) ?? "") ?? .block
+        cursorBlink = defaults.object(forKey: Keys.cursorBlink) as? Bool ?? true
         appIcon = AppIconChoice(rawValue: defaults.string(forKey: Keys.appIcon) ?? "") ?? .defaultTerminal
         AppIconManager.apply(appIcon)
     }
