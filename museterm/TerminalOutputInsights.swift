@@ -34,7 +34,7 @@ struct TerminalOutputSummary: Codable, Equatable {
     var commitHash: String?
     var stackTraceLine: String?
 
-    var isEmpty: Bool {
+    nonisolated var isEmpty: Bool {
         insightKinds.isEmpty
             && errorLine == nil
             && warningLine == nil
@@ -44,7 +44,7 @@ struct TerminalOutputSummary: Codable, Equatable {
             && stackTraceLine == nil
     }
 
-    var searchableText: String {
+    nonisolated var searchableText: String {
         [
             insightKinds.map(\.rawValue).joined(separator: " "),
             errorLine ?? "",
@@ -56,7 +56,7 @@ struct TerminalOutputSummary: Codable, Equatable {
         ].joined(separator: "\n")
     }
 
-    var aiContextText: String {
+    nonisolated var aiContextText: String {
         var lines: [String] = []
         if !insightKinds.isEmpty {
             lines.append("Output insight kinds: \(insightKinds.map(\.rawValue).joined(separator: ", "))")
@@ -82,7 +82,7 @@ struct TerminalOutputSummary: Codable, Equatable {
         return lines.joined(separator: "\n")
     }
 
-    var primaryDiagnosticLine: String? {
+    nonisolated var primaryDiagnosticLine: String? {
         [
             errorLine,
             warningLine,
@@ -97,9 +97,9 @@ struct TerminalOutputSummary: Codable, Equatable {
 }
 
 enum TerminalOutputInsightAnalyzer {
-    private static let maxInsightsPerKind = 3
+    nonisolated private static let maxInsightsPerKind = 3
 
-    static func insights(in text: String) -> [TerminalOutputInsight] {
+    nonisolated static func insights(in text: String) -> [TerminalOutputInsight] {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
 
@@ -161,7 +161,7 @@ enum TerminalOutputInsightAnalyzer {
         return result
     }
 
-    static func summary(in text: String) -> String {
+    nonisolated static func summary(in text: String) -> String {
         let insights = insights(in: text)
         guard !insights.isEmpty else { return "" }
 
@@ -183,7 +183,7 @@ enum TerminalOutputInsightAnalyzer {
         return lines.joined(separator: "\n")
     }
 
-    static func outputSummary(in text: String) -> TerminalOutputSummary? {
+    nonisolated static func outputSummary(in text: String) -> TerminalOutputSummary? {
         let insights = insights(in: text)
         guard !insights.isEmpty else { return nil }
 
@@ -202,7 +202,7 @@ enum TerminalOutputInsightAnalyzer {
         return result.isEmpty ? nil : result
     }
 
-    static func formattedJSON(in text: String) -> String? {
+    nonisolated static func formattedJSON(in text: String) -> String? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard looksLikeJSON(trimmed), let data = trimmed.data(using: .utf8) else {
             return nil
@@ -219,13 +219,13 @@ enum TerminalOutputInsightAnalyzer {
         return formatted
     }
 
-    private static func looksLikeJSON(_ text: String) -> Bool {
+    nonisolated private static func looksLikeJSON(_ text: String) -> Bool {
         guard let first = text.first, first == "{" || first == "[" else { return false }
         guard let data = text.data(using: .utf8) else { return false }
         return (try? JSONSerialization.jsonObject(with: data)) != nil
     }
 
-    private static func looksLikeYAML(_ text: String) -> Bool {
+    nonisolated private static func looksLikeYAML(_ text: String) -> Bool {
         let lines = text.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty && !$0.hasPrefix("#") }
@@ -237,30 +237,30 @@ enum TerminalOutputInsightAnalyzer {
         return yamlLikeCount >= 2
     }
 
-    private static func firstNonEmptyLine(in text: String) -> String {
+    nonisolated private static func firstNonEmptyLine(in text: String) -> String {
         text.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .first { !$0.isEmpty } ?? ""
     }
 
-    private static func keyPhrase(from line: String) -> String {
+    nonisolated private static func keyPhrase(from line: String) -> String {
         String(line.prefix(180))
     }
 
-    private static func limit(_ text: String, to maxCharacters: Int) -> String {
+    nonisolated private static func limit(_ text: String, to maxCharacters: Int) -> String {
         guard text.count > maxCharacters else { return text }
         return String(text.prefix(maxCharacters)) + "\n..."
     }
 
-    private static func firstValue(for kind: TerminalOutputInsightKind, in insights: [TerminalOutputInsight]) -> String? {
+    nonisolated private static func firstValue(for kind: TerminalOutputInsightKind, in insights: [TerminalOutputInsight]) -> String? {
         insights.first { $0.kind == kind }?.value
     }
 
-    private static func firstLine(for kind: TerminalOutputInsightKind, in insights: [TerminalOutputInsight]) -> String? {
+    nonisolated private static func firstLine(for kind: TerminalOutputInsightKind, in insights: [TerminalOutputInsight]) -> String? {
         insights.first { $0.kind == kind }?.line
     }
 
-    private static func matches(in text: String, pattern: String) -> [String] {
+    nonisolated private static func matches(in text: String, pattern: String) -> [String] {
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
         let range = NSRange(text.startIndex..<text.endIndex, in: text)
         return regex.matches(in: text, range: range).compactMap { match in

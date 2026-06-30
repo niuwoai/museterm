@@ -271,6 +271,7 @@
 "stats.running" = "运行中";
 "stats.ports" = "端口";
 "stats.longest_duration" = "最长命令：%@";
+"stats.recent_failure" = "最近失败：%@";
 "stats.achievement.ten_commands" = "十条命令";
 "stats.achievement.clean_run" = "零失败";
 "stats.achievement.service_online" = "服务在线";

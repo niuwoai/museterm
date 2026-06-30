@@ -1649,9 +1649,9 @@ private struct RunbookReplayParameterizer {
     }
 }
 
-private enum RunbookSensitiveRedactor {
-    private static let replacement = "[REDACTED]"
-    private static let patterns: [(String, String)] = [
+enum RunbookSensitiveRedactor {
+    nonisolated private static let replacement = "[REDACTED]"
+    nonisolated private static let patterns: [(String, String)] = [
         (#"(?i)(authorization:\s*bearer\s+)[A-Za-z0-9._~+/=-]+"#, "$1\(replacement)"),
         (#"(?i)\b((?:api[_-]?key|token|secret|password|passwd|pwd)\s*[:=]\s*)['"]?[^'"\s]+"#, "$1\(replacement)"),
         (#"\bAKIA[0-9A-Z]{16}\b"#, replacement),
@@ -1662,7 +1662,7 @@ private enum RunbookSensitiveRedactor {
         (#"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"#, replacement)
     ]
 
-    static func redact(_ text: String) -> String {
+    nonisolated static func redact(_ text: String) -> String {
         patterns.reduce(text) { current, rule in
             current.replacingOccurrences(
                 of: rule.0,
@@ -1672,7 +1672,7 @@ private enum RunbookSensitiveRedactor {
         }
     }
 
-    static func containsSensitiveData(_ text: String) -> Bool {
+    nonisolated static func containsSensitiveData(_ text: String) -> Bool {
         !text.isEmpty && redact(text) != text
     }
 }

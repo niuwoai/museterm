@@ -286,6 +286,16 @@ struct TaskPortPanelView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 }
+                if let recentFailureDiagnostic = stats.recentFailureDiagnostic {
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                        Text(L10n.format("stats.recent_failure", recentFailureDiagnostic))
+                            .lineLimit(3)
+                            .textSelection(.enabled)
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                }
                 if !stats.achievements.isEmpty {
                     FlowBadgeRow(achievements: stats.achievements, skin: preferences.skin)
                 }
@@ -548,19 +558,28 @@ private enum CurrentSessionProcessCommand {
     }
 }
 
-private struct SessionCommandStats {
+struct SessionCommandStats {
     let commandCount: Int
     let failureCount: Int
     let runningCount: Int
     let portCount: Int
     let longestDurationMilliseconds: Int?
+    let recentFailureDiagnostic: String?
 
     init(blocks: [TerminalCommandBlock], portCount: Int) {
         commandCount = blocks.count
-        failureCount = blocks.filter { ($0.exitCode ?? 0) != 0 && $0.endedAt != nil }.count
+        let failedBlocks = blocks.filter { block in
+            guard block.endedAt != nil, let exitCode = block.exitCode else { return false }
+            return exitCode != 0
+        }
+        failureCount = failedBlocks.count
         runningCount = blocks.filter { $0.endedAt == nil }.count
         self.portCount = portCount
         longestDurationMilliseconds = blocks.compactMap(\.durationMilliseconds).max()
+        recentFailureDiagnostic = failedBlocks
+            .sorted(by: Self.mostRecentFirst)
+            .compactMap(Self.failureDiagnostic)
+            .first
     }
 
     var achievements: [String] {
@@ -578,6 +597,19 @@ private struct SessionCommandStats {
             result.append(L10n.string("stats.achievement.long_runner"))
         }
         return result
+    }
+
+    nonisolated private static func mostRecentFirst(_ left: TerminalCommandBlock, _ right: TerminalCommandBlock) -> Bool {
+        (left.endedAt ?? left.startedAt) > (right.endedAt ?? right.startedAt)
+    }
+
+    nonisolated private static func failureDiagnostic(for block: TerminalCommandBlock) -> String? {
+        let diagnostic = block.outputSummary?.primaryDiagnosticLine
+            ?? TerminalOutputInsightAnalyzer.outputSummary(in: block.outputTail)?.primaryDiagnosticLine
+        guard let diagnostic else { return nil }
+        let cleaned = diagnostic.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else { return nil }
+        return RunbookSensitiveRedactor.redact(cleaned)
     }
 }
 

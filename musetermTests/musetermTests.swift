@@ -365,4 +365,69 @@ final class musetermTests: XCTestCase {
         XCTAssertFalse(markdown.contains(secret))
     }
 
+    func testSessionCommandStatsTracksRecentRedactedFailureDiagnostic() {
+        let oldFailure = commandBlock(
+            command: "swift test",
+            startedAt: 100,
+            endedAt: 101,
+            exitCode: 1,
+            errorLine: "ERROR older failure"
+        )
+        let latestSecret = "sk-abcdefghijklmnopqrstuvwxyz"
+        let latestFailure = commandBlock(
+            command: "swift build",
+            startedAt: 120,
+            endedAt: 121,
+            exitCode: 2,
+            errorLine: "ERROR token=\(latestSecret)"
+        )
+        let success = commandBlock(
+            command: "swift format",
+            startedAt: 130,
+            endedAt: 131,
+            exitCode: 0,
+            errorLine: "ERROR should not count"
+        )
+
+        let stats = SessionCommandStats(
+            blocks: [oldFailure, latestFailure, success],
+            portCount: 0
+        )
+
+        XCTAssertEqual(stats.failureCount, 2)
+        XCTAssertEqual(stats.recentFailureDiagnostic, "ERROR token=[REDACTED]")
+        XCTAssertFalse(stats.recentFailureDiagnostic?.contains(latestSecret) ?? true)
+    }
+
+    private func commandBlock(
+        command: String,
+        startedAt: TimeInterval,
+        endedAt: TimeInterval,
+        exitCode: Int32,
+        errorLine: String
+    ) -> TerminalCommandBlock {
+        TerminalCommandBlock(
+            id: UUID(),
+            command: command,
+            workingDirectory: "/tmp/project",
+            startedAt: Date(timeIntervalSince1970: startedAt),
+            endedAt: Date(timeIntervalSince1970: endedAt),
+            exitCode: exitCode,
+            outputTail: errorLine,
+            outputCharacterCount: errorLine.count,
+            outputSummary: TerminalOutputSummary(
+                insightKinds: [.error],
+                errorLine: errorLine,
+                warningLine: nil,
+                url: nil,
+                filePath: nil,
+                commitHash: nil,
+                stackTraceLine: nil
+            ),
+            isInteractive: false,
+            commandStartSource: .shellIntegration,
+            completionSource: .shellIntegration
+        )
+    }
+
 }
