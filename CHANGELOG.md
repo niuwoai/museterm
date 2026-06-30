@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.101.0] - 2026-07-01
+
+### Changed
+- 将安全输入分析、内置高危命令规则、自定义规则解析和确认预览控件从 `TerminalHostView.swift` 拆分到 `TerminalSafetyInputAnalyzer.swift`。
+- `TerminalHostView.swift` 行数降到 2000 行以下，终端宿主视图继续聚焦 PTY 生命周期、输入输出与 shell integration 编排。
+
+### Added
+- 新增 `TerminalSafetyInputAnalyzerTests`，覆盖多行粘贴识别、内置高危命令规则、自定义文本/正则规则和长文本预览截断。
+
 ## [1.100.0] - 2026-07-01
 
 ### Changed
