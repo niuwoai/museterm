@@ -153,6 +153,11 @@ enum RunbookMarkdownExporter {
         if let latestFailedExitCode = diagnostics.latestFailedExitCode {
             lines.append("- \(L10n.string("runbook.latest_failed_exit_code")): \(latestFailedExitCode)")
         }
+        if let latestFailedDurationMilliseconds = diagnostics.latestFailedDurationMilliseconds {
+            lines.append(
+                "- \(L10n.string("runbook.latest_failed_duration")): \(latestFailedDurationMilliseconds) ms"
+            )
+        }
         if let recentFailureDiagnostic = diagnostics.recentFailureDiagnostic {
             lines.append("- \(L10n.string("runbook.latest_failure")): `\(escapeInline(recentFailureDiagnostic))`")
         }

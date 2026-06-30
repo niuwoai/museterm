@@ -619,6 +619,7 @@ struct CommandBlockDiagnostics: Equatable {
     let diagnosticPriorityFactors: [CommandDiagnosticPriorityFactor]
     let latestFailedCommand: String?
     let latestFailedExitCode: Int32?
+    let latestFailedDurationMilliseconds: Int?
     let recentFailureDiagnostic: String?
     let recentFailureFingerprint: String?
     let repeatedFailureDiagnostic: RepeatedFailureDiagnostic?
@@ -638,6 +639,7 @@ struct CommandBlockDiagnostics: Equatable {
             return redactSensitiveData ? RunbookSensitiveRedactor.redact(command) : command
         }
         latestFailedExitCode = failedBlocks.first?.exitCode
+        latestFailedDurationMilliseconds = failedBlocks.first?.durationMilliseconds
         let recentFailureRecord = failedBlocks
             .sorted(by: Self.mostRecentFirst)
             .compactMap { Self.failureDiagnosticRecord(for: $0, redactSensitiveData: redactSensitiveData) }
@@ -714,6 +716,9 @@ struct CommandBlockDiagnostics: Equatable {
         }
         if let latestFailedExitCode {
             lines.append("Latest failed exit code: \(latestFailedExitCode)")
+        }
+        if let latestFailedDurationMilliseconds {
+            lines.append("Latest failed duration: \(latestFailedDurationMilliseconds) ms")
         }
         if let recentFailureDiagnostic {
             lines.append("Recent failure diagnostic: \(recentFailureDiagnostic)")

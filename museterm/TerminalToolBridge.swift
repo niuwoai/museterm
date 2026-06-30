@@ -87,6 +87,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
     let diagnosticCategoryConfidence: String
     let latestFailedCommand: String?
     let latestFailedExitCode: Int?
+    let latestFailedDurationMilliseconds: Int?
     let recentFailureDiagnostic: String?
     let recentFailureFingerprint: String?
     let repeatedFailureDiagnostic: TerminalToolRepeatedFailureSnapshot?
@@ -105,6 +106,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
         diagnosticCategoryConfidence = diagnostics.diagnosticCategoryConfidence.rawValue
         latestFailedCommand = diagnostics.latestFailedCommand
         latestFailedExitCode = diagnostics.latestFailedExitCode.map(Int.init)
+        latestFailedDurationMilliseconds = diagnostics.latestFailedDurationMilliseconds
         recentFailureDiagnostic = diagnostics.recentFailureDiagnostic
         recentFailureFingerprint = diagnostics.recentFailureFingerprint
         if let repeatedFailureDiagnostic = diagnostics.repeatedFailureDiagnostic {

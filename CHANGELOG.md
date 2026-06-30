@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.106.0] - 2026-07-01
+
+### Added
+- `CommandBlockDiagnostics` 新增 `latestFailedDurationMilliseconds`，Runbook、AI 上下文和 CLI/MCP `commandDiagnostics` 会同步暴露最近失败命令耗时。
+- 测试覆盖 CLI/MCP 诊断快照和 AI 上下文里的最近失败耗时字段。
+
 ## [1.105.0] - 2026-07-01
 
 ### Added
