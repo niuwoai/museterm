@@ -362,6 +362,7 @@
 "runbook.suggested_next_action_result_parsing_hints" = "建议动作结果解析提示";
 "runbook.suggested_next_action_result_interpretation_hints" = "建议动作结果解释提示";
 "runbook.suggested_next_action_result_decision_hints" = "建议动作结果决策提示";
+"runbook.suggested_next_action_result_caveats" = "建议动作结果局限提示";
 "runbook.suggested_next_action_sensitive_result_fields" = "建议动作敏感结果字段";
 "runbook.suggested_next_action_result_redaction_hints" = "建议动作结果脱敏提示";
 "runbook.suggested_next_action_result_refresh_triggers" = "建议动作结果刷新触发条件";

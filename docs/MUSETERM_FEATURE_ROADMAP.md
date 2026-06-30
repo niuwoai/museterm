@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.97.0
+> 当前版本基线：v1.98.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,7 +30,7 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.97.0 已完成八十九条纵向切片：
+v1.98.0 已完成九十条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
@@ -73,6 +73,7 @@ v1.97.0 已完成八十九条纵向切片：
 - 建议排查动作结果解析提示：`suggestedNextAction` 新增 `resultParsingHints`，用稳定 code 描述建议命令输出应如何解析，例如按行文本、空白分隔列、PATH 列表、组合命令输出、目录列表、Git porcelain 状态或可选 Git 输出。
 - 建议排查动作结果解释提示：`suggestedNextAction` 新增 `resultInterpretationHints`，用稳定 code 描述建议命令输出应如何解释，例如空端口列表表示本机无监听者、权限输出需要比较用户与权限位、Git dirty 状态需要用户决策。
 - 建议排查动作结果决策提示：`suggestedNextAction` 新增 `resultDecisionHints`，用稳定 code 描述建议命令结果应触发的保守决策分支，例如端口 owner 需要用户决定、权限不匹配需要明确提权、Git dirty 状态需要先处理工作树。
+- 建议排查动作结果局限提示：`suggestedNextAction` 新增 `resultCaveats`，用稳定 code 描述建议命令结果的适用局限，例如本机端口扫描只覆盖当前网络命名空间、PATH 只代表当前 shell、Git status 需要位于仓库内。
 - 建议排查动作敏感结果字段：`suggestedNextAction` 新增 `sensitiveResultFields`，用稳定 code 标明建议命令结果中哪些字段可能携带路径、用户、进程、Git 或目录元数据等敏感上下文，便于外部工具优先脱敏。
 - 建议排查动作结果脱敏提示：`suggestedNextAction` 新增 `resultRedactionHints`，用稳定 code 提示建议命令结果中应优先脱敏的内容类型，例如路径、用户、进程、监听地址、Git 分支和 upstream。
 - 建议排查动作结果刷新触发条件：`suggestedNextAction` 新增 `resultRefreshTriggers`，用稳定 code 声明哪些上下文变化会让建议命令结果过期，例如进程、监听端口、工作目录、权限、PATH、文件系统或 Git 状态变化。

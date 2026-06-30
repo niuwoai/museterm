@@ -779,6 +779,10 @@ struct CommandBlockDiagnostics: Equatable {
                 let hints = suggestedNextAction.resultDecisionHints.map(\.rawValue).joined(separator: "; ")
                 lines.append("Suggested next action result decision hints: \(hints)")
             }
+            if !suggestedNextAction.resultCaveats.isEmpty {
+                let caveats = suggestedNextAction.resultCaveats.map(\.rawValue).joined(separator: "; ")
+                lines.append("Suggested next action result caveats: \(caveats)")
+            }
             if !suggestedNextAction.sensitiveResultFields.isEmpty {
                 let sensitiveResultFields = suggestedNextAction.sensitiveResultFields.map(\.rawValue).joined(separator: "; ")
                 lines.append("Suggested next action sensitive result fields: \(sensitiveResultFields)")
@@ -1170,6 +1174,7 @@ struct CommandBlockDiagnostics: Equatable {
                 resultParsingHints: [.lineOrientedText, .whitespaceSeparatedColumns],
                 resultInterpretationHints: [.emptyOutputMeansNoLocalListener, .rowsIdentifyOwners],
                 resultDecisionHints: [.portOwnerRequiresUserDecision, .noLocalListenerSuggestsScopeCheck],
+                resultCaveats: [.localNetworkNamespaceOnly, .containerOrRemoteListenersMayBeMissing],
                 sensitiveResultFields: [.processName, .listenAddress],
                 resultRedactionHints: [.processIdentity, .networkAddress],
                 resultRefreshTriggers: [.processStateChanged, .networkListenersChanged],
@@ -1227,6 +1232,7 @@ struct CommandBlockDiagnostics: Equatable {
                 resultParsingHints: [.commandSequenceOutput, .lineOrientedText],
                 resultInterpretationHints: [.compareUserAndPermissions, .mismatchExplainsPermissionFailure],
                 resultDecisionHints: [.permissionMismatchNeedsExplicitElevation, .ownershipChangeRequiresApproval],
+                resultCaveats: [.permissionsArePathScoped, .sudoOrRemoteContextMayDiffer],
                 sensitiveResultFields: [.workingDirectory, .currentUser, .directoryPermissions],
                 resultRedactionHints: [.workingDirectory, .userIdentity, .permissionMetadata],
                 resultRefreshTriggers: [.workingDirectoryChanged, .userContextChanged, .permissionsChanged],
@@ -1284,6 +1290,7 @@ struct CommandBlockDiagnostics: Equatable {
                 resultParsingHints: [.pathList],
                 resultInterpretationHints: [.pathEntryPresenceMatters, .missingPathEntryExplainsCommandFailure],
                 resultDecisionHints: [.missingPathEntrySuggestsActivationOrInstall, .installationRequiresUserChoice],
+                resultCaveats: [.pathIsShellSpecific, .toolMayExistOutsidePath],
                 sensitiveResultFields: [.pathEntries],
                 resultRedactionHints: [.shellPathEntries],
                 resultRefreshTriggers: [.shellEnvironmentChanged],
@@ -1341,6 +1348,7 @@ struct CommandBlockDiagnostics: Equatable {
                 resultParsingHints: [.commandSequenceOutput, .directoryListingOutput],
                 resultInterpretationHints: [.missingEntryConfirmsPathIssue, .caseMismatchMayMatter],
                 resultDecisionHints: [.missingEntryRequiresRestoreGenerateOrReconfigure, .generatedPrerequisiteMayBeNeeded],
+                resultCaveats: [.directorySnapshotMayBecomeStale, .generatedFilesMayAppearAfterSetup],
                 sensitiveResultFields: [.workingDirectory, .visibleEntries, .fileMetadata],
                 resultRedactionHints: [.workingDirectory, .directoryEntries, .fileMetadata],
                 resultRefreshTriggers: [.workingDirectoryChanged, .filesystemChanged],
@@ -1398,6 +1406,7 @@ struct CommandBlockDiagnostics: Equatable {
                 resultParsingHints: [.lineOrientedText, .gitStatusPorcelain],
                 resultInterpretationHints: [.dirtyStateRequiresUserDecision, .upstreamRelationMayExplainFailure],
                 resultDecisionHints: [.dirtyGitStateNeedsResolutionChoice, .cleanGitStateSuggestsRemoteOrAuthCheck],
+                resultCaveats: [.gitStatusRequiresRepository, .cleanTreeDoesNotRuleOutRemoteFailure],
                 sensitiveResultFields: [.gitBranch, .gitUpstream],
                 resultRedactionHints: [.gitBranch, .gitUpstream],
                 resultRefreshTriggers: [.gitStateChanged],
@@ -1455,6 +1464,7 @@ struct CommandBlockDiagnostics: Equatable {
                 resultParsingHints: [.commandSequenceOutput, .optionalGitStatusOutput],
                 resultInterpretationHints: [.gitOutputOptional, .compareAgainstFirstFailure],
                 resultDecisionHints: [.unchangedContextDiscouragesRetry, .changedContextNeedsComparison],
+                resultCaveats: [.contextSnapshotIsPartial, .firstFailureOutputMayStillBeNeeded],
                 sensitiveResultFields: [.workingDirectory, .gitBranch, .gitUpstream],
                 resultRedactionHints: [.workingDirectory, .gitBranch, .gitUpstream],
                 resultRefreshTriggers: [.workingDirectoryChanged, .gitStateChanged, .failureContextChanged],
@@ -1512,6 +1522,7 @@ struct CommandBlockDiagnostics: Equatable {
                 resultParsingHints: [.commandSequenceOutput, .optionalGitStatusOutput],
                 resultInterpretationHints: [.gitOutputOptional, .contextSnapshotMayBePartial],
                 resultDecisionHints: [.capturedContextShouldRecategorize, .genericFailureNeedsTargetedProbe],
+                resultCaveats: [.contextSnapshotIsPartial, .genericFailureStillNeedsSpecificEvidence],
                 sensitiveResultFields: [.workingDirectory, .gitBranch, .gitUpstream],
                 resultRedactionHints: [.workingDirectory, .gitBranch, .gitUpstream],
                 resultRefreshTriggers: [.workingDirectoryChanged, .gitStateChanged, .failureContextChanged],
@@ -1674,6 +1685,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let resultParsingHints: [CommandDiagnosticActionResultParsingHint]
     let resultInterpretationHints: [CommandDiagnosticActionResultInterpretationHint]
     let resultDecisionHints: [CommandDiagnosticActionResultDecisionHint]
+    let resultCaveats: [CommandDiagnosticActionResultCaveat]
     let sensitiveResultFields: [CommandDiagnosticActionResultField]
     let resultRedactionHints: [CommandDiagnosticActionRedactionHint]
     let resultRefreshTriggers: [CommandDiagnosticActionRefreshTrigger]
@@ -1714,6 +1726,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         resultParsingHints: [CommandDiagnosticActionResultParsingHint],
         resultInterpretationHints: [CommandDiagnosticActionResultInterpretationHint],
         resultDecisionHints: [CommandDiagnosticActionResultDecisionHint],
+        resultCaveats: [CommandDiagnosticActionResultCaveat],
         sensitiveResultFields: [CommandDiagnosticActionResultField],
         resultRedactionHints: [CommandDiagnosticActionRedactionHint],
         resultRefreshTriggers: [CommandDiagnosticActionRefreshTrigger],
@@ -1753,6 +1766,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         self.resultParsingHints = resultParsingHints
         self.resultInterpretationHints = resultInterpretationHints
         self.resultDecisionHints = resultDecisionHints
+        self.resultCaveats = resultCaveats
         self.sensitiveResultFields = sensitiveResultFields
         self.resultRedactionHints = resultRedactionHints
         self.resultRefreshTriggers = resultRefreshTriggers
@@ -1896,6 +1910,22 @@ enum CommandDiagnosticActionResultDecisionHint: String, Codable, Equatable {
     case changedContextNeedsComparison = "changed_context_needs_comparison"
     case capturedContextShouldRecategorize = "captured_context_should_recategorize"
     case genericFailureNeedsTargetedProbe = "generic_failure_needs_targeted_probe"
+}
+
+enum CommandDiagnosticActionResultCaveat: String, Codable, Equatable {
+    case localNetworkNamespaceOnly = "local_network_namespace_only"
+    case containerOrRemoteListenersMayBeMissing = "container_or_remote_listeners_may_be_missing"
+    case permissionsArePathScoped = "permissions_are_path_scoped"
+    case sudoOrRemoteContextMayDiffer = "sudo_or_remote_context_may_differ"
+    case pathIsShellSpecific = "path_is_shell_specific"
+    case toolMayExistOutsidePath = "tool_may_exist_outside_path"
+    case directorySnapshotMayBecomeStale = "directory_snapshot_may_become_stale"
+    case generatedFilesMayAppearAfterSetup = "generated_files_may_appear_after_setup"
+    case gitStatusRequiresRepository = "git_status_requires_repository"
+    case cleanTreeDoesNotRuleOutRemoteFailure = "clean_tree_does_not_rule_out_remote_failure"
+    case contextSnapshotIsPartial = "context_snapshot_is_partial"
+    case firstFailureOutputMayStillBeNeeded = "first_failure_output_may_still_be_needed"
+    case genericFailureStillNeedsSpecificEvidence = "generic_failure_still_needs_specific_evidence"
 }
 
 enum CommandDiagnosticActionRedactionHint: String, Codable, Equatable {

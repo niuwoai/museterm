@@ -142,6 +142,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
     let resultParsingHints: [String]
     let resultInterpretationHints: [String]
     let resultDecisionHints: [String]
+    let resultCaveats: [String]
     let sensitiveResultFields: [String]
     let resultRedactionHints: [String]
     let resultRefreshTriggers: [String]
@@ -182,6 +183,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
         resultParsingHints = action.resultParsingHints.map(\.rawValue)
         resultInterpretationHints = action.resultInterpretationHints.map(\.rawValue)
         resultDecisionHints = action.resultDecisionHints.map(\.rawValue)
+        resultCaveats = action.resultCaveats.map(\.rawValue)
         sensitiveResultFields = action.sensitiveResultFields.map(\.rawValue)
         resultRedactionHints = action.resultRedactionHints.map(\.rawValue)
         resultRefreshTriggers = action.resultRefreshTriggers.map(\.rawValue)

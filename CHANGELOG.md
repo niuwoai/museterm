@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.98.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `resultCaveats`，用稳定 code 描述建议命令结果的适用局限，例如本机端口扫描只覆盖当前网络命名空间、PATH 只代表当前 shell、Git status 需要位于仓库内。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露结果局限提示，帮助外部工具避免把只读检查结果过度推广到容器、远端、其他 shell 或后续已变化的上下文。
+
 ## [1.97.0] - 2026-07-01
 
 ### Added
