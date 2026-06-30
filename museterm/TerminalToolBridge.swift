@@ -80,6 +80,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
     let schemaVersion: Int
     let failedCommandCount: Int
     let diagnosticPriorityScore: Int
+    let diagnosticPriorityFactors: [String]
     let diagnosticSeverity: String
     let diagnosticCategory: String
     let diagnosticCategoryEvidence: String?
@@ -96,6 +97,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
         self.schemaVersion = schemaVersion
         failedCommandCount = diagnostics.failedCommandCount
         diagnosticPriorityScore = diagnostics.diagnosticPriorityScore
+        diagnosticPriorityFactors = diagnostics.diagnosticPriorityFactors.map(\.rawValue)
         diagnosticSeverity = diagnostics.diagnosticSeverity.rawValue
         diagnosticCategory = diagnostics.diagnosticCategory.rawValue
         diagnosticCategoryEvidence = diagnostics.diagnosticCategoryEvidence

@@ -332,6 +332,8 @@
 "runbook.redaction_on" = "Enabled";
 "runbook.redaction_off" = "Disabled";
 "runbook.failed_commands" = "Failed commands";
+"runbook.diagnostic_priority_score" = "Diagnostic priority score";
+"runbook.diagnostic_priority_factors" = "Diagnostic priority factors";
 "runbook.diagnostic_severity" = "Diagnostic severity";
 "runbook.diagnostic_category" = "Diagnostic category";
 "runbook.diagnostic_category_evidence" = "Diagnostic category evidence";

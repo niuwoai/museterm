@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.70.0] - 2026-07-01
+
+### Added
+- 命令诊断摘要新增 `diagnosticPriorityFactors`，用稳定 reason code 解释 `diagnosticPriorityScore` 的来源，例如失败命令、严重级别、诊断分类、可信度和连续失败次数。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics` 快照会同步暴露诊断优先级因素，便于外部工具解释和筛选高优先级失败。
+
 ## [1.69.0] - 2026-07-01
 
 ### Added

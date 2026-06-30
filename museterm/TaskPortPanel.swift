@@ -616,6 +616,7 @@ struct SessionCommandStats {
 struct CommandBlockDiagnostics: Equatable {
     let failedCommandCount: Int
     let diagnosticPriorityScore: Int
+    let diagnosticPriorityFactors: [CommandDiagnosticPriorityFactor]
     let latestFailedCommand: String?
     let recentFailureDiagnostic: String?
     let recentFailureFingerprint: String?
@@ -666,6 +667,13 @@ struct CommandBlockDiagnostics: Equatable {
             diagnosticCategoryConfidence: diagnosticCategoryConfidence,
             repeatedFailureDiagnostic: repeatedFailureDiagnostic
         )
+        diagnosticPriorityFactors = Self.diagnosticPriorityFactors(
+            failedCommandCount: failedCommandCount,
+            diagnosticSeverity: diagnosticSeverity,
+            diagnosticCategory: diagnosticCategory,
+            diagnosticCategoryConfidence: diagnosticCategoryConfidence,
+            repeatedFailureDiagnostic: repeatedFailureDiagnostic
+        )
         suggestedNextInspection = Self.suggestedNextInspection(
             failedCommandCount: failedCommandCount,
             latestFailedCommand: latestFailedCommand,
@@ -687,6 +695,10 @@ struct CommandBlockDiagnostics: Equatable {
         }
         if diagnosticPriorityScore > 0 {
             lines.append("Diagnostic priority score: \(diagnosticPriorityScore)")
+        }
+        if !diagnosticPriorityFactors.isEmpty {
+            let factors = diagnosticPriorityFactors.map(\.rawValue).joined(separator: "; ")
+            lines.append("Diagnostic priority factors: \(factors)")
         }
         if let latestFailedCommand {
             lines.append("Latest failed command: \(latestFailedCommand)")
@@ -972,6 +984,65 @@ struct CommandBlockDiagnostics: Equatable {
         return min(100, severityScore + categoryScore + confidenceScore + failedCountScore + repeatedCountScore)
     }
 
+    nonisolated private static func diagnosticPriorityFactors(
+        failedCommandCount: Int,
+        diagnosticSeverity: CommandDiagnosticSeverity,
+        diagnosticCategory: CommandDiagnosticCategory,
+        diagnosticCategoryConfidence: CommandDiagnosticConfidence,
+        repeatedFailureDiagnostic: RepeatedFailureDiagnostic?
+    ) -> [CommandDiagnosticPriorityFactor] {
+        guard failedCommandCount > 0 else { return [] }
+        var factors: [CommandDiagnosticPriorityFactor] = [.failedCommand]
+        switch diagnosticSeverity {
+        case .none:
+            break
+        case .failed:
+            factors.append(.failedSeverity)
+        case .repeated:
+            factors.append(.repeatedSeverity)
+        case .critical:
+            factors.append(.criticalSeverity)
+        }
+
+        switch diagnosticCategory {
+        case .none:
+            break
+        case .portConflict:
+            factors.append(.portConflictCategory)
+        case .permission:
+            factors.append(.permissionCategory)
+        case .missingFile:
+            factors.append(.missingFileCategory)
+        case .missingCommand:
+            factors.append(.missingCommandCategory)
+        case .git:
+            factors.append(.gitCategory)
+        case .repeated:
+            factors.append(.repeatedCategory)
+        case .generic:
+            factors.append(.genericCategory)
+        }
+
+        switch diagnosticCategoryConfidence {
+        case .none:
+            break
+        case .low:
+            factors.append(.lowConfidenceCategory)
+        case .medium:
+            factors.append(.mediumConfidenceCategory)
+        case .high:
+            factors.append(.highConfidenceCategory)
+        }
+
+        if failedCommandCount > 1 {
+            factors.append(.multipleFailures)
+        }
+        if repeatedFailureDiagnostic != nil {
+            factors.append(.repeatedFailureCount)
+        }
+        return factors
+    }
+
     nonisolated private static func suggestedNextInspection(
         failedCommandCount: Int,
         latestFailedCommand: String?,
@@ -1184,6 +1255,25 @@ enum CommandDiagnosticConfidence: String, Codable, Equatable {
     case low
     case medium
     case high
+}
+
+enum CommandDiagnosticPriorityFactor: String, Codable, Equatable {
+    case failedCommand = "failed_command"
+    case failedSeverity = "failed_severity"
+    case repeatedSeverity = "repeated_severity"
+    case criticalSeverity = "critical_severity"
+    case portConflictCategory = "port_conflict_category"
+    case permissionCategory = "permission_category"
+    case missingFileCategory = "missing_file_category"
+    case missingCommandCategory = "missing_command_category"
+    case gitCategory = "git_category"
+    case repeatedCategory = "repeated_category"
+    case genericCategory = "generic_category"
+    case lowConfidenceCategory = "low_confidence_category"
+    case mediumConfidenceCategory = "medium_confidence_category"
+    case highConfidenceCategory = "high_confidence_category"
+    case multipleFailures = "multiple_failures"
+    case repeatedFailureCount = "repeated_failure_count"
 }
 
 struct CommandDiagnosticAction: Codable, Equatable {

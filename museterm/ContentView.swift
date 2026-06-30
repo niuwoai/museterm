@@ -1389,6 +1389,13 @@ enum RunbookMarkdownExporter {
         if diagnostics.failedCommandCount > 0 {
             lines.append("- \(L10n.string("runbook.failed_commands")): \(diagnostics.failedCommandCount)")
         }
+        if diagnostics.diagnosticPriorityScore > 0 {
+            lines.append("- \(L10n.string("runbook.diagnostic_priority_score")): \(diagnostics.diagnosticPriorityScore)")
+        }
+        if !diagnostics.diagnosticPriorityFactors.isEmpty {
+            let factors = diagnostics.diagnosticPriorityFactors.map(\.rawValue).joined(separator: ", ")
+            lines.append("- \(L10n.string("runbook.diagnostic_priority_factors")): \(factors)")
+        }
         if diagnostics.diagnosticSeverity != .none {
             lines.append("- \(L10n.string("runbook.diagnostic_severity")): \(diagnostics.diagnosticSeverity.rawValue)")
         }

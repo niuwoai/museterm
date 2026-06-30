@@ -377,6 +377,7 @@ final class musetermTests: XCTestCase {
         let encodedDiagnostics = try XCTUnwrap(object["commandDiagnostics"] as? [String: Any])
         let repeatedFailure = try XCTUnwrap(encodedDiagnostics["repeatedFailureDiagnostic"] as? [String: Any])
         let suggestedNextAction = try XCTUnwrap(encodedDiagnostics["suggestedNextAction"] as? [String: Any])
+        let priorityFactors = try XCTUnwrap(encodedDiagnostics["diagnosticPriorityFactors"] as? [String])
         let state = TerminalToolState(
             app: "MuseTerm",
             version: "test",
@@ -393,6 +394,17 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(encodedDiagnostics["schemaVersion"] as? Int, 1)
         XCTAssertEqual(encodedDiagnostics["failedCommandCount"] as? Int, 3)
         XCTAssertEqual(encodedDiagnostics["diagnosticPriorityScore"] as? Int, 90)
+        XCTAssertEqual(
+            priorityFactors,
+            [
+                CommandDiagnosticPriorityFactor.failedCommand.rawValue,
+                CommandDiagnosticPriorityFactor.repeatedSeverity.rawValue,
+                CommandDiagnosticPriorityFactor.repeatedCategory.rawValue,
+                CommandDiagnosticPriorityFactor.mediumConfidenceCategory.rawValue,
+                CommandDiagnosticPriorityFactor.multipleFailures.rawValue,
+                CommandDiagnosticPriorityFactor.repeatedFailureCount.rawValue
+            ]
+        )
         XCTAssertEqual(encodedDiagnostics["diagnosticSeverity"] as? String, CommandDiagnosticSeverity.repeated.rawValue)
         XCTAssertEqual(encodedDiagnostics["diagnosticCategory"] as? String, CommandDiagnosticCategory.repeated.rawValue)
         XCTAssertEqual(encodedDiagnostics["diagnosticCategoryEvidence"] as? String, diagnostic)
@@ -777,6 +789,8 @@ final class musetermTests: XCTestCase {
 
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failure")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.failed_commands")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.diagnostic_priority_score")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.diagnostic_priority_factors")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.diagnostic_severity")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.diagnostic_category")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.diagnostic_category_evidence")))
@@ -828,6 +842,8 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Session diagnostics:"))
         XCTAssertTrue(context.contains("Failed commands: 3"))
         XCTAssertTrue(context.contains("Diagnostic priority score: 90"))
+        XCTAssertTrue(context.contains("Diagnostic priority factors: failed_command; repeated_severity"))
+        XCTAssertTrue(context.contains("multiple_failures; repeated_failure_count"))
         XCTAssertTrue(context.contains("Latest failed command: make test"))
         XCTAssertTrue(context.contains("Recent failure diagnostic: ERROR database is locked"))
         XCTAssertTrue(context.contains("Recent failure fingerprint: error database is locked"))
@@ -911,6 +927,15 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(diagnostics.failedCommandCount, 1)
         XCTAssertEqual(diagnostics.diagnosticSeverity, .critical)
         XCTAssertEqual(diagnostics.diagnosticPriorityScore, 100)
+        XCTAssertEqual(
+            diagnostics.diagnosticPriorityFactors,
+            [
+                .failedCommand,
+                .criticalSeverity,
+                .permissionCategory,
+                .highConfidenceCategory
+            ]
+        )
         XCTAssertEqual(diagnostics.diagnosticCategory, .permission)
         XCTAssertEqual(diagnostics.diagnosticCategoryEvidence, "fatal: permission denied")
         XCTAssertEqual(diagnostics.diagnosticCategoryConfidence, .high)
@@ -991,6 +1016,10 @@ final class musetermTests: XCTestCase {
 
         XCTAssertEqual(portConflict.diagnosticCategory, .portConflict)
         XCTAssertEqual(portConflict.diagnosticPriorityScore, 56)
+        XCTAssertEqual(
+            portConflict.diagnosticPriorityFactors,
+            [.failedCommand, .failedSeverity, .portConflictCategory, .highConfidenceCategory]
+        )
         XCTAssertEqual(portConflict.diagnosticCategoryEvidence, "Error: listen EADDRINUSE: address already in use :::5173")
         XCTAssertEqual(portConflict.diagnosticCategoryConfidence, .high)
         XCTAssertEqual(portConflict.suggestedNextCommand, "lsof -nP -iTCP -sTCP:LISTEN")
@@ -1003,6 +1032,10 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(portConflict.suggestedNextAction?.fallbackNextSteps.first?.contains("container") == true)
         XCTAssertEqual(missingCommand.diagnosticCategory, .missingCommand)
         XCTAssertEqual(missingCommand.diagnosticPriorityScore, 54)
+        XCTAssertEqual(
+            missingCommand.diagnosticPriorityFactors,
+            [.failedCommand, .failedSeverity, .missingCommandCategory, .highConfidenceCategory]
+        )
         XCTAssertEqual(missingCommand.diagnosticCategoryEvidence, "zsh: command not found: frobnicate")
         XCTAssertEqual(missingCommand.diagnosticCategoryConfidence, .high)
         XCTAssertEqual(missingCommand.suggestedNextCommand, "echo \"$PATH\"")
@@ -1014,6 +1047,10 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(missingCommand.suggestedNextAction?.fallbackNextSteps.first?.contains("command -v") == true)
         XCTAssertEqual(missingFile.diagnosticCategory, .missingFile)
         XCTAssertEqual(missingFile.diagnosticPriorityScore, 54)
+        XCTAssertEqual(
+            missingFile.diagnosticPriorityFactors,
+            [.failedCommand, .failedSeverity, .missingFileCategory, .highConfidenceCategory]
+        )
         XCTAssertEqual(missingFile.diagnosticCategoryEvidence, "cat: config.yml: No such file or directory")
         XCTAssertEqual(missingFile.diagnosticCategoryConfidence, .high)
         XCTAssertEqual(missingFile.suggestedNextCommand, "pwd && ls -la")
@@ -1025,6 +1062,10 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(missingFile.suggestedNextAction?.fallbackNextSteps.first?.contains("project tree") == true)
         XCTAssertEqual(gitFailure.diagnosticCategory, .git)
         XCTAssertEqual(gitFailure.diagnosticPriorityScore, 100)
+        XCTAssertEqual(
+            gitFailure.diagnosticPriorityFactors,
+            [.failedCommand, .criticalSeverity, .gitCategory, .mediumConfidenceCategory]
+        )
         XCTAssertEqual(gitFailure.diagnosticCategoryEvidence, "git pull")
         XCTAssertEqual(gitFailure.diagnosticCategoryConfidence, .medium)
         XCTAssertEqual(gitFailure.suggestedNextCommand, "git status --short --branch")
@@ -1036,6 +1077,10 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(gitFailure.suggestedNextAction?.fallbackNextSteps.first?.contains("remote") == true)
         XCTAssertEqual(genericFailure.diagnosticCategory, .generic)
         XCTAssertEqual(genericFailure.diagnosticPriorityScore, 45)
+        XCTAssertEqual(
+            genericFailure.diagnosticPriorityFactors,
+            [.failedCommand, .failedSeverity, .genericCategory, .lowConfidenceCategory]
+        )
         XCTAssertEqual(genericFailure.diagnosticCategoryEvidence, "ERROR validation failed")
         XCTAssertEqual(genericFailure.diagnosticCategoryConfidence, .low)
         XCTAssertEqual(genericFailure.suggestedNextAction?.id, .inspectLocalContext)

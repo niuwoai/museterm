@@ -332,6 +332,8 @@
 "runbook.redaction_on" = "已开启";
 "runbook.redaction_off" = "未开启";
 "runbook.failed_commands" = "失败命令";
+"runbook.diagnostic_priority_score" = "诊断优先级分数";
+"runbook.diagnostic_priority_factors" = "诊断优先级因素";
 "runbook.diagnostic_severity" = "诊断严重级别";
 "runbook.diagnostic_category" = "诊断分类";
 "runbook.diagnostic_category_evidence" = "诊断分类依据";
