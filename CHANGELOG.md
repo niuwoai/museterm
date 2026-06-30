@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.104.0] - 2026-07-01
+
+### Changed
+- 将 Runbook Markdown 导出、诊断摘要写入、回放脚本生成和路径变量参数化从 `ContentView.swift` 拆分到 `RunbookMarkdownExporter.swift`。
+- `ContentView.swift` 行数进一步降到约 1200 行，主视图继续聚焦交互编排，Runbook 产物生成逻辑独立维护。
+
+### Added
+- 新增 `RunbookMarkdownExporterTests`，覆盖回放脚本路径参数化、逐步确认包装、敏感命令参数脱敏和空命令过滤。
+
 ## [1.103.0] - 2026-07-01
 
 ### Changed
