@@ -79,6 +79,7 @@ end
 def parse_common(args)
   tab = nil
   chars = nil
+  json = false
   rest = []
   until args.empty?
     item = args.shift
@@ -87,15 +88,33 @@ def parse_common(args)
       tab = args.shift
     when "--chars", "-c"
       chars = args.shift
+    when "--json"
+      json = true
     else
       rest << item
     end
   end
-  [tab, chars, rest]
+  [tab, chars, json, rest]
 end
 
 def print_json(value)
   puts JSON.pretty_generate(value)
+end
+
+def text_payload(state, tab, field, chars)
+  text = tab[field].to_s
+  limit = chars.nil? ? nil : chars.to_i
+  returned = tail_chars(text, chars)
+  {
+    "schemaVersion" => state["schemaVersion"],
+    "tabID" => tab["id"],
+    "field" => field,
+    "text" => returned,
+    "textCharacters" => text.length,
+    "returnedCharacters" => returned.length,
+    "limit" => limit,
+    "truncated" => limit ? text.length > limit : false
+  }
 end
 
 def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, timeout_seconds: 3.0)
@@ -146,19 +165,29 @@ def command_tabs(args)
 end
 
 def command_screen(args)
-  tab_selector, chars, _rest = parse_common(args)
-  tab = require_tab(read_state, tab_selector)
-  puts tail_chars(tab["screen"], chars)
+  tab_selector, chars, json, _rest = parse_common(args)
+  state = read_state
+  tab = require_tab(state, tab_selector)
+  if json
+    print_json(text_payload(state, tab, "screen", chars))
+  else
+    puts tail_chars(tab["screen"], chars)
+  end
 end
 
 def command_history(args)
-  tab_selector, chars, _rest = parse_common(args)
-  tab = require_tab(read_state, tab_selector)
-  puts tail_chars(tab["history"], chars)
+  tab_selector, chars, json, _rest = parse_common(args)
+  state = read_state
+  tab = require_tab(state, tab_selector)
+  if json
+    print_json(text_payload(state, tab, "history", chars))
+  else
+    puts tail_chars(tab["history"], chars)
+  end
 end
 
 def command_commands(args)
-  tab_selector, chars, _rest = parse_common(args)
+  tab_selector, chars, _json, _rest = parse_common(args)
   state = read_state
   tab = require_tab(state, tab_selector)
   print_json(commands_payload(state, tab, chars))
@@ -187,7 +216,7 @@ def commands_payload(state, tab, chars)
 end
 
 def command_input(args)
-  tab_selector, _chars, rest = parse_common(args)
+  tab_selector, _chars, _json, rest = parse_common(args)
   text = rest.join(" ")
   raise "input requires text." if text.empty?
   response = send_request(action: "input", tab: tab_selector, text: text)
@@ -195,7 +224,7 @@ def command_input(args)
 end
 
 def command_key(args)
-  tab_selector, _chars, rest = parse_common(args)
+  tab_selector, _chars, _json, rest = parse_common(args)
   key = rest.first
   raise "key requires a key name, for example enter or ctrl-c." if key.nil? || key.empty?
   response = send_request(action: "send_key", tab: tab_selector, key: key)
@@ -246,7 +275,8 @@ def mcp_tools
         "type" => "object",
         "properties" => {
           "tab" => { "type" => "string", "description" => "selected, 1-based index, id prefix, or title" },
-          "chars" => { "type" => "integer", "description" => "maximum tail characters" }
+          "chars" => { "type" => "integer", "description" => "maximum tail characters" },
+          "metadata" => { "type" => "boolean", "description" => "return JSON with truncation metadata" }
         }
       }
     },
@@ -257,7 +287,8 @@ def mcp_tools
         "type" => "object",
         "properties" => {
           "tab" => { "type" => "string" },
-          "chars" => { "type" => "integer" }
+          "chars" => { "type" => "integer" },
+          "metadata" => { "type" => "boolean", "description" => "return JSON with truncation metadata" }
         }
       }
     },
@@ -308,11 +339,21 @@ def call_tool(name, args)
       tab.slice("id", "index", "title", "subtitle", "currentDirectory", "isSelected", "state", "columns", "rows", "updatedAt")
     }))
   when "read_screen"
-    tab = require_tab(read_state, args["tab"])
-    tool_result_text(tail_chars(tab["screen"], args["chars"]))
+    state = read_state
+    tab = require_tab(state, args["tab"])
+    if args["metadata"]
+      tool_result_text(JSON.pretty_generate(text_payload(state, tab, "screen", args["chars"])))
+    else
+      tool_result_text(tail_chars(tab["screen"], args["chars"]))
+    end
   when "read_history"
-    tab = require_tab(read_state, args["tab"])
-    tool_result_text(tail_chars(tab["history"], args["chars"]))
+    state = read_state
+    tab = require_tab(state, args["tab"])
+    if args["metadata"]
+      tool_result_text(JSON.pretty_generate(text_payload(state, tab, "history", args["chars"])))
+    else
+      tool_result_text(tail_chars(tab["history"], args["chars"]))
+    end
   when "read_commands"
     state = read_state
     tab = require_tab(state, args["tab"])
@@ -344,7 +385,7 @@ def command_mcp
       when "initialize"
         {
           "protocolVersion" => "2024-11-05",
-          "serverInfo" => { "name" => "museterm", "version" => "1.59.0" },
+          "serverInfo" => { "name" => "museterm", "version" => "1.60.0" },
           "capabilities" => { "tools" => {} }
         }
       when "tools/list"
@@ -371,8 +412,8 @@ def command_help
 
     Commands:
       museterm tabs
-      museterm screen [--tab selected|INDEX|ID] [--chars N]
-      museterm history [--tab selected|INDEX|ID] [--chars N]
+      museterm screen [--tab selected|INDEX|ID] [--chars N] [--json]
+      museterm history [--tab selected|INDEX|ID] [--chars N] [--json]
       museterm commands [--tab selected|INDEX|ID] [--chars N]
       museterm input [--tab selected|INDEX|ID] TEXT
       museterm key [--tab selected|INDEX|ID] enter|ctrl-c|tab|escape|up|down|left|right

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.60.0] - 2026-07-01
+
+### Added
+- `museterm screen --json` 与 `museterm history --json` 会返回文本、字符数、返回字符数、截断上限和截断状态；MCP `read_screen` / `read_history` 也支持 `metadata: true` 返回同样的 JSON 元数据。
+
 ## [1.59.0] - 2026-07-01
 
 ### Added

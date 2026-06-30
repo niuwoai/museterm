@@ -46,6 +46,10 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(script.contains("museterm tabs"))
         XCTAssertTrue(script.contains("museterm screen"))
         XCTAssertTrue(script.contains("museterm history"))
+        XCTAssertTrue(script.contains("[--json]"))
+        XCTAssertTrue(script.contains("\"metadata\" => { \"type\" => \"boolean\""))
+        XCTAssertTrue(script.contains("text_payload(state, tab, \"screen\", args[\"chars\"])"))
+        XCTAssertTrue(script.contains("text_payload(state, tab, \"history\", args[\"chars\"])"))
         XCTAssertTrue(script.contains("museterm input"))
         XCTAssertTrue(script.contains("museterm key"))
         XCTAssertTrue(script.contains("commands_payload"))
@@ -87,6 +91,8 @@ final class musetermTests: XCTestCase {
                     "title": "project",
                     "isSelected": true,
                     "state": "running",
+                    "screen": "screen-abcdef",
+                    "history": "history-abcdef",
                     "commandDiagnostics": [
                         "schemaVersion": 1,
                         "failedCommandCount": 0
@@ -123,6 +129,23 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(unlimitedCommand["outputTailLimit"] is NSNull)
         XCTAssertEqual(unlimitedCommand["outputTailTruncated"] as? Bool, false)
         XCTAssertEqual(unlimitedCommand["outputTailStoredTruncated"] as? Bool, true)
+
+        let screen = try runMuseTermCLIScript(scriptURL, home: root, arguments: ["screen", "--chars", "4", "--json"])
+        XCTAssertEqual(screen["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(screen["field"] as? String, "screen")
+        XCTAssertEqual(screen["text"] as? String, "cdef")
+        XCTAssertEqual(screen["textCharacters"] as? Int, 13)
+        XCTAssertEqual(screen["returnedCharacters"] as? Int, 4)
+        XCTAssertEqual(screen["limit"] as? Int, 4)
+        XCTAssertEqual(screen["truncated"] as? Bool, true)
+
+        let history = try runMuseTermCLIScript(scriptURL, home: root, arguments: ["history", "--json"])
+        XCTAssertEqual(history["field"] as? String, "history")
+        XCTAssertEqual(history["text"] as? String, "history-abcdef")
+        XCTAssertEqual(history["textCharacters"] as? Int, 14)
+        XCTAssertEqual(history["returnedCharacters"] as? Int, 14)
+        XCTAssertTrue(history["limit"] is NSNull)
+        XCTAssertEqual(history["truncated"] as? Bool, false)
     }
 
     @MainActor
