@@ -12,6 +12,12 @@ struct TerminalCommands: Commands {
             .keyboardShortcut("t", modifiers: .command)
             .disabled(workspace == nil)
 
+            Button(L10n.string("action.close_tab")) {
+                workspace?.closeSelectedTab()
+            }
+            .keyboardShortcut("w", modifiers: .command)
+            .disabled(workspace == nil)
+
             Divider()
 
             Button(L10n.string("action.previous_tab")) {

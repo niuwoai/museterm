@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.8.0] - 2026-06-30
+
+### Added
+- `Cmd+W` 关闭当前标签；关闭最后一个标签时随之关闭窗口；所有窗口关闭后退出 App（新增 AppDelegate 的 `applicationShouldTerminateAfterLastWindowClosed`）。原先关闭最后一个标签会自动新建一个空标签，导致无法用 `Cmd+W` 关掉窗口。
+
 ## [1.7.1-rc5] - 2026-06-30
 
 ### Changed

@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import Darwin
 import Foundation
@@ -368,21 +369,33 @@ final class TerminalWorkspace: ObservableObject {
         selectedID = tabs[index].id
     }
 
+    func closeSelectedTab() {
+        guard let selectedTab else { return }
+        close(selectedTab)
+    }
+
     func close(_ tab: TerminalSession) {
         tab.terminate()
-        guard tabs.count > 1 else {
-            newTab()
-            tabs.removeAll { $0.id == tab.id }
-            selectedID = tabs.first?.id
-            return
-        }
 
         let index = tabs.firstIndex { $0.id == tab.id }
         tabs.removeAll { $0.id == tab.id }
 
+        guard !tabs.isEmpty else {
+            // 关闭最后一个标签 → 关闭其所在窗口；当所有窗口都关闭后 App 会退出
+            // （见 AppDelegate.applicationShouldTerminateAfterLastWindowClosed）。
+            closeContainingWindow()
+            return
+        }
+
         if selectedID == tab.id {
             let fallbackIndex = min(index ?? 0, tabs.count - 1)
             selectedID = tabs[fallbackIndex].id
+        }
+    }
+
+    private func closeContainingWindow() {
+        DispatchQueue.main.async {
+            (NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first { $0.isVisible })?.close()
         }
     }
 
