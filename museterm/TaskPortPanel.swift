@@ -771,6 +771,7 @@ struct CommandBlockDiagnostics: Equatable {
                 let sensitiveResultFields = suggestedNextAction.sensitiveResultFields.map(\.rawValue).joined(separator: "; ")
                 lines.append("Suggested next action sensitive result fields: \(sensitiveResultFields)")
             }
+            lines.append("Suggested next action result privacy level: \(suggestedNextAction.resultPrivacyLevel.rawValue)")
             lines.append("Suggested next action title: \(suggestedNextAction.title)")
             lines.append("Suggested next action safety: \(suggestedNextAction.safety.rawValue)")
             lines.append("Suggested next action execution mode: \(suggestedNextAction.executionMode.rawValue)")
@@ -1134,6 +1135,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultFields: [.localPort, .processID, .processName, .listenAddress],
                 expectedResultSignals: [.targetPortVisible, .ownerProcessVisible],
                 sensitiveResultFields: [.processName, .listenAddress],
+                resultPrivacyLevel: .contextual,
                 title: "List listening TCP ports",
                 rationale: "The latest failure looks like a local port conflict, so inspect listeners before rerunning.",
                 command: "lsof -nP -iTCP -sTCP:LISTEN",
@@ -1178,6 +1180,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultFields: [.workingDirectory, .currentUser, .directoryPermissions],
                 expectedResultSignals: [.currentUserVisible, .permissionBoundaryVisible],
                 sensitiveResultFields: [.workingDirectory, .currentUser, .directoryPermissions],
+                resultPrivacyLevel: .sensitive,
                 title: "Inspect current permissions",
                 rationale: "The latest failure mentions permission denied, so check the working directory and current user.",
                 command: "pwd && id && ls -ld .",
@@ -1222,6 +1225,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultFields: [.pathEntries],
                 expectedResultSignals: [.pathEntriesVisible],
                 sensitiveResultFields: [.pathEntries],
+                resultPrivacyLevel: .sensitive,
                 title: "Inspect PATH",
                 rationale: "The latest failure says a command is missing, so check which directories the shell searches.",
                 command: "echo \"$PATH\"",
@@ -1266,6 +1270,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultFields: [.workingDirectory, .visibleEntries, .fileMetadata],
                 expectedResultSignals: [.workingDirectoryVisible, .directoryEntriesVisible],
                 sensitiveResultFields: [.workingDirectory, .visibleEntries, .fileMetadata],
+                resultPrivacyLevel: .sensitive,
                 title: "Inspect current directory",
                 rationale: "The latest failure references a missing file, so confirm the current directory and visible files.",
                 command: "pwd && ls -la",
@@ -1310,6 +1315,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultFields: [.gitBranch, .gitUpstream, .gitDirtyState],
                 expectedResultSignals: [.gitBranchVisible, .gitDirtyStateVisible],
                 sensitiveResultFields: [.gitBranch, .gitUpstream],
+                resultPrivacyLevel: .contextual,
                 title: "Inspect Git state",
                 rationale: "The latest failed command or diagnostic is Git-related, so inspect branch and dirty state first.",
                 command: "git status --short --branch",
@@ -1354,6 +1360,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultFields: [.workingDirectory, .gitBranch, .gitUpstream, .gitDirtyState],
                 expectedResultSignals: [.workingDirectoryVisible, .gitStateVisible],
                 sensitiveResultFields: [.workingDirectory, .gitBranch, .gitUpstream],
+                resultPrivacyLevel: .sensitive,
                 title: "Inspect repeat context",
                 rationale: "The latest failures repeat, so capture location and Git state before another retry.",
                 command: "pwd && git status --short --branch 2>/dev/null || true",
@@ -1398,6 +1405,7 @@ struct CommandBlockDiagnostics: Equatable {
                 expectedResultFields: [.workingDirectory, .gitBranch, .gitUpstream, .gitDirtyState],
                 expectedResultSignals: [.workingDirectoryVisible, .gitStateVisible],
                 sensitiveResultFields: [.workingDirectory, .gitBranch, .gitUpstream],
+                resultPrivacyLevel: .sensitive,
                 title: "Inspect local context",
                 rationale: "The failure is not specific enough yet, so capture location and Git state as a safe first step.",
                 command: "pwd && git status --short --branch 2>/dev/null || true",
@@ -1547,6 +1555,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let expectedResultFields: [CommandDiagnosticActionResultField]
     let expectedResultSignals: [CommandDiagnosticActionResultSignal]
     let sensitiveResultFields: [CommandDiagnosticActionResultField]
+    let resultPrivacyLevel: CommandDiagnosticActionPrivacyLevel
     let title: String
     let rationale: String
     let command: String
@@ -1574,6 +1583,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         expectedResultFields: [CommandDiagnosticActionResultField],
         expectedResultSignals: [CommandDiagnosticActionResultSignal],
         sensitiveResultFields: [CommandDiagnosticActionResultField],
+        resultPrivacyLevel: CommandDiagnosticActionPrivacyLevel,
         title: String,
         rationale: String,
         command: String,
@@ -1600,6 +1610,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         self.expectedResultFields = expectedResultFields
         self.expectedResultSignals = expectedResultSignals
         self.sensitiveResultFields = sensitiveResultFields
+        self.resultPrivacyLevel = resultPrivacyLevel
         self.title = title
         self.rationale = rationale
         self.command = command
@@ -1689,6 +1700,12 @@ enum CommandDiagnosticActionResultSignal: String, Codable, Equatable {
     case gitBranchVisible = "git_branch_visible"
     case gitDirtyStateVisible = "git_dirty_state_visible"
     case gitStateVisible = "git_state_visible"
+}
+
+enum CommandDiagnosticActionPrivacyLevel: String, Codable, Equatable {
+    case low
+    case contextual
+    case sensitive
 }
 
 enum CommandDiagnosticActionExecutionTarget: String, Codable, Equatable {

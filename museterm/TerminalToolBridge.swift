@@ -140,6 +140,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
     let expectedResultFields: [String]
     let expectedResultSignals: [String]
     let sensitiveResultFields: [String]
+    let resultPrivacyLevel: String
     let title: String
     let rationale: String
     let command: String
@@ -167,6 +168,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
         expectedResultFields = action.expectedResultFields.map(\.rawValue)
         expectedResultSignals = action.expectedResultSignals.map(\.rawValue)
         sensitiveResultFields = action.sensitiveResultFields.map(\.rawValue)
+        resultPrivacyLevel = action.resultPrivacyLevel.rawValue
         title = action.title
         rationale = action.rationale
         command = action.command

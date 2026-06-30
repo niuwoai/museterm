@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.85.0] - 2026-07-01
+
+### Added
+- `suggestedNextAction` 新增 `resultPrivacyLevel`，用稳定 code 汇总建议命令结果的隐私敏感级别。
+- Runbook、AI 上下文和 CLI/MCP `commandDiagnostics.suggestedNextAction` 会同步暴露结果隐私级别，帮助外部工具在解释、转发或日志记录前选择本地处理或脱敏策略。
+
 ## [1.84.0] - 2026-07-01
 
 ### Added

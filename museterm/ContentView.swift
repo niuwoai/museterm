@@ -1492,6 +1492,9 @@ enum RunbookMarkdownExporter {
                     "- \(L10n.string("runbook.suggested_next_action_sensitive_result_fields")): \(sensitiveResultFields)"
                 )
             }
+            lines.append(
+                "- \(L10n.string("runbook.suggested_next_action_result_privacy_level")): \(suggestedNextAction.resultPrivacyLevel.rawValue)"
+            )
             lines.append("- \(L10n.string("runbook.suggested_next_action")): \(escapeInline(suggestedNextAction.title))")
             lines.append(
                 "- \(L10n.string("runbook.suggested_next_action_safety")): \(suggestedNextAction.safety.rawValue)"
