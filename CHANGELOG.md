@@ -4,6 +4,7 @@
 
 ### Added
 - 终端文本选择支持边缘自动滚动：鼠标拖拽选区靠近终端视图顶部或底部时，会持续滚动 scrollback 并同步延伸选区，便于一次选中多屏输出。
+- 连续同类失败诊断新增 `retryPauseSeverity`，用 `none`、`advisory` 或 `strong` 汇总暂停重试建议强度，并同步到 AI 上下文、MCP/CLI 快照和 Runbook 导出。
 
 ## [1.145.0] - 2026-07-01
 

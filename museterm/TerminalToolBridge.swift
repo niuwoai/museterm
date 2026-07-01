@@ -155,6 +155,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
                 latestIntervalTrend: repeatedFailureDiagnostic.latestIntervalTrend.rawValue,
                 cadence: repeatedFailureDiagnostic.cadence.rawValue,
                 retryPauseRecommended: repeatedFailureDiagnostic.retryPauseRecommended,
+                retryPauseSeverity: repeatedFailureDiagnostic.retryPauseSeverity.rawValue,
                 retryPauseReasons: repeatedFailureDiagnostic.retryPauseReasons.map(\.rawValue),
                 count: repeatedFailureDiagnostic.count
             )
@@ -283,6 +284,7 @@ struct TerminalToolRepeatedFailureSnapshot: Codable, Equatable {
     let latestIntervalTrend: String
     let cadence: String
     let retryPauseRecommended: Bool
+    let retryPauseSeverity: String
     let retryPauseReasons: [String]
     let count: Int
 }

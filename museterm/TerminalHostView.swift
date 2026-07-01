@@ -1694,8 +1694,12 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
     private var cachedEchoEnabled: Bool?
     private var cachedEchoCheckedAt: TimeInterval = 0
     private var pendingEchoBytes: [UInt8] = []
+    private var selectionAutoscrollTimer: Timer?
+    private var selectionAutoscrollAction: TerminalSelectionAutoscroll?
+    private var lastSelectionDragEvent: NSEvent?
     private let maxEchoCacheAge: TimeInterval = 1.0
     private let maxPendingEchoBytes = 2_048
+    private let selectionAutoscrollInterval: TimeInterval = 0.08
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -1707,6 +1711,10 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
         installTerminalDelegateRouter()
     }
 
+    deinit {
+        stopSelectionAutoscroll()
+    }
+
     private func installTerminalDelegateRouter() {
         let router = TerminalDelegateRouter(owner: self)
         terminalDelegateRouter = router
@@ -1715,6 +1723,9 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        if window == nil {
+            stopSelectionAutoscroll()
+        }
         DispatchQueue.main.async { [weak self] in
             self?.requestFocus()
             self?.onReadyForProcessStart?()
@@ -1734,12 +1745,25 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
     }
 
     override func mouseDown(with event: NSEvent) {
+        stopSelectionAutoscroll()
         requestFocus()
         onNeedsFocus?()
         super.mouseDown(with: event)
     }
 
+    override func mouseDragged(with event: NSEvent) {
+        super.mouseDragged(with: event)
+        lastSelectionDragEvent = event
+        updateSelectionAutoscroll(for: event)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        stopSelectionAutoscroll()
+        super.mouseUp(with: event)
+    }
+
     override func rightMouseDown(with event: NSEvent) {
+        stopSelectionAutoscroll()
         requestFocus()
         onNeedsFocus?()
         super.rightMouseDown(with: event)
@@ -1976,9 +2000,57 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
     }
 
     override func otherMouseDown(with event: NSEvent) {
+        stopSelectionAutoscroll()
         requestFocus()
         onNeedsFocus?()
         super.otherMouseDown(with: event)
+    }
+
+    private func updateSelectionAutoscroll(for event: NSEvent) {
+        guard selectionActive else {
+            stopSelectionAutoscroll()
+            return
+        }
+
+        let point = convert(event.locationInWindow, from: nil)
+        guard let action = TerminalSelectionAutoscroll.action(pointerY: point.y, viewHeight: bounds.height) else {
+            stopSelectionAutoscroll()
+            return
+        }
+
+        selectionAutoscrollAction = action
+        guard selectionAutoscrollTimer == nil else { return }
+
+        let timer = Timer(timeInterval: selectionAutoscrollInterval, repeats: true) { [weak self] _ in
+            self?.handleSelectionAutoscrollTick()
+        }
+        selectionAutoscrollTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func handleSelectionAutoscrollTick() {
+        guard selectionActive, let action = selectionAutoscrollAction else {
+            stopSelectionAutoscroll()
+            return
+        }
+
+        switch action.direction {
+        case .up:
+            scrollUp(lines: action.lines)
+        case .down:
+            scrollDown(lines: action.lines)
+        }
+
+        if let event = lastSelectionDragEvent {
+            super.mouseDragged(with: event)
+        }
+    }
+
+    private func stopSelectionAutoscroll() {
+        selectionAutoscrollTimer?.invalidate()
+        selectionAutoscrollTimer = nil
+        selectionAutoscrollAction = nil
+        lastSelectionDragEvent = nil
     }
 
     override func paste(_ sender: Any) {

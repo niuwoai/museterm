@@ -677,6 +677,7 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append("Repeated failure latest interval trend: \(repeatedFailureDiagnostic.latestIntervalTrend.rawValue)")
             lines.append("Repeated failure cadence: \(repeatedFailureDiagnostic.cadence.rawValue)")
             lines.append("Repeated failure retry pause recommended: \(repeatedFailureDiagnostic.retryPauseRecommended)")
+            lines.append("Repeated failure retry pause severity: \(repeatedFailureDiagnostic.retryPauseSeverity.rawValue)")
             if !repeatedFailureDiagnostic.retryPauseReasons.isEmpty {
                 let reasons = repeatedFailureDiagnostic.retryPauseReasons.map(\.rawValue).joined(separator: "; ")
                 lines.append("Repeated failure retry pause reasons: \(reasons)")
@@ -980,6 +981,9 @@ struct CommandBlockDiagnostics: Equatable {
             latestIntervalTrend: latestIntervalTrend,
             contextStability: contextStability
         )
+        let retryPauseSeverity = repeatedFailureRetryPauseSeverity(
+            reasons: retryPauseReasons
+        )
         return RepeatedFailureDiagnostic(
             diagnostic: latestRecord.diagnostic,
             fingerprint: latestRecord.fingerprint,
@@ -1008,6 +1012,7 @@ struct CommandBlockDiagnostics: Equatable {
             latestIntervalTrend: latestIntervalTrend,
             cadence: cadence,
             retryPauseRecommended: !retryPauseReasons.isEmpty,
+            retryPauseSeverity: retryPauseSeverity,
             retryPauseReasons: retryPauseReasons,
             count: count
         )
@@ -1769,6 +1774,16 @@ struct CommandBlockDiagnostics: Equatable {
         return reasons
     }
 
+    nonisolated private static func repeatedFailureRetryPauseSeverity(
+        reasons: [RepeatedFailureRetryPauseReason]
+    ) -> RepeatedFailureRetryPauseSeverity {
+        guard !reasons.isEmpty else { return .none }
+        if reasons.contains(.immediateRetry) || reasons.contains(.acceleratingRetry) {
+            return .strong
+        }
+        return .advisory
+    }
+
     nonisolated private static func repeatedFailureContextStability(
         uniqueCommandCount: Int,
         uniqueWorkingDirectoryCount: Int
@@ -1816,6 +1831,7 @@ struct RepeatedFailureDiagnostic: Equatable {
     let latestIntervalTrend: RepeatedFailureLatestIntervalTrend
     let cadence: RepeatedFailureCadence
     let retryPauseRecommended: Bool
+    let retryPauseSeverity: RepeatedFailureRetryPauseSeverity
     let retryPauseReasons: [RepeatedFailureRetryPauseReason]
     let count: Int
 }
@@ -1853,6 +1869,12 @@ enum RepeatedFailureRetryPauseReason: String, Codable, Equatable {
     case immediateRetry = "immediate_retry"
     case acceleratingRetry = "accelerating_retry"
     case stableContext = "stable_context"
+}
+
+enum RepeatedFailureRetryPauseSeverity: String, Codable, Equatable {
+    case none
+    case advisory
+    case strong
 }
 
 enum CommandDiagnosticSeverity: String, Codable, Equatable {

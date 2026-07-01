@@ -30,9 +30,10 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.146.0 已完成一百四十三条纵向切片：
+v1.146.0 已完成一百四十四条纵向切片：
 
 - 多屏终端选区：终端拖拽选择文本时，鼠标靠近顶部或底部会自动滚动 scrollback，并持续延伸选区，让跨多屏输出选择回到原生终端应有的手感。
+- 连续失败暂停强度：`RepeatedFailureDiagnostic` 会输出 `retryPauseSeverity`，用 `none`、`advisory` 或 `strong` 汇总暂停重试建议强度，让 AI/MCP 和 Runbook 区分轻提醒与强提醒。
 
 v1.145.0 已完成一百四十二条纵向切片：
 

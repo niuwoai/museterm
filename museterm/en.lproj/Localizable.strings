@@ -423,6 +423,7 @@
 "runbook.repeated_failure_latest_interval_trend" = "Repeated failure latest interval trend";
 "runbook.repeated_failure_cadence" = "Repeated failure cadence";
 "runbook.repeated_failure_retry_pause_recommended" = "Repeated failure retry pause recommended";
+"runbook.repeated_failure_retry_pause_severity" = "Repeated failure retry pause severity";
 "runbook.repeated_failure_retry_pause_reasons" = "Repeated failure retry pause reasons";
 "runbook.suggested_next_inspection" = "Suggested next inspection";
 "runbook.suggested_next_command" = "Suggested next command";
