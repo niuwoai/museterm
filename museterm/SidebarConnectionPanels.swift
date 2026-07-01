@@ -580,6 +580,7 @@ private struct SSHProfileEditorSheet: View {
             labeledEditor("ssh.jumps", help: "ssh.jumps.help", text: $jumpText, height: 86)
             routeSummaryView
             labeledEditor("ssh.port_forwards", help: "ssh.port_forwards.help", text: $portForwardText, height: 86)
+            preflightIssuesView
             labeledEditor("ssh.options", help: "ssh.options.help", text: $optionText, height: 62)
             securityWarningsView
             labeledEditor("ssh.startup", help: "ssh.startup.help", text: $startupText, height: 62)
@@ -814,6 +815,33 @@ private struct SSHProfileEditorSheet: View {
             .padding(.horizontal, 9)
             .padding(.vertical, 7)
             .background(Color.orange.opacity(0.10))
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        }
+    }
+
+    @ViewBuilder
+    private var preflightIssuesView: some View {
+        let issues = profile.preflightIssues
+        if !issues.isEmpty {
+            VStack(alignment: .leading, spacing: 5) {
+                ForEach(issues) { issue in
+                    Label {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(issue.kind.title)
+                                .font(.caption2.weight(.semibold))
+                            Text(issue.kind.summary(detail: issue.detail))
+                                .font(.caption2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    } icon: {
+                        Image(systemName: "checklist.unchecked")
+                    }
+                    .foregroundStyle(Color.blue)
+                }
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+            .background(Color.blue.opacity(0.09))
             .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
     }

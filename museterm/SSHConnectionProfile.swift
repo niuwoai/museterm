@@ -189,6 +189,104 @@ enum SSHProfileSecurityAnalyzer {
     }
 }
 
+enum SSHProfilePreflightIssueKind: String, Equatable {
+    case duplicatePortForwardListener
+    case identityFileUnavailable
+    case jumpIdentityFileUnavailable
+
+    var title: String {
+        L10n.string("ssh.preflight_issue.\(rawValue).title")
+    }
+
+    func summary(detail: String) -> String {
+        L10n.format("ssh.preflight_issue.\(rawValue).summary", detail)
+    }
+}
+
+struct SSHProfilePreflightIssue: Identifiable, Equatable {
+    let kind: SSHProfilePreflightIssueKind
+    let detail: String
+
+    var id: String {
+        "\(kind.rawValue)-\(detail)"
+    }
+}
+
+enum SSHProfilePreflightAnalyzer {
+    static func issues(
+        for profile: SSHConnectionProfile,
+        fileManager: FileManager = .default
+    ) -> [SSHProfilePreflightIssue] {
+        duplicateForwardIssues(for: profile.portForwards)
+            + identityIssues(for: profile, fileManager: fileManager)
+    }
+
+    private static func duplicateForwardIssues(
+        for forwards: [SSHPortForward]
+    ) -> [SSHProfilePreflightIssue] {
+        var seen: Set<String> = []
+        var duplicates: [String] = []
+
+        for forward in forwards {
+            let key = listenerKey(for: forward)
+            guard !key.isEmpty else { continue }
+            if !seen.insert(key).inserted, !duplicates.contains(key) {
+                duplicates.append(key)
+            }
+        }
+
+        return duplicates.map {
+            SSHProfilePreflightIssue(kind: .duplicatePortForwardListener, detail: $0)
+        }
+    }
+
+    private static func listenerKey(for forward: SSHPortForward) -> String {
+        let bindPort = min(max(forward.bindPort, 1), 65_535)
+        let bindHost = forward.bindHost.trimmingCharacters(in: .whitespacesAndNewlines)
+        let side = forward.kind == .remote ? "remote" : "local"
+        let host = bindHost.isEmpty ? "*" : bindHost
+        return "\(side) \(host):\(bindPort)"
+    }
+
+    private static func identityIssues(
+        for profile: SSHConnectionProfile,
+        fileManager: FileManager
+    ) -> [SSHProfilePreflightIssue] {
+        var issues: [SSHProfilePreflightIssue] = []
+
+        for path in profile.identityFiles.cleanedPathList() where !identityFileExists(path, fileManager: fileManager) {
+            issues.append(SSHProfilePreflightIssue(kind: .identityFileUnavailable, detail: path))
+        }
+
+        for jump in profile.jumpHosts {
+            for path in jump.identityFiles.cleanedPathList() where !identityFileExists(path, fileManager: fileManager) {
+                let detail = "\(jumpDisplayName(jump)): \(path)"
+                issues.append(SSHProfilePreflightIssue(kind: .jumpIdentityFileUnavailable, detail: detail))
+            }
+        }
+
+        return issues
+    }
+
+    private static func jumpDisplayName(_ jump: SSHJumpHost) -> String {
+        let name = jump.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !name.isEmpty { return name }
+        let user = jump.user.trimmingCharacters(in: .whitespacesAndNewlines)
+        let host = jump.host.trimmingCharacters(in: .whitespacesAndNewlines)
+        return user.isEmpty ? host : "\(user)@\(host)"
+    }
+
+    private static func identityFileExists(_ path: String, fileManager: FileManager) -> Bool {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return true }
+        guard !trimmed.contains("%") else { return true }
+        let expanded = (trimmed as NSString).expandingTildeInPath
+        var isDirectory: ObjCBool = false
+        let exists = fileManager.fileExists(atPath: expanded, isDirectory: &isDirectory)
+        return exists && !isDirectory.boolValue
+    }
+}
+
 struct SSHJumpHost: Codable, Equatable, Identifiable {
     var id: UUID
     var name: String
@@ -461,6 +559,10 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
 
     var securityWarningKinds: [SSHProfileSecurityWarningKind] {
         SSHProfileSecurityAnalyzer.warningKinds(extraOptions: normalized.extraOptions)
+    }
+
+    var preflightIssues: [SSHProfilePreflightIssue] {
+        SSHProfilePreflightAnalyzer.issues(for: self)
     }
 }
 

@@ -192,6 +192,12 @@
 "ssh.security_warning.hostKeyCheckingDisabled.summary" = "StrictHostKeyChecking off/no weakens server identity checks and can hide man-in-the-middle risk.";
 "ssh.security_warning.knownHostsDisabled.title" = "Known hosts storage is disabled";
 "ssh.security_warning.knownHostsDisabled.summary" = "Writing known hosts to /dev/null prevents MuseTerm/OpenSSH from remembering trusted server fingerprints.";
+"ssh.preflight_issue.duplicatePortForwardListener.title" = "Port forward listener conflict";
+"ssh.preflight_issue.duplicatePortForwardListener.summary" = "%@ is reused. OpenSSH can bind one listener address to only one forward.";
+"ssh.preflight_issue.identityFileUnavailable.title" = "Identity file is unavailable";
+"ssh.preflight_issue.identityFileUnavailable.summary" = "MuseTerm cannot find %@. Check the path and file permissions before connecting.";
+"ssh.preflight_issue.jumpIdentityFileUnavailable.title" = "Jump host identity file is unavailable";
+"ssh.preflight_issue.jumpIdentityFileUnavailable.summary" = "MuseTerm cannot find %@, which may break authentication for that jump host.";
 "ssh.diagnostic.message" = "MuseTerm SSH check: %@\n%@\nNext: %@";
 "ssh.diagnostic.permissionDenied.title" = "Authentication was rejected";
 "ssh.diagnostic.permissionDenied.summary" = "The server refused the offered password, key, or agent identity.";

@@ -453,6 +453,69 @@ final class musetermTests: XCTestCase {
         )
     }
 
+    @MainActor
+    func testSSHProfilePreflightFlagsDuplicatePortForwardListeners() {
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            portForwards: [
+                SSHPortForward(
+                    kind: .local,
+                    bindHost: "127.0.0.1",
+                    bindPort: 8080,
+                    destinationHost: "127.0.0.1",
+                    destinationPort: 80
+                ),
+                SSHPortForward(
+                    kind: .dynamic,
+                    bindHost: "127.0.0.1",
+                    bindPort: 8080
+                )
+            ]
+        )
+
+        XCTAssertEqual(
+            profile.preflightIssues,
+            [
+                SSHProfilePreflightIssue(
+                    kind: .duplicatePortForwardListener,
+                    detail: "local 127.0.0.1:8080"
+                )
+            ]
+        )
+    }
+
+    @MainActor
+    func testSSHProfilePreflightFlagsUnavailableIdentityFiles() {
+        let missingTargetKey = "/tmp/museterm-missing-target-key-\(UUID().uuidString)"
+        let missingJumpKey = "/tmp/museterm-missing-jump-key-\(UUID().uuidString)"
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            identityFiles: [missingTargetKey],
+            jumpHosts: [
+                SSHJumpHost(
+                    name: "edge",
+                    host: "edge.example.com",
+                    user: "ops",
+                    identityFiles: [missingJumpKey]
+                )
+            ]
+        )
+
+        XCTAssertEqual(
+            profile.preflightIssues,
+            [
+                SSHProfilePreflightIssue(
+                    kind: .identityFileUnavailable,
+                    detail: missingTargetKey
+                ),
+                SSHProfilePreflightIssue(
+                    kind: .jumpIdentityFileUnavailable,
+                    detail: "edge: \(missingJumpKey)"
+                )
+            ]
+        )
+    }
+
     func testToolInputMapsNamedControlKeys() {
         XCTAssertEqual(TerminalToolInput.bytes(text: nil, key: "enter", rawBytes: nil), [0x0D])
         XCTAssertEqual(TerminalToolInput.bytes(text: nil, key: "ctrl-c", rawBytes: nil), [0x03])

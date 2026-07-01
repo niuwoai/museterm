@@ -192,6 +192,12 @@
 "ssh.security_warning.hostKeyCheckingDisabled.summary" = "StrictHostKeyChecking off/no 会弱化服务器身份校验，可能掩盖中间人风险。";
 "ssh.security_warning.knownHostsDisabled.title" = "已关闭 known_hosts 记录";
 "ssh.security_warning.knownHostsDisabled.summary" = "把 known_hosts 写到 /dev/null 会导致 MuseTerm/OpenSSH 无法记住可信服务器指纹。";
+"ssh.preflight_issue.duplicatePortForwardListener.title" = "端口转发监听冲突";
+"ssh.preflight_issue.duplicatePortForwardListener.summary" = "%@ 被重复使用，OpenSSH 只能为一个转发绑定同一个监听地址。";
+"ssh.preflight_issue.identityFileUnavailable.title" = "密钥文件不可用";
+"ssh.preflight_issue.identityFileUnavailable.summary" = "MuseTerm 找不到 %@，连接前请检查路径和文件权限。";
+"ssh.preflight_issue.jumpIdentityFileUnavailable.title" = "跳转机密钥不可用";
+"ssh.preflight_issue.jumpIdentityFileUnavailable.summary" = "MuseTerm 找不到 %@，这会影响对应跳转机认证。";
 "ssh.diagnostic.message" = "MuseTerm SSH 检查：%@\n%@\n下一步：%@";
 "ssh.diagnostic.permissionDenied.title" = "认证被拒绝";
 "ssh.diagnostic.permissionDenied.summary" = "服务器拒绝了当前密码、密钥或 agent 身份。";
