@@ -57,13 +57,7 @@ struct TerminalSelectionContext: Equatable {
 
     var localPathCandidate: String? {
         guard let text = singleLineText else { return nil }
-        let expanded = (text as NSString).expandingTildeInPath
-        guard !expanded.hasPrefix("'"),
-              !expanded.hasPrefix("$'"),
-              !expanded.contains("\\") else {
-            return nil
-        }
-        return expanded
+        return Self.localPathCandidate(from: text)
     }
 
     var urlEncodedText: String? {
@@ -223,6 +217,57 @@ struct TerminalSelectionContext: Equatable {
             }
             return !CharacterSet.controlCharacters.contains(scalar)
         }
+    }
+
+    private static func localPathCandidate(from text: String) -> String? {
+        if text.hasPrefix("$'") { return nil }
+
+        let candidate: String
+        if text.hasPrefix("'") || text.contains("\\") {
+            guard let decoded = decodeSimpleShellPathWord(text) else { return nil }
+            candidate = decoded
+        } else if text.contains("'"), let decoded = decodeSimpleShellPathWord(text) {
+            candidate = decoded
+        } else {
+            candidate = text
+        }
+        guard !candidate.isEmpty else { return nil }
+        return (candidate as NSString).expandingTildeInPath
+    }
+
+    private static func decodeSimpleShellPathWord(_ text: String) -> String? {
+        var index = text.startIndex
+        var decoded = ""
+        while index < text.endIndex {
+            let character = text[index]
+            if character == "'" {
+                var closedQuote = false
+                index = text.index(after: index)
+                while index < text.endIndex {
+                    if text[index] == "'" {
+                        index = text.index(after: index)
+                        closedQuote = true
+                        break
+                    }
+                    decoded.append(text[index])
+                    index = text.index(after: index)
+                }
+                guard closedQuote else { return nil }
+            } else if character == "\\" {
+                let next = text.index(after: index)
+                guard next < text.endIndex else { return nil }
+                decoded.append(text[next])
+                index = text.index(after: next)
+            } else if character == "$",
+                      text.index(after: index) < text.endIndex,
+                      text[text.index(after: index)] == "'" {
+                return nil
+            } else {
+                decoded.append(character)
+                index = text.index(after: index)
+            }
+        }
+        return decoded
     }
 
     private static let hostPortRegex = RegexMatcher(

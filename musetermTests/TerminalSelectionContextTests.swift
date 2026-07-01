@@ -80,4 +80,34 @@ final class TerminalSelectionContextTests: XCTestCase {
         XCTAssertEqual(TerminalSelectionContext(selection: ".env")?.isLikelyPath, true)
         XCTAssertEqual(TerminalSelectionContext(selection: "./Scripts/build.sh")?.isLikelyPath, true)
     }
+
+    func testLocalPathCandidateDecodesSimpleShellEscapedPaths() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("museterm-selection-\(UUID().uuidString)", isDirectory: true)
+        let directory = root.appendingPathComponent("Folder With Space", isDirectory: true)
+        let apostropheFile = root.appendingPathComponent("can't.txt")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: apostropheFile.path, contents: Data())
+        defer {
+            try? FileManager.default.removeItem(at: root)
+        }
+
+        let quoted = try XCTUnwrap(TerminalSelectionContext(selection: "'\(directory.path)'"))
+        XCTAssertEqual(quoted.localPathCandidate, directory.path)
+        XCTAssertTrue(quoted.localPathExists)
+        XCTAssertTrue(quoted.isExistingLocalDirectory)
+
+        let escapedPath = directory.path.replacingOccurrences(of: " ", with: "\\ ")
+        let escaped = try XCTUnwrap(TerminalSelectionContext(selection: escapedPath))
+        XCTAssertEqual(escaped.localPathCandidate, directory.path)
+        XCTAssertTrue(escaped.localPathExists)
+        XCTAssertTrue(escaped.isExistingLocalDirectory)
+
+        let literalApostrophe = try XCTUnwrap(TerminalSelectionContext(selection: apostropheFile.path))
+        XCTAssertEqual(literalApostrophe.localPathCandidate, apostropheFile.path)
+        XCTAssertTrue(literalApostrophe.localPathExists)
+
+        XCTAssertNil(TerminalSelectionContext(selection: "'\(directory.path)")?.localPathCandidate)
+        XCTAssertNil(TerminalSelectionContext(selection: "$'\\141'")?.localPathCandidate)
+    }
 }
