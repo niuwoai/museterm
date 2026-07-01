@@ -1753,7 +1753,7 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
             keyEquivalent: ""
         )
         escapedItem.target = self
-        escapedItem.isEnabled = TerminalShellArgumentEscaper.typedArgument(fromTerminalSelection: getSelection()) != nil
+        escapedItem.isEnabled = true
         menu.addItem(escapedItem)
         menu.addItem(.separator())
         menu.addItem(withTitle: L10n.string("action.copy"), action: #selector(copy(_:)), keyEquivalent: "")
@@ -1763,7 +1763,10 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
     }
 
     @objc private func typeShellEscapedSelection(_ sender: Any) {
-        guard let text = TerminalShellArgumentEscaper.typedArgument(fromTerminalSelection: getSelection()) else { return }
+        guard let text = TerminalShellArgumentEscaper.typedArgument(fromTerminalSelection: getSelection()) else {
+            NSSound.beep()
+            return
+        }
         send(source: self, data: Array(text.utf8)[...])
     }
 

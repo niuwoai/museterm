@@ -114,6 +114,7 @@ def text_payload(state, tab, field, chars)
     "tabID" => tab["id"],
     "shellName" => tab["shellName"],
     "currentDirectory" => tab["currentDirectory"],
+    "selectedTabID" => state["selectedTabID"],
     "field" => field,
     "text" => returned,
     "textCharacters" => text.length,

@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.121.1-rc1] - 2026-07-01
+
+### Fixed
+- 修复终端右键菜单中“转义键入所选路径”在菜单打开时因选区读取时机不稳定而被置灰的问题；菜单项现在保持可点击，点击时再读取选区并在无可用选区时给出系统反馈。
+
+## [1.121.0] - 2026-07-01
+
+### Added
+- CLI/MCP 的 `screen --json`、`history --json`、`read_screen metadata:true` 和 `read_history metadata:true` 顶层 payload 新增 `selectedTabID`，外部工具读取屏幕或历史时可判断返回内容来自当前选中标签还是指定的其他标签。
+
 ## [1.120.0] - 2026-07-01
 
 ### Added
