@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.119.0] - 2026-07-01
+
+### Added
+- CLI/MCP 的 `screen --json`、`history --json`、`commands`、`read_screen metadata:true` 和 `read_commands` 顶层 payload 新增 `shellName`，外部工具读取具体屏幕、历史或命令块时无需先调用 `list_tabs` 也能知道当前 shell 环境。
+
 ## [1.118.0] - 2026-07-01
 
 ### Added
