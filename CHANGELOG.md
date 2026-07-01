@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.122.0] - 2026-07-01
+
+### Added
+- CLI/MCP 的 `screen --json`、`history --json`、`commands`、`read_screen metadata:true`、`read_history metadata:true` 和 `read_commands` 顶层 payload 新增 `app` 与 `version`，外部工具读取屏幕、历史或命令块时可直接判断 App 来源和版本。
+- 终端右键选区菜单新增脱敏复制、Markdown 代码块、AI 解释提示词、URL、路径、端口、PID、Git hash、JSON 和常见编码转换动作；危险类动作仍只填入命令，等待用户确认执行。
+
 ## [1.121.1-rc1] - 2026-07-01
 
 ### Fixed

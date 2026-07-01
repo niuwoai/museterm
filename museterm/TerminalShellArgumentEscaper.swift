@@ -1,6 +1,10 @@
 import Foundation
 
 enum TerminalShellArgumentEscaper {
+    static func shellArgument(_ value: String) -> String {
+        return singleQuoted(value)
+    }
+
     static func typedArgument(fromTerminalSelection selection: String?) -> String? {
         escapedPathArgument(fromTerminalSelection: selection).map { " " + $0 }
     }
@@ -19,7 +23,7 @@ enum TerminalShellArgumentEscaper {
         if trimmed.hasPrefix("-") {
             return "./" + singleQuoted(trimmed)
         }
-        return singleQuoted(trimmed)
+        return shellArgument(trimmed)
     }
 
     private static func singleQuoted(_ value: String) -> String {

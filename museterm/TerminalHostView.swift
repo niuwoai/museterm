@@ -1747,6 +1747,7 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
 
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = NSMenu()
+        let context = TerminalSelectionContext(selection: getSelection())
         let escapedItem = NSMenuItem(
             title: L10n.string("terminal.context.type_escaped_selection"),
             action: #selector(typeShellEscapedSelection(_:)),
@@ -1755,6 +1756,7 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
         escapedItem.target = self
         escapedItem.isEnabled = true
         menu.addItem(escapedItem)
+        addSelectionContextMenuItems(to: menu, context: context)
         menu.addItem(.separator())
         menu.addItem(withTitle: L10n.string("action.copy"), action: #selector(copy(_:)), keyEquivalent: "")
         menu.addItem(withTitle: L10n.string("action.paste"), action: #selector(paste(_:)), keyEquivalent: "")
@@ -1768,6 +1770,185 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
             return
         }
         send(source: self, data: Array(text.utf8)[...])
+    }
+
+    private func addSelectionContextMenuItems(to menu: NSMenu, context: TerminalSelectionContext?) {
+        guard let context else { return }
+
+        var addedContextSection = false
+        func addContextSeparatorIfNeeded() {
+            guard !addedContextSection else { return }
+            menu.addItem(.separator())
+            addedContextSection = true
+        }
+
+        addContextSeparatorIfNeeded()
+        if let escaped = context.escapedPathArgument {
+            menu.addItem(makeCopyItem("terminal.context.copy_escaped_selection", text: escaped))
+        }
+        menu.addItem(makeCopyItem("terminal.context.copy_redacted_selection", text: RunbookSensitiveRedactor.redact(context.trimmedText)))
+        menu.addItem(makeCopyItem("terminal.context.copy_markdown_selection", text: context.markdownCodeBlock))
+        menu.addItem(makeCopyItem("terminal.context.copy_ai_prompt", text: context.aiPrompt))
+
+        if let url = context.normalizedURL {
+            addContextSeparatorIfNeeded()
+            menu.addItem(makeOpenURLItem("terminal.context.open_url", url: url))
+            menu.addItem(makeCopyItem("terminal.context.copy_curl_command", text: "curl -i \(TerminalShellArgumentEscaper.shellArgument(url.absoluteString))"))
+            menu.addItem(makeTypeCommandItem("terminal.context.type_curl_command", command: "curl -i \(TerminalShellArgumentEscaper.shellArgument(url.absoluteString))"))
+        }
+
+        if context.isLikelyPath, let escaped = context.escapedPathArgument {
+            addContextSeparatorIfNeeded()
+            menu.addItem(makeSubmenu(
+                "terminal.context.path_submenu",
+                items: pathMenuItems(escapedPath: escaped, includeCD: context.isExistingLocalDirectory)
+            ))
+        }
+
+        if let port = context.port {
+            addContextSeparatorIfNeeded()
+            menu.addItem(makeSubmenu(
+                "terminal.context.port_submenu",
+                items: [
+                    makeOpenURLItem("terminal.context.open_localhost_port", url: URL(string: "http://127.0.0.1:\(port)")!),
+                    makeTypeCommandItem("terminal.context.type_port_lsof", command: "lsof -nP -iTCP:\(port) -sTCP:LISTEN"),
+                    makeCopyItem("terminal.context.copy_localhost_url", text: "http://127.0.0.1:\(port)")
+                ]
+            ))
+        }
+
+        if let pid = context.pid {
+            addContextSeparatorIfNeeded()
+            menu.addItem(makeSubmenu(
+                "terminal.context.pid_submenu",
+                items: [
+                    makeTypeCommandItem("terminal.context.type_pid_ps", command: "ps -p \(pid) -o pid,ppid,stat,etime,pcpu,pmem,command"),
+                    makeTypeCommandItem("terminal.context.type_pid_lsof", command: "lsof -p \(pid)"),
+                    makeTypeCommandItem("terminal.context.type_pid_kill", command: "kill \(pid)"),
+                    makeTypeCommandItem("terminal.context.type_pid_kill9", command: "kill -9 \(pid)")
+                ]
+            ))
+        }
+
+        if let hash = context.gitHash {
+            addContextSeparatorIfNeeded()
+            menu.addItem(makeSubmenu(
+                "terminal.context.git_submenu",
+                items: [
+                    makeTypeCommandItem("terminal.context.type_git_show_stat", command: "git show --stat \(hash)"),
+                    makeTypeCommandItem("terminal.context.type_git_show", command: "git show \(hash)")
+                ]
+            ))
+        }
+
+        if let prettyJSON = context.prettyJSON {
+            addContextSeparatorIfNeeded()
+            menu.addItem(makeSubmenu(
+                "terminal.context.json_submenu",
+                items: [
+                    makeCopyItem("terminal.context.copy_pretty_json", text: prettyJSON),
+                    makeTypeCommandItem("terminal.context.type_jq_command", command: "jq .")
+                ]
+            ))
+        }
+
+        if let singleLine = context.singleLineText,
+           let searchArgument = TerminalShellArgumentEscaper.escapedPathArgument(fromTerminalSelection: singleLine) {
+            addContextSeparatorIfNeeded()
+            menu.addItem(makeTypeCommandItem("terminal.context.type_rg_command", command: "rg \(searchArgument)"))
+        }
+
+        let transformItems = transformMenuItems(for: context)
+        if !transformItems.isEmpty {
+            addContextSeparatorIfNeeded()
+            menu.addItem(makeSubmenu("terminal.context.transform_submenu", items: transformItems))
+        }
+    }
+
+    private func pathMenuItems(escapedPath: String, includeCD: Bool) -> [NSMenuItem] {
+        var items: [NSMenuItem] = [
+            makeCopyItem("terminal.context.copy_escaped_path", text: escapedPath),
+            makeTypeCommandItem("terminal.context.type_ls_path", command: "ls -la \(escapedPath)"),
+            makeTypeCommandItem("terminal.context.type_stat_path", command: "stat \(escapedPath)"),
+            makeTypeCommandItem("terminal.context.type_file_path", command: "file \(escapedPath)")
+        ]
+        if includeCD {
+            items.insert(
+                makeTypeCommandItem("terminal.context.type_cd_path", command: "cd \(escapedPath)"),
+                at: 1
+            )
+        }
+        return items
+    }
+
+    private func transformMenuItems(for context: TerminalSelectionContext) -> [NSMenuItem] {
+        var items: [NSMenuItem] = []
+        if let encoded = context.urlEncodedText, encoded != context.trimmedText {
+            items.append(makeCopyItem("terminal.context.copy_url_encoded", text: encoded))
+        }
+        if let decoded = context.urlDecodedText {
+            items.append(makeCopyItem("terminal.context.copy_url_decoded", text: decoded))
+        }
+        items.append(makeCopyItem("terminal.context.copy_base64_encoded", text: context.base64EncodedText))
+        if let decoded = context.base64DecodedText {
+            items.append(makeCopyItem("terminal.context.copy_base64_decoded", text: decoded))
+        }
+        return items
+    }
+
+    private func makeSubmenu(_ titleKey: String, items: [NSMenuItem]) -> NSMenuItem {
+        let item = NSMenuItem(title: L10n.string(titleKey), action: nil, keyEquivalent: "")
+        let submenu = NSMenu(title: L10n.string(titleKey))
+        items.forEach { submenu.addItem($0) }
+        item.submenu = submenu
+        return item
+    }
+
+    private func makeCopyItem(_ titleKey: String, text: String) -> NSMenuItem {
+        let item = NSMenuItem(title: L10n.string(titleKey), action: #selector(copyRepresentedText(_:)), keyEquivalent: "")
+        item.target = self
+        item.representedObject = text
+        return item
+    }
+
+    private func makeTypeCommandItem(_ titleKey: String, command: String) -> NSMenuItem {
+        let item = NSMenuItem(title: L10n.string(titleKey), action: #selector(typeRepresentedCommand(_:)), keyEquivalent: "")
+        item.target = self
+        item.representedObject = command
+        return item
+    }
+
+    private func makeOpenURLItem(_ titleKey: String, url: URL) -> NSMenuItem {
+        let item = NSMenuItem(title: L10n.string(titleKey), action: #selector(openRepresentedURL(_:)), keyEquivalent: "")
+        item.target = self
+        item.representedObject = url
+        return item
+    }
+
+    @objc private func copyRepresentedText(_ sender: NSMenuItem) {
+        guard let text = sender.representedObject as? String else {
+            NSSound.beep()
+            return
+        }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+    }
+
+    @objc private func typeRepresentedCommand(_ sender: NSMenuItem) {
+        guard let command = sender.representedObject as? String else {
+            NSSound.beep()
+            return
+        }
+        send(source: self, data: Array(command.utf8)[...])
+    }
+
+    @objc private func openRepresentedURL(_ sender: NSMenuItem) {
+        guard let url = sender.representedObject as? URL else {
+            NSSound.beep()
+            return
+        }
+        NSWorkspace.shared.open(url)
     }
 
     override func otherMouseDown(with event: NSEvent) {

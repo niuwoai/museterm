@@ -137,6 +137,8 @@ final class musetermTests: XCTestCase {
         let limited = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["commands", "--chars", "3"])
         let limitedCommand = try XCTUnwrap((limited["commands"] as? [[String: Any]])?.first)
         XCTAssertEqual(limited["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(limited["app"] as? String, "MuseTerm")
+        XCTAssertEqual(limited["version"] as? String, "test")
         XCTAssertEqual(limited["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(limited["tabID"] as? String, "tab-1")
         XCTAssertEqual(limited["shellName"] as? String, "zsh")
@@ -164,6 +166,8 @@ final class musetermTests: XCTestCase {
 
         let screen = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["screen", "--chars", "4", "--json"])
         XCTAssertEqual(screen["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(screen["app"] as? String, "MuseTerm")
+        XCTAssertEqual(screen["version"] as? String, "test")
         XCTAssertEqual(screen["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(screen["shellName"] as? String, "zsh")
         XCTAssertEqual(screen["currentDirectory"] as? String, "/tmp/project")
@@ -176,6 +180,8 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(screen["truncated"] as? Bool, true)
 
         let history = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["history", "--json"])
+        XCTAssertEqual(history["app"] as? String, "MuseTerm")
+        XCTAssertEqual(history["version"] as? String, "test")
         XCTAssertEqual(history["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(history["shellName"] as? String, "zsh")
         XCTAssertEqual(history["currentDirectory"] as? String, "/tmp/project")
@@ -217,6 +223,8 @@ final class musetermTests: XCTestCase {
         let command = try XCTUnwrap(commands.first)
 
         XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(payload["app"] as? String, "MuseTerm")
+        XCTAssertEqual(payload["version"] as? String, "test")
         XCTAssertEqual(payload["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(payload["tabID"] as? String, "tab-1")
         XCTAssertEqual(payload["shellName"] as? String, "zsh")
@@ -308,6 +316,8 @@ final class musetermTests: XCTestCase {
         )
 
         XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(payload["app"] as? String, "MuseTerm")
+        XCTAssertEqual(payload["version"] as? String, "test")
         XCTAssertEqual(payload["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(payload["shellName"] as? String, "zsh")
         XCTAssertEqual(payload["currentDirectory"] as? String, "/tmp/project")
@@ -318,6 +328,47 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(payload["returnedCharacters"] as? Int, 5)
         XCTAssertEqual(payload["limit"] as? Int, 5)
         XCTAssertEqual(payload["truncated"] as? Bool, true)
+    }
+
+    func testMCPReadHistoryReportsMetadata() throws {
+        let fixture = try makeMuseTermCLITestFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let response = try runMuseTermMCPRequest(
+            fixture.scriptURL,
+            home: fixture.root,
+            request: [
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": [
+                    "name": "read_history",
+                    "arguments": [
+                        "metadata": true
+                    ]
+                ]
+            ]
+        )
+        let result = try XCTUnwrap(response["result"] as? [String: Any])
+        let content = try XCTUnwrap(result["content"] as? [[String: Any]])
+        let text = try XCTUnwrap(content.first?["text"] as? String)
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]
+        )
+
+        XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(payload["app"] as? String, "MuseTerm")
+        XCTAssertEqual(payload["version"] as? String, "test")
+        XCTAssertEqual(payload["snapshotSequence"] as? Int, 42)
+        XCTAssertEqual(payload["shellName"] as? String, "zsh")
+        XCTAssertEqual(payload["currentDirectory"] as? String, "/tmp/project")
+        XCTAssertEqual(payload["selectedTabID"] as? String, "tab-1")
+        XCTAssertEqual(payload["field"] as? String, "history")
+        XCTAssertEqual(payload["text"] as? String, "history-abcdef")
+        XCTAssertEqual(payload["textCharacters"] as? Int, 14)
+        XCTAssertEqual(payload["returnedCharacters"] as? Int, 14)
+        XCTAssertTrue(payload["limit"] is NSNull)
+        XCTAssertEqual(payload["truncated"] as? Bool, false)
     }
 
     func testMCPListTabsReportsMetadata() throws {
