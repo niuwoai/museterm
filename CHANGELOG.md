@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.143.0] - 2026-07-01
+
+### Added
+- 连续同类失败诊断新增 `latestIntervalMilliseconds`，记录最近两次连续失败之间的间隔，并同步到 AI 上下文、MCP/CLI 快照和 Runbook 导出，方便判断用户刚才是否又在短时间内重试。
+
 ## [1.142.0] - 2026-07-01
 
 ### Added

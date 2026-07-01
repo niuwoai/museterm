@@ -673,6 +673,7 @@ struct CommandBlockDiagnostics: Equatable {
             )
             lines.append("Repeated failure duration: \(repeatedFailureDiagnostic.durationMilliseconds) ms")
             lines.append("Repeated failure average interval: \(repeatedFailureDiagnostic.averageIntervalMilliseconds) ms")
+            lines.append("Repeated failure latest interval: \(repeatedFailureDiagnostic.latestIntervalMilliseconds) ms")
             lines.append("Repeated failure cadence: \(repeatedFailureDiagnostic.cadence.rawValue)")
         }
         if diagnosticSeverity != .none {
@@ -950,6 +951,13 @@ struct CommandBlockDiagnostics: Equatable {
             firstOccurredAt: firstOccurredAt,
             latestOccurredAt: latestOccurredAt
         )
+        let previousOccurredAt = matchedBlocks.dropFirst().first.map { occurrenceDate(for: $0) }
+        let latestIntervalMilliseconds = previousOccurredAt.map {
+            failureDurationMilliseconds(
+                firstOccurredAt: $0,
+                latestOccurredAt: latestOccurredAt
+            )
+        } ?? 0
         let averageIntervalMilliseconds = failureAverageIntervalMilliseconds(
             durationMilliseconds: durationMilliseconds,
             count: count
@@ -981,6 +989,7 @@ struct CommandBlockDiagnostics: Equatable {
             latestOccurredAt: latestOccurredAt,
             durationMilliseconds: durationMilliseconds,
             averageIntervalMilliseconds: averageIntervalMilliseconds,
+            latestIntervalMilliseconds: latestIntervalMilliseconds,
             cadence: cadence,
             count: count
         )
@@ -1753,6 +1762,7 @@ struct RepeatedFailureDiagnostic: Equatable {
     let latestOccurredAt: Date
     let durationMilliseconds: Int
     let averageIntervalMilliseconds: Int
+    let latestIntervalMilliseconds: Int
     let cadence: RepeatedFailureCadence
     let count: Int
 }

@@ -419,6 +419,7 @@
 "runbook.repeated_failure_window_value" = "%@ to %@";
 "runbook.repeated_failure_duration" = "Repeated failure duration";
 "runbook.repeated_failure_average_interval" = "Repeated failure average interval";
+"runbook.repeated_failure_latest_interval" = "Repeated failure latest interval";
 "runbook.repeated_failure_cadence" = "Repeated failure cadence";
 "runbook.suggested_next_inspection" = "Suggested next inspection";
 "runbook.suggested_next_command" = "Suggested next command";
