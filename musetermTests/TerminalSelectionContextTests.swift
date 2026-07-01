@@ -38,4 +38,10 @@ final class TerminalSelectionContextTests: XCTestCase {
             "hello world"
         )
     }
+
+    func testBuildsInteractiveRemoveCommand() throws {
+        let context = try XCTUnwrap(TerminalSelectionContext(selection: "my file.txt"))
+
+        XCTAssertEqual(context.interactiveRemoveCommand, "rm -i -- 'my file.txt'")
+    }
 }

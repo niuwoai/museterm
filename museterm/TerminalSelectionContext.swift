@@ -92,6 +92,10 @@ struct TerminalSelectionContext: Equatable {
         return "```\(language)\n\(trimmedText)\n```"
     }
 
+    var interactiveRemoveCommand: String? {
+        escapedPathArgument.map { "rm -i -- \($0)" }
+    }
+
     var aiPrompt: String {
         L10n.format("terminal.context.ai_prompt_template", trimmedText)
     }

@@ -1870,9 +1870,11 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
             makeCopyItem("terminal.context.copy_escaped_path", text: escapedPath),
             makeTypeCommandItem("terminal.context.type_ls_path", command: "ls -la \(escapedPath)"),
             makeTypeCommandItem("terminal.context.type_stat_path", command: "stat \(escapedPath)"),
-            makeTypeCommandItem("terminal.context.type_file_path", command: "file \(escapedPath)"),
-            makeTypeCommandItem("terminal.context.type_rm_path", command: "rm -- \(escapedPath)")
+            makeTypeCommandItem("terminal.context.type_file_path", command: "file \(escapedPath)")
         ]
+        if let removeCommand = context.interactiveRemoveCommand {
+            items.append(makeTypeCommandItem("terminal.context.type_rm_path", command: removeCommand))
+        }
         if let localPath = context.localPathCandidate,
            FileManager.default.fileExists(atPath: localPath) {
             items.insert(

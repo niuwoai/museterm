@@ -40,7 +40,7 @@
 "terminal.context.type_ls_path" = "Type ls -la";
 "terminal.context.type_stat_path" = "Type stat";
 "terminal.context.type_file_path" = "Type file";
-"terminal.context.type_rm_path" = "Type rm --";
+"terminal.context.type_rm_path" = "Type rm -i --";
 "terminal.context.port_submenu" = "Port";
 "terminal.context.open_localhost_port" = "Open localhost";
 "terminal.context.type_port_lsof" = "Type lsof Port Check";
