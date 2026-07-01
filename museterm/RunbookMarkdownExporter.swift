@@ -147,6 +147,9 @@ enum RunbookMarkdownExporter {
                 "- \(L10n.string("runbook.diagnostic_category_confidence")): \(diagnostics.diagnosticCategoryConfidence.rawValue)"
             )
         }
+        if let latestFailedCommandID = diagnostics.latestFailedCommandID {
+            lines.append("- \(L10n.string("runbook.latest_failed_command_id")): `\(latestFailedCommandID.uuidString)`")
+        }
         if let latestFailedCommand = diagnostics.latestFailedCommand {
             lines.append("- \(L10n.string("runbook.latest_failed_command")): `\(escapeInline(latestFailedCommand))`")
         }
@@ -167,6 +170,9 @@ enum RunbookMarkdownExporter {
             lines.append(
                 "- \(L10n.string("runbook.latest_failed_completion_source")): \(latestFailedCompletionSource.contextLabel)"
             )
+        }
+        if let recentFailureCommandID = diagnostics.recentFailureCommandID {
+            lines.append("- \(L10n.string("runbook.recent_failure_command_id")): `\(recentFailureCommandID.uuidString)`")
         }
         if let recentFailureDiagnostic = diagnostics.recentFailureDiagnostic {
             lines.append("- \(L10n.string("runbook.latest_failure")): `\(escapeInline(recentFailureDiagnostic))`")

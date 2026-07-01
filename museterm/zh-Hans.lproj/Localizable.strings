@@ -383,11 +383,13 @@
 "runbook.diagnostic_category" = "诊断分类";
 "runbook.diagnostic_category_evidence" = "诊断分类依据";
 "runbook.diagnostic_category_confidence" = "诊断分类可信度";
+"runbook.latest_failed_command_id" = "最近失败命令 ID";
 "runbook.latest_failed_command" = "最近失败命令";
 "runbook.latest_failed_exit_code" = "最近失败退出码";
 "runbook.latest_failed_duration" = "最近失败耗时";
 "runbook.latest_failed_command_source" = "最近失败命令来源";
 "runbook.latest_failed_completion_source" = "最近失败完成来源";
+"runbook.recent_failure_command_id" = "最近失败诊断命令 ID";
 "runbook.latest_failure" = "最近失败";
 "runbook.failure_fingerprint" = "失败指纹";
 "runbook.failure_output_tail_line" = "失败输出尾部行号";

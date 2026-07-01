@@ -413,11 +413,19 @@ final class musetermTests: XCTestCase {
     @MainActor
     func testToolTabSnapshotEncodesCommandDiagnostics() throws {
         let diagnostic = "ERROR database is locked"
+        let latestCommandID = try XCTUnwrap(UUID(uuidString: "11111111-2222-3333-4444-555555555555"))
         let diagnostics = CommandBlockDiagnostics(
             blocks: [
                 commandBlock(command: "make test", startedAt: 100, endedAt: 101, exitCode: 1, errorLine: diagnostic),
                 commandBlock(command: "make test", startedAt: 110, endedAt: 111, exitCode: 1, errorLine: diagnostic),
-                commandBlock(command: "make test", startedAt: 120, endedAt: 121, exitCode: 1, errorLine: diagnostic)
+                commandBlock(
+                    command: "make test",
+                    id: latestCommandID,
+                    startedAt: 120,
+                    endedAt: 121,
+                    exitCode: 1,
+                    errorLine: diagnostic
+                )
             ]
         )
         let snapshot = TerminalToolTabSnapshot(
@@ -479,11 +487,13 @@ final class musetermTests: XCTestCase {
             encodedDiagnostics["diagnosticCategoryConfidence"] as? String,
             CommandDiagnosticConfidence.medium.rawValue
         )
+        XCTAssertEqual(encodedDiagnostics["latestFailedCommandID"] as? String, latestCommandID.uuidString)
         XCTAssertEqual(encodedDiagnostics["latestFailedCommand"] as? String, "make test")
         XCTAssertEqual(encodedDiagnostics["latestFailedExitCode"] as? Int, 1)
         XCTAssertEqual(encodedDiagnostics["latestFailedDurationMilliseconds"] as? Int, 1_000)
         XCTAssertEqual(encodedDiagnostics["latestFailedCommandStartSource"] as? String, "shellIntegration")
         XCTAssertEqual(encodedDiagnostics["latestFailedCompletionSource"] as? String, "shellIntegration")
+        XCTAssertEqual(encodedDiagnostics["recentFailureCommandID"] as? String, latestCommandID.uuidString)
         XCTAssertEqual(encodedDiagnostics["recentFailureDiagnostic"] as? String, diagnostic)
         XCTAssertEqual(encodedDiagnostics["recentFailureFingerprint"] as? String, "error database is locked")
         XCTAssertEqual(encodedDiagnostics["recentFailureOutputTailLineNumber"] as? Int, 1)
@@ -505,7 +515,9 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(
             evidenceAnchors,
             [
+                CommandDiagnosticEvidenceAnchor.latestFailedCommandID.rawValue,
                 CommandDiagnosticEvidenceAnchor.latestFailedCommand.rawValue,
+                CommandDiagnosticEvidenceAnchor.recentFailureCommandID.rawValue,
                 CommandDiagnosticEvidenceAnchor.recentFailureDiagnostic.rawValue,
                 CommandDiagnosticEvidenceAnchor.recentFailureFingerprint.rawValue,
                 CommandDiagnosticEvidenceAnchor.recentFailureOutputTailLine.rawValue,
@@ -1041,11 +1053,13 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.diagnostic_category")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.diagnostic_category_evidence")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.diagnostic_category_confidence")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command_id")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.failure_fingerprint")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_duration")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command_source")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_completion_source")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.recent_failure_command_id")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.failure_output_tail_line")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.failure_output_tail_text")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_inspection")))
@@ -1100,6 +1114,8 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains("1000 ms"))
         XCTAssertTrue(markdown.contains("shellIntegration"))
         XCTAssertTrue(markdown.contains("ERROR token=[REDACTED]"))
+        XCTAssertTrue(markdown.contains(CommandDiagnosticEvidenceAnchor.latestFailedCommandID.rawValue))
+        XCTAssertTrue(markdown.contains(CommandDiagnosticEvidenceAnchor.recentFailureCommandID.rawValue))
         XCTAssertTrue(markdown.contains(CommandDiagnosticEvidenceAnchor.recentFailureOutputTailLine.rawValue))
         XCTAssertTrue(markdown.contains("Inspect the repeated failure output before rerunning"))
         XCTAssertTrue(markdown.contains("pwd && git status --short --branch 2>/dev/null || true"))
@@ -1113,11 +1129,13 @@ final class musetermTests: XCTestCase {
     }
 
     func testCommandBlockDiagnosticsBuildsAIContext() throws {
+        let latestCommandID = try XCTUnwrap(UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE"))
         let blocks = [
             commandBlock(command: "make test", startedAt: 100, endedAt: 101, exitCode: 1, errorLine: "ERROR database is locked"),
             commandBlock(command: "make test", startedAt: 110, endedAt: 111, exitCode: 1, errorLine: "ERROR database is locked"),
             commandBlock(
                 command: "make test",
+                id: latestCommandID,
                 startedAt: 120,
                 endedAt: 121,
                 exitCode: 1,
@@ -1134,11 +1152,13 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Diagnostic priority score: 90"))
         XCTAssertTrue(context.contains("Diagnostic priority factors: failed_command; repeated_severity"))
         XCTAssertTrue(context.contains("multiple_failures; repeated_failure_count"))
+        XCTAssertTrue(context.contains("Latest failed command id: \(latestCommandID.uuidString)"))
         XCTAssertTrue(context.contains("Latest failed command: make test"))
         XCTAssertTrue(context.contains("Latest failed exit code: 1"))
         XCTAssertTrue(context.contains("Latest failed duration: 1000 ms"))
         XCTAssertTrue(context.contains("Latest failed command source: shellIntegration"))
         XCTAssertTrue(context.contains("Latest failed completion source: shellIntegration"))
+        XCTAssertTrue(context.contains("Recent failure command id: \(latestCommandID.uuidString)"))
         XCTAssertTrue(context.contains("Recent failure diagnostic: ERROR database is locked"))
         XCTAssertTrue(context.contains("Recent failure fingerprint: error database is locked"))
         XCTAssertTrue(context.contains("Recent failure output tail line: 2"))
@@ -1159,7 +1179,8 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Suggested next action priority score: 90"))
         XCTAssertTrue(context.contains("Suggested next action priority factors: failed_command; repeated_severity"))
         XCTAssertTrue(context.contains("multiple_failures; repeated_failure_count"))
-        XCTAssertTrue(context.contains("Suggested next action evidence anchors: latest_failed_command; recent_failure_diagnostic"))
+        XCTAssertTrue(context.contains("Suggested next action evidence anchors: latest_failed_command_id; latest_failed_command"))
+        XCTAssertTrue(context.contains("recent_failure_command_id; recent_failure_diagnostic"))
         XCTAssertTrue(context.contains("recent_failure_output_tail_line; repeated_failure_diagnostic"))
         XCTAssertTrue(context.contains("diagnostic_category_evidence"))
         XCTAssertTrue(context.contains("Suggested next action scope: repeated_failure_context"))
@@ -1903,6 +1924,7 @@ final class musetermTests: XCTestCase {
 
     private func commandBlock(
         command: String,
+        id: UUID = UUID(),
         startedAt: TimeInterval,
         endedAt: TimeInterval,
         exitCode: Int32,
@@ -1911,7 +1933,7 @@ final class musetermTests: XCTestCase {
     ) -> TerminalCommandBlock {
         let resolvedOutputTail = outputTail ?? errorLine
         return TerminalCommandBlock(
-            id: UUID(),
+            id: id,
             command: command,
             workingDirectory: "/tmp/project",
             startedAt: Date(timeIntervalSince1970: startedAt),
