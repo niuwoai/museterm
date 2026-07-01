@@ -171,6 +171,16 @@ enum RunbookMarkdownExporter {
                 "- \(L10n.string("runbook.latest_failed_lifecycle_state")): \(latestFailedCommandLifecycleState.contextLabel)"
             )
         }
+        if let latestFailedCommandRiskLevel = diagnostics.latestFailedCommandRiskLevel {
+            lines.append(
+                "- \(L10n.string("runbook.latest_failed_command_risk_level")): \(latestFailedCommandRiskLevel.contextLabel)"
+            )
+        }
+        if !diagnostics.latestFailedCommandRiskReasons.isEmpty {
+            lines.append(
+                "- \(L10n.string("runbook.latest_failed_command_risk_reasons")): \(diagnostics.latestFailedCommandRiskReasons.map(\.contextLabel).joined(separator: ", "))"
+            )
+        }
         if let latestFailedCommandStartSource = diagnostics.latestFailedCommandStartSource {
             lines.append(
                 "- \(L10n.string("runbook.latest_failed_command_source")): \(latestFailedCommandStartSource.contextLabel)"
@@ -485,6 +495,8 @@ enum RunbookMarkdownExporter {
         }
         lines.append("- \(L10n.string("runbook.status")): \(statusText(for: block))")
         lines.append("- \(L10n.string("runbook.lifecycle_state")): \(block.commandLifecycleState.contextLabel)")
+        lines.append("- \(L10n.string("runbook.command_risk_level")): \(block.commandRiskProfile.level.contextLabel)")
+        lines.append("- \(L10n.string("runbook.command_risk_reasons")): \(block.commandRiskProfile.reasons.map(\.contextLabel).joined(separator: ", "))")
         if let commandStartSource = block.commandStartSource {
             lines.append("- \(L10n.string("runbook.command_source")): \(commandStartSource.contextLabel)")
         }

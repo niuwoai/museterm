@@ -238,6 +238,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                     endedAt: block.endedAt,
                     exitCode: block.exitCode,
                     commandLifecycleState: block.commandLifecycleState.rawValue,
+                    commandRiskLevel: block.commandRiskProfile.level.rawValue,
+                    commandRiskReasons: block.commandRiskProfile.reasons.map(\.rawValue),
                     commandStartSource: block.commandStartSource?.rawValue,
                     completionSource: block.completionSource?.rawValue,
                     commandBoundaryConfidence: block.commandBoundaryConfidence.rawValue,

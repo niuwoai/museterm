@@ -48,6 +48,34 @@ final class musetermTests: XCTestCase {
         XCTAssertFalse(rawValues.contains("penguin"))
     }
 
+    func testSSHConfigAddsDefaultKeepAliveOptions() {
+        let profile = SSHConnectionProfile(host: "example.com", user: "deploy")
+        let config = SSHConfigMaterializer.renderConfig(profile: profile)
+
+        XCTAssertTrue(config.contains("  ServerAliveInterval 30"))
+        XCTAssertTrue(config.contains("  ServerAliveCountMax 6"))
+    }
+
+    func testSSHConfigDoesNotDuplicateManualKeepAliveOptions() {
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            user: "deploy",
+            extraOptions: [
+                "ServerAliveInterval 15",
+                "ServerAliveCountMax 2"
+            ],
+            keepAliveEnabled: true,
+            keepAliveIntervalSeconds: 30,
+            keepAliveCountMax: 6
+        )
+        let config = SSHConfigMaterializer.renderConfig(profile: profile)
+
+        XCTAssertFalse(config.contains("  ServerAliveInterval 30"))
+        XCTAssertFalse(config.contains("  ServerAliveCountMax 6"))
+        XCTAssertTrue(config.contains("  ServerAliveInterval 15"))
+        XCTAssertTrue(config.contains("  ServerAliveCountMax 2"))
+    }
+
     func testToolInputMapsNamedControlKeys() {
         XCTAssertEqual(TerminalToolInput.bytes(text: nil, key: "enter", rawBytes: nil), [0x0D])
         XCTAssertEqual(TerminalToolInput.bytes(text: nil, key: "ctrl-c", rawBytes: nil), [0x03])
@@ -170,6 +198,8 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(limitedCommand["outputTailTruncated"] as? Bool, true)
         XCTAssertEqual(limitedCommand["outputTailStoredTruncated"] as? Bool, true)
         XCTAssertEqual(limitedCommand["commandLifecycleState"] as? String, "failed")
+        XCTAssertEqual(limitedCommand["commandRiskLevel"] as? String, "unknown")
+        XCTAssertEqual(limitedCommand["commandRiskReasons"] as? [String], ["unknown_effects"])
         XCTAssertEqual(limitedCommand["commandBoundaryConfidence"] as? String, "high")
         XCTAssertEqual(
             limitedCommand["commandBoundaryReasons"] as? [String],
@@ -535,6 +565,8 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(encodedDiagnostics["latestFailedExitCode"] as? Int, 1)
         XCTAssertEqual(encodedDiagnostics["latestFailedDurationMilliseconds"] as? Int, 1_000)
         XCTAssertEqual(encodedDiagnostics["latestFailedCommandLifecycleState"] as? String, "failed")
+        XCTAssertEqual(encodedDiagnostics["latestFailedCommandRiskLevel"] as? String, "unknown")
+        XCTAssertEqual(encodedDiagnostics["latestFailedCommandRiskReasons"] as? [String], ["unknown_effects"])
         XCTAssertEqual(encodedDiagnostics["latestFailedCommandStartSource"] as? String, "shellIntegration")
         XCTAssertEqual(encodedDiagnostics["latestFailedCompletionSource"] as? String, "shellIntegration")
         XCTAssertEqual(encodedDiagnostics["latestFailedCommandBoundaryConfidence"] as? String, "high")
@@ -1112,12 +1144,67 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(block.commandBoundaryReasons, [.userInputStart, .shellIntegrationCompletion])
         XCTAssertTrue(block.searchableText.contains("shellIntegration"))
         XCTAssertTrue(block.searchableText.contains("failed"))
+        XCTAssertTrue(block.searchableText.contains("unknown_effects"))
         XCTAssertTrue(block.searchableText.contains("medium"))
         XCTAssertTrue(block.searchableText.contains("user_input_start"))
         XCTAssertTrue(block.aiContextText.contains("Completion source: shellIntegration"))
         XCTAssertTrue(block.aiContextText.contains("Lifecycle state: failed"))
+        XCTAssertTrue(block.aiContextText.contains("Risk level: unknown"))
+        XCTAssertTrue(block.aiContextText.contains("Risk reasons: unknown_effects"))
         XCTAssertTrue(block.aiContextText.contains("Command boundary confidence: medium"))
         XCTAssertTrue(block.aiContextText.contains("Command boundary reasons: user_input_start, shell_integration_completion"))
+    }
+
+    func testCommandBlockClassifiesCommandRiskProfile() throws {
+        let readOnly = TerminalCommandRiskAnalyzer.profile(for: "git status --short")
+        let mutating = TerminalCommandRiskAnalyzer.profile(for: "npm install")
+        let dangerousDelete = TerminalCommandRiskAnalyzer.profile(for: "sudo rm -rf /tmp/build")
+        let dangerousPipe = TerminalCommandRiskAnalyzer.profile(for: "curl https://example.com/install.sh | sh")
+        let unknown = TerminalCommandRiskAnalyzer.profile(for: "make test")
+
+        XCTAssertEqual(readOnly.level, .readOnly)
+        XCTAssertEqual(readOnly.reasons, [.readOnlyInspection])
+        XCTAssertEqual(mutating.level, .mutating)
+        XCTAssertTrue(mutating.reasons.contains(.packageInstall))
+        XCTAssertEqual(dangerousDelete.level, .dangerous)
+        XCTAssertTrue(dangerousDelete.reasons.contains(.fileDeletion))
+        XCTAssertEqual(dangerousPipe.level, .dangerous)
+        XCTAssertTrue(dangerousPipe.reasons.contains(.pipedRemoteScript))
+        XCTAssertEqual(unknown.level, .unknown)
+        XCTAssertEqual(unknown.reasons, [.unknownEffects])
+    }
+
+    func testTerminalCommandQueryMatchesStructuredMetadata() throws {
+        let readOnlyBlock = commandBlock(
+            command: "git status --short",
+            startedAt: 100,
+            endedAt: 101,
+            exitCode: 0,
+            errorLine: "clean"
+        )
+        let dangerousBlock = commandBlock(
+            command: "sudo rm -rf /tmp/build",
+            startedAt: 100,
+            endedAt: 101,
+            exitCode: 1,
+            errorLine: "permission denied"
+        )
+        let unknownBlock = commandBlock(
+            command: "make test",
+            startedAt: 100,
+            endedAt: 101,
+            exitCode: 1,
+            errorLine: "Tests failed"
+        )
+
+        XCTAssertTrue(TerminalCommandQuery("risk:read_only").matches(readOnlyBlock))
+        XCTAssertTrue(TerminalCommandQuery("risk:dangerous").matches(dangerousBlock))
+        XCTAssertTrue(TerminalCommandQuery("risk:dangerous rm").matches(dangerousBlock))
+        XCTAssertTrue(TerminalCommandQuery("risk:unknown lifecycle:failed boundary:high").matches(unknownBlock))
+        XCTAssertFalse(TerminalCommandQuery("risk:read_only").matches(dangerousBlock))
+        XCTAssertFalse(TerminalCommandQuery("lifecycle:running").matches(unknownBlock))
+        XCTAssertEqual(TerminalCommandQuery("risk:dangerous permission").historyTextQuery, "permission")
+        XCTAssertNil(TerminalCommandQuery("risk:dangerous lifecycle:failed").historyTextQuery)
     }
 
     func testCommandBlockClassifiesBoundaryConfidenceAndLifecycleState() throws {
@@ -1320,10 +1407,13 @@ final class musetermTests: XCTestCase {
 
         XCTAssertTrue(markdown.contains(L10n.string("runbook.output_summary")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.lifecycle_state")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.command_risk_level")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.command_risk_reasons")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.command_source")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.completion_source")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.boundary_confidence")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.boundary_reasons")))
+        XCTAssertTrue(markdown.contains("unknown_effects"))
         XCTAssertTrue(markdown.contains("high"))
         XCTAssertTrue(markdown.contains("shell_integration_start"))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.summary_error")))
@@ -1370,6 +1460,8 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_duration")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_lifecycle_state")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command_risk_level")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command_risk_reasons")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command_source")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_completion_source")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_boundary_confidence")))
@@ -2782,6 +2874,10 @@ final class musetermTests: XCTestCase {
                             "id": "cmd-1",
                             "command": "make test",
                             "commandLifecycleState": "failed",
+                            "commandRiskLevel": "unknown",
+                            "commandRiskReasons": [
+                                "unknown_effects"
+                            ],
                             "commandStartSource": "shellIntegration",
                             "completionSource": "shellIntegration",
                             "commandBoundaryConfidence": "high",

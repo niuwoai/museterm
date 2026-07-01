@@ -150,6 +150,11 @@
 "ssh.safety_policy.forceConfirm.summary" = "无论全局开关如何，此 profile 都会确认多行粘贴和高危命令。";
 "ssh.safety_policy.disableConfirmations.name" = "关闭确认";
 "ssh.safety_policy.disableConfirmations.summary" = "此 profile 不弹出多行粘贴和高危命令确认，适合低风险开发环境。";
+"ssh.keep_alive" = "保活";
+"ssh.keep_alive.enabled" = "发送 SSH 保活包";
+"ssh.keep_alive.interval" = "间隔（秒）";
+"ssh.keep_alive.count" = "失败次数";
+"ssh.keep_alive.help" = "使用 OpenSSH 的 ServerAliveInterval 和 ServerAliveCountMax，默认可保持空闲连接，不会向远端 shell 输入字符。";
 "ssh.identities" = "密钥文件";
 "ssh.identities.help" = "每行一个私钥路径，支持以 ~ 开头。";
 "ssh.jumps" = "跳转机";
@@ -415,6 +420,8 @@
 "runbook.latest_failed_exit_code" = "最近失败退出码";
 "runbook.latest_failed_duration" = "最近失败耗时";
 "runbook.latest_failed_lifecycle_state" = "最近失败生命周期状态";
+"runbook.latest_failed_command_risk_level" = "最近失败命令风险等级";
+"runbook.latest_failed_command_risk_reasons" = "最近失败命令风险原因";
 "runbook.latest_failed_command_source" = "最近失败命令来源";
 "runbook.latest_failed_completion_source" = "最近失败完成来源";
 "runbook.latest_failed_boundary_confidence" = "最近失败边界可信度";
@@ -524,6 +531,8 @@
 "runbook.summary_stack" = "堆栈";
 "runbook.command" = "命令";
 "runbook.lifecycle_state" = "生命周期状态";
+"runbook.command_risk_level" = "命令风险等级";
+"runbook.command_risk_reasons" = "命令风险原因";
 "runbook.command_source" = "命令来源";
 "runbook.completion_source" = "完成来源";
 "runbook.boundary_confidence" = "边界可信度";

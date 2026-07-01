@@ -474,6 +474,8 @@ struct CommandBlockDiagnostics: Equatable {
     let latestFailedExitCode: Int32?
     let latestFailedDurationMilliseconds: Int?
     let latestFailedCommandLifecycleState: TerminalCommandLifecycleState?
+    let latestFailedCommandRiskLevel: TerminalCommandRiskLevel?
+    let latestFailedCommandRiskReasons: [TerminalCommandRiskReason]
     let latestFailedCommandStartSource: TerminalCommandStartSource?
     let latestFailedCompletionSource: TerminalCommandCompletionSource?
     let latestFailedCommandBoundaryConfidence: TerminalCommandBoundaryConfidence?
@@ -508,6 +510,8 @@ struct CommandBlockDiagnostics: Equatable {
         latestFailedExitCode = failedBlocks.first?.exitCode
         latestFailedDurationMilliseconds = failedBlocks.first?.durationMilliseconds
         latestFailedCommandLifecycleState = failedBlocks.first?.commandLifecycleState
+        latestFailedCommandRiskLevel = failedBlocks.first?.commandRiskProfile.level
+        latestFailedCommandRiskReasons = failedBlocks.first?.commandRiskProfile.reasons ?? []
         latestFailedCommandStartSource = failedBlocks.first?.commandStartSource
         latestFailedCompletionSource = failedBlocks.first?.completionSource
         latestFailedCommandBoundaryConfidence = failedBlocks.first?.commandBoundaryConfidence
@@ -607,11 +611,28 @@ struct CommandBlockDiagnostics: Equatable {
         if let latestFailedDurationMilliseconds {
             lines.append("Latest failed duration: \(latestFailedDurationMilliseconds) ms")
         }
+        if let latestFailedCommandLifecycleState {
+            lines.append("Latest failed lifecycle state: \(latestFailedCommandLifecycleState.contextLabel)")
+        }
+        if let latestFailedCommandRiskLevel {
+            lines.append("Latest failed command risk level: \(latestFailedCommandRiskLevel.contextLabel)")
+        }
+        if !latestFailedCommandRiskReasons.isEmpty {
+            let reasons = latestFailedCommandRiskReasons.map(\.contextLabel).joined(separator: "; ")
+            lines.append("Latest failed command risk reasons: \(reasons)")
+        }
         if let latestFailedCommandStartSource {
             lines.append("Latest failed command source: \(latestFailedCommandStartSource.contextLabel)")
         }
         if let latestFailedCompletionSource {
             lines.append("Latest failed completion source: \(latestFailedCompletionSource.contextLabel)")
+        }
+        if let latestFailedCommandBoundaryConfidence {
+            lines.append("Latest failed command boundary confidence: \(latestFailedCommandBoundaryConfidence.contextLabel)")
+        }
+        if !latestFailedCommandBoundaryReasons.isEmpty {
+            let reasons = latestFailedCommandBoundaryReasons.map(\.contextLabel).joined(separator: "; ")
+            lines.append("Latest failed command boundary reasons: \(reasons)")
         }
         if let recentFailureCommandID {
             lines.append("Recent failure command id: \(recentFailureCommandID.uuidString)")

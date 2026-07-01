@@ -182,6 +182,10 @@ struct TerminalCommandBlock: Codable, Equatable, Identifiable {
         return .completedUnknownStatus
     }
 
+    var commandRiskProfile: TerminalCommandRiskProfile {
+        TerminalCommandRiskAnalyzer.profile(for: command)
+    }
+
     var commandBoundaryReasons: [TerminalCommandBoundaryReason] {
         var reasons: [TerminalCommandBoundaryReason] = []
 
@@ -234,6 +238,8 @@ struct TerminalCommandBlock: Codable, Equatable, Identifiable {
             outputSummary?.searchableText ?? "",
             statusText,
             commandLifecycleState.contextLabel,
+            commandRiskProfile.level.contextLabel,
+            commandRiskProfile.reasons.map(\.contextLabel).joined(separator: " "),
             commandStartSource?.contextLabel ?? "",
             completionSource?.contextLabel ?? "",
             commandBoundaryConfidence.contextLabel,
@@ -265,6 +271,8 @@ struct TerminalCommandBlock: Codable, Equatable, Identifiable {
         }
         lines.append("Status: \(statusText)")
         lines.append("Lifecycle state: \(commandLifecycleState.contextLabel)")
+        lines.append("Risk level: \(commandRiskProfile.level.contextLabel)")
+        lines.append("Risk reasons: \(commandRiskProfile.reasons.map(\.contextLabel).joined(separator: ", "))")
         if let completionSource {
             lines.append("Completion source: \(completionSource.contextLabel)")
         }

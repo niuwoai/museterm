@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.162.0] - 2026-07-01
+
+### Added
+- SSH profile 新增显式保活设置，默认生成 `ServerAliveInterval 30` 与 `ServerAliveCountMax 6`，让空闲 SSH 连接通过协议层保活，避免长时间闲置后被网络设备或服务端踢掉。
+
+## [1.161.0] - 2026-07-01
+
+### Added
+- 命令搜索新增结构化查询 token，支持 `risk:`、`lifecycle:` 和 `boundary:` 按命令风险等级、生命周期状态和边界可信度过滤命令块，并保留普通全文词组合搜索。
+
+## [1.160.0] - 2026-07-01
+
+### Changed
+- 设置窗口和关于窗口打开或重新唤起时会在屏幕居中，并清空初始 focus 状态；设置窗口默认高度略增，减少底部内容的压迫感。
+
+## [1.159.0] - 2026-07-01
+
+### Added
+- 结构化命令块新增 `commandRiskLevel` 与 `commandRiskReasons`，用 `read_only`、`mutating`、`dangerous`、`unknown` 和稳定原因码描述命令风险画像，并同步到 AI 上下文、CLI/MCP 命令块快照、最近失败诊断和 Runbook 导出。
+
 ## [1.158.0] - 2026-07-01
 
 ### Added

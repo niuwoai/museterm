@@ -517,6 +517,9 @@ private struct SSHProfileEditorSheet: View {
     @State private var jumpText: String
     @State private var optionText: String
     @State private var startupText: String
+    @State private var keepAliveEnabled: Bool
+    @State private var keepAliveIntervalText: String
+    @State private var keepAliveCountText: String
     @State private var remoteShellIntegrationEnabled: Bool
     @State private var environment: TerminalEnvironmentKind
     @State private var safetyPolicy: SSHSafetyConfirmationPolicy
@@ -534,6 +537,9 @@ private struct SSHProfileEditorSheet: View {
         _jumpText = State(initialValue: Self.jumpText(from: clean.jumpHosts))
         _optionText = State(initialValue: clean.extraOptions.joined(separator: "\n"))
         _startupText = State(initialValue: clean.startupCommands.joined(separator: "\n"))
+        _keepAliveEnabled = State(initialValue: clean.keepAliveEnabled)
+        _keepAliveIntervalText = State(initialValue: "\(clean.keepAliveIntervalSeconds)")
+        _keepAliveCountText = State(initialValue: "\(clean.keepAliveCountMax)")
         _remoteShellIntegrationEnabled = State(initialValue: clean.remoteShellIntegrationEnabled)
         _environment = State(initialValue: clean.environment)
         _safetyPolicy = State(initialValue: clean.safetyPolicy)
@@ -552,6 +558,7 @@ private struct SSHProfileEditorSheet: View {
                 textRow("ssh.port", text: $portText)
                 environmentRow
                 safetyPolicyRow
+                keepAliveRow
                 remoteShellIntegrationRow
             }
 
@@ -585,10 +592,49 @@ private struct SSHProfileEditorSheet: View {
             jumpHosts: Self.parseJumpHosts(jumpText),
             extraOptions: optionText.lines,
             startupCommands: startupText.lines,
+            keepAliveEnabled: keepAliveEnabled,
+            keepAliveIntervalSeconds: Int(keepAliveIntervalText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 30,
+            keepAliveCountMax: Int(keepAliveCountText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 6,
             remoteShellIntegrationEnabled: remoteShellIntegrationEnabled,
             environment: environment,
             safetyPolicy: safetyPolicy
         )
+    }
+
+    private var keepAliveRow: some View {
+        GridRow {
+            Text(L10n.string("ssh.keep_alive"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 96, alignment: .trailing)
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle(L10n.string("ssh.keep_alive.enabled"), isOn: $keepAliveEnabled)
+                    .toggleStyle(.checkbox)
+                    .font(.caption)
+
+                HStack(spacing: 8) {
+                    Text(L10n.string("ssh.keep_alive.interval"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    TextField("30", text: $keepAliveIntervalText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 56)
+                        .disabled(!keepAliveEnabled)
+                    Text(L10n.string("ssh.keep_alive.count"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    TextField("6", text: $keepAliveCountText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 56)
+                        .disabled(!keepAliveEnabled)
+                }
+
+                Text(L10n.string("ssh.keep_alive.help"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     private var remoteShellIntegrationRow: some View {

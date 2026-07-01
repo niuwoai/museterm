@@ -97,6 +97,9 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
     var jumpHosts: [SSHJumpHost]
     var extraOptions: [String]
     var startupCommands: [String]
+    var keepAliveEnabled: Bool
+    var keepAliveIntervalSeconds: Int
+    var keepAliveCountMax: Int
     var remoteShellIntegrationEnabled: Bool
     var environment: TerminalEnvironmentKind
     var safetyPolicy: SSHSafetyConfirmationPolicy
@@ -111,6 +114,9 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         jumpHosts: [SSHJumpHost] = [],
         extraOptions: [String] = [],
         startupCommands: [String] = [],
+        keepAliveEnabled: Bool = true,
+        keepAliveIntervalSeconds: Int = 30,
+        keepAliveCountMax: Int = 6,
         remoteShellIntegrationEnabled: Bool = true,
         environment: TerminalEnvironmentKind = .development,
         safetyPolicy: SSHSafetyConfirmationPolicy? = nil
@@ -124,6 +130,9 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         self.jumpHosts = jumpHosts
         self.extraOptions = extraOptions
         self.startupCommands = startupCommands
+        self.keepAliveEnabled = keepAliveEnabled
+        self.keepAliveIntervalSeconds = keepAliveIntervalSeconds
+        self.keepAliveCountMax = keepAliveCountMax
         self.remoteShellIntegrationEnabled = remoteShellIntegrationEnabled
         self.environment = environment
         self.safetyPolicy = safetyPolicy ?? Self.defaultSafetyPolicy(for: environment)
@@ -139,6 +148,9 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         case jumpHosts
         case extraOptions
         case startupCommands
+        case keepAliveEnabled
+        case keepAliveIntervalSeconds
+        case keepAliveCountMax
         case remoteShellIntegrationEnabled
         case environment
         case safetyPolicy
@@ -155,6 +167,9 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         jumpHosts = try container.decodeIfPresent([SSHJumpHost].self, forKey: .jumpHosts) ?? []
         extraOptions = try container.decodeIfPresent([String].self, forKey: .extraOptions) ?? []
         startupCommands = try container.decodeIfPresent([String].self, forKey: .startupCommands) ?? []
+        keepAliveEnabled = try container.decodeIfPresent(Bool.self, forKey: .keepAliveEnabled) ?? true
+        keepAliveIntervalSeconds = try container.decodeIfPresent(Int.self, forKey: .keepAliveIntervalSeconds) ?? 30
+        keepAliveCountMax = try container.decodeIfPresent(Int.self, forKey: .keepAliveCountMax) ?? 6
         remoteShellIntegrationEnabled = try container.decodeIfPresent(
             Bool.self,
             forKey: .remoteShellIntegrationEnabled
@@ -175,6 +190,9 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
             jumpHosts: jumpHosts.map(\.normalized).filter { !$0.host.isEmpty },
             extraOptions: extraOptions.cleanedLineList(),
             startupCommands: startupCommands.cleanedLineList(),
+            keepAliveEnabled: keepAliveEnabled,
+            keepAliveIntervalSeconds: min(max(keepAliveIntervalSeconds, 5), 3_600),
+            keepAliveCountMax: min(max(keepAliveCountMax, 1), 20),
             remoteShellIntegrationEnabled: remoteShellIntegrationEnabled,
             environment: environment,
             safetyPolicy: safetyPolicy
@@ -301,7 +319,7 @@ enum SSHConfigMaterializer {
             port: profile.port,
             identityFiles: profile.identityFiles,
             proxyJump: aliases.jumps.last,
-            extraOptions: profile.extraOptions
+            extraOptions: keepAliveOptions(for: profile) + profile.extraOptions
         ))
 
         return lines.joined(separator: "\n") + "\n"
@@ -336,6 +354,26 @@ enum SSHConfigMaterializer {
         }
         lines.append(contentsOf: extraOptions.map { "  \($0)" })
         return lines
+    }
+
+    private static func keepAliveOptions(for profile: SSHConnectionProfile) -> [String] {
+        guard profile.keepAliveEnabled else { return [] }
+
+        let manualOptions = Set(profile.extraOptions.compactMap { optionName($0) })
+        var options: [String] = []
+        if !manualOptions.contains("serveraliveinterval") {
+            options.append("ServerAliveInterval \(profile.keepAliveIntervalSeconds)")
+        }
+        if !manualOptions.contains("serveralivecountmax") {
+            options.append("ServerAliveCountMax \(profile.keepAliveCountMax)")
+        }
+        return options
+    }
+
+    private static func optionName(_ line: String) -> String? {
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !trimmed.hasPrefix("#") else { return nil }
+        return trimmed.split(whereSeparator: { $0 == " " || $0 == "\t" }).first?.lowercased()
     }
 
     private static func configDirectory() throws -> URL {

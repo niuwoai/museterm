@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct SettingsView: View {
+    static let defaultWindowSize = CGSize(width: 720, height: 590)
+
     @ObservedObject var preferences: TerminalPreferences
     @State private var selectedSettingsTab: SettingsTab = .appearance
     @State private var cliInstallMessage = ""
@@ -22,10 +24,11 @@ struct SettingsView: View {
         .padding(.horizontal, 20)
         .padding(.top, 18)
         .padding(.bottom, 16)
-        .frame(width: 720, height: 560)
+        .frame(width: Self.defaultWindowSize.width, height: Self.defaultWindowSize.height)
         .background(preferences.skin.panelFill)
         .tint(preferences.skin.accent)
         .preferredColorScheme(preferences.skin.preferredColorScheme)
+        .focusable(false)
     }
 
     private var header: some View {

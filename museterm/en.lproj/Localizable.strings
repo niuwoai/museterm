@@ -150,6 +150,11 @@
 "ssh.safety_policy.forceConfirm.summary" = "Always confirm multi-line paste and dangerous commands for this profile, regardless of global settings.";
 "ssh.safety_policy.disableConfirmations.name" = "Disable Confirm";
 "ssh.safety_policy.disableConfirmations.summary" = "Do not show multi-line paste or dangerous command confirmations for this profile. Best for low-risk development hosts.";
+"ssh.keep_alive" = "Keep alive";
+"ssh.keep_alive.enabled" = "Send SSH keepalive packets";
+"ssh.keep_alive.interval" = "Interval (s)";
+"ssh.keep_alive.count" = "Count";
+"ssh.keep_alive.help" = "Uses OpenSSH ServerAliveInterval and ServerAliveCountMax. Defaults keep idle connections alive without typing into the remote shell.";
 "ssh.identities" = "Identity files";
 "ssh.identities.help" = "One private key path per line. Paths may start with ~.";
 "ssh.jumps" = "Jump hosts";
@@ -415,6 +420,8 @@
 "runbook.latest_failed_exit_code" = "Latest failed exit code";
 "runbook.latest_failed_duration" = "Latest failed duration";
 "runbook.latest_failed_lifecycle_state" = "Latest failed lifecycle state";
+"runbook.latest_failed_command_risk_level" = "Latest failed command risk level";
+"runbook.latest_failed_command_risk_reasons" = "Latest failed command risk reasons";
 "runbook.latest_failed_command_source" = "Latest failed command source";
 "runbook.latest_failed_completion_source" = "Latest failed completion source";
 "runbook.latest_failed_boundary_confidence" = "Latest failed boundary confidence";
@@ -524,6 +531,8 @@
 "runbook.summary_stack" = "Stack";
 "runbook.command" = "Command";
 "runbook.lifecycle_state" = "Lifecycle state";
+"runbook.command_risk_level" = "Command risk level";
+"runbook.command_risk_reasons" = "Command risk reasons";
 "runbook.command_source" = "Command source";
 "runbook.completion_source" = "Completion source";
 "runbook.boundary_confidence" = "Boundary confidence";

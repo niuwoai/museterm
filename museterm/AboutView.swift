@@ -3,6 +3,8 @@ import Foundation
 import SwiftUI
 
 struct AboutView: View {
+    static let defaultWindowSize = CGSize(width: 700, height: 500)
+
     @ObservedObject var preferences: TerminalPreferences
 
     var body: some View {
@@ -54,10 +56,11 @@ struct AboutView: View {
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .frame(width: 700, height: 500)
+        .frame(width: Self.defaultWindowSize.width, height: Self.defaultWindowSize.height)
         .background(preferences.skin.panelFill)
         .tint(preferences.skin.accent)
         .preferredColorScheme(preferences.skin.preferredColorScheme)
+        .focusable(false)
     }
 }
 

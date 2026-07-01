@@ -359,14 +359,15 @@ private struct CommandInspectorView: View {
     private var blocks: [TerminalCommandBlock] {
         guard let tab = workspace.selectedTab else { return [] }
         let cleaned = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let commandQuery = TerminalCommandQuery(cleaned)
         return tab.commandBlocks
             .reversed()
             .filter { block in
                 if failuresOnly, block.exitCode == nil || block.exitCode == 0 {
                     return false
                 }
-                guard !cleaned.isEmpty else { return true }
-                return block.searchableText.localizedCaseInsensitiveContains(cleaned)
+                guard !commandQuery.isEmpty else { return true }
+                return commandQuery.matches(block)
             }
     }
 
@@ -377,9 +378,9 @@ private struct CommandInspectorView: View {
     private var historySearchResult: TerminalHistorySearchResult? {
         guard let tab = workspace.selectedTab, !failuresOnly else { return nil }
         let cleaned = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleaned.isEmpty else { return nil }
+        guard let historyTextQuery = TerminalCommandQuery(cleaned).historyTextQuery else { return nil }
         return TerminalHistorySearchResult(
-            query: cleaned,
+            query: historyTextQuery,
             history: tab.historySearchSnapshot,
             redactSensitiveData: redactSensitiveData
         )
@@ -835,6 +836,8 @@ private struct CommandInspectorView: View {
                     lines.append("  Directory: \(workingDirectory)")
                 }
                 lines.append("  Status: \(block.statusText)")
+                lines.append("  Lifecycle state: \(block.commandLifecycleState.contextLabel)")
+                lines.append("  Risk level: \(block.commandRiskProfile.level.contextLabel)")
                 if let durationMilliseconds = block.durationMilliseconds {
                     lines.append("  Duration: \(durationMilliseconds) ms")
                 }

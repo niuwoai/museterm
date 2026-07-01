@@ -92,6 +92,8 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
     let latestFailedExitCode: Int?
     let latestFailedDurationMilliseconds: Int?
     let latestFailedCommandLifecycleState: String?
+    let latestFailedCommandRiskLevel: String?
+    let latestFailedCommandRiskReasons: [String]
     let latestFailedCommandStartSource: String?
     let latestFailedCompletionSource: String?
     let latestFailedCommandBoundaryConfidence: String?
@@ -122,6 +124,8 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
         latestFailedExitCode = diagnostics.latestFailedExitCode.map(Int.init)
         latestFailedDurationMilliseconds = diagnostics.latestFailedDurationMilliseconds
         latestFailedCommandLifecycleState = diagnostics.latestFailedCommandLifecycleState?.contextLabel
+        latestFailedCommandRiskLevel = diagnostics.latestFailedCommandRiskLevel?.contextLabel
+        latestFailedCommandRiskReasons = diagnostics.latestFailedCommandRiskReasons.map(\.contextLabel)
         latestFailedCommandStartSource = diagnostics.latestFailedCommandStartSource?.contextLabel
         latestFailedCompletionSource = diagnostics.latestFailedCompletionSource?.contextLabel
         latestFailedCommandBoundaryConfidence = diagnostics.latestFailedCommandBoundaryConfidence?.contextLabel
@@ -319,6 +323,8 @@ struct TerminalToolCommandBlockSnapshot: Codable, Equatable {
     let endedAt: Date?
     let exitCode: Int32?
     let commandLifecycleState: String
+    let commandRiskLevel: String
+    let commandRiskReasons: [String]
     let commandStartSource: String?
     let completionSource: String?
     let commandBoundaryConfidence: String
