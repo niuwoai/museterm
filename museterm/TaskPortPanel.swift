@@ -473,8 +473,11 @@ struct CommandBlockDiagnostics: Equatable {
     let latestFailedWorkingDirectory: String?
     let latestFailedExitCode: Int32?
     let latestFailedDurationMilliseconds: Int?
+    let latestFailedCommandLifecycleState: TerminalCommandLifecycleState?
     let latestFailedCommandStartSource: TerminalCommandStartSource?
     let latestFailedCompletionSource: TerminalCommandCompletionSource?
+    let latestFailedCommandBoundaryConfidence: TerminalCommandBoundaryConfidence?
+    let latestFailedCommandBoundaryReasons: [TerminalCommandBoundaryReason]
     let recentFailureCommandID: UUID?
     let recentFailureWorkingDirectory: String?
     let recentFailureDiagnostic: String?
@@ -504,8 +507,11 @@ struct CommandBlockDiagnostics: Equatable {
         )
         latestFailedExitCode = failedBlocks.first?.exitCode
         latestFailedDurationMilliseconds = failedBlocks.first?.durationMilliseconds
+        latestFailedCommandLifecycleState = failedBlocks.first?.commandLifecycleState
         latestFailedCommandStartSource = failedBlocks.first?.commandStartSource
         latestFailedCompletionSource = failedBlocks.first?.completionSource
+        latestFailedCommandBoundaryConfidence = failedBlocks.first?.commandBoundaryConfidence
+        latestFailedCommandBoundaryReasons = failedBlocks.first?.commandBoundaryReasons ?? []
         let recentFailureRecord = failedBlocks
             .sorted(by: Self.mostRecentFirst)
             .compactMap { Self.failureDiagnosticRecord(for: $0, redactSensitiveData: redactSensitiveData) }

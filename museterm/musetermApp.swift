@@ -28,6 +28,12 @@ struct musetermApp: App {
         .commands {
             TerminalCommands()
 
+            CommandGroup(replacing: .appInfo) {
+                Button(L10n.string("menu.about")) {
+                    AboutWindowOpener.open(preferences: preferences)
+                }
+            }
+
             CommandGroup(replacing: .appSettings) {
                 Button(L10n.string("menu.settings")) {
                     SettingsWindowOpener.open(preferences: preferences)

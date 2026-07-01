@@ -93,6 +93,47 @@ enum TerminalCommandStartSource: String, Codable, Equatable {
     }
 }
 
+enum TerminalCommandBoundaryConfidence: String, Codable, Equatable {
+    case high
+    case medium
+    case low
+
+    var contextLabel: String {
+        rawValue
+    }
+}
+
+enum TerminalCommandBoundaryReason: String, Codable, Equatable {
+    case shellIntegrationStart = "shell_integration_start"
+    case userInputStart = "user_input_start"
+    case missingStartSource = "missing_start_source"
+    case unknownStartSource = "unknown_start_source"
+    case shellIntegrationCompletion = "shell_integration_completion"
+    case processExitCompletion = "process_exit_completion"
+    case userInterruptCompletion = "user_interrupt_completion"
+    case supersededCompletion = "superseded_completion"
+    case commandStillRunning = "command_still_running"
+    case missingCompletionSource = "missing_completion_source"
+    case unknownCompletionSource = "unknown_completion_source"
+
+    var contextLabel: String {
+        rawValue
+    }
+}
+
+enum TerminalCommandLifecycleState: String, Codable, Equatable {
+    case running
+    case succeeded
+    case failed
+    case interrupted
+    case superseded
+    case completedUnknownStatus = "completed_unknown_status"
+
+    var contextLabel: String {
+        rawValue
+    }
+}
+
 struct TerminalCommandBlock: Codable, Equatable, Identifiable {
     var id: UUID
     var command: String
@@ -112,6 +153,72 @@ struct TerminalCommandBlock: Codable, Equatable, Identifiable {
         return max(0, Int(endedAt.timeIntervalSince(startedAt) * 1000))
     }
 
+    var commandBoundaryConfidence: TerminalCommandBoundaryConfidence {
+        switch (commandStartSource, completionSource) {
+        case (.shellIntegration?, .shellIntegration?):
+            return .high
+        case (.shellIntegration?, .processExit?),
+             (.shellIntegration?, .userInterrupt?),
+             (.userInput?, .shellIntegration?):
+            return .medium
+        default:
+            return .low
+        }
+    }
+
+    var commandLifecycleState: TerminalCommandLifecycleState {
+        if endedAt == nil {
+            return .running
+        }
+        if completionSource == .userInterrupt {
+            return .interrupted
+        }
+        if completionSource == .superseded {
+            return .superseded
+        }
+        if let exitCode {
+            return exitCode == 0 ? .succeeded : .failed
+        }
+        return .completedUnknownStatus
+    }
+
+    var commandBoundaryReasons: [TerminalCommandBoundaryReason] {
+        var reasons: [TerminalCommandBoundaryReason] = []
+
+        switch commandStartSource {
+        case .shellIntegration:
+            reasons.append(.shellIntegrationStart)
+        case .userInput:
+            reasons.append(.userInputStart)
+        case .unknown:
+            reasons.append(.unknownStartSource)
+        case nil:
+            reasons.append(.missingStartSource)
+        }
+
+        if endedAt == nil, completionSource == nil {
+            reasons.append(.commandStillRunning)
+            return reasons
+        }
+
+        switch completionSource {
+        case .shellIntegration:
+            reasons.append(.shellIntegrationCompletion)
+        case .processExit:
+            reasons.append(.processExitCompletion)
+        case .userInterrupt:
+            reasons.append(.userInterruptCompletion)
+        case .superseded:
+            reasons.append(.supersededCompletion)
+        case .unknown:
+            reasons.append(.unknownCompletionSource)
+        case nil:
+            reasons.append(.missingCompletionSource)
+        }
+
+        return reasons
+    }
+
     var statusText: String {
         if let exitCode {
             return exitCode == 0 ? "ok" : "exit(\(exitCode))"
@@ -126,8 +233,11 @@ struct TerminalCommandBlock: Codable, Equatable, Identifiable {
             outputTail,
             outputSummary?.searchableText ?? "",
             statusText,
+            commandLifecycleState.contextLabel,
             commandStartSource?.contextLabel ?? "",
-            completionSource?.contextLabel ?? ""
+            completionSource?.contextLabel ?? "",
+            commandBoundaryConfidence.contextLabel,
+            commandBoundaryReasons.map(\.contextLabel).joined(separator: " ")
         ].joined(separator: "\n")
     }
 
@@ -154,9 +264,12 @@ struct TerminalCommandBlock: Codable, Equatable, Identifiable {
             lines.append("Duration: \(durationMilliseconds) ms")
         }
         lines.append("Status: \(statusText)")
+        lines.append("Lifecycle state: \(commandLifecycleState.contextLabel)")
         if let completionSource {
             lines.append("Completion source: \(completionSource.contextLabel)")
         }
+        lines.append("Command boundary confidence: \(commandBoundaryConfidence.contextLabel)")
+        lines.append("Command boundary reasons: \(commandBoundaryReasons.map(\.contextLabel).joined(separator: ", "))")
         if let outputSummary, !outputSummary.isEmpty {
             lines.append("")
             lines.append("Output summary:")

@@ -26,6 +26,7 @@
 "action.save_workspace" = "保存工作区";
 "action.restore_workspace" = "恢复工作区";
 
+"menu.about" = "关于 MuseTerm";
 "menu.settings" = "设置…";
 "menu.tab" = "标签";
 "terminal.context.type_escaped_selection" = "转义键入所选路径";
@@ -205,6 +206,27 @@
 "settings.custom_dangerous_rules.help" = "每行一条规则。普通文本按包含匹配；以 regex: 开头时按正则匹配；# 开头的行会被忽略。";
 "settings.cursor_shape" = "光标样式";
 "settings.cursor_blink" = "光标闪烁";
+"settings.about.summary" = "一个轻快友好的 macOS 终端，支持多标签、SSH、文件传输、命令历史和本机 AI 工具桥。";
+"settings.about.author_homepage" = "作者主页 · 83d.me";
+"settings.about.other_apps" = "Rocky 的其他 App";
+"settings.about.other_apps.summary" = "来自 83d 发布清单的一组 macOS 小伙伴。";
+"about.window.title" = "关于 MuseTerm";
+"settings.about.app.willDeep.name" = "WillDeep";
+"settings.about.app.willDeep.summary" = "专注写作与深度编辑。";
+"settings.about.app.timeBill.name" = "TimeBill";
+"settings.about.app.timeBill.summary" = "时间记录与账单助手。";
+"settings.about.app.museUploader.name" = "MuseUploader";
+"settings.about.app.museUploader.summary" = "快速图片与文件发布。";
+"settings.about.app.museSnip.name" = "MuseSnip";
+"settings.about.app.museSnip.summary" = "轻量截图工具。";
+"settings.about.app.markReader.name" = "MarkReader";
+"settings.about.app.markReader.summary" = "清爽的 Markdown 阅读。";
+"settings.about.app.museType.name" = "MuseType";
+"settings.about.app.museType.summary" = "快速文本与打字工作台。";
+"settings.about.app.museMail.name" = "MuseMail";
+"settings.about.app.museMail.summary" = "安静的邮件工作流。";
+"settings.about.app.museMate.name" = "Muse Mate";
+"settings.about.app.museMate.summary" = "个人创作小伙伴。";
 "cursor.shape.block" = "区块";
 "cursor.shape.bar" = "竖线";
 "cursor.shape.underline" = "下划线";
@@ -392,8 +414,11 @@
 "runbook.latest_failed_working_directory" = "最近失败工作目录";
 "runbook.latest_failed_exit_code" = "最近失败退出码";
 "runbook.latest_failed_duration" = "最近失败耗时";
+"runbook.latest_failed_lifecycle_state" = "最近失败生命周期状态";
 "runbook.latest_failed_command_source" = "最近失败命令来源";
 "runbook.latest_failed_completion_source" = "最近失败完成来源";
+"runbook.latest_failed_boundary_confidence" = "最近失败边界可信度";
+"runbook.latest_failed_boundary_reasons" = "最近失败边界原因";
 "runbook.recent_failure_command_id" = "最近失败诊断命令 ID";
 "runbook.recent_failure_working_directory" = "最近失败诊断工作目录";
 "runbook.latest_failure" = "最近失败";
@@ -498,6 +523,11 @@
 "runbook.summary_commit" = "提交";
 "runbook.summary_stack" = "堆栈";
 "runbook.command" = "命令";
+"runbook.lifecycle_state" = "生命周期状态";
+"runbook.command_source" = "命令来源";
+"runbook.completion_source" = "完成来源";
+"runbook.boundary_confidence" = "边界可信度";
+"runbook.boundary_reasons" = "边界原因";
 "runbook.output_tail" = "输出尾部";
 "runbook.untitled_command" = "命令";
 

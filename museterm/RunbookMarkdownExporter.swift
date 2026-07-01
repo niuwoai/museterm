@@ -166,6 +166,11 @@ enum RunbookMarkdownExporter {
                 "- \(L10n.string("runbook.latest_failed_duration")): \(latestFailedDurationMilliseconds) ms"
             )
         }
+        if let latestFailedCommandLifecycleState = diagnostics.latestFailedCommandLifecycleState {
+            lines.append(
+                "- \(L10n.string("runbook.latest_failed_lifecycle_state")): \(latestFailedCommandLifecycleState.contextLabel)"
+            )
+        }
         if let latestFailedCommandStartSource = diagnostics.latestFailedCommandStartSource {
             lines.append(
                 "- \(L10n.string("runbook.latest_failed_command_source")): \(latestFailedCommandStartSource.contextLabel)"
@@ -174,6 +179,16 @@ enum RunbookMarkdownExporter {
         if let latestFailedCompletionSource = diagnostics.latestFailedCompletionSource {
             lines.append(
                 "- \(L10n.string("runbook.latest_failed_completion_source")): \(latestFailedCompletionSource.contextLabel)"
+            )
+        }
+        if let latestFailedCommandBoundaryConfidence = diagnostics.latestFailedCommandBoundaryConfidence {
+            lines.append(
+                "- \(L10n.string("runbook.latest_failed_boundary_confidence")): \(latestFailedCommandBoundaryConfidence.contextLabel)"
+            )
+        }
+        if !diagnostics.latestFailedCommandBoundaryReasons.isEmpty {
+            lines.append(
+                "- \(L10n.string("runbook.latest_failed_boundary_reasons")): \(diagnostics.latestFailedCommandBoundaryReasons.map(\.contextLabel).joined(separator: ", "))"
             )
         }
         if let recentFailureCommandID = diagnostics.recentFailureCommandID {
@@ -469,6 +484,15 @@ enum RunbookMarkdownExporter {
             lines.append("- \(L10n.string("runbook.duration")): \(durationMilliseconds) ms")
         }
         lines.append("- \(L10n.string("runbook.status")): \(statusText(for: block))")
+        lines.append("- \(L10n.string("runbook.lifecycle_state")): \(block.commandLifecycleState.contextLabel)")
+        if let commandStartSource = block.commandStartSource {
+            lines.append("- \(L10n.string("runbook.command_source")): \(commandStartSource.contextLabel)")
+        }
+        if let completionSource = block.completionSource {
+            lines.append("- \(L10n.string("runbook.completion_source")): \(completionSource.contextLabel)")
+        }
+        lines.append("- \(L10n.string("runbook.boundary_confidence")): \(block.commandBoundaryConfidence.contextLabel)")
+        lines.append("- \(L10n.string("runbook.boundary_reasons")): \(block.commandBoundaryReasons.map(\.contextLabel).joined(separator: ", "))")
         lines.append("- \(L10n.string("runbook.output_chars")): \(block.outputCharacterCount)")
         if let outputSummary = block.outputSummary, !outputSummary.isEmpty {
             lines.append("")

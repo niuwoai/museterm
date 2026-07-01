@@ -91,8 +91,11 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
     let latestFailedWorkingDirectory: String?
     let latestFailedExitCode: Int?
     let latestFailedDurationMilliseconds: Int?
+    let latestFailedCommandLifecycleState: String?
     let latestFailedCommandStartSource: String?
     let latestFailedCompletionSource: String?
+    let latestFailedCommandBoundaryConfidence: String?
+    let latestFailedCommandBoundaryReasons: [String]
     let recentFailureCommandID: String?
     let recentFailureWorkingDirectory: String?
     let recentFailureDiagnostic: String?
@@ -118,8 +121,11 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
         latestFailedWorkingDirectory = diagnostics.latestFailedWorkingDirectory
         latestFailedExitCode = diagnostics.latestFailedExitCode.map(Int.init)
         latestFailedDurationMilliseconds = diagnostics.latestFailedDurationMilliseconds
+        latestFailedCommandLifecycleState = diagnostics.latestFailedCommandLifecycleState?.contextLabel
         latestFailedCommandStartSource = diagnostics.latestFailedCommandStartSource?.contextLabel
         latestFailedCompletionSource = diagnostics.latestFailedCompletionSource?.contextLabel
+        latestFailedCommandBoundaryConfidence = diagnostics.latestFailedCommandBoundaryConfidence?.contextLabel
+        latestFailedCommandBoundaryReasons = diagnostics.latestFailedCommandBoundaryReasons.map(\.contextLabel)
         recentFailureCommandID = diagnostics.recentFailureCommandID?.uuidString
         recentFailureWorkingDirectory = diagnostics.recentFailureWorkingDirectory
         recentFailureDiagnostic = diagnostics.recentFailureDiagnostic
@@ -312,8 +318,11 @@ struct TerminalToolCommandBlockSnapshot: Codable, Equatable {
     let startedAt: Date
     let endedAt: Date?
     let exitCode: Int32?
+    let commandLifecycleState: String
     let commandStartSource: String?
     let completionSource: String?
+    let commandBoundaryConfidence: String
+    let commandBoundaryReasons: [String]
     let durationMilliseconds: Int?
     let outputTail: String
     let outputCharacterCount: Int

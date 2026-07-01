@@ -169,6 +169,12 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(limitedCommand["outputTailLimit"] as? Int, 3)
         XCTAssertEqual(limitedCommand["outputTailTruncated"] as? Bool, true)
         XCTAssertEqual(limitedCommand["outputTailStoredTruncated"] as? Bool, true)
+        XCTAssertEqual(limitedCommand["commandLifecycleState"] as? String, "failed")
+        XCTAssertEqual(limitedCommand["commandBoundaryConfidence"] as? String, "high")
+        XCTAssertEqual(
+            limitedCommand["commandBoundaryReasons"] as? [String],
+            ["shell_integration_start", "shell_integration_completion"]
+        )
 
         let unlimited = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["commands"])
         let unlimitedCommand = try XCTUnwrap((unlimited["commands"] as? [[String: Any]])?.first)
@@ -528,8 +534,14 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(encodedDiagnostics["latestFailedWorkingDirectory"] as? String, "/tmp/project-latest")
         XCTAssertEqual(encodedDiagnostics["latestFailedExitCode"] as? Int, 1)
         XCTAssertEqual(encodedDiagnostics["latestFailedDurationMilliseconds"] as? Int, 1_000)
+        XCTAssertEqual(encodedDiagnostics["latestFailedCommandLifecycleState"] as? String, "failed")
         XCTAssertEqual(encodedDiagnostics["latestFailedCommandStartSource"] as? String, "shellIntegration")
         XCTAssertEqual(encodedDiagnostics["latestFailedCompletionSource"] as? String, "shellIntegration")
+        XCTAssertEqual(encodedDiagnostics["latestFailedCommandBoundaryConfidence"] as? String, "high")
+        XCTAssertEqual(
+            encodedDiagnostics["latestFailedCommandBoundaryReasons"] as? [String],
+            ["shell_integration_start", "shell_integration_completion"]
+        )
         XCTAssertEqual(encodedDiagnostics["recentFailureCommandID"] as? String, latestCommandID.uuidString)
         XCTAssertEqual(encodedDiagnostics["recentFailureWorkingDirectory"] as? String, "/tmp/project-latest")
         XCTAssertEqual(encodedDiagnostics["recentFailureDiagnostic"] as? String, diagnostic)
@@ -1095,8 +1107,117 @@ final class musetermTests: XCTestCase {
         let block = try XCTUnwrap(tab.commandBlocks.first)
         XCTAssertEqual(block.exitCode, 1)
         XCTAssertEqual(block.completionSource, .shellIntegration)
+        XCTAssertEqual(block.commandLifecycleState, .failed)
+        XCTAssertEqual(block.commandBoundaryConfidence, .medium)
+        XCTAssertEqual(block.commandBoundaryReasons, [.userInputStart, .shellIntegrationCompletion])
         XCTAssertTrue(block.searchableText.contains("shellIntegration"))
+        XCTAssertTrue(block.searchableText.contains("failed"))
+        XCTAssertTrue(block.searchableText.contains("medium"))
+        XCTAssertTrue(block.searchableText.contains("user_input_start"))
         XCTAssertTrue(block.aiContextText.contains("Completion source: shellIntegration"))
+        XCTAssertTrue(block.aiContextText.contains("Lifecycle state: failed"))
+        XCTAssertTrue(block.aiContextText.contains("Command boundary confidence: medium"))
+        XCTAssertTrue(block.aiContextText.contains("Command boundary reasons: user_input_start, shell_integration_completion"))
+    }
+
+    func testCommandBlockClassifiesBoundaryConfidenceAndLifecycleState() throws {
+        let high = TerminalCommandBlock(
+            id: UUID(),
+            command: "swift test",
+            workingDirectory: "/tmp/project",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: Date(timeIntervalSince1970: 101),
+            exitCode: 0,
+            outputTail: "",
+            outputCharacterCount: 0,
+            outputSummary: nil,
+            isInteractive: false,
+            commandStartSource: .shellIntegration,
+            completionSource: .shellIntegration
+        )
+        let mediumFromProcessExit = TerminalCommandBlock(
+            id: UUID(),
+            command: "swift build",
+            workingDirectory: "/tmp/project",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: Date(timeIntervalSince1970: 101),
+            exitCode: 0,
+            outputTail: "",
+            outputCharacterCount: 0,
+            outputSummary: nil,
+            isInteractive: false,
+            commandStartSource: .shellIntegration,
+            completionSource: .processExit
+        )
+        let low = TerminalCommandBlock(
+            id: UUID(),
+            command: "tail -f app.log",
+            workingDirectory: "/tmp/project",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: nil,
+            exitCode: nil,
+            outputTail: "",
+            outputCharacterCount: 0,
+            outputSummary: nil,
+            isInteractive: true,
+            commandStartSource: .userInput,
+            completionSource: nil
+        )
+        let interrupted = TerminalCommandBlock(
+            id: UUID(),
+            command: "sleep 60",
+            workingDirectory: "/tmp/project",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: Date(timeIntervalSince1970: 101),
+            exitCode: 130,
+            outputTail: "",
+            outputCharacterCount: 0,
+            outputSummary: nil,
+            isInteractive: false,
+            commandStartSource: .shellIntegration,
+            completionSource: .userInterrupt
+        )
+        let superseded = TerminalCommandBlock(
+            id: UUID(),
+            command: "python server.py",
+            workingDirectory: "/tmp/project",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: Date(timeIntervalSince1970: 101),
+            exitCode: nil,
+            outputTail: "",
+            outputCharacterCount: 0,
+            outputSummary: nil,
+            isInteractive: false,
+            commandStartSource: .userInput,
+            completionSource: .superseded
+        )
+        let completedUnknown = TerminalCommandBlock(
+            id: UUID(),
+            command: "custom-tool",
+            workingDirectory: "/tmp/project",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: Date(timeIntervalSince1970: 101),
+            exitCode: nil,
+            outputTail: "",
+            outputCharacterCount: 0,
+            outputSummary: nil,
+            isInteractive: false,
+            commandStartSource: .unknown,
+            completionSource: .unknown
+        )
+
+        XCTAssertEqual(high.commandLifecycleState, .succeeded)
+        XCTAssertEqual(high.commandBoundaryConfidence, .high)
+        XCTAssertEqual(high.commandBoundaryReasons, [.shellIntegrationStart, .shellIntegrationCompletion])
+        XCTAssertEqual(mediumFromProcessExit.commandLifecycleState, .succeeded)
+        XCTAssertEqual(mediumFromProcessExit.commandBoundaryConfidence, .medium)
+        XCTAssertEqual(mediumFromProcessExit.commandBoundaryReasons, [.shellIntegrationStart, .processExitCompletion])
+        XCTAssertEqual(low.commandLifecycleState, .running)
+        XCTAssertEqual(low.commandBoundaryConfidence, .low)
+        XCTAssertEqual(low.commandBoundaryReasons, [.userInputStart, .commandStillRunning])
+        XCTAssertEqual(interrupted.commandLifecycleState, .interrupted)
+        XCTAssertEqual(superseded.commandLifecycleState, .superseded)
+        XCTAssertEqual(completedUnknown.commandLifecycleState, .completedUnknownStatus)
     }
 
     func testShellIntegratedStartUpgradesUserInputCommandBlock() throws {
@@ -1117,6 +1238,9 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(tab.commandBlocks.count, 1)
         XCTAssertEqual(block.command, "swift test")
         XCTAssertEqual(block.commandStartSource, .shellIntegration)
+        XCTAssertEqual(block.commandLifecycleState, .running)
+        XCTAssertEqual(block.commandBoundaryConfidence, .low)
+        XCTAssertEqual(block.commandBoundaryReasons, [.shellIntegrationStart, .commandStillRunning])
         XCTAssertTrue(block.searchableText.contains("shellIntegration"))
         XCTAssertTrue(block.aiContextText.contains("Command source: shellIntegration"))
     }
@@ -1195,6 +1319,13 @@ final class musetermTests: XCTestCase {
         )
 
         XCTAssertTrue(markdown.contains(L10n.string("runbook.output_summary")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.lifecycle_state")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.command_source")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.completion_source")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.boundary_confidence")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.boundary_reasons")))
+        XCTAssertTrue(markdown.contains("high"))
+        XCTAssertTrue(markdown.contains("shell_integration_start"))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.summary_error")))
         XCTAssertTrue(markdown.contains("[REDACTED]"))
         XCTAssertTrue(markdown.contains("https://example.com/build/123"))
@@ -1238,8 +1369,11 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.failure_fingerprint")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_duration")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_lifecycle_state")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command_source")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_completion_source")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_boundary_confidence")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_boundary_reasons")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.recent_failure_command_id")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.recent_failure_working_directory")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.failure_output_tail_line")))
@@ -2647,6 +2781,14 @@ final class musetermTests: XCTestCase {
                         [
                             "id": "cmd-1",
                             "command": "make test",
+                            "commandLifecycleState": "failed",
+                            "commandStartSource": "shellIntegration",
+                            "completionSource": "shellIntegration",
+                            "commandBoundaryConfidence": "high",
+                            "commandBoundaryReasons": [
+                                "shell_integration_start",
+                                "shell_integration_completion"
+                            ],
                             "outputCharacterCount": 10,
                             "outputTail": "abcdef"
                         ]

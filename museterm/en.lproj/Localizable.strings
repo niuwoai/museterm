@@ -26,6 +26,7 @@
 "action.save_workspace" = "Save Workspace";
 "action.restore_workspace" = "Restore Workspace";
 
+"menu.about" = "About MuseTerm";
 "menu.settings" = "Settings…";
 "menu.tab" = "Tab";
 "terminal.context.type_escaped_selection" = "Type Escaped Selection";
@@ -205,6 +206,27 @@
 "settings.custom_dangerous_rules.help" = "One rule per line. Plain text uses contains matching; prefix with regex: for regular expressions; lines starting with # are ignored.";
 "settings.cursor_shape" = "Cursor style";
 "settings.cursor_blink" = "Blink cursor";
+"settings.about.summary" = "A lightweight, friendly terminal for macOS with tabs, SSH, file transfer, command history, and local AI-friendly tooling.";
+"settings.about.author_homepage" = "Author homepage · 83d.me";
+"settings.about.other_apps" = "More apps by Rocky";
+"settings.about.other_apps.summary" = "A small shelf of sibling macOS apps from the 83d release catalog.";
+"about.window.title" = "About MuseTerm";
+"settings.about.app.willDeep.name" = "WillDeep";
+"settings.about.app.willDeep.summary" = "Focused writing and deep editing.";
+"settings.about.app.timeBill.name" = "TimeBill";
+"settings.about.app.timeBill.summary" = "Time tracking and billing companion.";
+"settings.about.app.museUploader.name" = "MuseUploader";
+"settings.about.app.museUploader.summary" = "Quick image and file publishing.";
+"settings.about.app.museSnip.name" = "MuseSnip";
+"settings.about.app.museSnip.summary" = "Lightweight screenshot capture.";
+"settings.about.app.markReader.name" = "MarkReader";
+"settings.about.app.markReader.summary" = "Clean Markdown reading.";
+"settings.about.app.museType.name" = "MuseType";
+"settings.about.app.museType.summary" = "Fast text and typing workspace.";
+"settings.about.app.museMail.name" = "MuseMail";
+"settings.about.app.museMail.summary" = "Quiet email workflows.";
+"settings.about.app.museMate.name" = "Muse Mate";
+"settings.about.app.museMate.summary" = "Personal creative companion.";
 "cursor.shape.block" = "Block";
 "cursor.shape.bar" = "Bar";
 "cursor.shape.underline" = "Underline";
@@ -392,8 +414,11 @@
 "runbook.latest_failed_working_directory" = "Latest failed working directory";
 "runbook.latest_failed_exit_code" = "Latest failed exit code";
 "runbook.latest_failed_duration" = "Latest failed duration";
+"runbook.latest_failed_lifecycle_state" = "Latest failed lifecycle state";
 "runbook.latest_failed_command_source" = "Latest failed command source";
 "runbook.latest_failed_completion_source" = "Latest failed completion source";
+"runbook.latest_failed_boundary_confidence" = "Latest failed boundary confidence";
+"runbook.latest_failed_boundary_reasons" = "Latest failed boundary reasons";
 "runbook.recent_failure_command_id" = "Recent failure command ID";
 "runbook.recent_failure_working_directory" = "Recent failure working directory";
 "runbook.latest_failure" = "Latest failure";
@@ -498,6 +523,11 @@
 "runbook.summary_commit" = "Commit";
 "runbook.summary_stack" = "Stack";
 "runbook.command" = "Command";
+"runbook.lifecycle_state" = "Lifecycle state";
+"runbook.command_source" = "Command source";
+"runbook.completion_source" = "Completion source";
+"runbook.boundary_confidence" = "Boundary confidence";
+"runbook.boundary_reasons" = "Boundary reasons";
 "runbook.output_tail" = "Output tail";
 "runbook.untitled_command" = "Command";
 

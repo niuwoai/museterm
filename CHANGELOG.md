@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.158.0] - 2026-07-01
+
+### Added
+- 结构化命令块新增 `commandLifecycleState`，用 `running`、`succeeded`、`failed`、`interrupted`、`superseded` 和 `completed_unknown_status` 稳定描述命令生命周期，并同步到 AI 上下文、CLI/MCP 命令块快照、最近失败诊断和 Runbook 导出。
+
+## [1.157.0] - 2026-07-01
+
+### Added
+- 结构化命令块新增 `commandBoundaryReasons`，用 `shell_integration_start`、`process_exit_completion`、`command_still_running` 等稳定 reason code 解释 `commandBoundaryConfidence` 的来源，并同步到 AI 上下文、CLI/MCP 命令块快照、最近失败诊断和 Runbook 导出。
+- 关于页改为独立窗口，并接入系统 App 菜单的“关于 MuseTerm”入口。
+- 关于页推荐 App 卡片改为整卡可点击，链接到 83d 的无语言前缀产品页，例如 `https://83d.me/products/musemate`。
+
+## [1.156.0] - 2026-07-01
+
+### Added
+- 结构化命令块新增 `commandBoundaryConfidence`，按 `high`、`medium`、`low` 标记命令开始/结束边界的可信度，并同步到 AI 上下文、CLI/MCP 命令块快照、最近失败诊断和 Runbook 导出。
+- 设置新增关于页，展示 128px 企鹅 PNG 序列动画、可点击的作者主页 `https://83d.me`，并从 83d 发布清单整理推荐 App 与图标。
+
+### Fixed
+- 为设置页显式导入 Combine，确保 `Timer.publish(...).autoconnect()` 在 Xcode 显式模块检查下可编译。
+
 ## [1.155.1-rc1] - 2026-07-01
 
 ### Fixed
