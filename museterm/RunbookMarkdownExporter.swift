@@ -327,12 +327,17 @@ enum RunbookMarkdownExporter {
             key: "runbook.repeated_failure_retry_pause_decision_reasons",
             to: &lines
         )
+        appendRawValueList(
+            repeatedFailureDiagnostic.retryPauseDecisionRefreshTriggers,
+            key: "runbook.repeated_failure_retry_pause_decision_refresh_triggers",
+            to: &lines
+        )
         lines.append(
             "- \(L10n.string("runbook.repeated_failure_retry_pause_cooldown")): \(repeatedFailureDiagnostic.retryPauseCooldownMilliseconds) ms"
         )
         if let retryPauseUntil = repeatedFailureDiagnostic.retryPauseUntil {
             lines.append(
-                "- \(L10n.string("runbook.repeated_failure_retry_pause_until")): \(isoTimestamp(retryPauseUntil))"
+                "- \(L10n.string("runbook.repeated_failure_retry_pause_until")): \(timestamp(retryPauseUntil))"
             )
         }
         appendRawValueList(

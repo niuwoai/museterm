@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.152.0] - 2026-07-01
+
+### Added
+- 连续同类失败诊断新增 `retryPauseDecisionRefreshTriggers`，声明暂停决策应在冷却到期、新命令结果或上下文变化时刷新，并同步到 AI 上下文、MCP/CLI 快照和 Runbook 导出。
+
 ## [1.151.0] - 2026-07-01
 
 ### Added

@@ -686,6 +686,10 @@ struct CommandBlockDiagnostics: Equatable {
                 let reasons = repeatedFailureDiagnostic.retryPauseDecisionReasons.map(\.rawValue).joined(separator: "; ")
                 lines.append("Repeated failure retry pause decision reasons: \(reasons)")
             }
+            if !repeatedFailureDiagnostic.retryPauseDecisionRefreshTriggers.isEmpty {
+                let triggers = repeatedFailureDiagnostic.retryPauseDecisionRefreshTriggers.map(\.rawValue).joined(separator: "; ")
+                lines.append("Repeated failure retry pause decision refresh triggers: \(triggers)")
+            }
             lines.append(
                 "Repeated failure retry pause cooldown: \(repeatedFailureDiagnostic.retryPauseCooldownMilliseconds) ms"
             )
@@ -1014,6 +1018,10 @@ struct CommandBlockDiagnostics: Equatable {
             latestOccurredAt: latestOccurredAt,
             cooldownMilliseconds: retryPauseCooldownMilliseconds
         )
+        let retryPauseDecisionRefreshTriggers = repeatedFailureRetryPauseDecisionRefreshTriggers(
+            decision: retryPauseDecision,
+            retryPauseUntil: retryPauseUntil
+        )
         return RepeatedFailureDiagnostic(
             diagnostic: latestRecord.diagnostic,
             fingerprint: latestRecord.fingerprint,
@@ -1046,6 +1054,7 @@ struct CommandBlockDiagnostics: Equatable {
             retryPauseDecision: retryPauseDecision,
             retryPauseDecisionConfidence: retryPauseDecisionConfidence,
             retryPauseDecisionReasons: retryPauseDecisionReasons,
+            retryPauseDecisionRefreshTriggers: retryPauseDecisionRefreshTriggers,
             retryPauseCooldownMilliseconds: retryPauseCooldownMilliseconds,
             retryPauseUntil: retryPauseUntil,
             retryPauseReasons: retryPauseReasons,
@@ -1864,6 +1873,21 @@ struct CommandBlockDiagnostics: Equatable {
         reasons
     }
 
+    nonisolated private static func repeatedFailureRetryPauseDecisionRefreshTriggers(
+        decision: RepeatedFailureRetryPauseDecision,
+        retryPauseUntil: Date?
+    ) -> [RepeatedFailureRetryPauseDecisionRefreshTrigger] {
+        guard decision != .none else { return [] }
+        var triggers: [RepeatedFailureRetryPauseDecisionRefreshTrigger] = [
+            .newCommandResult,
+            .contextChanged
+        ]
+        if retryPauseUntil != nil {
+            triggers.insert(.cooldownElapsed, at: 0)
+        }
+        return triggers
+    }
+
     nonisolated private static func repeatedFailureRetryPauseUntil(
         latestOccurredAt: Date,
         cooldownMilliseconds: Int
@@ -1923,6 +1947,7 @@ struct RepeatedFailureDiagnostic: Equatable {
     let retryPauseDecision: RepeatedFailureRetryPauseDecision
     let retryPauseDecisionConfidence: RepeatedFailureRetryPauseDecisionConfidence
     let retryPauseDecisionReasons: [RepeatedFailureRetryPauseReason]
+    let retryPauseDecisionRefreshTriggers: [RepeatedFailureRetryPauseDecisionRefreshTrigger]
     let retryPauseCooldownMilliseconds: Int
     let retryPauseUntil: Date?
     let retryPauseReasons: [RepeatedFailureRetryPauseReason]
@@ -1980,6 +2005,12 @@ enum RepeatedFailureRetryPauseDecisionConfidence: String, Codable, Equatable {
     case none
     case medium
     case high
+}
+
+enum RepeatedFailureRetryPauseDecisionRefreshTrigger: String, Codable, Equatable {
+    case cooldownElapsed = "cooldown_elapsed"
+    case newCommandResult = "new_command_result"
+    case contextChanged = "context_changed"
 }
 
 enum CommandDiagnosticSeverity: String, Codable, Equatable {

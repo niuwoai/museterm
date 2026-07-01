@@ -427,6 +427,7 @@
 "runbook.repeated_failure_retry_pause_decision" = "Repeated failure retry pause decision";
 "runbook.repeated_failure_retry_pause_decision_confidence" = "Repeated failure retry pause decision confidence";
 "runbook.repeated_failure_retry_pause_decision_reasons" = "Repeated failure retry pause decision reasons";
+"runbook.repeated_failure_retry_pause_decision_refresh_triggers" = "Repeated failure retry pause decision refresh triggers";
 "runbook.repeated_failure_retry_pause_cooldown" = "Repeated failure retry pause cooldown";
 "runbook.repeated_failure_retry_pause_until" = "Repeated failure retry pause until";
 "runbook.repeated_failure_retry_pause_reasons" = "Repeated failure retry pause reasons";
