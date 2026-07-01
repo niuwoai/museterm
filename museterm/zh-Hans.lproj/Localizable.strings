@@ -468,6 +468,7 @@
 "runbook.suggested_next_action_result_reuse_policy" = "建议动作结果复用策略";
 "runbook.suggested_next_action_result_reuse_validation_checks" = "建议动作结果复用验证检查";
 "runbook.suggested_next_action_retry_condition" = "建议动作重试条件";
+"runbook.suggested_next_action_confirmation_reasons" = "建议动作确认原因";
 "runbook.suggested_next_action_preflight_checks" = "建议动作执行前检查";
 "runbook.suggested_next_action_automation_guardrails" = "建议动作自动化护栏";
 "runbook.suggested_next_action_user_decision_points" = "建议动作用户决策点";

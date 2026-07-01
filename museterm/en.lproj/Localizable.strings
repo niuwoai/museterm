@@ -468,6 +468,7 @@
 "runbook.suggested_next_action_result_reuse_policy" = "Suggested action result reuse policy";
 "runbook.suggested_next_action_result_reuse_validation_checks" = "Suggested action result reuse validation checks";
 "runbook.suggested_next_action_retry_condition" = "Suggested action retry condition";
+"runbook.suggested_next_action_confirmation_reasons" = "Suggested action confirmation reasons";
 "runbook.suggested_next_action_preflight_checks" = "Suggested action preflight checks";
 "runbook.suggested_next_action_automation_guardrails" = "Suggested action automation guardrails";
 "runbook.suggested_next_action_user_decision_points" = "Suggested action user decision points";

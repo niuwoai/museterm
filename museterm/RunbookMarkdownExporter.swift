@@ -384,6 +384,7 @@ enum RunbookMarkdownExporter {
         lines.append("- \(L10n.string("runbook.suggested_next_action_result_reuse_policy")): \(action.resultReusePolicy.rawValue)")
         appendRawValueList(action.resultReuseValidationChecks, key: "runbook.suggested_next_action_result_reuse_validation_checks", to: &lines)
         lines.append("- \(L10n.string("runbook.suggested_next_action_retry_condition")): \(action.retryCondition.rawValue)")
+        appendRawValueList(action.confirmationReasons, key: "runbook.suggested_next_action_confirmation_reasons", to: &lines)
         appendInlineCodeList(action.preflightChecks, key: "runbook.suggested_next_action_preflight_checks", to: &lines)
         appendInlineCodeList(action.automationGuardrails, key: "runbook.suggested_next_action_automation_guardrails", to: &lines)
         appendInlineCodeList(action.userDecisionPoints, key: "runbook.suggested_next_action_user_decision_points", to: &lines)

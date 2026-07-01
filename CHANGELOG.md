@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.155.0] - 2026-07-01
+
+### Added
+- 建议排查动作新增 `confirmationReasons`，用 `context_sensitive_command`、`may_expose_sensitive_context`、`follow_up_may_mutate_state` 和 `repeated_failure_loop_risk` 等稳定 reason code 解释为什么动作只能填入或展示、必须由用户确认，并同步到 AI 上下文、CLI/MCP 快照和 Runbook 导出。
+
 ## [1.154.1-rc1] - 2026-07-01
 
 ### Added

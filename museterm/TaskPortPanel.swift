@@ -794,6 +794,10 @@ struct CommandBlockDiagnostics: Equatable {
                 lines.append("Suggested next action result reuse validation checks: \(checks)")
             }
             lines.append("Suggested next action retry condition: \(suggestedNextAction.retryCondition.rawValue)")
+            if !suggestedNextAction.confirmationReasons.isEmpty {
+                let reasons = suggestedNextAction.confirmationReasons.map(\.rawValue).joined(separator: "; ")
+                lines.append("Suggested next action confirmation reasons: \(reasons)")
+            }
             lines.append("Suggested next action preflight checks: \(suggestedNextAction.preflightChecks.joined(separator: "; "))")
             lines.append("Suggested next action automation guardrails: \(suggestedNextAction.automationGuardrails.joined(separator: "; "))")
             lines.append("Suggested next action user decision points: \(suggestedNextAction.userDecisionPoints.joined(separator: "; "))")
@@ -1365,7 +1369,8 @@ struct CommandBlockDiagnostics: Equatable {
                 resultReuseKeyFields: [.terminalNetworkNamespace, .networkListeners],
                 resultReusePolicy: .refreshBeforeUse,
                 resultReuseValidationChecks: [.refreshDynamicSnapshot, .matchNetworkNamespace, .matchObservedSignal],
-                retryCondition: .portConflictResolvedOrOwnerKnown
+                retryCondition: .portConflictResolvedOrOwnerKnown,
+                confirmationReasons: [.contextSensitiveCommand, .mayExposeSensitiveContext, .followUpMayMutateState]
             )
         case .permission:
             return CommandDiagnosticAction(
@@ -1423,7 +1428,8 @@ struct CommandBlockDiagnostics: Equatable {
                 resultReuseKeyFields: [.workingDirectory, .userIdentity, .permissionMetadata],
                 resultReusePolicy: .reuseWhenKeysMatch,
                 resultReuseValidationChecks: [.matchReuseKeys, .matchWorkingDirectory, .matchUserIdentity],
-                retryCondition: .permissionsVerified
+                retryCondition: .permissionsVerified,
+                confirmationReasons: [.contextSensitiveCommand, .mayExposeSensitiveContext, .followUpMayMutateState]
             )
         case .missingCommand:
             return CommandDiagnosticAction(
@@ -1481,7 +1487,8 @@ struct CommandBlockDiagnostics: Equatable {
                 resultReuseKeyFields: [.shellEnvironment],
                 resultReusePolicy: .reuseWhenKeysMatch,
                 resultReuseValidationChecks: [.matchReuseKeys, .matchShellEnvironment],
-                retryCondition: .commandAvailableOnPath
+                retryCondition: .commandAvailableOnPath,
+                confirmationReasons: [.contextSensitiveCommand, .followUpMayMutateState]
             )
         case .missingFile:
             return CommandDiagnosticAction(
@@ -1539,7 +1546,8 @@ struct CommandBlockDiagnostics: Equatable {
                 resultReuseKeyFields: [.workingDirectory, .filesystemState],
                 resultReusePolicy: .refreshBeforeUse,
                 resultReuseValidationChecks: [.refreshDynamicSnapshot, .matchWorkingDirectory, .matchObservedSignal],
-                retryCondition: .fileOrDirectoryVerified
+                retryCondition: .fileOrDirectoryVerified,
+                confirmationReasons: [.contextSensitiveCommand, .mayExposeSensitiveContext, .followUpMayMutateState]
             )
         case .git:
             return CommandDiagnosticAction(
@@ -1597,7 +1605,8 @@ struct CommandBlockDiagnostics: Equatable {
                 resultReuseKeyFields: [.gitRepository, .gitBranch, .gitWorkingTreeState],
                 resultReusePolicy: .refreshBeforeUse,
                 resultReuseValidationChecks: [.refreshDynamicSnapshot, .matchGitRepository, .matchGitState],
-                retryCondition: .gitStateReviewed
+                retryCondition: .gitStateReviewed,
+                confirmationReasons: [.contextSensitiveCommand, .mayExposeSensitiveContext, .followUpMayMutateState]
             )
         case .repeated:
             return CommandDiagnosticAction(
@@ -1655,7 +1664,8 @@ struct CommandBlockDiagnostics: Equatable {
                 resultReuseKeyFields: [.terminalSession, .workingDirectory, .gitRepository, .failureFingerprint],
                 resultReusePolicy: .doNotReuseAcrossAttempts,
                 resultReuseValidationChecks: [.matchFailureFingerprint, .matchWorkingDirectory, .doNotCrossAttemptBoundary],
-                retryCondition: .contextChangedOrFirstFailureInspected
+                retryCondition: .contextChangedOrFirstFailureInspected,
+                confirmationReasons: [.contextSensitiveCommand, .mayExposeSensitiveContext, .repeatedFailureLoopRisk]
             )
         case .generic:
             return CommandDiagnosticAction(
@@ -1713,7 +1723,8 @@ struct CommandBlockDiagnostics: Equatable {
                 resultReuseKeyFields: [.terminalSession, .workingDirectory, .gitRepository, .failureFingerprint],
                 resultReusePolicy: .doNotReuseAcrossAttempts,
                 resultReuseValidationChecks: [.matchFailureFingerprint, .matchWorkingDirectory, .doNotCrossAttemptBoundary],
-                retryCondition: .localContextCaptured
+                retryCondition: .localContextCaptured,
+                confirmationReasons: [.contextSensitiveCommand, .mayExposeSensitiveContext]
             )
         }
     }

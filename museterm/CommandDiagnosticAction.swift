@@ -37,6 +37,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
     let resultReusePolicy: CommandDiagnosticActionResultReusePolicy
     let resultReuseValidationChecks: [CommandDiagnosticActionResultReuseValidationCheck]
     let retryCondition: CommandDiagnosticActionRetryCondition
+    let confirmationReasons: [CommandDiagnosticActionConfirmationReason]
     let requiresConfirmation: Bool
 
     nonisolated init(
@@ -78,6 +79,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         resultReusePolicy: CommandDiagnosticActionResultReusePolicy,
         resultReuseValidationChecks: [CommandDiagnosticActionResultReuseValidationCheck],
         retryCondition: CommandDiagnosticActionRetryCondition,
+        confirmationReasons: [CommandDiagnosticActionConfirmationReason],
         requiresConfirmation: Bool = true
     ) {
         self.id = id
@@ -118,6 +120,7 @@ struct CommandDiagnosticAction: Codable, Equatable {
         self.resultReusePolicy = resultReusePolicy
         self.resultReuseValidationChecks = resultReuseValidationChecks
         self.retryCondition = retryCondition
+        self.confirmationReasons = confirmationReasons
         self.requiresConfirmation = requiresConfirmation
     }
 }
@@ -368,4 +371,11 @@ enum CommandDiagnosticActionRetryCondition: String, Codable, Equatable {
     case gitStateReviewed = "git_state_reviewed"
     case contextChangedOrFirstFailureInspected = "context_changed_or_first_failure_inspected"
     case localContextCaptured = "local_context_captured"
+}
+
+enum CommandDiagnosticActionConfirmationReason: String, Codable, Equatable {
+    case contextSensitiveCommand = "context_sensitive_command"
+    case mayExposeSensitiveContext = "may_expose_sensitive_context"
+    case followUpMayMutateState = "follow_up_may_mutate_state"
+    case repeatedFailureLoopRisk = "repeated_failure_loop_risk"
 }

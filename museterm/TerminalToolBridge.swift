@@ -218,6 +218,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
     let resultReusePolicy: String
     let resultReuseValidationChecks: [String]
     let retryCondition: String
+    let confirmationReasons: [String]
     let requiresConfirmation: Bool
 
     init(action: CommandDiagnosticAction) {
@@ -259,6 +260,7 @@ struct TerminalToolDiagnosticActionSnapshot: Codable, Equatable {
         resultReusePolicy = action.resultReusePolicy.rawValue
         resultReuseValidationChecks = action.resultReuseValidationChecks.map(\.rawValue)
         retryCondition = action.retryCondition.rawValue
+        confirmationReasons = action.confirmationReasons.map(\.rawValue)
         requiresConfirmation = action.requiresConfirmation
     }
 }

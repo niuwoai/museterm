@@ -774,6 +774,14 @@ final class musetermTests: XCTestCase {
             suggestedNextAction["retryCondition"] as? String,
             CommandDiagnosticActionRetryCondition.contextChangedOrFirstFailureInspected.rawValue
         )
+        XCTAssertEqual(
+            suggestedNextAction["confirmationReasons"] as? [String],
+            [
+                CommandDiagnosticActionConfirmationReason.contextSensitiveCommand.rawValue,
+                CommandDiagnosticActionConfirmationReason.mayExposeSensitiveContext.rawValue,
+                CommandDiagnosticActionConfirmationReason.repeatedFailureLoopRisk.rawValue
+            ]
+        )
         XCTAssertEqual(suggestedNextAction["requiresConfirmation"] as? Bool, true)
         XCTAssertEqual(repeatedFailure["diagnostic"] as? String, diagnostic)
         XCTAssertEqual(repeatedFailure["fingerprint"] as? String, "error database is locked")
@@ -1268,6 +1276,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_result_reuse_policy")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_result_reuse_validation_checks")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_retry_condition")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_confirmation_reasons")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_preflight_checks")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_automation_guardrails")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_user_decision_points")))
@@ -1325,6 +1334,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(CommandDiagnosticEvidenceAnchor.recentFailureWorkingDirectory.rawValue))
         XCTAssertTrue(markdown.contains(CommandDiagnosticEvidenceAnchor.recentFailureOutputTailLine.rawValue))
         XCTAssertTrue(markdown.contains(CommandDiagnosticEvidenceAnchor.retryPauseDecisionAnchorCommandID.rawValue))
+        XCTAssertTrue(markdown.contains(CommandDiagnosticActionConfirmationReason.repeatedFailureLoopRisk.rawValue))
         XCTAssertTrue(markdown.contains("Inspect the repeated failure output before rerunning"))
         XCTAssertTrue(markdown.contains("pwd && git status --short --branch 2>/dev/null || true"))
         XCTAssertTrue(markdown.contains(CommandDiagnosticActionID.inspectRepeatContext.rawValue))
@@ -1479,6 +1489,11 @@ final class musetermTests: XCTestCase {
             )
         )
         XCTAssertTrue(context.contains("Suggested next action retry condition: context_changed_or_first_failure_inspected"))
+        XCTAssertTrue(
+            context.contains(
+                "Suggested next action confirmation reasons: context_sensitive_command; may_expose_sensitive_context; repeated_failure_loop_risk"
+            )
+        )
         XCTAssertTrue(context.contains("Suggested next action preflight checks:"))
         XCTAssertTrue(context.contains("anything meaningful changed"))
         XCTAssertTrue(context.contains("Suggested next action automation guardrails:"))
@@ -1819,6 +1834,10 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(diagnostics.suggestedNextAction?.expectedSignals.first?.contains("expected directory") == true)
         XCTAssertEqual(diagnostics.suggestedNextAction?.fallbackNextSteps.count, 2)
         XCTAssertTrue(diagnostics.suggestedNextAction?.fallbackNextSteps.first?.contains("parent directory") == true)
+        XCTAssertEqual(
+            diagnostics.suggestedNextAction?.confirmationReasons,
+            [.contextSensitiveCommand, .mayExposeSensitiveContext, .followUpMayMutateState]
+        )
         XCTAssertEqual(diagnostics.suggestedNextAction?.requiresConfirmation, true)
     }
 
@@ -1899,6 +1918,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(portConflict.suggestedNextAction?.priorityScore, 56)
         XCTAssertEqual(portConflict.suggestedNextAction?.priorityFactors, portConflict.diagnosticPriorityFactors)
         XCTAssertTrue(portConflict.suggestedNextAction?.evidenceAnchors.contains(.diagnosticCategoryEvidence) == true)
+        XCTAssertEqual(
+            portConflict.suggestedNextAction?.confirmationReasons,
+            [.contextSensitiveCommand, .mayExposeSensitiveContext, .followUpMayMutateState]
+        )
         XCTAssertEqual(portConflict.suggestedNextAction?.actionScope, .localNetwork)
         XCTAssertEqual(portConflict.suggestedNextAction?.expectedResultKind, .listeningPorts)
         XCTAssertEqual(
@@ -2218,6 +2241,10 @@ final class musetermTests: XCTestCase {
             [.matchFailureFingerprint, .matchWorkingDirectory, .doNotCrossAttemptBoundary]
         )
         XCTAssertEqual(genericFailure.suggestedNextAction?.retryCondition, .localContextCaptured)
+        XCTAssertEqual(
+            genericFailure.suggestedNextAction?.confirmationReasons,
+            [.contextSensitiveCommand, .mayExposeSensitiveContext]
+        )
         XCTAssertTrue(genericFailure.suggestedNextAction?.preflightChecks.first?.contains("enough output") == true)
         XCTAssertTrue(genericFailure.suggestedNextAction?.automationGuardrails.first?.contains("destructive fix") == true)
         XCTAssertTrue(genericFailure.suggestedNextAction?.userDecisionPoints.first?.contains("subsystem") == true)
