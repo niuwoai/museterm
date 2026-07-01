@@ -30,6 +30,7 @@ struct TerminalSelectionContext: Equatable {
     var isLikelyPath: Bool {
         guard let text = singleLineText, escapedPathArgument != nil else { return false }
         if normalizedURL != nil { return false }
+        if Self.hasWebURLScheme(text) { return false }
         if localPathExists { return true }
         if text.hasPrefix("/") || text.hasPrefix("./") || text.hasPrefix("../") || text.hasPrefix("~/") {
             return true
@@ -102,6 +103,7 @@ struct TerminalSelectionContext: Equatable {
         guard let text = singleLineText,
               text.count <= Self.maxSearchCommandCharacters,
               normalizedURL == nil,
+              !Self.hasWebURLScheme(text),
               port == nil,
               pid == nil,
               gitHash == nil,
@@ -307,6 +309,11 @@ struct TerminalSelectionContext: Equatable {
         guard extensionStart < pathPart.endIndex else { return false }
         let ext = pathPart[extensionStart...].lowercased()
         return sourceLocationExtensions.contains(ext)
+    }
+
+    private static func hasWebURLScheme(_ text: String) -> Bool {
+        let lowercased = text.lowercased()
+        return lowercased.hasPrefix("http://") || lowercased.hasPrefix("https://")
     }
 
     private static let hostPortRegex = RegexMatcher(

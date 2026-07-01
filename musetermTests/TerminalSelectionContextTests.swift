@@ -13,6 +13,20 @@ final class TerminalSelectionContextTests: XCTestCase {
         XCTAssertTrue(context.aiPrompt.contains("example.com:8080/path"))
     }
 
+    func testInvalidWebURLDoesNotBecomePathOrSearchContext() throws {
+        let context = try XCTUnwrap(TerminalSelectionContext(selection: "http://localhost:70000"))
+
+        XCTAssertNil(context.normalizedURL)
+        XCTAssertNil(context.port)
+        XCTAssertFalse(context.isLikelyPath)
+        XCTAssertNil(context.searchCommandArgument)
+
+        let valid = try XCTUnwrap(TerminalSelectionContext(selection: "https://localhost:65535"))
+        XCTAssertEqual(valid.normalizedURL?.absoluteString, "https://localhost:65535")
+        XCTAssertEqual(valid.port, 65_535)
+        XCTAssertFalse(valid.isLikelyPath)
+    }
+
     func testFileLineReferenceDoesNotBecomeURLPortContext() throws {
         let context = try XCTUnwrap(TerminalSelectionContext(selection: "TerminalSelectionContext.swift:42"))
 
