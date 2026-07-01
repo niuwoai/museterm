@@ -21,7 +21,7 @@ struct TerminalSelectionContext: Equatable {
         singleLineText = trimmedText.contains(where: \.isNewline) ? nil : trimmedText
         escapedPathArgument = TerminalShellArgumentEscaper.escapedPathArgument(fromTerminalSelection: trimmedText)
         normalizedURL = Self.normalizedURL(from: singleLineText)
-        port = Self.port(from: singleLineText)
+        port = Self.port(from: singleLineText, normalizedURL: normalizedURL)
         pid = Self.pid(from: singleLineText)
         gitHash = Self.gitHash(from: singleLineText)
         prettyJSON = Self.prettyJSON(from: trimmedText)
@@ -112,25 +112,35 @@ struct TerminalSelectionContext: Equatable {
         if let url = URL(string: text),
            let scheme = url.scheme?.lowercased(),
            ["http", "https"].contains(scheme),
-           url.host != nil {
+           url.host != nil,
+           isValidPort(url.port) {
             return url
         }
         if hostPortRegex.matches(text),
-           let url = URL(string: "http://\(text)") {
+           let url = URL(string: "http://\(text)"),
+           isValidPort(url.port) {
             return url
         }
         return nil
     }
 
-    private static func port(from text: String?) -> Int? {
-        guard let text else { return nil }
-        let candidate = text.hasPrefix(":") ? String(text.dropFirst()) : text
+    private static func port(from text: String?, normalizedURL: URL?) -> Int? {
+        if let port = normalizedURL?.port {
+            return port
+        }
+        guard let text, text.hasPrefix(":") else { return nil }
+        let candidate = String(text.dropFirst())
         guard candidate.allSatisfy(\.isNumber),
               let port = Int(candidate),
-              (1...65_535).contains(port) else {
+              isValidPort(port) else {
             return nil
         }
         return port
+    }
+
+    private static func isValidPort(_ port: Int?) -> Bool {
+        guard let port else { return true }
+        return (1...65_535).contains(port)
     }
 
     private static func pid(from text: String?) -> Int32? {

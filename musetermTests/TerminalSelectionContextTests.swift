@@ -6,7 +6,7 @@ final class TerminalSelectionContextTests: XCTestCase {
         let context = try XCTUnwrap(TerminalSelectionContext(selection: "example.com:8080/path"))
 
         XCTAssertEqual(context.normalizedURL?.absoluteString, "http://example.com:8080/path")
-        XCTAssertEqual(context.port, nil)
+        XCTAssertEqual(context.port, 8080)
         XCTAssertEqual(context.escapedPathArgument, "'example.com:8080/path'")
         XCTAssertFalse(context.isLikelyPath)
         XCTAssertEqual(context.markdownCodeBlock, "```text\nexample.com:8080/path\n```")
@@ -15,12 +15,20 @@ final class TerminalSelectionContextTests: XCTestCase {
 
     func testBuildsPortPIDAndGitContexts() throws {
         XCTAssertEqual(TerminalSelectionContext(selection: ":3000")?.port, 3000)
-        XCTAssertEqual(TerminalSelectionContext(selection: "12345")?.pid, 12_345)
+        let hostPort = try XCTUnwrap(TerminalSelectionContext(selection: "localhost:3000"))
+        XCTAssertEqual(hostPort.normalizedURL?.absoluteString, "http://localhost:3000")
+        XCTAssertEqual(hostPort.port, 3000)
+
+        let pid = try XCTUnwrap(TerminalSelectionContext(selection: "12345"))
+        XCTAssertNil(pid.port)
+        XCTAssertEqual(pid.pid, 12_345)
         XCTAssertEqual(
             TerminalSelectionContext(selection: "abc1234def5678")?.gitHash,
             "abc1234def5678"
         )
         XCTAssertNil(TerminalSelectionContext(selection: "70000")?.port)
+        XCTAssertNil(TerminalSelectionContext(selection: ":70000")?.port)
+        XCTAssertNil(TerminalSelectionContext(selection: "localhost:70000")?.normalizedURL)
     }
 
     func testBuildsPrettyJSONAndTransformContext() throws {
