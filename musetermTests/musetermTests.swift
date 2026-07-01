@@ -551,6 +551,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(repeatedFailure["firstOutputTailLineText"] as? String, diagnostic)
         XCTAssertEqual(repeatedFailure["latestOutputTailLineNumber"] as? Int, 3)
         XCTAssertEqual(repeatedFailure["latestOutputTailLineText"] as? String, diagnostic)
+        XCTAssertEqual(repeatedFailure["averageIntervalMilliseconds"] as? Int, 10_000)
         XCTAssertEqual(
             encodedDiagnostics["suggestedNextInspection"] as? String,
             "Inspect the repeated failure output before rerunning: \(diagnostic)"
@@ -1178,6 +1179,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_latest_output_tail_text")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_window")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_duration")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_average_interval")))
         XCTAssertTrue(markdown.contains("3"))
         XCTAssertTrue(markdown.contains(CommandDiagnosticSeverity.repeated.rawValue))
         XCTAssertTrue(markdown.contains(CommandDiagnosticCategory.repeated.rawValue))
@@ -1281,6 +1283,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Repeated failure latest output tail text: ERROR database is locked"))
         XCTAssertTrue(context.contains("Repeated failure window:"))
         XCTAssertTrue(context.contains("Repeated failure duration: 20000 ms"))
+        XCTAssertTrue(context.contains("Repeated failure average interval: 10000 ms"))
         XCTAssertTrue(context.contains("Diagnostic severity: repeated"))
         XCTAssertTrue(context.contains("Diagnostic category: repeated"))
         XCTAssertTrue(context.contains("Diagnostic category evidence: ERROR database is locked"))
@@ -1410,6 +1413,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(repeated.firstOccurredAt, Date(timeIntervalSince1970: 101))
         XCTAssertEqual(repeated.latestOccurredAt, Date(timeIntervalSince1970: 121))
         XCTAssertEqual(repeated.durationMilliseconds, 20_000)
+        XCTAssertEqual(repeated.averageIntervalMilliseconds, 10_000)
         XCTAssertEqual(diagnostics.diagnosticSeverity, .repeated)
     }
 

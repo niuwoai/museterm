@@ -672,6 +672,7 @@ struct CommandBlockDiagnostics: Equatable {
                 "Repeated failure window: \(Self.isoTimestamp(repeatedFailureDiagnostic.firstOccurredAt)) to \(Self.isoTimestamp(repeatedFailureDiagnostic.latestOccurredAt))"
             )
             lines.append("Repeated failure duration: \(repeatedFailureDiagnostic.durationMilliseconds) ms")
+            lines.append("Repeated failure average interval: \(repeatedFailureDiagnostic.averageIntervalMilliseconds) ms")
         }
         if diagnosticSeverity != .none {
             lines.append("Diagnostic severity: \(diagnosticSeverity.rawValue)")
@@ -942,6 +943,16 @@ struct CommandBlockDiagnostics: Equatable {
             uniqueCommandCount: uniqueCommands.count,
             uniqueWorkingDirectoryCount: uniqueWorkingDirectories.count
         )
+        let firstOccurredAt = occurrenceDate(for: firstMatchedBlock)
+        let latestOccurredAt = occurrenceDate(for: latestMatchedBlock)
+        let durationMilliseconds = failureDurationMilliseconds(
+            firstOccurredAt: firstOccurredAt,
+            latestOccurredAt: latestOccurredAt
+        )
+        let averageIntervalMilliseconds = failureAverageIntervalMilliseconds(
+            durationMilliseconds: durationMilliseconds,
+            count: count
+        )
         return RepeatedFailureDiagnostic(
             diagnostic: latestRecord.diagnostic,
             fingerprint: latestRecord.fingerprint,
@@ -962,12 +973,10 @@ struct CommandBlockDiagnostics: Equatable {
             firstOutputTailLineText: firstMatchedRecord.outputTailLineText,
             latestOutputTailLineNumber: latestMatchedRecord.outputTailLineNumber,
             latestOutputTailLineText: latestMatchedRecord.outputTailLineText,
-            firstOccurredAt: occurrenceDate(for: firstMatchedBlock),
-            latestOccurredAt: occurrenceDate(for: latestMatchedBlock),
-            durationMilliseconds: failureDurationMilliseconds(
-                firstOccurredAt: occurrenceDate(for: firstMatchedBlock),
-                latestOccurredAt: occurrenceDate(for: latestMatchedBlock)
-            ),
+            firstOccurredAt: firstOccurredAt,
+            latestOccurredAt: latestOccurredAt,
+            durationMilliseconds: durationMilliseconds,
+            averageIntervalMilliseconds: averageIntervalMilliseconds,
             count: count
         )
     }
@@ -1676,6 +1685,14 @@ struct CommandBlockDiagnostics: Equatable {
         max(0, Int(latestOccurredAt.timeIntervalSince(firstOccurredAt) * 1000))
     }
 
+    nonisolated private static func failureAverageIntervalMilliseconds(
+        durationMilliseconds: Int,
+        count: Int
+    ) -> Int {
+        guard count > 1 else { return 0 }
+        return durationMilliseconds / (count - 1)
+    }
+
     nonisolated private static func repeatedFailureContextStability(
         uniqueCommandCount: Int,
         uniqueWorkingDirectoryCount: Int
@@ -1718,6 +1735,7 @@ struct RepeatedFailureDiagnostic: Equatable {
     let firstOccurredAt: Date
     let latestOccurredAt: Date
     let durationMilliseconds: Int
+    let averageIntervalMilliseconds: Int
     let count: Int
 }
 

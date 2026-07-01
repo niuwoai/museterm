@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.141.0] - 2026-07-01
+
+### Added
+- 连续同类失败诊断新增 `averageIntervalMilliseconds`，基于连续失败时间窗和次数计算平均失败间隔，并同步到 AI 上下文、MCP/CLI 快照和 Runbook 导出，方便判断失败是否来自短时间密集重试。
+
 ## [1.140.0] - 2026-07-01
 
 ### Added

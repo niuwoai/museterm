@@ -150,6 +150,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
                 firstOccurredAt: repeatedFailureDiagnostic.firstOccurredAt,
                 latestOccurredAt: repeatedFailureDiagnostic.latestOccurredAt,
                 durationMilliseconds: repeatedFailureDiagnostic.durationMilliseconds,
+                averageIntervalMilliseconds: repeatedFailureDiagnostic.averageIntervalMilliseconds,
                 count: repeatedFailureDiagnostic.count
             )
         } else {
@@ -272,6 +273,7 @@ struct TerminalToolRepeatedFailureSnapshot: Codable, Equatable {
     let firstOccurredAt: Date
     let latestOccurredAt: Date
     let durationMilliseconds: Int
+    let averageIntervalMilliseconds: Int
     let count: Int
 }
 

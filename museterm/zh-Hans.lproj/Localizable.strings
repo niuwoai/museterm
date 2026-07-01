@@ -418,6 +418,7 @@
 "runbook.repeated_failure_window" = "连续失败时间窗";
 "runbook.repeated_failure_window_value" = "%@ 至 %@";
 "runbook.repeated_failure_duration" = "连续失败持续时长";
+"runbook.repeated_failure_average_interval" = "连续失败平均间隔";
 "runbook.suggested_next_inspection" = "建议下一步查看";
 "runbook.suggested_next_command" = "建议下一步命令";
 "runbook.suggested_next_action_id" = "建议动作 ID";
