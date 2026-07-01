@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.130.0] - 2026-07-01
+
+### Changed
+- 收紧终端右键选区的 host:port 识别：`Foo.swift:42`、`users_controller.rb:12:8` 等常见文件行号不再被误当成 URL/端口，真实 `example.com:8080` 和 `localhost:3000` 仍保持端口动作。
+
 ## [1.129.0] - 2026-07-01
 
 ### Changed

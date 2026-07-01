@@ -13,6 +13,22 @@ final class TerminalSelectionContextTests: XCTestCase {
         XCTAssertTrue(context.aiPrompt.contains("example.com:8080/path"))
     }
 
+    func testFileLineReferenceDoesNotBecomeURLPortContext() throws {
+        let context = try XCTUnwrap(TerminalSelectionContext(selection: "TerminalSelectionContext.swift:42"))
+
+        XCTAssertNil(context.normalizedURL)
+        XCTAssertNil(context.port)
+        XCTAssertEqual(context.searchCommandArgument, "'TerminalSelectionContext.swift:42'")
+
+        let columnContext = try XCTUnwrap(TerminalSelectionContext(selection: "app/controllers/users_controller.rb:12:8"))
+        XCTAssertNil(columnContext.normalizedURL)
+        XCTAssertNil(columnContext.port)
+
+        let hostPort = try XCTUnwrap(TerminalSelectionContext(selection: "example.com:8080"))
+        XCTAssertEqual(hostPort.normalizedURL?.absoluteString, "http://example.com:8080")
+        XCTAssertEqual(hostPort.port, 8080)
+    }
+
     func testBuildsPortPIDAndGitContexts() throws {
         XCTAssertEqual(TerminalSelectionContext(selection: ":3000")?.port, 3000)
         let hostPort = try XCTUnwrap(TerminalSelectionContext(selection: "localhost:3000"))

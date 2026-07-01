@@ -124,7 +124,8 @@ struct TerminalSelectionContext: Equatable {
            isValidPort(url.port) {
             return url
         }
-        if hostPortRegex.matches(text),
+        if !isLikelyFileLineReference(text),
+           hostPortRegex.matches(text),
            let url = URL(string: "http://\(text)"),
            isValidPort(url.port) {
             return url
@@ -283,11 +284,42 @@ struct TerminalSelectionContext: Equatable {
         return decoded
     }
 
+    private static func isLikelyFileLineReference(_ text: String) -> Bool {
+        let parts = text.split(separator: ":", omittingEmptySubsequences: false)
+        guard parts.count == 2 || parts.count == 3,
+              let line = parts.dropFirst().first,
+              !line.isEmpty,
+              line.allSatisfy(\.isNumber) else {
+            return false
+        }
+        if parts.count == 3 {
+            guard let column = parts.last,
+                  !column.isEmpty,
+                  column.allSatisfy(\.isNumber) else {
+                return false
+            }
+        }
+        guard let pathPart = parts.first,
+              let dot = pathPart.lastIndex(of: ".") else {
+            return false
+        }
+        let extensionStart = pathPart.index(after: dot)
+        guard extensionStart < pathPart.endIndex else { return false }
+        let ext = pathPart[extensionStart...].lowercased()
+        return sourceLocationExtensions.contains(ext)
+    }
+
     private static let hostPortRegex = RegexMatcher(
         pattern: #"^(?:localhost|127(?:\.\d{1,3}){3}|\[::1\]|[a-zA-Z0-9.-]+):\d{1,5}(?:/.*)?$"#
     )
     private static let gitHashRegex = RegexMatcher(pattern: #"^[0-9a-fA-F]{7,40}$"#)
     private static let maxSearchCommandCharacters = 240
+    private static let sourceLocationExtensions: Set<String> = [
+        "bash", "c", "cc", "cpp", "css", "cxx", "fish", "go", "h", "hpp",
+        "html", "java", "js", "json", "jsx", "kt", "kts", "m", "md", "mm",
+        "php", "py", "rb", "rs", "scss", "sh", "sql", "svelte", "swift",
+        "toml", "ts", "tsx", "txt", "vue", "yaml", "yml", "zsh"
+    ]
 }
 
 private struct RegexMatcher: Equatable {
