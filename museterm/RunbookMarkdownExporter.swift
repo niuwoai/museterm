@@ -174,6 +174,16 @@ enum RunbookMarkdownExporter {
         if let recentFailureFingerprint = diagnostics.recentFailureFingerprint {
             lines.append("- \(L10n.string("runbook.failure_fingerprint")): `\(escapeInline(recentFailureFingerprint))`")
         }
+        if let recentFailureOutputTailLineNumber = diagnostics.recentFailureOutputTailLineNumber {
+            lines.append(
+                "- \(L10n.string("runbook.failure_output_tail_line")): \(recentFailureOutputTailLineNumber)"
+            )
+        }
+        if let recentFailureOutputTailLineText = diagnostics.recentFailureOutputTailLineText {
+            lines.append(
+                "- \(L10n.string("runbook.failure_output_tail_text")): `\(escapeInline(recentFailureOutputTailLineText))`"
+            )
+        }
         appendRepeatedFailure(diagnostics.repeatedFailureDiagnostic, to: &lines)
         if let suggestedNextInspection = diagnostics.suggestedNextInspection {
             lines.append("- \(L10n.string("runbook.suggested_next_inspection")): \(escapeInline(suggestedNextInspection))")

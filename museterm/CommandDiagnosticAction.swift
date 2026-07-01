@@ -144,6 +144,7 @@ enum CommandDiagnosticEvidenceAnchor: String, Codable, Equatable {
     case latestFailedCommand = "latest_failed_command"
     case recentFailureDiagnostic = "recent_failure_diagnostic"
     case recentFailureFingerprint = "recent_failure_fingerprint"
+    case recentFailureOutputTailLine = "recent_failure_output_tail_line"
     case repeatedFailureDiagnostic = "repeated_failure_diagnostic"
     case diagnosticCategoryEvidence = "diagnostic_category_evidence"
 }

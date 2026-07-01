@@ -475,6 +475,8 @@ struct CommandBlockDiagnostics: Equatable {
     let latestFailedCompletionSource: TerminalCommandCompletionSource?
     let recentFailureDiagnostic: String?
     let recentFailureFingerprint: String?
+    let recentFailureOutputTailLineNumber: Int?
+    let recentFailureOutputTailLineText: String?
     let repeatedFailureDiagnostic: RepeatedFailureDiagnostic?
     let suggestedNextInspection: String?
     let suggestedNextCommand: String?
@@ -501,6 +503,8 @@ struct CommandBlockDiagnostics: Equatable {
             .first
         recentFailureDiagnostic = recentFailureRecord?.diagnostic
         recentFailureFingerprint = recentFailureRecord?.fingerprint
+        recentFailureOutputTailLineNumber = recentFailureRecord?.outputTailLineNumber
+        recentFailureOutputTailLineText = recentFailureRecord?.outputTailLineText
         repeatedFailureDiagnostic = Self.repeatedFailureDiagnostic(
             in: blocks,
             redactSensitiveData: redactSensitiveData
@@ -544,6 +548,8 @@ struct CommandBlockDiagnostics: Equatable {
             latestFailedCommand: latestFailedCommand,
             recentFailureDiagnostic: recentFailureDiagnostic,
             recentFailureFingerprint: recentFailureFingerprint,
+            recentFailureOutputTailLineNumber: recentFailureOutputTailLineNumber,
+            recentFailureOutputTailLineText: recentFailureOutputTailLineText,
             repeatedFailureDiagnostic: repeatedFailureDiagnostic,
             diagnosticCategory: diagnosticCategory,
             diagnosticCategoryEvidence: diagnosticCategoryEvidence,
@@ -586,6 +592,12 @@ struct CommandBlockDiagnostics: Equatable {
         }
         if let recentFailureFingerprint {
             lines.append("Recent failure fingerprint: \(recentFailureFingerprint)")
+        }
+        if let recentFailureOutputTailLineNumber {
+            lines.append("Recent failure output tail line: \(recentFailureOutputTailLineNumber)")
+        }
+        if let recentFailureOutputTailLineText {
+            lines.append("Recent failure output tail text: \(recentFailureOutputTailLineText)")
         }
         if let repeatedFailureDiagnostic {
             lines.append(
@@ -723,13 +735,43 @@ struct CommandBlockDiagnostics: Equatable {
         for block: TerminalCommandBlock,
         redactSensitiveData: Bool
     ) -> FailureDiagnosticRecord? {
-        guard let diagnostic = failureDiagnostic(for: block, redactSensitiveData: redactSensitiveData) else {
+        guard let rawDiagnostic = failureDiagnostic(for: block, redactSensitiveData: false) else {
             return nil
         }
+        let diagnostic = redactSensitiveData ? RunbookSensitiveRedactor.redact(rawDiagnostic) : rawDiagnostic
+        let outputLine = failureOutputTailLine(
+            in: block.outputTail,
+            matching: rawDiagnostic,
+            redactSensitiveData: redactSensitiveData
+        )
         return FailureDiagnosticRecord(
             diagnostic: diagnostic,
-            fingerprint: failureDiagnosticFingerprint(for: diagnostic)
+            fingerprint: failureDiagnosticFingerprint(for: diagnostic),
+            outputTailLineNumber: outputLine?.number,
+            outputTailLineText: outputLine?.text
         )
+    }
+
+    nonisolated private static func failureOutputTailLine(
+        in outputTail: String,
+        matching diagnostic: String,
+        redactSensitiveData: Bool
+    ) -> (number: Int, text: String)? {
+        let cleanDiagnostic = diagnostic.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanDiagnostic.isEmpty else { return nil }
+        let lines = outputTail.components(separatedBy: .newlines)
+        let candidates = lines.enumerated().compactMap { index, line -> (number: Int, text: String)? in
+            let cleaned = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cleaned.isEmpty else { return nil }
+            return (index + 1, cleaned)
+        }
+        let exact = candidates.first { $0.text == cleanDiagnostic }
+        let contained = candidates.first { candidate in
+            candidate.text.contains(cleanDiagnostic) || cleanDiagnostic.contains(candidate.text)
+        }
+        guard let match = exact ?? contained else { return nil }
+        let text = redactSensitiveData ? RunbookSensitiveRedactor.redact(match.text) : match.text
+        return (match.number, text)
     }
 
     nonisolated private static func failureDiagnosticFingerprint(for diagnostic: String) -> String {
@@ -1012,6 +1054,8 @@ struct CommandBlockDiagnostics: Equatable {
         latestFailedCommand: String?,
         recentFailureDiagnostic: String?,
         recentFailureFingerprint: String?,
+        recentFailureOutputTailLineNumber: Int?,
+        recentFailureOutputTailLineText: String?,
         repeatedFailureDiagnostic: RepeatedFailureDiagnostic?,
         diagnosticCategory: CommandDiagnosticCategory,
         diagnosticCategoryEvidence: String?,
@@ -1024,6 +1068,8 @@ struct CommandBlockDiagnostics: Equatable {
             latestFailedCommand: latestFailedCommand,
             recentFailureDiagnostic: recentFailureDiagnostic,
             recentFailureFingerprint: recentFailureFingerprint,
+            recentFailureOutputTailLineNumber: recentFailureOutputTailLineNumber,
+            recentFailureOutputTailLineText: recentFailureOutputTailLineText,
             repeatedFailureDiagnostic: repeatedFailureDiagnostic,
             diagnosticCategoryEvidence: diagnosticCategoryEvidence
         )
@@ -1443,6 +1489,8 @@ struct CommandBlockDiagnostics: Equatable {
         latestFailedCommand: String?,
         recentFailureDiagnostic: String?,
         recentFailureFingerprint: String?,
+        recentFailureOutputTailLineNumber: Int?,
+        recentFailureOutputTailLineText: String?,
         repeatedFailureDiagnostic: RepeatedFailureDiagnostic?,
         diagnosticCategoryEvidence: String?
     ) -> [CommandDiagnosticEvidenceAnchor] {
@@ -1455,6 +1503,9 @@ struct CommandBlockDiagnostics: Equatable {
         }
         if recentFailureFingerprint != nil {
             anchors.append(.recentFailureFingerprint)
+        }
+        if recentFailureOutputTailLineNumber != nil || recentFailureOutputTailLineText != nil {
+            anchors.append(.recentFailureOutputTailLine)
         }
         if repeatedFailureDiagnostic != nil {
             anchors.append(.repeatedFailureDiagnostic)
@@ -1545,6 +1596,8 @@ enum CommandDiagnosticPriorityFactor: String, Codable, Equatable {
 private struct FailureDiagnosticRecord: Equatable {
     let diagnostic: String
     let fingerprint: String
+    let outputTailLineNumber: Int?
+    let outputTailLineText: String?
 }
 
 private struct DiagnosticCategoryMatch: Equatable {

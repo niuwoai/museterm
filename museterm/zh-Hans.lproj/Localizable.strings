@@ -390,6 +390,8 @@
 "runbook.latest_failed_completion_source" = "最近失败完成来源";
 "runbook.latest_failure" = "最近失败";
 "runbook.failure_fingerprint" = "失败指纹";
+"runbook.failure_output_tail_line" = "失败输出尾部行号";
+"runbook.failure_output_tail_text" = "失败输出尾部文本";
 "runbook.repeated_failure" = "连续同类失败";
 "runbook.repeated_failure_value" = "连续 %d 次：%@";
 "runbook.repeated_failure_match" = "连续失败匹配方式";

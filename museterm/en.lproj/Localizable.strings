@@ -390,6 +390,8 @@
 "runbook.latest_failed_completion_source" = "Latest failed completion source";
 "runbook.latest_failure" = "Latest failure";
 "runbook.failure_fingerprint" = "Failure fingerprint";
+"runbook.failure_output_tail_line" = "Failure output tail line";
+"runbook.failure_output_tail_text" = "Failure output tail text";
 "runbook.repeated_failure" = "Repeated failure";
 "runbook.repeated_failure_value" = "%d times: %@";
 "runbook.repeated_failure_match" = "Repeated failure match";

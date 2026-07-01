@@ -486,6 +486,8 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(encodedDiagnostics["latestFailedCompletionSource"] as? String, "shellIntegration")
         XCTAssertEqual(encodedDiagnostics["recentFailureDiagnostic"] as? String, diagnostic)
         XCTAssertEqual(encodedDiagnostics["recentFailureFingerprint"] as? String, "error database is locked")
+        XCTAssertEqual(encodedDiagnostics["recentFailureOutputTailLineNumber"] as? Int, 1)
+        XCTAssertEqual(encodedDiagnostics["recentFailureOutputTailLineText"] as? String, diagnostic)
         XCTAssertEqual(
             encodedDiagnostics["suggestedNextInspection"] as? String,
             "Inspect the repeated failure output before rerunning: \(diagnostic)"
@@ -506,6 +508,7 @@ final class musetermTests: XCTestCase {
                 CommandDiagnosticEvidenceAnchor.latestFailedCommand.rawValue,
                 CommandDiagnosticEvidenceAnchor.recentFailureDiagnostic.rawValue,
                 CommandDiagnosticEvidenceAnchor.recentFailureFingerprint.rawValue,
+                CommandDiagnosticEvidenceAnchor.recentFailureOutputTailLine.rawValue,
                 CommandDiagnosticEvidenceAnchor.repeatedFailureDiagnostic.rawValue,
                 CommandDiagnosticEvidenceAnchor.diagnosticCategoryEvidence.rawValue
             ]
@@ -1043,6 +1046,8 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_duration")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command_source")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_completion_source")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.failure_output_tail_line")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.failure_output_tail_text")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_inspection")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_command")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_id")))
@@ -1095,6 +1100,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains("1000 ms"))
         XCTAssertTrue(markdown.contains("shellIntegration"))
         XCTAssertTrue(markdown.contains("ERROR token=[REDACTED]"))
+        XCTAssertTrue(markdown.contains(CommandDiagnosticEvidenceAnchor.recentFailureOutputTailLine.rawValue))
         XCTAssertTrue(markdown.contains("Inspect the repeated failure output before rerunning"))
         XCTAssertTrue(markdown.contains("pwd && git status --short --branch 2>/dev/null || true"))
         XCTAssertTrue(markdown.contains(CommandDiagnosticActionID.inspectRepeatContext.rawValue))
@@ -1110,7 +1116,14 @@ final class musetermTests: XCTestCase {
         let blocks = [
             commandBlock(command: "make test", startedAt: 100, endedAt: 101, exitCode: 1, errorLine: "ERROR database is locked"),
             commandBlock(command: "make test", startedAt: 110, endedAt: 111, exitCode: 1, errorLine: "ERROR database is locked"),
-            commandBlock(command: "make test", startedAt: 120, endedAt: 121, exitCode: 1, errorLine: "ERROR database is locked")
+            commandBlock(
+                command: "make test",
+                startedAt: 120,
+                endedAt: 121,
+                exitCode: 1,
+                errorLine: "ERROR database is locked",
+                outputTail: "setup\nERROR database is locked\nretry hint"
+            )
         ]
 
         let diagnostics = CommandBlockDiagnostics(blocks: blocks, redactSensitiveData: false)
@@ -1128,6 +1141,8 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Latest failed completion source: shellIntegration"))
         XCTAssertTrue(context.contains("Recent failure diagnostic: ERROR database is locked"))
         XCTAssertTrue(context.contains("Recent failure fingerprint: error database is locked"))
+        XCTAssertTrue(context.contains("Recent failure output tail line: 2"))
+        XCTAssertTrue(context.contains("Recent failure output tail text: ERROR database is locked"))
         XCTAssertTrue(context.contains("Repeated failure diagnostic: 3x ERROR database is locked"))
         XCTAssertTrue(context.contains("Repeated failure match: exact"))
         XCTAssertTrue(context.contains("Repeated failure window:"))
@@ -1145,7 +1160,8 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Suggested next action priority factors: failed_command; repeated_severity"))
         XCTAssertTrue(context.contains("multiple_failures; repeated_failure_count"))
         XCTAssertTrue(context.contains("Suggested next action evidence anchors: latest_failed_command; recent_failure_diagnostic"))
-        XCTAssertTrue(context.contains("repeated_failure_diagnostic; diagnostic_category_evidence"))
+        XCTAssertTrue(context.contains("recent_failure_output_tail_line; repeated_failure_diagnostic"))
+        XCTAssertTrue(context.contains("diagnostic_category_evidence"))
         XCTAssertTrue(context.contains("Suggested next action scope: repeated_failure_context"))
         XCTAssertTrue(context.contains("Suggested next action expected result kind: context_snapshot"))
         XCTAssertTrue(context.contains("Suggested next action expected result fields: working_directory; git_branch"))
@@ -1890,17 +1906,19 @@ final class musetermTests: XCTestCase {
         startedAt: TimeInterval,
         endedAt: TimeInterval,
         exitCode: Int32,
-        errorLine: String
+        errorLine: String,
+        outputTail: String? = nil
     ) -> TerminalCommandBlock {
-        TerminalCommandBlock(
+        let resolvedOutputTail = outputTail ?? errorLine
+        return TerminalCommandBlock(
             id: UUID(),
             command: command,
             workingDirectory: "/tmp/project",
             startedAt: Date(timeIntervalSince1970: startedAt),
             endedAt: Date(timeIntervalSince1970: endedAt),
             exitCode: exitCode,
-            outputTail: errorLine,
-            outputCharacterCount: errorLine.count,
+            outputTail: resolvedOutputTail,
+            outputCharacterCount: resolvedOutputTail.count,
             outputSummary: TerminalOutputSummary(
                 insightKinds: [.error],
                 errorLine: errorLine,
