@@ -1801,7 +1801,7 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
             addContextSeparatorIfNeeded()
             menu.addItem(makeSubmenu(
                 "terminal.context.path_submenu",
-                items: pathMenuItems(escapedPath: escaped, includeCD: context.isExistingLocalDirectory)
+                items: pathMenuItems(context: context, escapedPath: escaped)
             ))
         }
 
@@ -1865,14 +1865,22 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
         }
     }
 
-    private func pathMenuItems(escapedPath: String, includeCD: Bool) -> [NSMenuItem] {
+    private func pathMenuItems(context: TerminalSelectionContext, escapedPath: String) -> [NSMenuItem] {
         var items: [NSMenuItem] = [
             makeCopyItem("terminal.context.copy_escaped_path", text: escapedPath),
             makeTypeCommandItem("terminal.context.type_ls_path", command: "ls -la \(escapedPath)"),
             makeTypeCommandItem("terminal.context.type_stat_path", command: "stat \(escapedPath)"),
-            makeTypeCommandItem("terminal.context.type_file_path", command: "file \(escapedPath)")
+            makeTypeCommandItem("terminal.context.type_file_path", command: "file \(escapedPath)"),
+            makeTypeCommandItem("terminal.context.type_rm_path", command: "rm -- \(escapedPath)")
         ]
-        if includeCD {
+        if let localPath = context.localPathCandidate,
+           FileManager.default.fileExists(atPath: localPath) {
+            items.insert(
+                makeRevealFileItem("terminal.context.reveal_in_finder", path: localPath),
+                at: 1
+            )
+        }
+        if context.isExistingLocalDirectory {
             items.insert(
                 makeTypeCommandItem("terminal.context.type_cd_path", command: "cd \(escapedPath)"),
                 at: 1
@@ -1925,6 +1933,13 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
         return item
     }
 
+    private func makeRevealFileItem(_ titleKey: String, path: String) -> NSMenuItem {
+        let item = NSMenuItem(title: L10n.string(titleKey), action: #selector(revealRepresentedFile(_:)), keyEquivalent: "")
+        item.target = self
+        item.representedObject = path
+        return item
+    }
+
     @objc private func copyRepresentedText(_ sender: NSMenuItem) {
         guard let text = sender.representedObject as? String else {
             NSSound.beep()
@@ -1949,6 +1964,14 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
             return
         }
         NSWorkspace.shared.open(url)
+    }
+
+    @objc private func revealRepresentedFile(_ sender: NSMenuItem) {
+        guard let path = sender.representedObject as? String else {
+            NSSound.beep()
+            return
+        }
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
     }
 
     override func otherMouseDown(with event: NSEvent) {

@@ -35,10 +35,12 @@
 "terminal.context.type_curl_command" = "键入 curl 命令";
 "terminal.context.path_submenu" = "路径";
 "terminal.context.copy_escaped_path" = "复制转义路径";
+"terminal.context.reveal_in_finder" = "在 Finder 中显示";
 "terminal.context.type_cd_path" = "键入 cd";
 "terminal.context.type_ls_path" = "键入 ls -la";
 "terminal.context.type_stat_path" = "键入 stat";
 "terminal.context.type_file_path" = "键入 file";
+"terminal.context.type_rm_path" = "键入 rm --";
 "terminal.context.port_submenu" = "端口";
 "terminal.context.open_localhost_port" = "打开 localhost";
 "terminal.context.type_port_lsof" = "键入端口占用检查";

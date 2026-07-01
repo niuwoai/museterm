@@ -35,10 +35,12 @@
 "terminal.context.type_curl_command" = "Type curl Command";
 "terminal.context.path_submenu" = "Path";
 "terminal.context.copy_escaped_path" = "Copy Escaped Path";
+"terminal.context.reveal_in_finder" = "Reveal in Finder";
 "terminal.context.type_cd_path" = "Type cd";
 "terminal.context.type_ls_path" = "Type ls -la";
 "terminal.context.type_stat_path" = "Type stat";
 "terminal.context.type_file_path" = "Type file";
+"terminal.context.type_rm_path" = "Type rm --";
 "terminal.context.port_submenu" = "Port";
 "terminal.context.open_localhost_port" = "Open localhost";
 "terminal.context.type_port_lsof" = "Type lsof Port Check";
