@@ -44,4 +44,16 @@ final class TerminalSelectionContextTests: XCTestCase {
 
         XCTAssertEqual(context.interactiveRemoveCommand, "rm -i -- 'my file.txt'")
     }
+
+    func testPathDetectionAvoidsPlainTextAndVersions() throws {
+        XCTAssertEqual(TerminalSelectionContext(selection: "permission denied")?.isLikelyPath, false)
+        XCTAssertEqual(TerminalSelectionContext(selection: "1.2.3")?.isLikelyPath, false)
+        XCTAssertEqual(TerminalSelectionContext(selection: "release notes")?.isLikelyPath, false)
+    }
+
+    func testPathDetectionKeepsFileLikeSelections() throws {
+        XCTAssertEqual(TerminalSelectionContext(selection: "my file.txt")?.isLikelyPath, true)
+        XCTAssertEqual(TerminalSelectionContext(selection: ".env")?.isLikelyPath, true)
+        XCTAssertEqual(TerminalSelectionContext(selection: "./Scripts/build.sh")?.isLikelyPath, true)
+    }
 }

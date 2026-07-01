@@ -30,22 +30,29 @@ struct TerminalSelectionContext: Equatable {
     var isLikelyPath: Bool {
         guard let text = singleLineText, escapedPathArgument != nil else { return false }
         if normalizedURL != nil { return false }
+        if localPathExists { return true }
         if text.hasPrefix("/") || text.hasPrefix("./") || text.hasPrefix("../") || text.hasPrefix("~/") {
             return true
         }
         if text.hasPrefix("'") || text.hasPrefix("$'") || text.contains("\\") {
             return true
         }
-        if text.contains("/") || text.contains(".") || text.contains(" ") {
+        if text.contains("/") {
             return true
         }
-        return port == nil && pid == nil && gitHash == nil
+        guard port == nil, pid == nil, gitHash == nil else { return false }
+        return Self.isLikelyFileName(text)
     }
 
     var isExistingLocalDirectory: Bool {
         guard let path = localPathCandidate else { return false }
         var isDirectory: ObjCBool = false
         return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) && isDirectory.boolValue
+    }
+
+    var localPathExists: Bool {
+        guard let path = localPathCandidate else { return false }
+        return FileManager.default.fileExists(atPath: path)
     }
 
     var localPathCandidate: String? {
@@ -152,6 +159,31 @@ struct TerminalSelectionContext: Equatable {
             return nil
         }
         return pretty
+    }
+
+    private static func isLikelyFileName(_ text: String) -> Bool {
+        guard !text.contains(":") else { return false }
+        if text.hasPrefix(".") {
+            let rest = text.dropFirst()
+            return !rest.isEmpty
+                && rest.contains(where: \.isLetter)
+                && !rest.contains(where: \.isWhitespace)
+                && !rest.contains("/")
+        }
+        guard let dot = text.lastIndex(of: ".") else { return false }
+        let base = text[..<dot].trimmingCharacters(in: .whitespacesAndNewlines)
+        let ext = text[text.index(after: dot)...]
+        guard !base.isEmpty,
+              (1...12).contains(ext.count),
+              ext.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }) else {
+            return false
+        }
+        let numericVersionCharacters = CharacterSet(charactersIn: "0123456789.")
+        if base.unicodeScalars.allSatisfy({ numericVersionCharacters.contains($0) }),
+           ext.allSatisfy(\.isNumber) {
+            return false
+        }
+        return true
     }
 
     private static let hostPortRegex = RegexMatcher(
