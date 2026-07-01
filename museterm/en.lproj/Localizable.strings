@@ -403,6 +403,7 @@
 "runbook.repeated_failure_unique_commands" = "Repeated failure unique commands";
 "runbook.repeated_failure_unique_working_directories" = "Repeated failure unique working directories";
 "runbook.repeated_failure_context_changed" = "Repeated failure context changed";
+"runbook.repeated_failure_context_change_reasons" = "Repeated failure context change reasons";
 "runbook.repeated_failure_first_command_id" = "Repeated failure first command ID";
 "runbook.repeated_failure_latest_command_id" = "Repeated failure latest command ID";
 "runbook.repeated_failure_first_command" = "Repeated failure first command";

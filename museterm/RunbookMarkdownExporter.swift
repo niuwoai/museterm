@@ -239,6 +239,11 @@ enum RunbookMarkdownExporter {
         lines.append(
             "- \(L10n.string("runbook.repeated_failure_context_changed")): \(repeatedFailureDiagnostic.contextChanged)"
         )
+        appendRawValueList(
+            repeatedFailureDiagnostic.contextChangeReasons,
+            key: "runbook.repeated_failure_context_change_reasons",
+            to: &lines
+        )
         lines.append(
             "- \(L10n.string("runbook.repeated_failure_first_command_id")): `\(repeatedFailureDiagnostic.firstCommandID.uuidString)`"
         )

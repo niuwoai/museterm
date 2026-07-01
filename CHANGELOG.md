@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.139.0] - 2026-07-01
+
+### Added
+- 连续同类失败诊断新增 `contextChangeReasons`，用稳定 reason code 标明重复失败期间是命令变化、工作目录变化，还是两者都变化，并同步到 AI 上下文、MCP/CLI 快照和 Runbook 导出。
+
 ## [1.138.0] - 2026-07-01
 
 ### Added

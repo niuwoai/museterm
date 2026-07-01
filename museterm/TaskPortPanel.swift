@@ -641,6 +641,10 @@ struct CommandBlockDiagnostics: Equatable {
                 )
             }
             lines.append("Repeated failure context changed: \(repeatedFailureDiagnostic.contextChanged)")
+            if !repeatedFailureDiagnostic.contextChangeReasons.isEmpty {
+                let reasons = repeatedFailureDiagnostic.contextChangeReasons.map(\.rawValue).joined(separator: "; ")
+                lines.append("Repeated failure context change reasons: \(reasons)")
+            }
             lines.append("Repeated failure first command id: \(repeatedFailureDiagnostic.firstCommandID.uuidString)")
             lines.append("Repeated failure latest command id: \(repeatedFailureDiagnostic.latestCommandID.uuidString)")
             lines.append("Repeated failure first command: \(repeatedFailureDiagnostic.firstCommand)")
@@ -926,6 +930,13 @@ struct CommandBlockDiagnostics: Equatable {
         let uniqueWorkingDirectories = uniqueValues(
             chronologicalBlocks.compactMap { redactedPath($0.workingDirectory, redactSensitiveData: redactSensitiveData) }
         )
+        var contextChangeReasons: [RepeatedFailureContextChangeReason] = []
+        if uniqueCommands.count > 1 {
+            contextChangeReasons.append(.commandChanged)
+        }
+        if uniqueWorkingDirectories.count > 1 {
+            contextChangeReasons.append(.workingDirectoryChanged)
+        }
         return RepeatedFailureDiagnostic(
             diagnostic: latestRecord.diagnostic,
             fingerprint: latestRecord.fingerprint,
@@ -933,7 +944,8 @@ struct CommandBlockDiagnostics: Equatable {
             commandIDs: commandIDs,
             uniqueCommands: uniqueCommands,
             uniqueWorkingDirectories: uniqueWorkingDirectories,
-            contextChanged: uniqueCommands.count > 1 || uniqueWorkingDirectories.count > 1,
+            contextChanged: !contextChangeReasons.isEmpty,
+            contextChangeReasons: contextChangeReasons,
             firstCommandID: firstMatchedBlock.id,
             latestCommandID: latestMatchedBlock.id,
             firstCommand: redactedCommand(firstMatchedBlock.command, redactSensitiveData: redactSensitiveData),
@@ -1669,6 +1681,7 @@ struct RepeatedFailureDiagnostic: Equatable {
     let uniqueCommands: [String]
     let uniqueWorkingDirectories: [String]
     let contextChanged: Bool
+    let contextChangeReasons: [RepeatedFailureContextChangeReason]
     let firstCommandID: UUID
     let latestCommandID: UUID
     let firstCommand: String
@@ -1688,6 +1701,11 @@ struct RepeatedFailureDiagnostic: Equatable {
 enum RepeatedFailureMatchKind: String, Codable, Equatable {
     case exact
     case normalized
+}
+
+enum RepeatedFailureContextChangeReason: String, Codable, Equatable {
+    case commandChanged = "command_changed"
+    case workingDirectoryChanged = "working_directory_changed"
 }
 
 enum CommandDiagnosticSeverity: String, Codable, Equatable {

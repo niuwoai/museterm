@@ -532,6 +532,13 @@ final class musetermTests: XCTestCase {
             ["/tmp/project-first", "/tmp/project", "/tmp/project-latest"]
         )
         XCTAssertEqual(repeatedFailure["contextChanged"] as? Bool, true)
+        XCTAssertEqual(
+            repeatedFailure["contextChangeReasons"] as? [String],
+            [
+                RepeatedFailureContextChangeReason.commandChanged.rawValue,
+                RepeatedFailureContextChangeReason.workingDirectoryChanged.rawValue
+            ]
+        )
         XCTAssertEqual(repeatedFailure["firstCommand"] as? String, "make test --token [REDACTED]")
         XCTAssertEqual(repeatedFailure["latestCommand"] as? String, "make test")
         XCTAssertEqual(repeatedFailure["firstWorkingDirectory"] as? String, "/tmp/project-first")
@@ -1153,6 +1160,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_unique_commands")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_unique_working_directories")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_context_changed")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_context_change_reasons")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_first_command_id")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_latest_command_id")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_first_command")))
@@ -1254,6 +1262,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Repeated failure unique commands: make test"))
         XCTAssertTrue(context.contains("Repeated failure unique working directories: /tmp/project-first; /tmp/project; /tmp/project-latest"))
         XCTAssertTrue(context.contains("Repeated failure context changed: true"))
+        XCTAssertTrue(context.contains("Repeated failure context change reasons: working_directory_changed"))
         XCTAssertTrue(context.contains("Repeated failure first command id: \(firstCommandID.uuidString)"))
         XCTAssertTrue(context.contains("Repeated failure latest command id: \(latestCommandID.uuidString)"))
         XCTAssertTrue(context.contains("Repeated failure first command: make test"))
@@ -1380,6 +1389,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(repeated.uniqueCommands, ["make test --retry 1", "make test --retry 2", "make test --retry 3"])
         XCTAssertEqual(repeated.uniqueWorkingDirectories, ["/tmp/project-first", "/tmp/project", "/tmp/project-latest"])
         XCTAssertTrue(repeated.contextChanged)
+        XCTAssertEqual(repeated.contextChangeReasons, [.commandChanged, .workingDirectoryChanged])
         XCTAssertEqual(repeated.firstCommandID, firstCommandID)
         XCTAssertEqual(repeated.latestCommandID, latestCommandID)
         XCTAssertEqual(repeated.firstCommand, "make test --retry 1")

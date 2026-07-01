@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.138.0
+> 当前版本基线：v1.139.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -29,6 +29,10 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 | P3 | 成就、统计与轻娱乐系统 | v4 | 高 | 增加记忆点，但不能干扰主流程 |
 
 ## 当前落地状态
+
+v1.139.0 已完成一百三十六条纵向切片：
+
+- 连续失败上下文变化原因：`RepeatedFailureDiagnostic` 会输出 `contextChangeReasons`，用稳定 reason code 标明连续失败窗口内是命令变化、工作目录变化，还是两者都变化，方便 AI/MCP 和 Runbook 解释 `contextChanged`。
 
 v1.138.0 已完成一百三十五条纵向切片：
 
