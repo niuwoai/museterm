@@ -310,6 +310,14 @@ enum RunbookMarkdownExporter {
         lines.append(
             "- \(L10n.string("runbook.repeated_failure_cadence")): \(repeatedFailureDiagnostic.cadence.rawValue)"
         )
+        lines.append(
+            "- \(L10n.string("runbook.repeated_failure_retry_pause_recommended")): \(repeatedFailureDiagnostic.retryPauseRecommended)"
+        )
+        appendRawValueList(
+            repeatedFailureDiagnostic.retryPauseReasons,
+            key: "runbook.repeated_failure_retry_pause_reasons",
+            to: &lines
+        )
     }
 
     private static func appendSuggestedAction(_ action: CommandDiagnosticAction?, to lines: inout [String]) {

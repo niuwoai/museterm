@@ -555,6 +555,8 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(repeatedFailure["latestIntervalMilliseconds"] as? Int, 10_000)
         XCTAssertEqual(repeatedFailure["latestIntervalTrend"] as? String, RepeatedFailureLatestIntervalTrend.steady.rawValue)
         XCTAssertEqual(repeatedFailure["cadence"] as? String, RepeatedFailureCadence.rapidRetry.rawValue)
+        XCTAssertEqual(repeatedFailure["retryPauseRecommended"] as? Bool, false)
+        XCTAssertEqual(repeatedFailure["retryPauseReasons"] as? [String], [])
         XCTAssertEqual(
             encodedDiagnostics["suggestedNextInspection"] as? String,
             "Inspect the repeated failure output before rerunning: \(diagnostic)"
@@ -1186,7 +1188,10 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_latest_interval")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_latest_interval_trend")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_cadence")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_retry_pause_recommended")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_retry_pause_reasons")))
         XCTAssertTrue(markdown.contains("3"))
+        XCTAssertTrue(markdown.contains(RepeatedFailureRetryPauseReason.stableContext.rawValue))
         XCTAssertTrue(markdown.contains(CommandDiagnosticSeverity.repeated.rawValue))
         XCTAssertTrue(markdown.contains(CommandDiagnosticCategory.repeated.rawValue))
         XCTAssertTrue(markdown.contains(CommandDiagnosticConfidence.medium.rawValue))
@@ -1293,6 +1298,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Repeated failure latest interval: 10000 ms"))
         XCTAssertTrue(context.contains("Repeated failure latest interval trend: steady"))
         XCTAssertTrue(context.contains("Repeated failure cadence: rapid_retry"))
+        XCTAssertTrue(context.contains("Repeated failure retry pause recommended: false"))
         XCTAssertTrue(context.contains("Diagnostic severity: repeated"))
         XCTAssertTrue(context.contains("Diagnostic category: repeated"))
         XCTAssertTrue(context.contains("Diagnostic category evidence: ERROR database is locked"))
@@ -1426,6 +1432,8 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(repeated.latestIntervalMilliseconds, 10_000)
         XCTAssertEqual(repeated.latestIntervalTrend, .steady)
         XCTAssertEqual(repeated.cadence, .rapidRetry)
+        XCTAssertFalse(repeated.retryPauseRecommended)
+        XCTAssertEqual(repeated.retryPauseReasons, [])
         XCTAssertEqual(diagnostics.diagnosticSeverity, .repeated)
     }
 
@@ -1442,6 +1450,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(immediate.repeatedFailureDiagnostic?.latestIntervalMilliseconds, 1_000)
         XCTAssertEqual(immediate.repeatedFailureDiagnostic?.latestIntervalTrend, .steady)
         XCTAssertEqual(immediate.repeatedFailureDiagnostic?.cadence, .immediateRetry)
+        XCTAssertEqual(
+            immediate.repeatedFailureDiagnostic?.retryPauseReasons,
+            [.immediateRetry, .stableContext]
+        )
 
         let spaced = CommandBlockDiagnostics(
             blocks: [
@@ -1455,6 +1467,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(spaced.repeatedFailureDiagnostic?.latestIntervalMilliseconds, 60_000)
         XCTAssertEqual(spaced.repeatedFailureDiagnostic?.latestIntervalTrend, .steady)
         XCTAssertEqual(spaced.repeatedFailureDiagnostic?.cadence, .spacedRetry)
+        XCTAssertEqual(spaced.repeatedFailureDiagnostic?.retryPauseReasons, [.stableContext])
     }
 
     func testCommandBlockDiagnosticsClassifiesRepeatedFailureLatestIntervalTrend() throws {
@@ -1469,6 +1482,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(accelerating.repeatedFailureDiagnostic?.averageIntervalMilliseconds, 30_000)
         XCTAssertEqual(accelerating.repeatedFailureDiagnostic?.latestIntervalMilliseconds, 1_000)
         XCTAssertEqual(accelerating.repeatedFailureDiagnostic?.latestIntervalTrend, .accelerating)
+        XCTAssertEqual(
+            accelerating.repeatedFailureDiagnostic?.retryPauseReasons,
+            [.acceleratingRetry, .stableContext]
+        )
 
         let slowing = CommandBlockDiagnostics(
             blocks: [
@@ -1481,6 +1498,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(slowing.repeatedFailureDiagnostic?.averageIntervalMilliseconds, 30_000)
         XCTAssertEqual(slowing.repeatedFailureDiagnostic?.latestIntervalMilliseconds, 59_000)
         XCTAssertEqual(slowing.repeatedFailureDiagnostic?.latestIntervalTrend, .slowing)
+        XCTAssertEqual(slowing.repeatedFailureDiagnostic?.retryPauseReasons, [.stableContext])
     }
 
     func testCommandBlockDiagnosticsMarksCriticalFailure() {
@@ -2046,6 +2064,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(repeatedFailure.latestIntervalMilliseconds, 10_000)
         XCTAssertEqual(repeatedFailure.latestIntervalTrend, .steady)
         XCTAssertEqual(repeatedFailure.cadence, .rapidRetry)
+        XCTAssertEqual(repeatedFailure.retryPauseReasons, [.stableContext])
     }
 
     func testSessionCommandStatsDoesNotRepeatAfterLatestSuccess() {
