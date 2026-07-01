@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.155.1-rc1] - 2026-07-01
+
+### Fixed
+- 从 Xcode 同步构建中排除本地生成资源目录 `museterm/GeneratedAssets/`，避免临时图片被误打进 app bundle 或因同名资源影响测试构建。
+
 ## [1.155.0] - 2026-07-01
 
 ### Added
