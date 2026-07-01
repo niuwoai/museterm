@@ -674,6 +674,7 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append("Repeated failure duration: \(repeatedFailureDiagnostic.durationMilliseconds) ms")
             lines.append("Repeated failure average interval: \(repeatedFailureDiagnostic.averageIntervalMilliseconds) ms")
             lines.append("Repeated failure latest interval: \(repeatedFailureDiagnostic.latestIntervalMilliseconds) ms")
+            lines.append("Repeated failure latest interval trend: \(repeatedFailureDiagnostic.latestIntervalTrend.rawValue)")
             lines.append("Repeated failure cadence: \(repeatedFailureDiagnostic.cadence.rawValue)")
         }
         if diagnosticSeverity != .none {
@@ -965,6 +966,10 @@ struct CommandBlockDiagnostics: Equatable {
         let cadence = repeatedFailureCadence(
             averageIntervalMilliseconds: averageIntervalMilliseconds
         )
+        let latestIntervalTrend = repeatedFailureLatestIntervalTrend(
+            latestIntervalMilliseconds: latestIntervalMilliseconds,
+            averageIntervalMilliseconds: averageIntervalMilliseconds
+        )
         return RepeatedFailureDiagnostic(
             diagnostic: latestRecord.diagnostic,
             fingerprint: latestRecord.fingerprint,
@@ -990,6 +995,7 @@ struct CommandBlockDiagnostics: Equatable {
             durationMilliseconds: durationMilliseconds,
             averageIntervalMilliseconds: averageIntervalMilliseconds,
             latestIntervalMilliseconds: latestIntervalMilliseconds,
+            latestIntervalTrend: latestIntervalTrend,
             cadence: cadence,
             count: count
         )
@@ -1719,6 +1725,20 @@ struct CommandBlockDiagnostics: Equatable {
         return .spacedRetry
     }
 
+    nonisolated private static func repeatedFailureLatestIntervalTrend(
+        latestIntervalMilliseconds: Int,
+        averageIntervalMilliseconds: Int
+    ) -> RepeatedFailureLatestIntervalTrend {
+        guard averageIntervalMilliseconds > 0 else { return .steady }
+        if latestIntervalMilliseconds * 2 < averageIntervalMilliseconds {
+            return .accelerating
+        }
+        if latestIntervalMilliseconds * 2 > averageIntervalMilliseconds * 3 {
+            return .slowing
+        }
+        return .steady
+    }
+
     nonisolated private static func repeatedFailureContextStability(
         uniqueCommandCount: Int,
         uniqueWorkingDirectoryCount: Int
@@ -1763,6 +1783,7 @@ struct RepeatedFailureDiagnostic: Equatable {
     let durationMilliseconds: Int
     let averageIntervalMilliseconds: Int
     let latestIntervalMilliseconds: Int
+    let latestIntervalTrend: RepeatedFailureLatestIntervalTrend
     let cadence: RepeatedFailureCadence
     let count: Int
 }
@@ -1788,6 +1809,12 @@ enum RepeatedFailureCadence: String, Codable, Equatable {
     case immediateRetry = "immediate_retry"
     case rapidRetry = "rapid_retry"
     case spacedRetry = "spaced_retry"
+}
+
+enum RepeatedFailureLatestIntervalTrend: String, Codable, Equatable {
+    case accelerating
+    case steady
+    case slowing
 }
 
 enum CommandDiagnosticSeverity: String, Codable, Equatable {

@@ -420,6 +420,7 @@
 "runbook.repeated_failure_duration" = "连续失败持续时长";
 "runbook.repeated_failure_average_interval" = "连续失败平均间隔";
 "runbook.repeated_failure_latest_interval" = "连续失败最近间隔";
+"runbook.repeated_failure_latest_interval_trend" = "连续失败最近间隔趋势";
 "runbook.repeated_failure_cadence" = "连续失败节奏";
 "runbook.suggested_next_inspection" = "建议下一步查看";
 "runbook.suggested_next_command" = "建议下一步命令";

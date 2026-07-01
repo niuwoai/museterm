@@ -305,6 +305,9 @@ enum RunbookMarkdownExporter {
             "- \(L10n.string("runbook.repeated_failure_latest_interval")): \(repeatedFailureDiagnostic.latestIntervalMilliseconds) ms"
         )
         lines.append(
+            "- \(L10n.string("runbook.repeated_failure_latest_interval_trend")): \(repeatedFailureDiagnostic.latestIntervalTrend.rawValue)"
+        )
+        lines.append(
             "- \(L10n.string("runbook.repeated_failure_cadence")): \(repeatedFailureDiagnostic.cadence.rawValue)"
         )
     }

@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.143.0
+> 当前版本基线：v1.144.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -29,6 +29,10 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 | P3 | 成就、统计与轻娱乐系统 | v4 | 高 | 增加记忆点，但不能干扰主流程 |
 
 ## 当前落地状态
+
+v1.144.0 已完成一百四十一条纵向切片：
+
+- 连续失败最近间隔趋势：`RepeatedFailureDiagnostic` 会输出 `latestIntervalTrend`，基于最近失败间隔与平均失败间隔判断重试节奏正在 `accelerating`、`steady` 还是 `slowing`，方便 AI/MCP 和 Runbook 判断是否该先停下来排查。
 
 v1.143.0 已完成一百四十条纵向切片：
 

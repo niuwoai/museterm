@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.144.0] - 2026-07-01
+
+### Added
+- 连续同类失败诊断新增 `latestIntervalTrend`，基于最近失败间隔和平均失败间隔输出 `accelerating`、`steady` 或 `slowing`，并同步到 AI 上下文、MCP/CLI 快照和 Runbook 导出，方便判断重试是否正在加速。
+
 ## [1.143.0] - 2026-07-01
 
 ### Added

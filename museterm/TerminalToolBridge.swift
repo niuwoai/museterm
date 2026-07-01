@@ -152,6 +152,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
                 durationMilliseconds: repeatedFailureDiagnostic.durationMilliseconds,
                 averageIntervalMilliseconds: repeatedFailureDiagnostic.averageIntervalMilliseconds,
                 latestIntervalMilliseconds: repeatedFailureDiagnostic.latestIntervalMilliseconds,
+                latestIntervalTrend: repeatedFailureDiagnostic.latestIntervalTrend.rawValue,
                 cadence: repeatedFailureDiagnostic.cadence.rawValue,
                 count: repeatedFailureDiagnostic.count
             )
@@ -277,6 +278,7 @@ struct TerminalToolRepeatedFailureSnapshot: Codable, Equatable {
     let durationMilliseconds: Int
     let averageIntervalMilliseconds: Int
     let latestIntervalMilliseconds: Int
+    let latestIntervalTrend: String
     let cadence: String
     let count: Int
 }
