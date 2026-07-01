@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.114.0] - 2026-07-01
+
+### Changed
+- `TerminalShellIntegrationParser` 现在同时支持 BEL 与 `ESC \\` 两种 OSC marker 终止符，并补充跨数据块 ST 终止、BEL/ST 混合 marker 的测试。
+
 ## [1.113.0] - 2026-07-01
 
 ### Added

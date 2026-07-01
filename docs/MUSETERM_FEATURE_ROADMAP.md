@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.113.0
+> 当前版本基线：v1.114.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,7 +30,7 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.113.0 已完成一百零六条纵向切片：
+v1.114.0 已完成一百零七条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
@@ -134,6 +134,7 @@ v1.113.0 已完成一百零六条纵向切片：
 - 安全输入分析拆分：多行粘贴识别、高危命令规则、自定义文本/正则规则解析和确认预览控件已从 `TerminalHostView.swift` 拆分到 `TerminalSafetyInputAnalyzer.swift`，并补充单元测试，让终端宿主视图降到 2000 行以下。
 - Shell marker 解析拆分：`TerminalShellIntegrationParser` 已从 `TerminalHostView.swift` 拆分到独立文件，终端宿主视图降到 2000 行以下，后续增强 marker 解析不再继续拖大视图文件。
 - Shell marker 分片测试：`TerminalShellIntegrationParser` 已补充边界测试，覆盖 marker 前缀跨 PTY 数据块拆分、无效 marker 后继续解析后续有效 marker，以及普通终端输出不产生事件。
+- Shell marker 终止符兼容：`TerminalShellIntegrationParser` 同时支持 BEL 与 `ESC \\` 两种 OSC marker 终止符，并覆盖跨数据块 ST 终止、BEL/ST 混合 marker 的解析顺序。
 - 远端 shell/进程工具第一版：SSH profile 可为远端 bash/zsh 会话临时注入 shell hook 追踪退出码；任务与端口面板可向本地或 SSH 标签填入端口扫描、进程列表、PID 详情和终止命令，本机端口 PID 操作限定到本地标签以避免误杀。
 
 仍需继续增强的规划项包括：远端 fish、nested shell/tmux 场景下的 shell integration 准确性，以及更完整的进程树/端口详情视图。

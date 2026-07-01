@@ -16,6 +16,27 @@ final class TerminalShellIntegrationParserTests: XCTestCase {
         XCTAssertEqual(parser.accept(Array(text.utf8)[...]), [.commandFinished(2)])
     }
 
+    func testAcceptsStringTerminatorMarker() {
+        let parser = TerminalShellIntegrationParser()
+        let marker = "\u{1B}]777;MuseTerm;start=6563686f206f6b\u{1B}\\"
+
+        XCTAssertEqual(parser.accept(Array(marker.utf8)[...]), [.commandStarted("echo ok")])
+    }
+
+    func testAcceptsStringTerminatorSplitAcrossChunks() {
+        let parser = TerminalShellIntegrationParser()
+
+        XCTAssertEqual(parser.accept(Array("\u{1B}]777;MuseTerm;end=9\u{1B}".utf8)[...]), [])
+        XCTAssertEqual(parser.accept(Array("\\".utf8)[...]), [.commandFinished(9)])
+    }
+
+    func testParsesMixedBelAndStringTerminatorMarkersInOrder() {
+        let parser = TerminalShellIntegrationParser()
+        let text = "\u{1B}]777;MuseTerm;end=1\u{7}\u{1B}]777;MuseTerm;end=2\u{1B}\\"
+
+        XCTAssertEqual(parser.accept(Array(text.utf8)[...]), [.commandFinished(1), .commandFinished(2)])
+    }
+
     func testIgnoresPlainTerminalOutputWithoutMarkers() {
         let parser = TerminalShellIntegrationParser()
 
