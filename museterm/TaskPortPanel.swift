@@ -681,6 +681,9 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append(
                 "Repeated failure retry pause cooldown: \(repeatedFailureDiagnostic.retryPauseCooldownMilliseconds) ms"
             )
+            if let retryPauseUntil = repeatedFailureDiagnostic.retryPauseUntil {
+                lines.append("Repeated failure retry pause until: \(Self.isoTimestamp(retryPauseUntil))")
+            }
             if !repeatedFailureDiagnostic.retryPauseReasons.isEmpty {
                 let reasons = repeatedFailureDiagnostic.retryPauseReasons.map(\.rawValue).joined(separator: "; ")
                 lines.append("Repeated failure retry pause reasons: \(reasons)")
@@ -990,6 +993,10 @@ struct CommandBlockDiagnostics: Equatable {
         let retryPauseCooldownMilliseconds = repeatedFailureRetryPauseCooldownMilliseconds(
             severity: retryPauseSeverity
         )
+        let retryPauseUntil = repeatedFailureRetryPauseUntil(
+            latestOccurredAt: latestOccurredAt,
+            cooldownMilliseconds: retryPauseCooldownMilliseconds
+        )
         return RepeatedFailureDiagnostic(
             diagnostic: latestRecord.diagnostic,
             fingerprint: latestRecord.fingerprint,
@@ -1020,6 +1027,7 @@ struct CommandBlockDiagnostics: Equatable {
             retryPauseRecommended: !retryPauseReasons.isEmpty,
             retryPauseSeverity: retryPauseSeverity,
             retryPauseCooldownMilliseconds: retryPauseCooldownMilliseconds,
+            retryPauseUntil: retryPauseUntil,
             retryPauseReasons: retryPauseReasons,
             count: count
         )
@@ -1804,6 +1812,14 @@ struct CommandBlockDiagnostics: Equatable {
         }
     }
 
+    nonisolated private static func repeatedFailureRetryPauseUntil(
+        latestOccurredAt: Date,
+        cooldownMilliseconds: Int
+    ) -> Date? {
+        guard cooldownMilliseconds > 0 else { return nil }
+        return latestOccurredAt.addingTimeInterval(TimeInterval(cooldownMilliseconds) / 1000)
+    }
+
     nonisolated private static func repeatedFailureContextStability(
         uniqueCommandCount: Int,
         uniqueWorkingDirectoryCount: Int
@@ -1853,6 +1869,7 @@ struct RepeatedFailureDiagnostic: Equatable {
     let retryPauseRecommended: Bool
     let retryPauseSeverity: RepeatedFailureRetryPauseSeverity
     let retryPauseCooldownMilliseconds: Int
+    let retryPauseUntil: Date?
     let retryPauseReasons: [RepeatedFailureRetryPauseReason]
     let count: Int
 }

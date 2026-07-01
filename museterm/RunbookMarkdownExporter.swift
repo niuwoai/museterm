@@ -319,6 +319,11 @@ enum RunbookMarkdownExporter {
         lines.append(
             "- \(L10n.string("runbook.repeated_failure_retry_pause_cooldown")): \(repeatedFailureDiagnostic.retryPauseCooldownMilliseconds) ms"
         )
+        if let retryPauseUntil = repeatedFailureDiagnostic.retryPauseUntil {
+            lines.append(
+                "- \(L10n.string("runbook.repeated_failure_retry_pause_until")): \(isoTimestamp(retryPauseUntil))"
+            )
+        }
         appendRawValueList(
             repeatedFailureDiagnostic.retryPauseReasons,
             key: "runbook.repeated_failure_retry_pause_reasons",

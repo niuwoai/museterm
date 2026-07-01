@@ -558,6 +558,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(repeatedFailure["retryPauseRecommended"] as? Bool, false)
         XCTAssertEqual(repeatedFailure["retryPauseSeverity"] as? String, RepeatedFailureRetryPauseSeverity.none.rawValue)
         XCTAssertEqual(repeatedFailure["retryPauseCooldownMilliseconds"] as? Int, 0)
+        XCTAssertNil(repeatedFailure["retryPauseUntil"])
         XCTAssertEqual(repeatedFailure["retryPauseReasons"] as? [String], [])
         XCTAssertEqual(
             encodedDiagnostics["suggestedNextInspection"] as? String,
@@ -1193,6 +1194,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_retry_pause_recommended")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_retry_pause_severity")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_retry_pause_cooldown")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_retry_pause_until")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_retry_pause_reasons")))
         XCTAssertTrue(markdown.contains("3"))
         XCTAssertTrue(markdown.contains(RepeatedFailureRetryPauseSeverity.advisory.rawValue))
@@ -1306,6 +1308,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Repeated failure retry pause recommended: false"))
         XCTAssertTrue(context.contains("Repeated failure retry pause severity: none"))
         XCTAssertTrue(context.contains("Repeated failure retry pause cooldown: 0 ms"))
+        XCTAssertFalse(context.contains("Repeated failure retry pause until:"))
         XCTAssertTrue(context.contains("Diagnostic severity: repeated"))
         XCTAssertTrue(context.contains("Diagnostic category: repeated"))
         XCTAssertTrue(context.contains("Diagnostic category evidence: ERROR database is locked"))
@@ -1442,6 +1445,7 @@ final class musetermTests: XCTestCase {
         XCTAssertFalse(repeated.retryPauseRecommended)
         XCTAssertEqual(repeated.retryPauseSeverity, .none)
         XCTAssertEqual(repeated.retryPauseCooldownMilliseconds, 0)
+        XCTAssertNil(repeated.retryPauseUntil)
         XCTAssertEqual(repeated.retryPauseReasons, [])
         XCTAssertEqual(diagnostics.diagnosticSeverity, .repeated)
     }
@@ -1462,6 +1466,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(immediate.repeatedFailureDiagnostic?.retryPauseSeverity, .strong)
         XCTAssertEqual(immediate.repeatedFailureDiagnostic?.retryPauseCooldownMilliseconds, 120_000)
         XCTAssertEqual(
+            immediate.repeatedFailureDiagnostic?.retryPauseUntil,
+            Date(timeIntervalSince1970: 223)
+        )
+        XCTAssertEqual(
             immediate.repeatedFailureDiagnostic?.retryPauseReasons,
             [.immediateRetry, .stableContext]
         )
@@ -1480,6 +1488,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(spaced.repeatedFailureDiagnostic?.cadence, .spacedRetry)
         XCTAssertEqual(spaced.repeatedFailureDiagnostic?.retryPauseSeverity, .advisory)
         XCTAssertEqual(spaced.repeatedFailureDiagnostic?.retryPauseCooldownMilliseconds, 30_000)
+        XCTAssertEqual(
+            spaced.repeatedFailureDiagnostic?.retryPauseUntil,
+            Date(timeIntervalSince1970: 251)
+        )
         XCTAssertEqual(spaced.repeatedFailureDiagnostic?.retryPauseReasons, [.stableContext])
     }
 
@@ -1498,6 +1510,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(accelerating.repeatedFailureDiagnostic?.retryPauseSeverity, .strong)
         XCTAssertEqual(accelerating.repeatedFailureDiagnostic?.retryPauseCooldownMilliseconds, 120_000)
         XCTAssertEqual(
+            accelerating.repeatedFailureDiagnostic?.retryPauseUntil,
+            Date(timeIntervalSince1970: 281)
+        )
+        XCTAssertEqual(
             accelerating.repeatedFailureDiagnostic?.retryPauseReasons,
             [.acceleratingRetry, .stableContext]
         )
@@ -1515,6 +1531,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(slowing.repeatedFailureDiagnostic?.latestIntervalTrend, .slowing)
         XCTAssertEqual(slowing.repeatedFailureDiagnostic?.retryPauseSeverity, .advisory)
         XCTAssertEqual(slowing.repeatedFailureDiagnostic?.retryPauseCooldownMilliseconds, 30_000)
+        XCTAssertEqual(
+            slowing.repeatedFailureDiagnostic?.retryPauseUntil,
+            Date(timeIntervalSince1970: 191)
+        )
         XCTAssertEqual(slowing.repeatedFailureDiagnostic?.retryPauseReasons, [.stableContext])
     }
 
@@ -2083,6 +2103,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(repeatedFailure.cadence, .rapidRetry)
         XCTAssertEqual(repeatedFailure.retryPauseSeverity, .advisory)
         XCTAssertEqual(repeatedFailure.retryPauseCooldownMilliseconds, 30_000)
+        XCTAssertEqual(repeatedFailure.retryPauseUntil, Date(timeIntervalSince1970: 151))
         XCTAssertEqual(repeatedFailure.retryPauseReasons, [.stableContext])
     }
 
