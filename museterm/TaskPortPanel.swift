@@ -638,6 +638,18 @@ struct CommandBlockDiagnostics: Equatable {
             if let latestWorkingDirectory = repeatedFailureDiagnostic.latestWorkingDirectory {
                 lines.append("Repeated failure latest working directory: \(latestWorkingDirectory)")
             }
+            if let firstOutputTailLineNumber = repeatedFailureDiagnostic.firstOutputTailLineNumber {
+                lines.append("Repeated failure first output tail line: \(firstOutputTailLineNumber)")
+            }
+            if let firstOutputTailLineText = repeatedFailureDiagnostic.firstOutputTailLineText {
+                lines.append("Repeated failure first output tail text: \(firstOutputTailLineText)")
+            }
+            if let latestOutputTailLineNumber = repeatedFailureDiagnostic.latestOutputTailLineNumber {
+                lines.append("Repeated failure latest output tail line: \(latestOutputTailLineNumber)")
+            }
+            if let latestOutputTailLineText = repeatedFailureDiagnostic.latestOutputTailLineText {
+                lines.append("Repeated failure latest output tail text: \(latestOutputTailLineText)")
+            }
             lines.append(
                 "Repeated failure window: \(Self.isoTimestamp(repeatedFailureDiagnostic.firstOccurredAt)) to \(Self.isoTimestamp(repeatedFailureDiagnostic.latestOccurredAt))"
             )
@@ -868,7 +880,9 @@ struct CommandBlockDiagnostics: Equatable {
         }
         guard count >= Self.repeatedFailureThreshold,
               let latestMatchedBlock = matchedBlocks.first,
-              let firstMatchedBlock = matchedBlocks.last else {
+              let firstMatchedBlock = matchedBlocks.last,
+              let latestMatchedRecord = matchedRecords.first,
+              let firstMatchedRecord = matchedRecords.last else {
             return nil
         }
         let matchKind: RepeatedFailureMatchKind = matchedRecords.allSatisfy { $0.diagnostic == latestRecord.diagnostic }
@@ -882,6 +896,10 @@ struct CommandBlockDiagnostics: Equatable {
             latestCommandID: latestMatchedBlock.id,
             firstWorkingDirectory: redactedPath(firstMatchedBlock.workingDirectory, redactSensitiveData: redactSensitiveData),
             latestWorkingDirectory: redactedPath(latestMatchedBlock.workingDirectory, redactSensitiveData: redactSensitiveData),
+            firstOutputTailLineNumber: firstMatchedRecord.outputTailLineNumber,
+            firstOutputTailLineText: firstMatchedRecord.outputTailLineText,
+            latestOutputTailLineNumber: latestMatchedRecord.outputTailLineNumber,
+            latestOutputTailLineText: latestMatchedRecord.outputTailLineText,
             firstOccurredAt: occurrenceDate(for: firstMatchedBlock),
             latestOccurredAt: occurrenceDate(for: latestMatchedBlock),
             durationMilliseconds: failureDurationMilliseconds(
@@ -1607,6 +1625,10 @@ struct RepeatedFailureDiagnostic: Equatable {
     let latestCommandID: UUID
     let firstWorkingDirectory: String?
     let latestWorkingDirectory: String?
+    let firstOutputTailLineNumber: Int?
+    let firstOutputTailLineText: String?
+    let latestOutputTailLineNumber: Int?
+    let latestOutputTailLineText: String?
     let firstOccurredAt: Date
     let latestOccurredAt: Date
     let durationMilliseconds: Int

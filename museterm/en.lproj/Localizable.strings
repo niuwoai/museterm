@@ -403,6 +403,10 @@
 "runbook.repeated_failure_latest_command_id" = "Repeated failure latest command ID";
 "runbook.repeated_failure_first_working_directory" = "Repeated failure first working directory";
 "runbook.repeated_failure_latest_working_directory" = "Repeated failure latest working directory";
+"runbook.repeated_failure_first_output_tail_line" = "Repeated failure first output tail line";
+"runbook.repeated_failure_first_output_tail_text" = "Repeated failure first output tail text";
+"runbook.repeated_failure_latest_output_tail_line" = "Repeated failure latest output tail line";
+"runbook.repeated_failure_latest_output_tail_text" = "Repeated failure latest output tail text";
 "runbook.repeated_failure_window" = "Repeated failure window";
 "runbook.repeated_failure_window_value" = "%@ to %@";
 "runbook.repeated_failure_duration" = "Repeated failure duration";

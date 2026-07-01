@@ -424,6 +424,7 @@ final class musetermTests: XCTestCase {
                     endedAt: 101,
                     exitCode: 1,
                     errorLine: diagnostic,
+                    outputTail: "prepare first\n\(diagnostic)",
                     workingDirectory: "/tmp/project-first"
                 ),
                 commandBlock(command: "make test", startedAt: 110, endedAt: 111, exitCode: 1, errorLine: diagnostic),
@@ -434,6 +435,7 @@ final class musetermTests: XCTestCase {
                     endedAt: 121,
                     exitCode: 1,
                     errorLine: diagnostic,
+                    outputTail: "prepare latest\nretry\n\(diagnostic)",
                     workingDirectory: "/tmp/project-latest"
                 )
             ]
@@ -508,12 +510,16 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(encodedDiagnostics["recentFailureWorkingDirectory"] as? String, "/tmp/project-latest")
         XCTAssertEqual(encodedDiagnostics["recentFailureDiagnostic"] as? String, diagnostic)
         XCTAssertEqual(encodedDiagnostics["recentFailureFingerprint"] as? String, "error database is locked")
-        XCTAssertEqual(encodedDiagnostics["recentFailureOutputTailLineNumber"] as? Int, 1)
+        XCTAssertEqual(encodedDiagnostics["recentFailureOutputTailLineNumber"] as? Int, 3)
         XCTAssertEqual(encodedDiagnostics["recentFailureOutputTailLineText"] as? String, diagnostic)
         XCTAssertEqual(repeatedFailure["firstCommandID"] as? String, firstCommandID.uuidString)
         XCTAssertEqual(repeatedFailure["latestCommandID"] as? String, latestCommandID.uuidString)
         XCTAssertEqual(repeatedFailure["firstWorkingDirectory"] as? String, "/tmp/project-first")
         XCTAssertEqual(repeatedFailure["latestWorkingDirectory"] as? String, "/tmp/project-latest")
+        XCTAssertEqual(repeatedFailure["firstOutputTailLineNumber"] as? Int, 2)
+        XCTAssertEqual(repeatedFailure["firstOutputTailLineText"] as? String, diagnostic)
+        XCTAssertEqual(repeatedFailure["latestOutputTailLineNumber"] as? Int, 3)
+        XCTAssertEqual(repeatedFailure["latestOutputTailLineText"] as? String, diagnostic)
         XCTAssertEqual(
             encodedDiagnostics["suggestedNextInspection"] as? String,
             "Inspect the repeated failure output before rerunning: \(diagnostic)"
@@ -1127,6 +1133,10 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_latest_command_id")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_first_working_directory")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_latest_working_directory")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_first_output_tail_line")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_first_output_tail_text")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_latest_output_tail_line")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_latest_output_tail_text")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_window")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_duration")))
         XCTAssertTrue(markdown.contains("3"))
@@ -1163,6 +1173,7 @@ final class musetermTests: XCTestCase {
                 endedAt: 101,
                 exitCode: 1,
                 errorLine: "ERROR database is locked",
+                outputTail: "first setup\nERROR database is locked",
                 workingDirectory: "/tmp/project-first"
             ),
             commandBlock(command: "make test", startedAt: 110, endedAt: 111, exitCode: 1, errorLine: "ERROR database is locked"),
@@ -1205,6 +1216,10 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Repeated failure latest command id: \(latestCommandID.uuidString)"))
         XCTAssertTrue(context.contains("Repeated failure first working directory: /tmp/project-first"))
         XCTAssertTrue(context.contains("Repeated failure latest working directory: /tmp/project-latest"))
+        XCTAssertTrue(context.contains("Repeated failure first output tail line: 2"))
+        XCTAssertTrue(context.contains("Repeated failure first output tail text: ERROR database is locked"))
+        XCTAssertTrue(context.contains("Repeated failure latest output tail line: 2"))
+        XCTAssertTrue(context.contains("Repeated failure latest output tail text: ERROR database is locked"))
         XCTAssertTrue(context.contains("Repeated failure window:"))
         XCTAssertTrue(context.contains("Repeated failure duration: 20000 ms"))
         XCTAssertTrue(context.contains("Diagnostic severity: repeated"))
@@ -1285,6 +1300,7 @@ final class musetermTests: XCTestCase {
                     endedAt: 101,
                     exitCode: 1,
                     errorLine: "ERROR retry 1 failed at /tmp/build-1/output.log",
+                    outputTail: "first output\nERROR retry 1 failed at /tmp/build-1/output.log",
                     workingDirectory: "/tmp/project-first"
                 ),
                 commandBlock(
@@ -1301,6 +1317,7 @@ final class musetermTests: XCTestCase {
                     endedAt: 121,
                     exitCode: 1,
                     errorLine: "ERROR retry 3 failed at /tmp/build-3/output.log",
+                    outputTail: "latest output\nretry output\nERROR retry 3 failed at /tmp/build-3/output.log",
                     workingDirectory: "/tmp/project-latest"
                 )
             ],
@@ -1317,6 +1334,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(repeated.latestCommandID, latestCommandID)
         XCTAssertEqual(repeated.firstWorkingDirectory, "/tmp/project-first")
         XCTAssertEqual(repeated.latestWorkingDirectory, "/tmp/project-latest")
+        XCTAssertEqual(repeated.firstOutputTailLineNumber, 2)
+        XCTAssertEqual(repeated.firstOutputTailLineText, "ERROR retry 1 failed at /tmp/build-1/output.log")
+        XCTAssertEqual(repeated.latestOutputTailLineNumber, 3)
+        XCTAssertEqual(repeated.latestOutputTailLineText, "ERROR retry 3 failed at /tmp/build-3/output.log")
         XCTAssertEqual(repeated.firstOccurredAt, Date(timeIntervalSince1970: 101))
         XCTAssertEqual(repeated.latestOccurredAt, Date(timeIntervalSince1970: 121))
         XCTAssertEqual(repeated.durationMilliseconds, 20_000)

@@ -403,6 +403,10 @@
 "runbook.repeated_failure_latest_command_id" = "连续失败最近命令 ID";
 "runbook.repeated_failure_first_working_directory" = "连续失败首次工作目录";
 "runbook.repeated_failure_latest_working_directory" = "连续失败最近工作目录";
+"runbook.repeated_failure_first_output_tail_line" = "连续失败首次输出尾部行号";
+"runbook.repeated_failure_first_output_tail_text" = "连续失败首次输出尾部文本";
+"runbook.repeated_failure_latest_output_tail_line" = "连续失败最近输出尾部行号";
+"runbook.repeated_failure_latest_output_tail_text" = "连续失败最近输出尾部文本";
 "runbook.repeated_failure_window" = "连续失败时间窗";
 "runbook.repeated_failure_window_value" = "%@ 至 %@";
 "runbook.repeated_failure_duration" = "连续失败持续时长";

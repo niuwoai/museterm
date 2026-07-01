@@ -240,6 +240,26 @@ enum RunbookMarkdownExporter {
                 "- \(L10n.string("runbook.repeated_failure_latest_working_directory")): `\(escapeInline(latestWorkingDirectory))`"
             )
         }
+        if let firstOutputTailLineNumber = repeatedFailureDiagnostic.firstOutputTailLineNumber {
+            lines.append(
+                "- \(L10n.string("runbook.repeated_failure_first_output_tail_line")): \(firstOutputTailLineNumber)"
+            )
+        }
+        if let firstOutputTailLineText = repeatedFailureDiagnostic.firstOutputTailLineText {
+            lines.append(
+                "- \(L10n.string("runbook.repeated_failure_first_output_tail_text")): `\(escapeInline(firstOutputTailLineText))`"
+            )
+        }
+        if let latestOutputTailLineNumber = repeatedFailureDiagnostic.latestOutputTailLineNumber {
+            lines.append(
+                "- \(L10n.string("runbook.repeated_failure_latest_output_tail_line")): \(latestOutputTailLineNumber)"
+            )
+        }
+        if let latestOutputTailLineText = repeatedFailureDiagnostic.latestOutputTailLineText {
+            lines.append(
+                "- \(L10n.string("runbook.repeated_failure_latest_output_tail_text")): `\(escapeInline(latestOutputTailLineText))`"
+            )
+        }
         let windowText = L10n.format(
             "runbook.repeated_failure_window_value",
             timestamp(repeatedFailureDiagnostic.firstOccurredAt),
