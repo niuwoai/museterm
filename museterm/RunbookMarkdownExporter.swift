@@ -320,6 +320,9 @@ enum RunbookMarkdownExporter {
             "- \(L10n.string("runbook.repeated_failure_retry_pause_decision")): \(repeatedFailureDiagnostic.retryPauseDecision.rawValue)"
         )
         lines.append(
+            "- \(L10n.string("runbook.repeated_failure_retry_pause_decision_confidence")): \(repeatedFailureDiagnostic.retryPauseDecisionConfidence.rawValue)"
+        )
+        lines.append(
             "- \(L10n.string("runbook.repeated_failure_retry_pause_cooldown")): \(repeatedFailureDiagnostic.retryPauseCooldownMilliseconds) ms"
         )
         if let retryPauseUntil = repeatedFailureDiagnostic.retryPauseUntil {

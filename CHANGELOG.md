@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.150.0] - 2026-07-01
+
+### Added
+- 连续同类失败诊断新增 `retryPauseDecisionConfidence`，为 `retryPauseDecision` 输出 `none`、`medium` 或 `high` 可信度，并同步到 AI 上下文、MCP/CLI 快照和 Runbook 导出。
+
 ## [1.149.0] - 2026-07-01
 
 ### Added

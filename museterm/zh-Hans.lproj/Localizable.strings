@@ -425,6 +425,7 @@
 "runbook.repeated_failure_retry_pause_recommended" = "连续失败是否建议暂停重试";
 "runbook.repeated_failure_retry_pause_severity" = "连续失败暂停重试建议强度";
 "runbook.repeated_failure_retry_pause_decision" = "连续失败暂停重试建议决策";
+"runbook.repeated_failure_retry_pause_decision_confidence" = "连续失败暂停重试建议决策可信度";
 "runbook.repeated_failure_retry_pause_cooldown" = "连续失败暂停重试建议冷却时间";
 "runbook.repeated_failure_retry_pause_until" = "连续失败建议最早重试时间";
 "runbook.repeated_failure_retry_pause_reasons" = "连续失败建议暂停重试原因";
