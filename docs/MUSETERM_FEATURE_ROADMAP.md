@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.119.0
+> 当前版本基线：v1.120.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,7 +30,7 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.119.0 已完成一百一十五条纵向切片：
+v1.120.0 已完成一百一十六条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
@@ -39,7 +39,7 @@ v1.119.0 已完成一百一十五条纵向切片：
 - 会话 shell 名探测：本地会话会记录登录 shell 名；SSH 启动时先发送轻量 shell 探测 marker，回传 `$SHELL` 后归一化为 `zsh` / `bash` / `fish` 等稳定 shell 名，为后续远端 fish 与 nested shell 降级判断打基础。
 - 标签 shell 标识：侧栏标签行会在目录/远端摘要前显示轻量 shell badge，帮助区分 zsh、bash、fish 等会话；侧栏顶部工具按钮分到第二行，避免标题与按钮在窄宽度下互相挤压。
 - 工具快照 shell 环境：CLI/MCP 标签快照会暴露 `shellName`，让外部 AI 工具读取标签列表时即可知道当前会话是 zsh、bash、fish 还是未知 shell，减少解释命令和生成建议时的环境猜测。
-- 工具读取 payload shell 环境：CLI/MCP 的屏幕、历史和命令读取 payload 顶层同步暴露 `shellName`，外部工具无需先调用 `list_tabs` 也能按当前 shell 环境解释输出和命令块。
+- 工具读取 payload 执行环境：CLI/MCP 的屏幕、历史和命令读取 payload 顶层同步暴露 `shellName` 与 `currentDirectory`，外部工具无需先调用 `list_tabs` 也能按当前 shell 和工作目录解释输出与命令块。
 - 本机端口识别：任务与端口面板会为监听端口补充常见服务名和进程工作目录，端口搜索可按 PID、命令、协议、地址、端口、服务名和工作目录多词匹配，让“谁占用了这个端口”更接近可读诊断而不是裸 `lsof` 输出。
 - 本机端口扫描器拆分与中文转义还原：本机监听端口扫描、`lsof` 字段解析、服务名识别和搜索匹配模型已拆分到 `LocalServiceScanner.swift`；`lsof` 返回的 `\xNN` / 八进制字节转义会按 UTF-8 还原，中文进程名和中文工作目录可正常展示与搜索。
 - 命令块输出摘要：已把输出洞察沉入结构化命令块，记录洞察类型、首个错误/警告、URL、文件路径、commit hash 和堆栈线索，并同步给搜索、AI 上下文与 CLI/MCP 快照。

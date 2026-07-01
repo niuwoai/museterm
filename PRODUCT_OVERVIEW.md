@@ -1,6 +1,6 @@
 # Product Overview
 
-> 最后更新：2026-07-01 | 当前版本：v1.119.0
+> 最后更新：2026-07-01 | 当前版本：v1.120.0
 
 ## 项目简介
 
@@ -33,7 +33,7 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 - 安全确认：可在设置中开启/关闭多行粘贴确认和高危命令确认；SSH profile 可选择继承全局、强制确认或关闭确认，多行粘贴弹窗会提示一次提交多条命令的风险，识别到 MuseTerm 远端 SSH 命令追踪初始化脚本时会改用专门文案说明临时 shell hook 的用途、边界和失效条件；终端右键菜单可将选中文本转义后作为路径参数填入命令行，普通文件名会单引号转义，已有 `$'...'` / 反斜杠转义形式会原样保留；高危命令支持内置规则和自定义文本/正则规则，命中规则时会在写入 PTY 前展示预览，取消则不会执行；命令搜索面板会提示疑似敏感输出，并在脱敏开启时对展示、复制、导出和 AI 上下文使用脱敏内容。
 - 标签标题：本机会话优先显示当前目录，远端/SSH 标题保留 `user@host` 便于识别。
 - App 图标：默认使用 Q 版企鹅终端图标，并支持在设置中切换多款动物头像 Dock 图标。
-- CLI/MCP 工具桥：支持安装 `museterm` CLI，供本机 AI 工具读取标签页屏幕、历史文本、最近命令块并发送文本或控制键；状态快照、命令诊断快照以及 `tabs` / `commands` / MCP `read_commands` 输出会暴露 `schemaVersion`，状态快照还会带单调递增的 `snapshotSequence` 和标签 `shellName`，并透传到 CLI/MCP 元数据响应，输入/按键请求响应也会返回契约版本、App 版本、快照序列号、action 和成功目标 tab；命令诊断快照会提供最近失败命令、最近失败退出码、最近失败耗时、最近失败命令来源、最近失败完成来源、0-100 的 `diagnosticPriorityScore` 和稳定 reason code 组成的 `diagnosticPriorityFactors`，方便外部工具按排查优先级排序并解释分数来源；`museterm input --json` 与 `museterm key --json` 可输出完整 response 元数据，`--timeout SECONDS` 可调整等待 App response 的时间，默认短消息输出保持兼容；MCP `send_text` / `send_key` 也支持 `timeout` 和 `metadata`，默认短消息兼容，`metadata: true` 时返回完整 response 元数据；MCP `list_tabs metadata:true` 也会返回 `schemaVersion`、App 名称、版本、选中标签 ID 和带 `shellName` 的标签数组；`screen --json`、`history --json`、`commands`、MCP `read_screen metadata:true` 与 `read_commands` 顶层 payload 会带 `shellName`、标签来源、命令总数、返回命令数、输出尾部截断上限、建议动作执行目标、建议动作结果适用范围、建议动作结果新鲜度策略、建议动作结果复用键字段、建议动作结果复用策略、建议动作结果复用验证检查、建议动作证据锚点、建议动作作用域、建议动作预期结果类型、建议动作预期结果字段、建议动作预期结果信号、建议动作结果解析提示、建议动作结果解释提示、建议动作结果决策提示、建议动作结果局限提示、建议动作敏感结果字段、建议动作结果脱敏提示、建议动作结果刷新触发条件、建议动作结果隐私级别、建议动作结果分享策略、建议动作结果保留策略、建议动作重试条件、建议动作执行前检查、建议动作自动化护栏、建议动作用户决策点、建议动作完成判据和每个命令块的输出尾部截断状态，方便外部工具按 JSON 契约版本兼容处理并判断轮询时是否读到新快照。
+- CLI/MCP 工具桥：支持安装 `museterm` CLI，供本机 AI 工具读取标签页屏幕、历史文本、最近命令块并发送文本或控制键；状态快照、命令诊断快照以及 `tabs` / `commands` / MCP `read_commands` 输出会暴露 `schemaVersion`，状态快照还会带单调递增的 `snapshotSequence` 和标签 `shellName`，并透传到 CLI/MCP 元数据响应，输入/按键请求响应也会返回契约版本、App 版本、快照序列号、action 和成功目标 tab；命令诊断快照会提供最近失败命令、最近失败退出码、最近失败耗时、最近失败命令来源、最近失败完成来源、0-100 的 `diagnosticPriorityScore` 和稳定 reason code 组成的 `diagnosticPriorityFactors`，方便外部工具按排查优先级排序并解释分数来源；`museterm input --json` 与 `museterm key --json` 可输出完整 response 元数据，`--timeout SECONDS` 可调整等待 App response 的时间，默认短消息输出保持兼容；MCP `send_text` / `send_key` 也支持 `timeout` 和 `metadata`，默认短消息兼容，`metadata: true` 时返回完整 response 元数据；MCP `list_tabs metadata:true` 也会返回 `schemaVersion`、App 名称、版本、选中标签 ID 和带 `shellName` 的标签数组；`screen --json`、`history --json`、`commands`、MCP `read_screen metadata:true` 与 `read_commands` 顶层 payload 会带 `shellName`、`currentDirectory`、标签来源、命令总数、返回命令数、输出尾部截断上限、建议动作执行目标、建议动作结果适用范围、建议动作结果新鲜度策略、建议动作结果复用键字段、建议动作结果复用策略、建议动作结果复用验证检查、建议动作证据锚点、建议动作作用域、建议动作预期结果类型、建议动作预期结果字段、建议动作预期结果信号、建议动作结果解析提示、建议动作结果解释提示、建议动作结果决策提示、建议动作结果局限提示、建议动作敏感结果字段、建议动作结果脱敏提示、建议动作结果刷新触发条件、建议动作结果隐私级别、建议动作结果分享策略、建议动作结果保留策略、建议动作重试条件、建议动作执行前检查、建议动作自动化护栏、建议动作用户决策点、建议动作完成判据和每个命令块的输出尾部截断状态，方便外部工具按 JSON 契约版本兼容处理并判断轮询时是否读到新快照。
 - AI Provider 设置：设置页支持 OpenAI、Anthropic、Google Gemini、Azure OpenAI、OpenRouter、Ollama 和自定义端点；API Key 仅保存到本机 Keychain。
 - 皮肤系统：从 MuseMail 的视觉体系迁移，针对终端场景提供浅色与深色皮肤。
 - 字符配色：支持 Apple、Tango、Solarized、Dracula、One Dark、Nord 等经典 ANSI palette。

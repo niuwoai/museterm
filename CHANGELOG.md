@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.120.0] - 2026-07-01
+
+### Added
+- CLI/MCP 的 `screen --json`、`history --json`、`commands`、`read_screen metadata:true` 和 `read_commands` 顶层 payload 新增 `currentDirectory`，外部工具读取具体屏幕、历史或命令块时可同时拿到当前 shell 与工作目录。
+
 ## [1.119.0] - 2026-07-01
 
 ### Added

@@ -140,6 +140,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(limited["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(limited["tabID"] as? String, "tab-1")
         XCTAssertEqual(limited["shellName"] as? String, "zsh")
+        XCTAssertEqual(limited["currentDirectory"] as? String, "/tmp/project")
         XCTAssertEqual(limited["selectedTabID"] as? String, "tab-1")
         XCTAssertEqual(limited["commandCount"] as? Int, 1)
         XCTAssertEqual(limited["returnedCommandCount"] as? Int, 1)
@@ -165,6 +166,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(screen["schemaVersion"] as? Int, 1)
         XCTAssertEqual(screen["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(screen["shellName"] as? String, "zsh")
+        XCTAssertEqual(screen["currentDirectory"] as? String, "/tmp/project")
         XCTAssertEqual(screen["field"] as? String, "screen")
         XCTAssertEqual(screen["text"] as? String, "cdef")
         XCTAssertEqual(screen["textCharacters"] as? Int, 13)
@@ -175,6 +177,7 @@ final class musetermTests: XCTestCase {
         let history = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["history", "--json"])
         XCTAssertEqual(history["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(history["shellName"] as? String, "zsh")
+        XCTAssertEqual(history["currentDirectory"] as? String, "/tmp/project")
         XCTAssertEqual(history["field"] as? String, "history")
         XCTAssertEqual(history["text"] as? String, "history-abcdef")
         XCTAssertEqual(history["textCharacters"] as? Int, 14)
@@ -215,6 +218,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(payload["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(payload["tabID"] as? String, "tab-1")
         XCTAssertEqual(payload["shellName"] as? String, "zsh")
+        XCTAssertEqual(payload["currentDirectory"] as? String, "/tmp/project")
         XCTAssertEqual(payload["selectedTabID"] as? String, "tab-1")
         XCTAssertEqual(payload["commandCount"] as? Int, 1)
         XCTAssertEqual(payload["returnedCommandCount"] as? Int, 1)
@@ -304,6 +308,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
         XCTAssertEqual(payload["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(payload["shellName"] as? String, "zsh")
+        XCTAssertEqual(payload["currentDirectory"] as? String, "/tmp/project")
         XCTAssertEqual(payload["field"] as? String, "screen")
         XCTAssertEqual(payload["text"] as? String, "bcdef")
         XCTAssertEqual(payload["textCharacters"] as? Int, 13)
@@ -2050,6 +2055,7 @@ final class musetermTests: XCTestCase {
                     "id": "tab-1",
                     "index": 1,
                     "title": "project",
+                    "currentDirectory": "/tmp/project",
                     "shellName": "zsh",
                     "isSelected": true,
                     "state": "running",
