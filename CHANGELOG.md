@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.113.0] - 2026-07-01
+
+### Added
+- 为 `TerminalShellIntegrationParser` 补充边界测试，覆盖 marker 前缀跨 PTY 数据块拆分、无效 marker 后继续解析后续有效 marker，以及普通终端输出不产生 shell integration 事件。
+
 ## [1.112.0] - 2026-07-01
 
 ### Added
