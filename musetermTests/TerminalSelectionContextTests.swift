@@ -47,6 +47,22 @@ final class TerminalSelectionContextTests: XCTestCase {
         )
     }
 
+    func testBase64DecodedTextAvoidsPlainTextFalsePositives() throws {
+        XCTAssertEqual(
+            TerminalSelectionContext(selection: "SGVsbG8gd29ybGQ=")?.base64DecodedText,
+            "Hello world"
+        )
+        XCTAssertEqual(
+            TerminalSelectionContext(selection: "SGVsbG8g\nd29ybGQ=")?.base64DecodedText,
+            "Hello world"
+        )
+        XCTAssertNil(TerminalSelectionContext(selection: "hello")?.base64DecodedText)
+        XCTAssertNil(TerminalSelectionContext(selection: "abcd")?.base64DecodedText)
+        XCTAssertNil(TerminalSelectionContext(selection: "YWJjZA")?.base64DecodedText)
+        XCTAssertNil(TerminalSelectionContext(selection: "YWJjZA==$")?.base64DecodedText)
+        XCTAssertNil(TerminalSelectionContext(selection: "YQ==")?.base64DecodedText)
+    }
+
     func testBuildsInteractiveRemoveCommand() throws {
         let context = try XCTUnwrap(TerminalSelectionContext(selection: "my file.txt"))
 

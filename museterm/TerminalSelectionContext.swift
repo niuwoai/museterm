@@ -86,9 +86,10 @@ struct TerminalSelectionContext: Equatable {
         let compact = trimmedText
             .split(whereSeparator: \.isWhitespace)
             .joined()
-        guard let data = Data(base64Encoded: compact),
+        guard Self.isPlausibleBase64(compact),
+              let data = Data(base64Encoded: compact),
               let decoded = String(data: data, encoding: .utf8),
-              !decoded.isEmpty else {
+              Self.isUsefulDecodedBase64Text(decoded, original: trimmedText) else {
             return nil
         }
         return decoded
@@ -194,6 +195,34 @@ struct TerminalSelectionContext: Equatable {
             return false
         }
         return true
+    }
+
+    private static func isPlausibleBase64(_ text: String) -> Bool {
+        guard text.count >= 8,
+              text.count.isMultiple(of: 4),
+              text.allSatisfy({ character in
+                  character.isLetter || character.isNumber || character == "+" || character == "/" || character == "="
+              }) else {
+            return false
+        }
+
+        guard let firstPadding = text.firstIndex(of: "=") else { return true }
+        let padding = text[firstPadding...]
+        return padding.count <= 2 && padding.allSatisfy { $0 == "=" }
+    }
+
+    private static func isUsefulDecodedBase64Text(_ decoded: String, original: String) -> Bool {
+        let trimmedDecoded = decoded.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedDecoded.isEmpty,
+              decoded != original else {
+            return false
+        }
+        return decoded.unicodeScalars.allSatisfy { scalar in
+            if CharacterSet.newlines.contains(scalar) || scalar.value == 9 {
+                return true
+            }
+            return !CharacterSet.controlCharacters.contains(scalar)
+        }
     }
 
     private static let hostPortRegex = RegexMatcher(
