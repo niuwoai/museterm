@@ -561,9 +561,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private func confirmMultilinePaste(_ text: String) -> Bool {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = L10n.string("safety.multiline.title")
+        alert.messageText = SafetyInputAnalyzer.multilinePasteConfirmationTitle(for: text)
         alert.informativeText = SafetyInputAnalyzer.multilinePasteConfirmationMessage(for: text)
-        alert.addButton(withTitle: L10n.string("safety.action.send"))
+        alert.addButton(withTitle: SafetyInputAnalyzer.multilinePastePrimaryActionTitle(for: text))
         alert.addButton(withTitle: L10n.string("action.cancel"))
         alert.accessoryView = SafetyPreviewTextView(text: SafetyInputAnalyzer.preview(text))
         return alert.runModal() == .alertFirstButtonReturn

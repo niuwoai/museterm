@@ -44,4 +44,38 @@ final class TerminalSafetyInputAnalyzerTests: XCTestCase {
         XCTAssertTrue(message.contains(L10n.string("safety.multiline.reason")))
         XCTAssertTrue(message.contains("\n\n"))
     }
+
+    func testMuseTermRemoteIntegrationPasteUsesSpecificConfirmationCopy() throws {
+        let script = try XCTUnwrap(
+            RemoteShellIntegration.startupCommands(for: SSHConnectionProfile(host: "example.test")).first
+        )
+
+        XCTAssertTrue(SafetyInputAnalyzer.isMuseTermRemoteShellIntegrationBootstrap(script))
+        XCTAssertEqual(
+            SafetyInputAnalyzer.multilinePasteConfirmationTitle(for: script),
+            L10n.string("safety.multiline.remote_integration.title")
+        )
+        XCTAssertEqual(
+            SafetyInputAnalyzer.multilinePastePrimaryActionTitle(for: script),
+            L10n.string("safety.multiline.remote_integration.action")
+        )
+
+        let message = SafetyInputAnalyzer.multilinePasteConfirmationMessage(for: script)
+        XCTAssertTrue(message.contains(L10n.string("safety.multiline.remote_integration.message")))
+        XCTAssertTrue(message.contains(L10n.string("safety.multiline.remote_integration.scope")))
+    }
+
+    func testOrdinaryMultilinePasteWithMarkerLikeTextDoesNotUseRemoteIntegrationCopy() {
+        let text = "echo MuseTerm;start=debug\nprintf done\n"
+
+        XCTAssertFalse(SafetyInputAnalyzer.isMuseTermRemoteShellIntegrationBootstrap(text))
+        XCTAssertEqual(
+            SafetyInputAnalyzer.multilinePasteConfirmationTitle(for: text),
+            L10n.string("safety.multiline.title")
+        )
+        XCTAssertEqual(
+            SafetyInputAnalyzer.multilinePastePrimaryActionTitle(for: text),
+            L10n.string("safety.action.send")
+        )
+    }
 }

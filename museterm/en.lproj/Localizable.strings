@@ -480,8 +480,12 @@
 "app_icon.dog.summary" = "Blue badge with warm face.";
 
 "safety.multiline.title" = "Send multi-line paste?";
-"safety.multiline.message" = "This paste contains %d non-empty lines. Review it before sending to the current terminal.";
-"safety.multiline.reason" = "MuseTerm shows this confirmation because pasted multi-line shell text can run several commands as soon as it reaches the terminal. Only send it if the preview matches what you intended.";
+"safety.multiline.message" = "This paste contains %d non-empty lines.";
+"safety.multiline.reason" = "Multi-line text can submit more than one command to the terminal. Review the preview before sending.";
+"safety.multiline.remote_integration.title" = "Enable SSH command tracking?";
+"safety.multiline.remote_integration.message" = "MuseTerm wants to send a temporary shell hook to this SSH session so it can detect command start, command finish, and exit status.";
+"safety.multiline.remote_integration.scope" = "This powers command history, failed-command diagnostics, Runbook, and AI Explain. It does not write to remote startup files and expires when this session closes.";
+"safety.multiline.remote_integration.action" = "Enable Tracking";
 "safety.dangerous.title" = "Confirm dangerous command";
 "safety.dangerous.message" = "Matched rule: %@. Current environment: %@. Run only if you understand the impact.";
 "safety.sensitive_output.card" = "Output may contain sensitive data";

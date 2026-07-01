@@ -480,8 +480,12 @@
 "app_icon.dog.summary" = "蓝色徽章配暖色头像。";
 
 "safety.multiline.title" = "确认发送多行粘贴？";
-"safety.multiline.message" = "这次粘贴包含 %d 行非空内容。发送到当前终端前请先检查。";
-"safety.multiline.reason" = "MuseTerm 弹出确认，是因为多行 shell 文本一旦送进终端，可能连续执行多条命令。只有在预览内容符合你的预期时再发送。";
+"safety.multiline.message" = "这次粘贴包含 %d 行非空内容。";
+"safety.multiline.reason" = "多行文本可能向终端一次提交多条命令。发送前请先确认预览内容符合预期。";
+"safety.multiline.remote_integration.title" = "启用 SSH 命令追踪？";
+"safety.multiline.remote_integration.message" = "MuseTerm 想向当前 SSH 会话发送一段临时 shell hook，用来识别命令开始、命令结束和退出码。";
+"safety.multiline.remote_integration.scope" = "这会支持命令历史、失败诊断、Runbook 和 AI Explain；不会写入远端启动文件，关闭当前会话后失效。";
+"safety.multiline.remote_integration.action" = "启用追踪";
 "safety.dangerous.title" = "确认高危命令";
 "safety.dangerous.message" = "命中规则：%@。当前环境：%@。请确认你理解影响后再执行。";
 "safety.sensitive_output.card" = "输出疑似包含敏感信息";

@@ -90,10 +90,37 @@ enum SafetyInputAnalyzer {
     }
 
     static func multilinePasteConfirmationMessage(for text: String) -> String {
-        [
+        if isMuseTermRemoteShellIntegrationBootstrap(text) {
+            return [
+                L10n.string("safety.multiline.remote_integration.message"),
+                L10n.string("safety.multiline.remote_integration.scope")
+            ].joined(separator: "\n\n")
+        }
+
+        return [
             L10n.format("safety.multiline.message", nonEmptyLineCount(in: text)),
             L10n.string("safety.multiline.reason")
         ].joined(separator: "\n\n")
+    }
+
+    static func multilinePasteConfirmationTitle(for text: String) -> String {
+        isMuseTermRemoteShellIntegrationBootstrap(text)
+            ? L10n.string("safety.multiline.remote_integration.title")
+            : L10n.string("safety.multiline.title")
+    }
+
+    static func multilinePastePrimaryActionTitle(for text: String) -> String {
+        isMuseTermRemoteShellIntegrationBootstrap(text)
+            ? L10n.string("safety.multiline.remote_integration.action")
+            : L10n.string("safety.action.send")
+    }
+
+    static func isMuseTermRemoteShellIntegrationBootstrap(_ text: String) -> Bool {
+        text.contains("_museterm_remote_preexec")
+            && text.contains("_museterm_remote_precmd")
+            && text.contains("_museterm_remote_prompt_command")
+            && text.contains("MuseTerm;start=")
+            && text.contains("MuseTerm;end=")
     }
 
     private static func normalized(_ command: String) -> String {
