@@ -489,11 +489,13 @@ final class musetermTests: XCTestCase {
         )
         XCTAssertEqual(encodedDiagnostics["latestFailedCommandID"] as? String, latestCommandID.uuidString)
         XCTAssertEqual(encodedDiagnostics["latestFailedCommand"] as? String, "make test")
+        XCTAssertEqual(encodedDiagnostics["latestFailedWorkingDirectory"] as? String, "/tmp/project")
         XCTAssertEqual(encodedDiagnostics["latestFailedExitCode"] as? Int, 1)
         XCTAssertEqual(encodedDiagnostics["latestFailedDurationMilliseconds"] as? Int, 1_000)
         XCTAssertEqual(encodedDiagnostics["latestFailedCommandStartSource"] as? String, "shellIntegration")
         XCTAssertEqual(encodedDiagnostics["latestFailedCompletionSource"] as? String, "shellIntegration")
         XCTAssertEqual(encodedDiagnostics["recentFailureCommandID"] as? String, latestCommandID.uuidString)
+        XCTAssertEqual(encodedDiagnostics["recentFailureWorkingDirectory"] as? String, "/tmp/project")
         XCTAssertEqual(encodedDiagnostics["recentFailureDiagnostic"] as? String, diagnostic)
         XCTAssertEqual(encodedDiagnostics["recentFailureFingerprint"] as? String, "error database is locked")
         XCTAssertEqual(encodedDiagnostics["recentFailureOutputTailLineNumber"] as? Int, 1)
@@ -518,6 +520,7 @@ final class musetermTests: XCTestCase {
                 CommandDiagnosticEvidenceAnchor.latestFailedCommandID.rawValue,
                 CommandDiagnosticEvidenceAnchor.latestFailedCommand.rawValue,
                 CommandDiagnosticEvidenceAnchor.recentFailureCommandID.rawValue,
+                CommandDiagnosticEvidenceAnchor.recentFailureWorkingDirectory.rawValue,
                 CommandDiagnosticEvidenceAnchor.recentFailureDiagnostic.rawValue,
                 CommandDiagnosticEvidenceAnchor.recentFailureFingerprint.rawValue,
                 CommandDiagnosticEvidenceAnchor.recentFailureOutputTailLine.rawValue,
@@ -1054,12 +1057,14 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.diagnostic_category_evidence")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.diagnostic_category_confidence")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command_id")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_working_directory")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.failure_fingerprint")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_duration")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_command_source")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.latest_failed_completion_source")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.recent_failure_command_id")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.recent_failure_working_directory")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.failure_output_tail_line")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.failure_output_tail_text")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_inspection")))
@@ -1116,6 +1121,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains("ERROR token=[REDACTED]"))
         XCTAssertTrue(markdown.contains(CommandDiagnosticEvidenceAnchor.latestFailedCommandID.rawValue))
         XCTAssertTrue(markdown.contains(CommandDiagnosticEvidenceAnchor.recentFailureCommandID.rawValue))
+        XCTAssertTrue(markdown.contains(CommandDiagnosticEvidenceAnchor.recentFailureWorkingDirectory.rawValue))
         XCTAssertTrue(markdown.contains(CommandDiagnosticEvidenceAnchor.recentFailureOutputTailLine.rawValue))
         XCTAssertTrue(markdown.contains("Inspect the repeated failure output before rerunning"))
         XCTAssertTrue(markdown.contains("pwd && git status --short --branch 2>/dev/null || true"))
@@ -1154,11 +1160,13 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("multiple_failures; repeated_failure_count"))
         XCTAssertTrue(context.contains("Latest failed command id: \(latestCommandID.uuidString)"))
         XCTAssertTrue(context.contains("Latest failed command: make test"))
+        XCTAssertTrue(context.contains("Latest failed working directory: /tmp/project"))
         XCTAssertTrue(context.contains("Latest failed exit code: 1"))
         XCTAssertTrue(context.contains("Latest failed duration: 1000 ms"))
         XCTAssertTrue(context.contains("Latest failed command source: shellIntegration"))
         XCTAssertTrue(context.contains("Latest failed completion source: shellIntegration"))
         XCTAssertTrue(context.contains("Recent failure command id: \(latestCommandID.uuidString)"))
+        XCTAssertTrue(context.contains("Recent failure working directory: /tmp/project"))
         XCTAssertTrue(context.contains("Recent failure diagnostic: ERROR database is locked"))
         XCTAssertTrue(context.contains("Recent failure fingerprint: error database is locked"))
         XCTAssertTrue(context.contains("Recent failure output tail line: 2"))
@@ -1180,7 +1188,8 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Suggested next action priority factors: failed_command; repeated_severity"))
         XCTAssertTrue(context.contains("multiple_failures; repeated_failure_count"))
         XCTAssertTrue(context.contains("Suggested next action evidence anchors: latest_failed_command_id; latest_failed_command"))
-        XCTAssertTrue(context.contains("recent_failure_command_id; recent_failure_diagnostic"))
+        XCTAssertTrue(context.contains("recent_failure_command_id; recent_failure_working_directory"))
+        XCTAssertTrue(context.contains("recent_failure_diagnostic"))
         XCTAssertTrue(context.contains("recent_failure_output_tail_line; repeated_failure_diagnostic"))
         XCTAssertTrue(context.contains("diagnostic_category_evidence"))
         XCTAssertTrue(context.contains("Suggested next action scope: repeated_failure_context"))

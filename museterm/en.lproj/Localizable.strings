@@ -385,11 +385,13 @@
 "runbook.diagnostic_category_confidence" = "Diagnostic category confidence";
 "runbook.latest_failed_command_id" = "Latest failed command ID";
 "runbook.latest_failed_command" = "Latest failed command";
+"runbook.latest_failed_working_directory" = "Latest failed working directory";
 "runbook.latest_failed_exit_code" = "Latest failed exit code";
 "runbook.latest_failed_duration" = "Latest failed duration";
 "runbook.latest_failed_command_source" = "Latest failed command source";
 "runbook.latest_failed_completion_source" = "Latest failed completion source";
 "runbook.recent_failure_command_id" = "Recent failure command ID";
+"runbook.recent_failure_working_directory" = "Recent failure working directory";
 "runbook.latest_failure" = "Latest failure";
 "runbook.failure_fingerprint" = "Failure fingerprint";
 "runbook.failure_output_tail_line" = "Failure output tail line";

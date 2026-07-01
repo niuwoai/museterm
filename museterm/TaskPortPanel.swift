@@ -470,11 +470,13 @@ struct CommandBlockDiagnostics: Equatable {
     let diagnosticPriorityFactors: [CommandDiagnosticPriorityFactor]
     let latestFailedCommandID: UUID?
     let latestFailedCommand: String?
+    let latestFailedWorkingDirectory: String?
     let latestFailedExitCode: Int32?
     let latestFailedDurationMilliseconds: Int?
     let latestFailedCommandStartSource: TerminalCommandStartSource?
     let latestFailedCompletionSource: TerminalCommandCompletionSource?
     let recentFailureCommandID: UUID?
+    let recentFailureWorkingDirectory: String?
     let recentFailureDiagnostic: String?
     let recentFailureFingerprint: String?
     let recentFailureOutputTailLineNumber: Int?
@@ -496,6 +498,10 @@ struct CommandBlockDiagnostics: Equatable {
             let command = block.command.trimmingCharacters(in: .whitespacesAndNewlines)
             return redactSensitiveData ? RunbookSensitiveRedactor.redact(command) : command
         }
+        latestFailedWorkingDirectory = Self.redactedPath(
+            failedBlocks.first?.workingDirectory,
+            redactSensitiveData: redactSensitiveData
+        )
         latestFailedExitCode = failedBlocks.first?.exitCode
         latestFailedDurationMilliseconds = failedBlocks.first?.durationMilliseconds
         latestFailedCommandStartSource = failedBlocks.first?.commandStartSource
@@ -505,6 +511,7 @@ struct CommandBlockDiagnostics: Equatable {
             .compactMap { Self.failureDiagnosticRecord(for: $0, redactSensitiveData: redactSensitiveData) }
             .first
         recentFailureCommandID = recentFailureRecord?.commandID
+        recentFailureWorkingDirectory = recentFailureRecord?.workingDirectory
         recentFailureDiagnostic = recentFailureRecord?.diagnostic
         recentFailureFingerprint = recentFailureRecord?.fingerprint
         recentFailureOutputTailLineNumber = recentFailureRecord?.outputTailLineNumber
@@ -552,6 +559,7 @@ struct CommandBlockDiagnostics: Equatable {
             latestFailedCommandID: latestFailedCommandID,
             latestFailedCommand: latestFailedCommand,
             recentFailureCommandID: recentFailureCommandID,
+            recentFailureWorkingDirectory: recentFailureWorkingDirectory,
             recentFailureDiagnostic: recentFailureDiagnostic,
             recentFailureFingerprint: recentFailureFingerprint,
             recentFailureOutputTailLineNumber: recentFailureOutputTailLineNumber,
@@ -584,6 +592,9 @@ struct CommandBlockDiagnostics: Equatable {
         if let latestFailedCommand {
             lines.append("Latest failed command: \(latestFailedCommand)")
         }
+        if let latestFailedWorkingDirectory {
+            lines.append("Latest failed working directory: \(latestFailedWorkingDirectory)")
+        }
         if let latestFailedExitCode {
             lines.append("Latest failed exit code: \(latestFailedExitCode)")
         }
@@ -598,6 +609,9 @@ struct CommandBlockDiagnostics: Equatable {
         }
         if let recentFailureCommandID {
             lines.append("Recent failure command id: \(recentFailureCommandID.uuidString)")
+        }
+        if let recentFailureWorkingDirectory {
+            lines.append("Recent failure working directory: \(recentFailureWorkingDirectory)")
         }
         if let recentFailureDiagnostic {
             lines.append("Recent failure diagnostic: \(recentFailureDiagnostic)")
@@ -758,6 +772,7 @@ struct CommandBlockDiagnostics: Equatable {
         )
         return FailureDiagnosticRecord(
             commandID: block.id,
+            workingDirectory: redactedPath(block.workingDirectory, redactSensitiveData: redactSensitiveData),
             diagnostic: diagnostic,
             fingerprint: failureDiagnosticFingerprint(for: diagnostic),
             outputTailLineNumber: outputLine?.number,
@@ -785,6 +800,13 @@ struct CommandBlockDiagnostics: Equatable {
         guard let match = exact ?? contained else { return nil }
         let text = redactSensitiveData ? RunbookSensitiveRedactor.redact(match.text) : match.text
         return (match.number, text)
+    }
+
+    nonisolated private static func redactedPath(_ path: String?, redactSensitiveData: Bool) -> String? {
+        guard let path = path?.trimmingCharacters(in: .whitespacesAndNewlines), !path.isEmpty else {
+            return nil
+        }
+        return redactSensitiveData ? RunbookSensitiveRedactor.redact(path) : path
     }
 
     nonisolated private static func failureDiagnosticFingerprint(for diagnostic: String) -> String {
@@ -1067,6 +1089,7 @@ struct CommandBlockDiagnostics: Equatable {
         latestFailedCommandID: UUID?,
         latestFailedCommand: String?,
         recentFailureCommandID: UUID?,
+        recentFailureWorkingDirectory: String?,
         recentFailureDiagnostic: String?,
         recentFailureFingerprint: String?,
         recentFailureOutputTailLineNumber: Int?,
@@ -1083,6 +1106,7 @@ struct CommandBlockDiagnostics: Equatable {
             latestFailedCommandID: latestFailedCommandID,
             latestFailedCommand: latestFailedCommand,
             recentFailureCommandID: recentFailureCommandID,
+            recentFailureWorkingDirectory: recentFailureWorkingDirectory,
             recentFailureDiagnostic: recentFailureDiagnostic,
             recentFailureFingerprint: recentFailureFingerprint,
             recentFailureOutputTailLineNumber: recentFailureOutputTailLineNumber,
@@ -1506,6 +1530,7 @@ struct CommandBlockDiagnostics: Equatable {
         latestFailedCommandID: UUID?,
         latestFailedCommand: String?,
         recentFailureCommandID: UUID?,
+        recentFailureWorkingDirectory: String?,
         recentFailureDiagnostic: String?,
         recentFailureFingerprint: String?,
         recentFailureOutputTailLineNumber: Int?,
@@ -1522,6 +1547,9 @@ struct CommandBlockDiagnostics: Equatable {
         }
         if recentFailureCommandID != nil {
             anchors.append(.recentFailureCommandID)
+        }
+        if recentFailureWorkingDirectory != nil {
+            anchors.append(.recentFailureWorkingDirectory)
         }
         if recentFailureDiagnostic != nil {
             anchors.append(.recentFailureDiagnostic)
@@ -1620,6 +1648,7 @@ enum CommandDiagnosticPriorityFactor: String, Codable, Equatable {
 
 private struct FailureDiagnosticRecord: Equatable {
     let commandID: UUID
+    let workingDirectory: String?
     let diagnostic: String
     let fingerprint: String
     let outputTailLineNumber: Int?

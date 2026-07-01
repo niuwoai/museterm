@@ -88,11 +88,13 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
     let diagnosticCategoryConfidence: String
     let latestFailedCommandID: String?
     let latestFailedCommand: String?
+    let latestFailedWorkingDirectory: String?
     let latestFailedExitCode: Int?
     let latestFailedDurationMilliseconds: Int?
     let latestFailedCommandStartSource: String?
     let latestFailedCompletionSource: String?
     let recentFailureCommandID: String?
+    let recentFailureWorkingDirectory: String?
     let recentFailureDiagnostic: String?
     let recentFailureFingerprint: String?
     let recentFailureOutputTailLineNumber: Int?
@@ -113,11 +115,13 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
         diagnosticCategoryConfidence = diagnostics.diagnosticCategoryConfidence.rawValue
         latestFailedCommandID = diagnostics.latestFailedCommandID?.uuidString
         latestFailedCommand = diagnostics.latestFailedCommand
+        latestFailedWorkingDirectory = diagnostics.latestFailedWorkingDirectory
         latestFailedExitCode = diagnostics.latestFailedExitCode.map(Int.init)
         latestFailedDurationMilliseconds = diagnostics.latestFailedDurationMilliseconds
         latestFailedCommandStartSource = diagnostics.latestFailedCommandStartSource?.contextLabel
         latestFailedCompletionSource = diagnostics.latestFailedCompletionSource?.contextLabel
         recentFailureCommandID = diagnostics.recentFailureCommandID?.uuidString
+        recentFailureWorkingDirectory = diagnostics.recentFailureWorkingDirectory
         recentFailureDiagnostic = diagnostics.recentFailureDiagnostic
         recentFailureFingerprint = diagnostics.recentFailureFingerprint
         recentFailureOutputTailLineNumber = diagnostics.recentFailureOutputTailLineNumber
