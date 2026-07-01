@@ -341,6 +341,7 @@
 "runbook.latest_failed_command" = "最近失败命令";
 "runbook.latest_failed_exit_code" = "最近失败退出码";
 "runbook.latest_failed_duration" = "最近失败耗时";
+"runbook.latest_failed_command_source" = "最近失败命令来源";
 "runbook.latest_failed_completion_source" = "最近失败完成来源";
 "runbook.latest_failure" = "最近失败";
 "runbook.failure_fingerprint" = "失败指纹";
@@ -480,6 +481,7 @@
 
 "safety.multiline.title" = "确认发送多行粘贴？";
 "safety.multiline.message" = "这次粘贴包含 %d 行非空内容。发送到当前终端前请先检查。";
+"safety.multiline.reason" = "MuseTerm 弹出确认，是因为多行 shell 文本一旦送进终端，可能连续执行多条命令。只有在预览内容符合你的预期时再发送。";
 "safety.dangerous.title" = "确认高危命令";
 "safety.dangerous.message" = "命中规则：%@。当前环境：%@。请确认你理解影响后再执行。";
 "safety.sensitive_output.card" = "输出疑似包含敏感信息";

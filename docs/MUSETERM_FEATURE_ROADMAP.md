@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.107.0
+> 当前版本基线：v1.109.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,7 +30,7 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.107.0 已完成九十九条纵向切片：
+v1.109.0 已完成一百零一条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
@@ -58,6 +58,7 @@ v1.107.0 已完成九十九条纵向切片：
 - 诊断摘要可操作化：`CommandBlockDiagnostics` 新增失败命令数、最近失败命令和建议下一步查看项，并同步进入 Runbook、AI 当前过滤上下文与 CLI/MCP `diagnostics`。
 - 最近失败退出码：`CommandBlockDiagnostics` 新增 `latestFailedExitCode`，Runbook、AI 上下文和 CLI/MCP `commandDiagnostics` 可直接消费最近失败命令退出码。
 - 最近失败耗时：`CommandBlockDiagnostics` 新增 `latestFailedDurationMilliseconds`，Runbook、AI 上下文和 CLI/MCP `commandDiagnostics` 可直接消费最近失败命令耗时，区分快速失败、慢失败和疑似超时。
+- 最近失败命令来源：`CommandBlockDiagnostics` 新增 `latestFailedCommandStartSource`，Runbook、AI 上下文和 CLI/MCP `commandDiagnostics` 可直接消费最近失败命令开始来源，用于判断命令文本和边界来自 shell integration 还是用户输入推断。
 - 最近失败完成来源：`CommandBlockDiagnostics` 新增 `latestFailedCompletionSource`，Runbook、AI 上下文和 CLI/MCP `commandDiagnostics` 可直接消费最近失败命令完成来源，用于判断退出码来自 shell integration、进程退出兜底、用户中断还是覆盖结束。
 - 诊断严重级别：`CommandBlockDiagnostics` 新增 `diagnosticSeverity`，将 none/failed/repeated/critical 暴露到 Runbook、AI 上下文和 CLI/MCP `diagnostics`，帮助外部工具先判断排查优先级。
 - 诊断优先级分数：`CommandBlockDiagnostics` 新增 `diagnosticPriorityScore`，按失败严重级别、诊断分类、分类可信度和连续失败次数生成 0-100 稳定分数，并同步给 AI 上下文与 CLI/MCP `diagnostics`，方便外部工具排序排查入口。
@@ -111,6 +112,7 @@ v1.107.0 已完成九十九条纵向切片：
 - AI Explain 流式输出：解释请求使用 Provider SSE 流式接口，结果面板会随响应到达增量显示。
 - 本地 zsh/bash/fish shell integration：zsh 通过 MuseTerm 专用启动文件挂载 `preexec/precmd` hook，fish 通过启动 hook 挂载 `fish_preexec/fish_postexec`，可解析不可见 OSC marker 以回填命令开始和真实退出码；bash 通过生成 rcfile 挂载 `PROMPT_COMMAND` 回填退出码，命令开始暂时降级为用户输入推断；其他 shell 暂时降级为保守识别。
 - 安全模式第一版：SSH profile 已支持开发/预发/生产环境标记，侧栏和标签行展示环境短标；多行粘贴与高危命令在写入 PTY 前弹窗确认，取消后不会执行。
+- 多行粘贴确认说明：确认弹窗新增触发原因文案，明确多行 shell 文本发送到终端后可能连续执行命令，提醒用户检查预览符合预期后再发送。
 - 安全模式自定义规则：行为设置中已支持自定义高危命令规则，每行一条，普通文本按包含匹配，`regex:` 前缀按正则匹配，命中后会显示具体规则并要求确认。
 - 安全模式按 profile 覆盖：SSH profile 已支持安全确认策略，可继承全局、强制确认或关闭确认；生产环境默认强制确认。
 - 敏感输出脱敏提示：命令搜索面板会提示疑似敏感输出数量，命令卡片显示警示；脱敏开启时展示、复制、导出和 AI 上下文均使用脱敏内容。

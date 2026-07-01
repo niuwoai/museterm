@@ -158,6 +158,11 @@ enum RunbookMarkdownExporter {
                 "- \(L10n.string("runbook.latest_failed_duration")): \(latestFailedDurationMilliseconds) ms"
             )
         }
+        if let latestFailedCommandStartSource = diagnostics.latestFailedCommandStartSource {
+            lines.append(
+                "- \(L10n.string("runbook.latest_failed_command_source")): \(latestFailedCommandStartSource.contextLabel)"
+            )
+        }
         if let latestFailedCompletionSource = diagnostics.latestFailedCompletionSource {
             lines.append(
                 "- \(L10n.string("runbook.latest_failed_completion_source")): \(latestFailedCompletionSource.contextLabel)"

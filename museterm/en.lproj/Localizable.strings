@@ -341,6 +341,7 @@
 "runbook.latest_failed_command" = "Latest failed command";
 "runbook.latest_failed_exit_code" = "Latest failed exit code";
 "runbook.latest_failed_duration" = "Latest failed duration";
+"runbook.latest_failed_command_source" = "Latest failed command source";
 "runbook.latest_failed_completion_source" = "Latest failed completion source";
 "runbook.latest_failure" = "Latest failure";
 "runbook.failure_fingerprint" = "Failure fingerprint";
@@ -480,6 +481,7 @@
 
 "safety.multiline.title" = "Send multi-line paste?";
 "safety.multiline.message" = "This paste contains %d non-empty lines. Review it before sending to the current terminal.";
+"safety.multiline.reason" = "MuseTerm shows this confirmation because pasted multi-line shell text can run several commands as soon as it reaches the terminal. Only send it if the preview matches what you intended.";
 "safety.dangerous.title" = "Confirm dangerous command";
 "safety.dangerous.message" = "Matched rule: %@. Current environment: %@. Run only if you understand the impact.";
 "safety.sensitive_output.card" = "Output may contain sensitive data";

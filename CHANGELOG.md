@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.109.0] - 2026-07-01
+
+### Added
+- `CommandBlockDiagnostics` 新增 `latestFailedCommandStartSource`，Runbook、AI 上下文和 CLI/MCP `commandDiagnostics` 会同步暴露最近失败命令开始来源。
+- 测试覆盖 CLI/MCP 诊断快照、Runbook 和 AI 上下文里的最近失败命令开始来源字段。
+
+### Changed
+- 多行粘贴确认弹窗新增触发原因说明，提示多行 shell 文本发送到终端后可能连续执行命令，用户需确认预览符合预期后再发送。
+
 ## [1.107.0] - 2026-07-01
 
 ### Added

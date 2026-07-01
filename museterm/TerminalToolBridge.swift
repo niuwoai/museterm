@@ -88,6 +88,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
     let latestFailedCommand: String?
     let latestFailedExitCode: Int?
     let latestFailedDurationMilliseconds: Int?
+    let latestFailedCommandStartSource: String?
     let latestFailedCompletionSource: String?
     let recentFailureDiagnostic: String?
     let recentFailureFingerprint: String?
@@ -108,6 +109,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
         latestFailedCommand = diagnostics.latestFailedCommand
         latestFailedExitCode = diagnostics.latestFailedExitCode.map(Int.init)
         latestFailedDurationMilliseconds = diagnostics.latestFailedDurationMilliseconds
+        latestFailedCommandStartSource = diagnostics.latestFailedCommandStartSource?.contextLabel
         latestFailedCompletionSource = diagnostics.latestFailedCompletionSource?.contextLabel
         recentFailureDiagnostic = diagnostics.recentFailureDiagnostic
         recentFailureFingerprint = diagnostics.recentFailureFingerprint
