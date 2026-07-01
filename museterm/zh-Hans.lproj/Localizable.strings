@@ -399,6 +399,10 @@
 "runbook.repeated_failure" = "连续同类失败";
 "runbook.repeated_failure_value" = "连续 %d 次：%@";
 "runbook.repeated_failure_match" = "连续失败匹配方式";
+"runbook.repeated_failure_first_command_id" = "连续失败首次命令 ID";
+"runbook.repeated_failure_latest_command_id" = "连续失败最近命令 ID";
+"runbook.repeated_failure_first_working_directory" = "连续失败首次工作目录";
+"runbook.repeated_failure_latest_working_directory" = "连续失败最近工作目录";
 "runbook.repeated_failure_window" = "连续失败时间窗";
 "runbook.repeated_failure_window_value" = "%@ 至 %@";
 "runbook.repeated_failure_duration" = "连续失败持续时长";

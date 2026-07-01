@@ -630,6 +630,14 @@ struct CommandBlockDiagnostics: Equatable {
                 "Repeated failure diagnostic: \(repeatedFailureDiagnostic.count)x \(repeatedFailureDiagnostic.diagnostic)"
             )
             lines.append("Repeated failure match: \(repeatedFailureDiagnostic.matchKind.rawValue)")
+            lines.append("Repeated failure first command id: \(repeatedFailureDiagnostic.firstCommandID.uuidString)")
+            lines.append("Repeated failure latest command id: \(repeatedFailureDiagnostic.latestCommandID.uuidString)")
+            if let firstWorkingDirectory = repeatedFailureDiagnostic.firstWorkingDirectory {
+                lines.append("Repeated failure first working directory: \(firstWorkingDirectory)")
+            }
+            if let latestWorkingDirectory = repeatedFailureDiagnostic.latestWorkingDirectory {
+                lines.append("Repeated failure latest working directory: \(latestWorkingDirectory)")
+            }
             lines.append(
                 "Repeated failure window: \(Self.isoTimestamp(repeatedFailureDiagnostic.firstOccurredAt)) to \(Self.isoTimestamp(repeatedFailureDiagnostic.latestOccurredAt))"
             )
@@ -870,6 +878,10 @@ struct CommandBlockDiagnostics: Equatable {
             diagnostic: latestRecord.diagnostic,
             fingerprint: latestRecord.fingerprint,
             matchKind: matchKind,
+            firstCommandID: firstMatchedBlock.id,
+            latestCommandID: latestMatchedBlock.id,
+            firstWorkingDirectory: redactedPath(firstMatchedBlock.workingDirectory, redactSensitiveData: redactSensitiveData),
+            latestWorkingDirectory: redactedPath(latestMatchedBlock.workingDirectory, redactSensitiveData: redactSensitiveData),
             firstOccurredAt: occurrenceDate(for: firstMatchedBlock),
             latestOccurredAt: occurrenceDate(for: latestMatchedBlock),
             durationMilliseconds: failureDurationMilliseconds(
@@ -1591,6 +1603,10 @@ struct RepeatedFailureDiagnostic: Equatable {
     let diagnostic: String
     let fingerprint: String
     let matchKind: RepeatedFailureMatchKind
+    let firstCommandID: UUID
+    let latestCommandID: UUID
+    let firstWorkingDirectory: String?
+    let latestWorkingDirectory: String?
     let firstOccurredAt: Date
     let latestOccurredAt: Date
     let durationMilliseconds: Int

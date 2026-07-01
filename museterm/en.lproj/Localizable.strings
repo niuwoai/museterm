@@ -399,6 +399,10 @@
 "runbook.repeated_failure" = "Repeated failure";
 "runbook.repeated_failure_value" = "%d times: %@";
 "runbook.repeated_failure_match" = "Repeated failure match";
+"runbook.repeated_failure_first_command_id" = "Repeated failure first command ID";
+"runbook.repeated_failure_latest_command_id" = "Repeated failure latest command ID";
+"runbook.repeated_failure_first_working_directory" = "Repeated failure first working directory";
+"runbook.repeated_failure_latest_working_directory" = "Repeated failure latest working directory";
 "runbook.repeated_failure_window" = "Repeated failure window";
 "runbook.repeated_failure_window_value" = "%@ to %@";
 "runbook.repeated_failure_duration" = "Repeated failure duration";

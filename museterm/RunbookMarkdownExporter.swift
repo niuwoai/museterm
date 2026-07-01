@@ -224,6 +224,22 @@ enum RunbookMarkdownExporter {
         lines.append(
             "- \(L10n.string("runbook.repeated_failure_match")): \(repeatedFailureDiagnostic.matchKind.rawValue)"
         )
+        lines.append(
+            "- \(L10n.string("runbook.repeated_failure_first_command_id")): `\(repeatedFailureDiagnostic.firstCommandID.uuidString)`"
+        )
+        lines.append(
+            "- \(L10n.string("runbook.repeated_failure_latest_command_id")): `\(repeatedFailureDiagnostic.latestCommandID.uuidString)`"
+        )
+        if let firstWorkingDirectory = repeatedFailureDiagnostic.firstWorkingDirectory {
+            lines.append(
+                "- \(L10n.string("runbook.repeated_failure_first_working_directory")): `\(escapeInline(firstWorkingDirectory))`"
+            )
+        }
+        if let latestWorkingDirectory = repeatedFailureDiagnostic.latestWorkingDirectory {
+            lines.append(
+                "- \(L10n.string("runbook.repeated_failure_latest_working_directory")): `\(escapeInline(latestWorkingDirectory))`"
+            )
+        }
         let windowText = L10n.format(
             "runbook.repeated_failure_window_value",
             timestamp(repeatedFailureDiagnostic.firstOccurredAt),
