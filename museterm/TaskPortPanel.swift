@@ -630,6 +630,17 @@ struct CommandBlockDiagnostics: Equatable {
                 "Repeated failure diagnostic: \(repeatedFailureDiagnostic.count)x \(repeatedFailureDiagnostic.diagnostic)"
             )
             lines.append("Repeated failure match: \(repeatedFailureDiagnostic.matchKind.rawValue)")
+            let commandIDs = repeatedFailureDiagnostic.commandIDs.map(\.uuidString).joined(separator: "; ")
+            lines.append("Repeated failure command ids: \(commandIDs)")
+            if !repeatedFailureDiagnostic.uniqueCommands.isEmpty {
+                lines.append("Repeated failure unique commands: \(repeatedFailureDiagnostic.uniqueCommands.joined(separator: "; "))")
+            }
+            if !repeatedFailureDiagnostic.uniqueWorkingDirectories.isEmpty {
+                lines.append(
+                    "Repeated failure unique working directories: \(repeatedFailureDiagnostic.uniqueWorkingDirectories.joined(separator: "; "))"
+                )
+            }
+            lines.append("Repeated failure context changed: \(repeatedFailureDiagnostic.contextChanged)")
             lines.append("Repeated failure first command id: \(repeatedFailureDiagnostic.firstCommandID.uuidString)")
             lines.append("Repeated failure latest command id: \(repeatedFailureDiagnostic.latestCommandID.uuidString)")
             lines.append("Repeated failure first command: \(repeatedFailureDiagnostic.firstCommand)")
@@ -836,6 +847,18 @@ struct CommandBlockDiagnostics: Equatable {
         return redactSensitiveData ? RunbookSensitiveRedactor.redact(cleaned) : cleaned
     }
 
+    nonisolated private static func uniqueValues(_ values: [String]) -> [String] {
+        var result: [String] = []
+        var seen: Set<String> = []
+        for value in values {
+            let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cleaned.isEmpty, !seen.contains(cleaned) else { continue }
+            seen.insert(cleaned)
+            result.append(cleaned)
+        }
+        return result
+    }
+
     nonisolated private static func failureDiagnosticFingerprint(for diagnostic: String) -> String {
         let redacted = RunbookSensitiveRedactor.redact(diagnostic)
         var normalized = redacted.lowercased()
@@ -895,10 +918,22 @@ struct CommandBlockDiagnostics: Equatable {
         let matchKind: RepeatedFailureMatchKind = matchedRecords.allSatisfy { $0.diagnostic == latestRecord.diagnostic }
             ? .exact
             : .normalized
+        let chronologicalBlocks = matchedBlocks.reversed()
+        let commandIDs = chronologicalBlocks.map(\.id)
+        let uniqueCommands = uniqueValues(
+            chronologicalBlocks.map { redactedCommand($0.command, redactSensitiveData: redactSensitiveData) }
+        )
+        let uniqueWorkingDirectories = uniqueValues(
+            chronologicalBlocks.compactMap { redactedPath($0.workingDirectory, redactSensitiveData: redactSensitiveData) }
+        )
         return RepeatedFailureDiagnostic(
             diagnostic: latestRecord.diagnostic,
             fingerprint: latestRecord.fingerprint,
             matchKind: matchKind,
+            commandIDs: commandIDs,
+            uniqueCommands: uniqueCommands,
+            uniqueWorkingDirectories: uniqueWorkingDirectories,
+            contextChanged: uniqueCommands.count > 1 || uniqueWorkingDirectories.count > 1,
             firstCommandID: firstMatchedBlock.id,
             latestCommandID: latestMatchedBlock.id,
             firstCommand: redactedCommand(firstMatchedBlock.command, redactSensitiveData: redactSensitiveData),
@@ -1630,6 +1665,10 @@ struct RepeatedFailureDiagnostic: Equatable {
     let diagnostic: String
     let fingerprint: String
     let matchKind: RepeatedFailureMatchKind
+    let commandIDs: [UUID]
+    let uniqueCommands: [String]
+    let uniqueWorkingDirectories: [String]
+    let contextChanged: Bool
     let firstCommandID: UUID
     let latestCommandID: UUID
     let firstCommand: String

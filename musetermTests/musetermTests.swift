@@ -414,6 +414,7 @@ final class musetermTests: XCTestCase {
     func testToolTabSnapshotEncodesCommandDiagnostics() throws {
         let diagnostic = "ERROR database is locked"
         let firstCommandID = try XCTUnwrap(UUID(uuidString: "00000000-1111-2222-3333-444444444444"))
+        let middleCommandID = try XCTUnwrap(UUID(uuidString: "99999999-8888-7777-6666-555555555555"))
         let latestCommandID = try XCTUnwrap(UUID(uuidString: "11111111-2222-3333-4444-555555555555"))
         let diagnostics = CommandBlockDiagnostics(
             blocks: [
@@ -427,7 +428,14 @@ final class musetermTests: XCTestCase {
                     outputTail: "prepare first\n\(diagnostic)",
                     workingDirectory: "/tmp/project-first"
                 ),
-                commandBlock(command: "make test", startedAt: 110, endedAt: 111, exitCode: 1, errorLine: diagnostic),
+                commandBlock(
+                    command: "make test",
+                    id: middleCommandID,
+                    startedAt: 110,
+                    endedAt: 111,
+                    exitCode: 1,
+                    errorLine: diagnostic
+                ),
                 commandBlock(
                     command: "make test",
                     id: latestCommandID,
@@ -514,6 +522,16 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(encodedDiagnostics["recentFailureOutputTailLineText"] as? String, diagnostic)
         XCTAssertEqual(repeatedFailure["firstCommandID"] as? String, firstCommandID.uuidString)
         XCTAssertEqual(repeatedFailure["latestCommandID"] as? String, latestCommandID.uuidString)
+        XCTAssertEqual(
+            repeatedFailure["commandIDs"] as? [String],
+            [firstCommandID.uuidString, middleCommandID.uuidString, latestCommandID.uuidString]
+        )
+        XCTAssertEqual(repeatedFailure["uniqueCommands"] as? [String], ["make test --token [REDACTED]", "make test"])
+        XCTAssertEqual(
+            repeatedFailure["uniqueWorkingDirectories"] as? [String],
+            ["/tmp/project-first", "/tmp/project", "/tmp/project-latest"]
+        )
+        XCTAssertEqual(repeatedFailure["contextChanged"] as? Bool, true)
         XCTAssertEqual(repeatedFailure["firstCommand"] as? String, "make test --token [REDACTED]")
         XCTAssertEqual(repeatedFailure["latestCommand"] as? String, "make test")
         XCTAssertEqual(repeatedFailure["firstWorkingDirectory"] as? String, "/tmp/project-first")
@@ -1131,6 +1149,10 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.suggested_next_action_rationale")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_match")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_command_ids")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_unique_commands")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_unique_working_directories")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_context_changed")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_first_command_id")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_latest_command_id")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_first_command")))
@@ -1168,6 +1190,7 @@ final class musetermTests: XCTestCase {
 
     func testCommandBlockDiagnosticsBuildsAIContext() throws {
         let firstCommandID = try XCTUnwrap(UUID(uuidString: "99999999-AAAA-BBBB-CCCC-DDDDDDDDDDDD"))
+        let middleCommandID = try XCTUnwrap(UUID(uuidString: "88888888-AAAA-BBBB-CCCC-DDDDDDDDDDDD"))
         let latestCommandID = try XCTUnwrap(UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE"))
         let blocks = [
             commandBlock(
@@ -1180,7 +1203,14 @@ final class musetermTests: XCTestCase {
                 outputTail: "first setup\nERROR database is locked",
                 workingDirectory: "/tmp/project-first"
             ),
-            commandBlock(command: "make test", startedAt: 110, endedAt: 111, exitCode: 1, errorLine: "ERROR database is locked"),
+            commandBlock(
+                command: "make test",
+                id: middleCommandID,
+                startedAt: 110,
+                endedAt: 111,
+                exitCode: 1,
+                errorLine: "ERROR database is locked"
+            ),
             commandBlock(
                 command: "make test",
                 id: latestCommandID,
@@ -1216,6 +1246,14 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Recent failure output tail text: ERROR database is locked"))
         XCTAssertTrue(context.contains("Repeated failure diagnostic: 3x ERROR database is locked"))
         XCTAssertTrue(context.contains("Repeated failure match: exact"))
+        XCTAssertTrue(
+            context.contains(
+                "Repeated failure command ids: \(firstCommandID.uuidString); \(middleCommandID.uuidString); \(latestCommandID.uuidString)"
+            )
+        )
+        XCTAssertTrue(context.contains("Repeated failure unique commands: make test"))
+        XCTAssertTrue(context.contains("Repeated failure unique working directories: /tmp/project-first; /tmp/project; /tmp/project-latest"))
+        XCTAssertTrue(context.contains("Repeated failure context changed: true"))
         XCTAssertTrue(context.contains("Repeated failure first command id: \(firstCommandID.uuidString)"))
         XCTAssertTrue(context.contains("Repeated failure latest command id: \(latestCommandID.uuidString)"))
         XCTAssertTrue(context.contains("Repeated failure first command: make test"))
@@ -1296,6 +1334,7 @@ final class musetermTests: XCTestCase {
 
     func testCommandBlockDiagnosticsGroupsNormalizedRepeatedFailures() throws {
         let firstCommandID = try XCTUnwrap(UUID(uuidString: "22222222-3333-4444-5555-666666666666"))
+        let middleCommandID = try XCTUnwrap(UUID(uuidString: "33333333-4444-5555-6666-777777777777"))
         let latestCommandID = try XCTUnwrap(UUID(uuidString: "77777777-8888-9999-AAAA-BBBBBBBBBBBB"))
         let diagnostics = CommandBlockDiagnostics(
             blocks: [
@@ -1311,6 +1350,7 @@ final class musetermTests: XCTestCase {
                 ),
                 commandBlock(
                     command: "make test --retry 2",
+                    id: middleCommandID,
                     startedAt: 110,
                     endedAt: 111,
                     exitCode: 1,
@@ -1336,6 +1376,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(repeated.diagnostic, "ERROR retry 3 failed at /tmp/build-3/output.log")
         XCTAssertEqual(repeated.fingerprint, "error retry <num> failed at <path>")
         XCTAssertEqual(repeated.matchKind, .normalized)
+        XCTAssertEqual(repeated.commandIDs, [firstCommandID, middleCommandID, latestCommandID])
+        XCTAssertEqual(repeated.uniqueCommands, ["make test --retry 1", "make test --retry 2", "make test --retry 3"])
+        XCTAssertEqual(repeated.uniqueWorkingDirectories, ["/tmp/project-first", "/tmp/project", "/tmp/project-latest"])
+        XCTAssertTrue(repeated.contextChanged)
         XCTAssertEqual(repeated.firstCommandID, firstCommandID)
         XCTAssertEqual(repeated.latestCommandID, latestCommandID)
         XCTAssertEqual(repeated.firstCommand, "make test --retry 1")

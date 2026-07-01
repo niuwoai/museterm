@@ -224,6 +224,21 @@ enum RunbookMarkdownExporter {
         lines.append(
             "- \(L10n.string("runbook.repeated_failure_match")): \(repeatedFailureDiagnostic.matchKind.rawValue)"
         )
+        let commandIDs = repeatedFailureDiagnostic.commandIDs.map(\.uuidString).joined(separator: ", ")
+        lines.append("- \(L10n.string("runbook.repeated_failure_command_ids")): `\(commandIDs)`")
+        appendInlineCodeList(
+            repeatedFailureDiagnostic.uniqueCommands,
+            key: "runbook.repeated_failure_unique_commands",
+            to: &lines
+        )
+        appendInlineCodeList(
+            repeatedFailureDiagnostic.uniqueWorkingDirectories,
+            key: "runbook.repeated_failure_unique_working_directories",
+            to: &lines
+        )
+        lines.append(
+            "- \(L10n.string("runbook.repeated_failure_context_changed")): \(repeatedFailureDiagnostic.contextChanged)"
+        )
         lines.append(
             "- \(L10n.string("runbook.repeated_failure_first_command_id")): `\(repeatedFailureDiagnostic.firstCommandID.uuidString)`"
         )

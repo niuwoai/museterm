@@ -131,6 +131,10 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
                 diagnostic: repeatedFailureDiagnostic.diagnostic,
                 fingerprint: repeatedFailureDiagnostic.fingerprint,
                 matchKind: repeatedFailureDiagnostic.matchKind.rawValue,
+                commandIDs: repeatedFailureDiagnostic.commandIDs.map(\.uuidString),
+                uniqueCommands: repeatedFailureDiagnostic.uniqueCommands,
+                uniqueWorkingDirectories: repeatedFailureDiagnostic.uniqueWorkingDirectories,
+                contextChanged: repeatedFailureDiagnostic.contextChanged,
                 firstCommandID: repeatedFailureDiagnostic.firstCommandID.uuidString,
                 latestCommandID: repeatedFailureDiagnostic.latestCommandID.uuidString,
                 firstCommand: repeatedFailureDiagnostic.firstCommand,
@@ -247,6 +251,10 @@ struct TerminalToolRepeatedFailureSnapshot: Codable, Equatable {
     let diagnostic: String
     let fingerprint: String
     let matchKind: String
+    let commandIDs: [String]
+    let uniqueCommands: [String]
+    let uniqueWorkingDirectories: [String]
+    let contextChanged: Bool
     let firstCommandID: String
     let latestCommandID: String
     let firstCommand: String
