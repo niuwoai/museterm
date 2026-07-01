@@ -141,6 +141,54 @@ enum SSHReconnectPolicy {
     }
 }
 
+enum SSHProfileSecurityWarningKind: String, Equatable {
+    case agentForwarding
+    case hostKeyCheckingDisabled
+    case knownHostsDisabled
+
+    var title: String {
+        L10n.string("ssh.security_warning.\(rawValue).title")
+    }
+
+    var summary: String {
+        L10n.string("ssh.security_warning.\(rawValue).summary")
+    }
+}
+
+enum SSHProfileSecurityAnalyzer {
+    nonisolated static func warningKinds(extraOptions: [String]) -> [SSHProfileSecurityWarningKind] {
+        var warnings: [SSHProfileSecurityWarningKind] = []
+        let options = extraOptions.compactMap(option)
+        let truthyValues: Set<String> = ["yes", "true", "1"]
+        let disabledHostKeyValues: Set<String> = ["no", "off", "false", "0"]
+        let disabledKnownHostsValues: Set<String> = ["/dev/null", "none"]
+        let knownHostsOptions: Set<String> = ["userknownhostsfile", "globalknownhostsfile"]
+
+        if options.contains(where: { $0.name == "forwardagent" && truthyValues.contains($0.value) }) {
+            warnings.append(.agentForwarding)
+        }
+        if options.contains(where: { $0.name == "stricthostkeychecking" && disabledHostKeyValues.contains($0.value) }) {
+            warnings.append(.hostKeyCheckingDisabled)
+        }
+        if options.contains(where: { knownHostsOptions.contains($0.name) && disabledKnownHostsValues.contains($0.value) }) {
+            warnings.append(.knownHostsDisabled)
+        }
+
+        return warnings
+    }
+
+    private nonisolated static func option(_ line: String) -> (name: String, value: String)? {
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !trimmed.hasPrefix("#") else { return nil }
+        let parts = trimmed.split(maxSplits: 1, whereSeparator: { $0 == " " || $0 == "\t" || $0 == "=" })
+        guard parts.count == 2 else { return nil }
+        return (
+            String(parts[0]).lowercased(),
+            String(parts[1]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        )
+    }
+}
+
 struct SSHJumpHost: Codable, Equatable, Identifiable {
     var id: UUID
     var name: String
@@ -401,6 +449,18 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
     var target: String {
         let clean = normalized
         return clean.user.isEmpty ? clean.host : "\(clean.user)@\(clean.host)"
+    }
+
+    var routeSummary: String {
+        let clean = normalized
+        let nodes = [L10n.string("ssh.route.local")]
+            + clean.jumpHosts.map(\.displayName)
+            + [clean.target]
+        return nodes.joined(separator: " -> ")
+    }
+
+    var securityWarningKinds: [SSHProfileSecurityWarningKind] {
+        SSHProfileSecurityAnalyzer.warningKinds(extraOptions: normalized.extraOptions)
     }
 }
 

@@ -418,6 +418,41 @@ final class musetermTests: XCTestCase {
         )
     }
 
+    @MainActor
+    func testSSHProfileBuildsRouteSummaryThroughJumpHosts() {
+        let profile = SSHConnectionProfile(
+            name: "prod-app",
+            host: "10.0.2.15",
+            user: "deploy",
+            jumpHosts: [
+                SSHJumpHost(name: "edge", host: "edge.example.com", user: "ops"),
+                SSHJumpHost(host: "bastion.internal", user: "deploy")
+            ]
+        )
+
+        XCTAssertEqual(
+            profile.routeSummary,
+            "\(L10n.string("ssh.route.local")) -> edge -> deploy@bastion.internal -> deploy@10.0.2.15"
+        )
+    }
+
+    @MainActor
+    func testSSHProfileSecurityAnalyzerFlagsRiskyOptions() {
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            extraOptions: [
+                "ForwardAgent yes",
+                "StrictHostKeyChecking=no",
+                "UserKnownHostsFile /dev/null"
+            ]
+        )
+
+        XCTAssertEqual(
+            profile.securityWarningKinds,
+            [.agentForwarding, .hostKeyCheckingDisabled, .knownHostsDisabled]
+        )
+    }
+
     func testToolInputMapsNamedControlKeys() {
         XCTAssertEqual(TerminalToolInput.bytes(text: nil, key: "enter", rawBytes: nil), [0x0D])
         XCTAssertEqual(TerminalToolInput.bytes(text: nil, key: "ctrl-c", rawBytes: nil), [0x03])

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.168.0] - 2026-07-01
+
+### Added
+- SSH profile 新增链路摘要和安全风险提示：编辑器和侧栏 tooltip 会展示“本机 -> 跳转机 -> 目标机”的连接路径，并对 `ForwardAgent yes`、关闭 Host Key 校验、known_hosts 写入 `/dev/null` 等高风险高级选项给出可见提醒。
+
 ## [1.167.0] - 2026-07-01
 
 ### Added

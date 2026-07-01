@@ -220,7 +220,7 @@ struct SSHProfilesSection: View {
         .padding(.vertical, 6)
         .background(skin.controlFill)
         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-        .help(profile.jumpHosts.isEmpty ? profile.target : L10n.format("ssh.tooltip_with_jumps", profile.target, profile.jumpHosts.count))
+        .help(profile.jumpHosts.isEmpty ? profile.target : L10n.format("ssh.tooltip_route", profile.routeSummary))
     }
 }
 
@@ -578,8 +578,10 @@ private struct SSHProfileEditorSheet: View {
 
             labeledEditor("ssh.identities", help: "ssh.identities.help", text: $identityText, height: 58)
             labeledEditor("ssh.jumps", help: "ssh.jumps.help", text: $jumpText, height: 86)
+            routeSummaryView
             labeledEditor("ssh.port_forwards", help: "ssh.port_forwards.help", text: $portForwardText, height: 86)
             labeledEditor("ssh.options", help: "ssh.options.help", text: $optionText, height: 62)
+            securityWarningsView
             labeledEditor("ssh.startup", help: "ssh.startup.help", text: $startupText, height: 62)
 
             HStack {
@@ -773,6 +775,46 @@ private struct SSHProfileEditorSheet: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var routeSummaryView: some View {
+        let summary = profile.routeSummary
+        if !summary.isEmpty {
+            Label(summary, systemImage: "point.3.connected.trianglepath.dotted")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .help(L10n.string("ssh.route.help"))
+        }
+    }
+
+    @ViewBuilder
+    private var securityWarningsView: some View {
+        let warnings = profile.securityWarningKinds
+        if !warnings.isEmpty {
+            VStack(alignment: .leading, spacing: 5) {
+                ForEach(warnings, id: \.rawValue) { warning in
+                    Label {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(warning.title)
+                                .font(.caption2.weight(.semibold))
+                            Text(warning.summary)
+                                .font(.caption2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                    }
+                    .foregroundStyle(Color.orange)
+                }
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+            .background(Color.orange.opacity(0.10))
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
     }
 
