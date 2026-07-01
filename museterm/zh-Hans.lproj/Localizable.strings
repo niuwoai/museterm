@@ -341,6 +341,7 @@
 "runbook.latest_failed_command" = "最近失败命令";
 "runbook.latest_failed_exit_code" = "最近失败退出码";
 "runbook.latest_failed_duration" = "最近失败耗时";
+"runbook.latest_failed_completion_source" = "最近失败完成来源";
 "runbook.latest_failure" = "最近失败";
 "runbook.failure_fingerprint" = "失败指纹";
 "runbook.repeated_failure" = "连续同类失败";

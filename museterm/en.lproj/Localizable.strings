@@ -341,6 +341,7 @@
 "runbook.latest_failed_command" = "Latest failed command";
 "runbook.latest_failed_exit_code" = "Latest failed exit code";
 "runbook.latest_failed_duration" = "Latest failed duration";
+"runbook.latest_failed_completion_source" = "Latest failed completion source";
 "runbook.latest_failure" = "Latest failure";
 "runbook.failure_fingerprint" = "Failure fingerprint";
 "runbook.repeated_failure" = "Repeated failure";

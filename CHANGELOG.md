@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.107.0] - 2026-07-01
+
+### Added
+- `CommandBlockDiagnostics` 新增 `latestFailedCompletionSource`，Runbook、AI 上下文和 CLI/MCP `commandDiagnostics` 会同步暴露最近失败命令完成来源。
+- 测试覆盖 CLI/MCP 诊断快照、Runbook 和 AI 上下文里的最近失败完成来源字段。
+
 ## [1.106.0] - 2026-07-01
 
 ### Added

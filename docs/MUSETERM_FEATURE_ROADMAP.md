@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.106.0
+> 当前版本基线：v1.107.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,7 +30,7 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.106.0 已完成九十八条纵向切片：
+v1.107.0 已完成九十九条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
@@ -58,6 +58,7 @@ v1.106.0 已完成九十八条纵向切片：
 - 诊断摘要可操作化：`CommandBlockDiagnostics` 新增失败命令数、最近失败命令和建议下一步查看项，并同步进入 Runbook、AI 当前过滤上下文与 CLI/MCP `diagnostics`。
 - 最近失败退出码：`CommandBlockDiagnostics` 新增 `latestFailedExitCode`，Runbook、AI 上下文和 CLI/MCP `commandDiagnostics` 可直接消费最近失败命令退出码。
 - 最近失败耗时：`CommandBlockDiagnostics` 新增 `latestFailedDurationMilliseconds`，Runbook、AI 上下文和 CLI/MCP `commandDiagnostics` 可直接消费最近失败命令耗时，区分快速失败、慢失败和疑似超时。
+- 最近失败完成来源：`CommandBlockDiagnostics` 新增 `latestFailedCompletionSource`，Runbook、AI 上下文和 CLI/MCP `commandDiagnostics` 可直接消费最近失败命令完成来源，用于判断退出码来自 shell integration、进程退出兜底、用户中断还是覆盖结束。
 - 诊断严重级别：`CommandBlockDiagnostics` 新增 `diagnosticSeverity`，将 none/failed/repeated/critical 暴露到 Runbook、AI 上下文和 CLI/MCP `diagnostics`，帮助外部工具先判断排查优先级。
 - 诊断优先级分数：`CommandBlockDiagnostics` 新增 `diagnosticPriorityScore`，按失败严重级别、诊断分类、分类可信度和连续失败次数生成 0-100 稳定分数，并同步给 AI 上下文与 CLI/MCP `diagnostics`，方便外部工具排序排查入口。
 - 诊断优先级因素：`CommandBlockDiagnostics` 新增 `diagnosticPriorityFactors`，用稳定 reason code 解释优先级分数来源，并同步给 Runbook、AI 上下文与 CLI/MCP `diagnostics`，让外部工具能解释和筛选高优先级失败。

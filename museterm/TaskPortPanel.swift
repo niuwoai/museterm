@@ -620,6 +620,7 @@ struct CommandBlockDiagnostics: Equatable {
     let latestFailedCommand: String?
     let latestFailedExitCode: Int32?
     let latestFailedDurationMilliseconds: Int?
+    let latestFailedCompletionSource: TerminalCommandCompletionSource?
     let recentFailureDiagnostic: String?
     let recentFailureFingerprint: String?
     let repeatedFailureDiagnostic: RepeatedFailureDiagnostic?
@@ -640,6 +641,7 @@ struct CommandBlockDiagnostics: Equatable {
         }
         latestFailedExitCode = failedBlocks.first?.exitCode
         latestFailedDurationMilliseconds = failedBlocks.first?.durationMilliseconds
+        latestFailedCompletionSource = failedBlocks.first?.completionSource
         let recentFailureRecord = failedBlocks
             .sorted(by: Self.mostRecentFirst)
             .compactMap { Self.failureDiagnosticRecord(for: $0, redactSensitiveData: redactSensitiveData) }
@@ -719,6 +721,9 @@ struct CommandBlockDiagnostics: Equatable {
         }
         if let latestFailedDurationMilliseconds {
             lines.append("Latest failed duration: \(latestFailedDurationMilliseconds) ms")
+        }
+        if let latestFailedCompletionSource {
+            lines.append("Latest failed completion source: \(latestFailedCompletionSource.contextLabel)")
         }
         if let recentFailureDiagnostic {
             lines.append("Recent failure diagnostic: \(recentFailureDiagnostic)")
