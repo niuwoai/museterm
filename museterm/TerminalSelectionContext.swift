@@ -98,6 +98,19 @@ struct TerminalSelectionContext: Equatable {
         escapedPathArgument.map { "rm -i -- \($0)" }
     }
 
+    var searchCommandArgument: String? {
+        guard let text = singleLineText,
+              text.count <= Self.maxSearchCommandCharacters,
+              normalizedURL == nil,
+              port == nil,
+              pid == nil,
+              gitHash == nil,
+              prettyJSON == nil else {
+            return nil
+        }
+        return TerminalShellArgumentEscaper.escapedPathArgument(fromTerminalSelection: text)
+    }
+
     var aiPrompt: String {
         L10n.format("terminal.context.ai_prompt_template", trimmedText)
     }
@@ -274,6 +287,7 @@ struct TerminalSelectionContext: Equatable {
         pattern: #"^(?:localhost|127(?:\.\d{1,3}){3}|\[::1\]|[a-zA-Z0-9.-]+):\d{1,5}(?:/.*)?$"#
     )
     private static let gitHashRegex = RegexMatcher(pattern: #"^[0-9a-fA-F]{7,40}$"#)
+    private static let maxSearchCommandCharacters = 240
 }
 
 private struct RegexMatcher: Equatable {

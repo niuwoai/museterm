@@ -69,6 +69,19 @@ final class TerminalSelectionContextTests: XCTestCase {
         XCTAssertEqual(context.interactiveRemoveCommand, "rm -i -- 'my file.txt'")
     }
 
+    func testSearchCommandArgumentAvoidsStructuredSelections() throws {
+        XCTAssertEqual(
+            TerminalSelectionContext(selection: "permission denied")?.searchCommandArgument,
+            "'permission denied'"
+        )
+        XCTAssertNil(TerminalSelectionContext(selection: "example.com:8080/path")?.searchCommandArgument)
+        XCTAssertNil(TerminalSelectionContext(selection: ":3000")?.searchCommandArgument)
+        XCTAssertNil(TerminalSelectionContext(selection: "12345")?.searchCommandArgument)
+        XCTAssertNil(TerminalSelectionContext(selection: "abc1234def5678")?.searchCommandArgument)
+        XCTAssertNil(TerminalSelectionContext(selection: #"{"error":"missing"}"#)?.searchCommandArgument)
+        XCTAssertNil(TerminalSelectionContext(selection: String(repeating: "a", count: 241))?.searchCommandArgument)
+    }
+
     func testPathDetectionAvoidsPlainTextAndVersions() throws {
         XCTAssertEqual(TerminalSelectionContext(selection: "permission denied")?.isLikelyPath, false)
         XCTAssertEqual(TerminalSelectionContext(selection: "1.2.3")?.isLikelyPath, false)

@@ -1852,8 +1852,7 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
             ))
         }
 
-        if let singleLine = context.singleLineText,
-           let searchArgument = TerminalShellArgumentEscaper.escapedPathArgument(fromTerminalSelection: singleLine) {
+        if let searchArgument = context.searchCommandArgument {
             addContextSeparatorIfNeeded()
             menu.addItem(makeTypeCommandItem("terminal.context.type_rg_command", command: "rg \(searchArgument)"))
         }
