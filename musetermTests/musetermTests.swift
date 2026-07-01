@@ -342,6 +342,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(payload["selectedTabID"] as? String, "tab-1")
         XCTAssertEqual(tab["id"] as? String, "tab-1")
         XCTAssertEqual(tab["title"] as? String, "project")
+        XCTAssertEqual(tab["shellName"] as? String, "zsh")
         XCTAssertEqual(tab["isSelected"] as? Bool, true)
     }
 
@@ -361,6 +362,7 @@ final class musetermTests: XCTestCase {
             title: "project",
             subtitle: nil,
             currentDirectory: "/tmp/project",
+            shellName: "zsh",
             isSelected: true,
             state: "running",
             columns: 80,
@@ -374,6 +376,7 @@ final class musetermTests: XCTestCase {
 
         let data = try JSONEncoder().encode(snapshot)
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(object["shellName"] as? String, "zsh")
         let encodedDiagnostics = try XCTUnwrap(object["commandDiagnostics"] as? [String: Any])
         let repeatedFailure = try XCTUnwrap(encodedDiagnostics["repeatedFailureDiagnostic"] as? [String: Any])
         let suggestedNextAction = try XCTUnwrap(encodedDiagnostics["suggestedNextAction"] as? [String: Any])
@@ -1781,6 +1784,21 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(LocalServiceScanner.serviceName(for: 5432), "postgres")
     }
 
+    func testLocalServiceScannerDecodesEscapedUTF8ProcessNames() {
+        let text = """
+        p88
+        c\\xe4\\xbc\\x81\\xe4\\xb8\\x9a\\xe5\\xbe\\xae\\xe4\\xbf\\xa1
+        PTCP
+        n127.0.0.1:50010
+        """
+
+        let ports = LocalServiceScanner.parseLsofFields(text)
+
+        XCTAssertEqual(ports.first?.command, "企业微信")
+        XCTAssertEqual(LocalServiceScanner.decodeLsofEscapedText("\\344\\274\\201"), "企")
+        XCTAssertTrue(ports.first?.matchesSearch("企业") == true)
+    }
+
     func testLocalServiceScannerParsesLsofFieldsUniquelyAndSortsByPort() {
         let text = """
         p42
@@ -2027,6 +2045,7 @@ final class musetermTests: XCTestCase {
                     "id": "tab-1",
                     "index": 1,
                     "title": "project",
+                    "shellName": "zsh",
                     "isSelected": true,
                     "state": "running",
                     "screen": "screen-abcdef",

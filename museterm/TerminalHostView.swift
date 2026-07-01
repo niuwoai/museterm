@@ -219,6 +219,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             title: session?.tabTitle ?? "",
             subtitle: session?.tabSubtitle,
             currentDirectory: session?.currentDirectory,
+            shellName: session?.shellName,
             isSelected: isSelected,
             state: session?.toolStateText ?? "unknown",
             columns: terminalView.terminal?.cols ?? 0,

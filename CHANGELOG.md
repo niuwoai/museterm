@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.118.0] - 2026-07-01
+
+### Added
+- CLI/MCP 标签快照新增 `shellName` 字段，`list_tabs metadata:true` 可直接返回当前标签探测到的 zsh、bash、fish 等 shell 名，方便外部 AI 工具按 shell 环境解释命令和生成建议。
+
+### Changed
+- 将本机端口扫描、`lsof` 字段解析、服务名识别和搜索匹配模型从 `TaskPortPanel.swift` 拆分到 `LocalServiceScanner.swift`，任务与端口面板重新保持在 2000 行以内。
+
+### Fixed
+- 修复任务与端口面板中 `lsof` 返回的中文进程名或中文工作目录被显示成 `\xNN` 字节转义的问题；端口搜索现在也会使用还原后的中文文本匹配。
+
 ## [1.117.0] - 2026-07-01
 
 ### Added

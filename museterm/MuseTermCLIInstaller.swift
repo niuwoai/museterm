@@ -123,7 +123,7 @@ end
 
 def tab_summaries(state)
   state.fetch("tabs", []).map { |tab|
-    tab.slice("id", "index", "title", "subtitle", "currentDirectory", "isSelected", "state", "columns", "rows", "updatedAt")
+    tab.slice("id", "index", "title", "subtitle", "currentDirectory", "shellName", "isSelected", "state", "columns", "rows", "updatedAt")
   }
 end
 
@@ -296,7 +296,7 @@ def mcp_tools
   [
     {
       "name" => "list_tabs",
-      "description" => "List MuseTerm tabs and their ids, titles, selection state, size, and working directory.",
+      "description" => "List MuseTerm tabs and their ids, titles, selection state, size, working directory, and detected shell name.",
       "inputSchema" => {
         "type" => "object",
         "properties" => {

@@ -65,6 +65,7 @@ struct TerminalToolTabSnapshot: Codable, Equatable {
     let title: String
     let subtitle: String?
     let currentDirectory: String?
+    let shellName: String?
     let isSelected: Bool
     let state: String
     let columns: Int
