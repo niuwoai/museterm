@@ -9,6 +9,9 @@
 "action.ok" = "好";
 "action.save" = "保存";
 "action.close" = "关闭";
+"action.copy" = "复制";
+"action.paste" = "粘贴";
+"action.select_all" = "全选";
 "action.previous_tab" = "上一个标签";
 "action.next_tab" = "下一个标签";
 "action.select_tab" = "选择标签 %d";
@@ -21,6 +24,7 @@
 
 "menu.settings" = "设置…";
 "menu.tab" = "标签";
+"terminal.context.type_escaped_selection" = "转义键入所选路径";
 
 "workspace.alert.title" = "工作区";
 "workspace.saved" = "已保存当前标签与连接入口。";

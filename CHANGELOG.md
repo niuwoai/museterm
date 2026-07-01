@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.112.0] - 2026-07-01
+
+### Added
+- 终端右键菜单新增“转义键入所选路径”，可将当前选中文本作为 shell 参数填入命令行；普通文件名会单引号转义，已有 `$'...'` / 反斜杠转义形式会原样保留，便于处理包含奇怪字符或转义字节的文件名。
+
+### Changed
+- 将 `TerminalShellIntegrationParser` 从 `TerminalHostView.swift` 拆分到独立文件，后续增强 shell marker 解析时不再继续挤压终端宿主视图。
+
 ## [1.111.0] - 2026-07-01
 
 ### Changed

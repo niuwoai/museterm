@@ -9,6 +9,9 @@
 "action.ok" = "OK";
 "action.save" = "Save";
 "action.close" = "Close";
+"action.copy" = "Copy";
+"action.paste" = "Paste";
+"action.select_all" = "Select All";
 "action.previous_tab" = "Previous tab";
 "action.next_tab" = "Next tab";
 "action.select_tab" = "Select tab %d";
@@ -21,6 +24,7 @@
 
 "menu.settings" = "Settings…";
 "menu.tab" = "Tab";
+"terminal.context.type_escaped_selection" = "Type Escaped Selection";
 
 "workspace.alert.title" = "Workspace";
 "workspace.saved" = "Current tabs and connection entries have been saved.";
