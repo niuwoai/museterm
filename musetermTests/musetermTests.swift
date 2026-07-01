@@ -48,12 +48,183 @@ final class musetermTests: XCTestCase {
         XCTAssertFalse(rawValues.contains("penguin"))
     }
 
+    func testNotificationPolicyUsesTabBadgeForInactiveTabWhileAppIsActive() {
+        let delivery = TerminalNotificationPolicy.delivery(for: notificationPolicyInput(
+            event: .bell,
+            appIsActive: true,
+            tabIsSelected: false
+        ))
+
+        if case .tabBadge = delivery {
+        } else {
+            XCTFail("Expected inactive foreground tabs to receive a badge, got \(delivery)")
+        }
+    }
+
+    func testNotificationPolicyStaysSilentForActiveTabWhileAppIsActive() {
+        let delivery = TerminalNotificationPolicy.delivery(for: notificationPolicyInput(
+            event: .bell,
+            appIsActive: true,
+            tabIsSelected: true
+        ))
+
+        if case .none = delivery {
+        } else {
+            XCTFail("Expected active foreground tabs to stay silent, got \(delivery)")
+        }
+    }
+
+    func testNotificationPolicyDoesNotNotifyShortFailuresWithoutErrorSignal() {
+        let block = commandBlock(
+            exitCode: 1,
+            duration: 1,
+            outputSummary: nil
+        )
+        let delivery = TerminalNotificationPolicy.delivery(for: notificationPolicyInput(
+            event: .commandFinished(block),
+            appIsActive: false,
+            tabIsSelected: false
+        ))
+
+        if case .none = delivery {
+        } else {
+            XCTFail("Expected short failures without error signals to stay silent, got \(delivery)")
+        }
+    }
+
+    func testNotificationPolicyNotifiesObviousFailuresEvenWhenShort() {
+        let block = commandBlock(
+            exitCode: 1,
+            duration: 1,
+            outputSummary: TerminalOutputSummary(
+                insightKinds: [.error],
+                errorLine: "fatal: port already in use",
+                warningLine: nil,
+                url: nil,
+                filePath: nil,
+                commitHash: nil,
+                stackTraceLine: nil
+            )
+        )
+        let delivery = TerminalNotificationPolicy.delivery(for: notificationPolicyInput(
+            event: .commandFinished(block),
+            appIsActive: false,
+            tabIsSelected: false
+        ))
+
+        if case .systemNotification(let markTabBadge) = delivery {
+            XCTAssertTrue(markTabBadge)
+        } else {
+            XCTFail("Expected obvious background failures to produce a system notification, got \(delivery)")
+        }
+    }
+
+    func testNotificationPayloadOmitsCommandWhenPrivacyDisabled() {
+        let block = commandBlock(
+            command: "make test --filter LoginTests",
+            exitCode: 1,
+            duration: 12,
+            outputSummary: nil
+        )
+        let payload = TerminalNotificationPayloadBuilder.payload(
+            for: .commandFinished(block),
+            sessionTitle: "API",
+            includeCommand: false
+        )
+
+        XCTAssertEqual(payload.cooldownKey, "command-failed")
+        XCTAssertFalse(payload.body.contains("make test"))
+        XCTAssertFalse(payload.body.contains("LoginTests"))
+    }
+
+    func testNotificationPayloadIncludesSanitizedCommandWhenAllowed() {
+        let block = commandBlock(
+            command: "  make    test --filter LoginTests  ",
+            exitCode: 0,
+            duration: 42,
+            outputSummary: nil
+        )
+        let payload = TerminalNotificationPayloadBuilder.payload(
+            for: .commandFinished(block),
+            sessionTitle: "API",
+            includeCommand: true
+        )
+
+        XCTAssertEqual(payload.cooldownKey, "command-succeeded")
+        XCTAssertTrue(payload.body.contains("make test --filter LoginTests"))
+    }
+
+    func testNotificationPayloadUsesStableCooldownKeys() {
+        let failedBlock = commandBlock(exitCode: 1, duration: 12, outputSummary: nil)
+        let succeededBlock = commandBlock(exitCode: 0, duration: 42, outputSummary: nil)
+
+        XCTAssertEqual(
+            TerminalNotificationPayloadBuilder.payload(for: .bell, sessionTitle: "API", includeCommand: false).cooldownKey,
+            "bell"
+        )
+        XCTAssertEqual(
+            TerminalNotificationPayloadBuilder.payload(for: .processExited(9), sessionTitle: "API", includeCommand: false).cooldownKey,
+            "process-exited"
+        )
+        XCTAssertEqual(
+            TerminalNotificationPayloadBuilder.payload(for: .commandFinished(failedBlock), sessionTitle: "API", includeCommand: false).cooldownKey,
+            "command-failed"
+        )
+        XCTAssertEqual(
+            TerminalNotificationPayloadBuilder.payload(for: .commandFinished(succeededBlock), sessionTitle: "API", includeCommand: false).cooldownKey,
+            "command-succeeded"
+        )
+    }
+
     func testSSHConfigAddsDefaultKeepAliveOptions() {
         let profile = SSHConnectionProfile(host: "example.com", user: "deploy")
         let config = SSHConfigMaterializer.renderConfig(profile: profile)
 
         XCTAssertTrue(config.contains("  ServerAliveInterval 30"))
         XCTAssertTrue(config.contains("  ServerAliveCountMax 6"))
+    }
+
+    private func notificationPolicyInput(
+        event: TerminalAttentionEventKind,
+        appIsActive: Bool,
+        tabIsSelected: Bool
+    ) -> TerminalNotificationPolicyInput {
+        TerminalNotificationPolicyInput(
+            event: event,
+            appIsActive: appIsActive,
+            tabIsSelected: tabIsSelected,
+            notificationsEnabled: true,
+            showInactiveTabBadges: true,
+            notifyBells: true,
+            notifyCommandFailures: true,
+            notifyLongCommandCompletion: true,
+            notifyProcessExits: false,
+            longCommandThresholdSeconds: 30,
+            failureMinimumDurationSeconds: 5
+        )
+    }
+
+    private func commandBlock(
+        command: String = "make test",
+        exitCode: Int32,
+        duration: TimeInterval,
+        outputSummary: TerminalOutputSummary?
+    ) -> TerminalCommandBlock {
+        let startedAt = Date()
+        return TerminalCommandBlock(
+            id: UUID(),
+            command: command,
+            workingDirectory: "/tmp/project",
+            startedAt: startedAt,
+            endedAt: startedAt.addingTimeInterval(duration),
+            exitCode: exitCode,
+            outputTail: outputSummary?.primaryDiagnosticLine ?? "",
+            outputCharacterCount: outputSummary?.primaryDiagnosticLine?.count ?? 0,
+            outputSummary: outputSummary,
+            isInteractive: false,
+            commandStartSource: .userInput,
+            completionSource: .shellIntegration
+        )
     }
 
     func testSSHConfigDoesNotDuplicateManualKeepAliveOptions() {
@@ -161,6 +332,89 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(
             SSHConnectionIssueClassifier.classify("channel_setup_fwd_listener_tcpip: cannot listen to port: 8080"),
             .portForwardFailure
+        )
+    }
+
+    @MainActor
+    func testSSHProfileNormalizesAutomaticReconnectSettings() {
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            automaticReconnectAttempts: 99,
+            automaticReconnectDelaySeconds: 0
+        ).normalized
+
+        XCTAssertTrue(profile.automaticReconnectEnabled)
+        XCTAssertEqual(profile.automaticReconnectAttempts, 20)
+        XCTAssertEqual(profile.automaticReconnectDelaySeconds, 1)
+    }
+
+    @MainActor
+    func testSSHReconnectPolicyRetriesTransientFailuresWithBackoff() {
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            automaticReconnectAttempts: 3,
+            automaticReconnectDelaySeconds: 4
+        )
+
+        XCTAssertEqual(
+            SSHReconnectPolicy.decision(
+                profile: profile,
+                issue: .connectionTimedOut,
+                exitCode: 255,
+                completedAttempts: 0
+            ),
+            .reconnect(delaySeconds: 4)
+        )
+        XCTAssertEqual(
+            SSHReconnectPolicy.decision(
+                profile: profile,
+                issue: .connectionRefused,
+                exitCode: 255,
+                completedAttempts: 2
+            ),
+            .reconnect(delaySeconds: 12)
+        )
+        XCTAssertEqual(
+            SSHReconnectPolicy.decision(
+                profile: profile,
+                issue: .connectionRefused,
+                exitCode: 255,
+                completedAttempts: 3
+            ),
+            .exhausted
+        )
+    }
+
+    @MainActor
+    func testSSHReconnectPolicySuppressesCleanAndSecuritySensitiveExits() {
+        let profile = SSHConnectionProfile(host: "example.com")
+
+        XCTAssertEqual(
+            SSHReconnectPolicy.decision(
+                profile: profile,
+                issue: nil,
+                exitCode: 0,
+                completedAttempts: 0
+            ),
+            .suppress
+        )
+        XCTAssertEqual(
+            SSHReconnectPolicy.decision(
+                profile: profile,
+                issue: .permissionDenied,
+                exitCode: 255,
+                completedAttempts: 0
+            ),
+            .suppress
+        )
+        XCTAssertEqual(
+            SSHReconnectPolicy.decision(
+                profile: profile,
+                issue: .hostKeyVerificationFailed,
+                exitCode: 255,
+                completedAttempts: 0
+            ),
+            .suppress
         )
     }
 

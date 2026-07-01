@@ -81,6 +81,105 @@ enum TerminalNotificationPolicy {
     }
 }
 
+struct TerminalNotificationPayload: Equatable {
+    var title: String
+    var body: String
+    var cooldownKey: String
+}
+
+enum TerminalNotificationPayloadBuilder {
+    static func payload(
+        for event: TerminalAttentionEventKind,
+        sessionTitle: String,
+        includeCommand: Bool
+    ) -> TerminalNotificationPayload {
+        switch event {
+        case .bell:
+            return TerminalNotificationPayload(
+                title: L10n.string("notification.bell.title"),
+                body: L10n.format("notification.bell.body", sessionTitle),
+                cooldownKey: cooldownKey(for: event)
+            )
+        case .processExited(let exitCode):
+            let body: String
+            if let exitCode {
+                body = L10n.format("notification.process_exited.body_with_exit", sessionTitle, exitCode)
+            } else {
+                body = L10n.format("notification.process_exited.body", sessionTitle)
+            }
+            return TerminalNotificationPayload(
+                title: L10n.string("notification.process_exited.title"),
+                body: body,
+                cooldownKey: cooldownKey(for: event)
+            )
+        case .commandFinished(let block):
+            return commandPayload(
+                block,
+                sessionTitle: sessionTitle,
+                includeCommand: includeCommand
+            )
+        }
+    }
+
+    private static func commandPayload(
+        _ block: TerminalCommandBlock,
+        sessionTitle: String,
+        includeCommand: Bool
+    ) -> TerminalNotificationPayload {
+        let command = sanitizedCommand(block.command)
+        let duration = formattedDuration(block.durationMilliseconds)
+        let key = cooldownKey(for: .commandFinished(block))
+        switch block.commandLifecycleState {
+        case .failed:
+            let title = L10n.string("notification.command_failed.title")
+            let body = includeCommand
+                ? L10n.format("notification.command_failed.body_with_command", sessionTitle, block.exitCode ?? -1, duration, command)
+                : L10n.format("notification.command_failed.body", sessionTitle, block.exitCode ?? -1, duration)
+            return TerminalNotificationPayload(title: title, body: body, cooldownKey: key)
+        case .succeeded:
+            let title = L10n.string("notification.command_completed.title")
+            let body = includeCommand
+                ? L10n.format("notification.command_completed.body_with_command", sessionTitle, duration, command)
+                : L10n.format("notification.command_completed.body", sessionTitle, duration)
+            return TerminalNotificationPayload(title: title, body: body, cooldownKey: key)
+        default:
+            return TerminalNotificationPayload(
+                title: L10n.string("notification.command_finished.title"),
+                body: L10n.format("notification.command_finished.body", sessionTitle),
+                cooldownKey: key
+            )
+        }
+    }
+
+    private static func cooldownKey(for event: TerminalAttentionEventKind) -> String {
+        switch event {
+        case .bell:
+            return "bell"
+        case .processExited:
+            return "process-exited"
+        case .commandFinished(let block):
+            return "command-\(block.commandLifecycleState.rawValue)"
+        }
+    }
+
+    private static func sanitizedCommand(_ command: String) -> String {
+        let redacted = RunbookSensitiveRedactor.redact(command)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard redacted.count > 96 else { return redacted }
+        return String(redacted.prefix(93)) + "..."
+    }
+
+    private static func formattedDuration(_ milliseconds: Int?) -> String {
+        guard let milliseconds else { return L10n.string("notification.duration.unknown") }
+        let seconds = Double(milliseconds) / 1_000
+        if seconds < 10 {
+            return String(format: "%.1fs", seconds)
+        }
+        return String(format: "%.0fs", seconds)
+    }
+}
+
 final class TerminalNotificationCoordinator: NSObject, ObservableObject, TerminalAttentionReporting {
     static let shared = TerminalNotificationCoordinator()
 
@@ -171,7 +270,12 @@ final class TerminalNotificationCoordinator: NSObject, ObservableObject, Termina
         preferences: TerminalPreferences
     ) {
         guard isAuthorizedForSystemNotifications else { return }
-        let key = "\(session.id.uuidString):\(notificationKey(for: event))"
+        let payload = TerminalNotificationPayloadBuilder.payload(
+            for: event,
+            sessionTitle: session.tabTitle,
+            includeCommand: preferences.includeCommandInNotifications
+        )
+        let key = "\(session.id.uuidString):\(payload.cooldownKey)"
         let now = Date()
         if let last = lastDeliveryDates[key],
            now.timeIntervalSince(last) < preferences.notificationCooldownSeconds {
@@ -180,7 +284,6 @@ final class TerminalNotificationCoordinator: NSObject, ObservableObject, Termina
         lastDeliveryDates[key] = now
 
         let content = UNMutableNotificationContent()
-        let payload = notificationPayload(for: event, session: session, includeCommand: preferences.includeCommandInNotifications)
         content.title = payload.title
         content.body = payload.body
         content.sound = .default
@@ -198,92 +301,9 @@ final class TerminalNotificationCoordinator: NSObject, ObservableObject, Termina
         canRequestAuthorization == false && authorizationStatusSystemImage == "checkmark.circle.fill"
     }
 
-    private func notificationPayload(
-        for event: TerminalAttentionEventKind,
-        session: TerminalSession,
-        includeCommand: Bool
-    ) -> (title: String, body: String) {
-        switch event {
-        case .bell:
-            return (
-                L10n.string("notification.bell.title"),
-                L10n.format("notification.bell.body", session.tabTitle)
-            )
-        case .processExited(let exitCode):
-            if let exitCode {
-                return (
-                    L10n.string("notification.process_exited.title"),
-                    L10n.format("notification.process_exited.body_with_exit", session.tabTitle, exitCode)
-                )
-            }
-            return (
-                L10n.string("notification.process_exited.title"),
-                L10n.format("notification.process_exited.body", session.tabTitle)
-            )
-        case .commandFinished(let block):
-            return commandNotificationPayload(block, session: session, includeCommand: includeCommand)
-        }
-    }
-
-    private func commandNotificationPayload(
-        _ block: TerminalCommandBlock,
-        session: TerminalSession,
-        includeCommand: Bool
-    ) -> (title: String, body: String) {
-        let command = sanitizedCommand(block.command)
-        let duration = formattedDuration(block.durationMilliseconds)
-        switch block.commandLifecycleState {
-        case .failed:
-            let title = L10n.string("notification.command_failed.title")
-            if includeCommand {
-                return (title, L10n.format("notification.command_failed.body_with_command", session.tabTitle, block.exitCode ?? -1, duration, command))
-            }
-            return (title, L10n.format("notification.command_failed.body", session.tabTitle, block.exitCode ?? -1, duration))
-        case .succeeded:
-            let title = L10n.string("notification.command_completed.title")
-            if includeCommand {
-                return (title, L10n.format("notification.command_completed.body_with_command", session.tabTitle, duration, command))
-            }
-            return (title, L10n.format("notification.command_completed.body", session.tabTitle, duration))
-        default:
-            return (
-                L10n.string("notification.command_finished.title"),
-                L10n.format("notification.command_finished.body", session.tabTitle)
-            )
-        }
-    }
-
-    private func notificationKey(for event: TerminalAttentionEventKind) -> String {
-        switch event {
-        case .bell:
-            return "bell"
-        case .processExited:
-            return "process-exited"
-        case .commandFinished(let block):
-            return "command-\(block.commandLifecycleState.rawValue)"
-        }
-    }
-
-    private func sanitizedCommand(_ command: String) -> String {
-        let redacted = RunbookSensitiveRedactor.redact(command)
-            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard redacted.count > 96 else { return redacted }
-        return String(redacted.prefix(93)) + "..."
-    }
-
-    private func formattedDuration(_ milliseconds: Int?) -> String {
-        guard let milliseconds else { return L10n.string("notification.duration.unknown") }
-        let seconds = Double(milliseconds) / 1_000
-        if seconds < 10 {
-            return String(format: "%.1fs", seconds)
-        }
-        return String(format: "%.0fs", seconds)
-    }
-
     private func applyAuthorizationStatus(_ status: UNAuthorizationStatus) {
         switch status {
-        case .authorized, .provisional, .ephemeral:
+        case .authorized, .provisional:
             authorizationStatusLabel = L10n.string("notifications.permission.allowed")
             authorizationStatusSystemImage = "checkmark.circle.fill"
             canRequestAuthorization = false

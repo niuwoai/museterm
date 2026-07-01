@@ -64,6 +64,15 @@ enum SSHConnectionIssueKind: String, Equatable {
     var suggestion: String {
         L10n.string("ssh.diagnostic.\(rawValue).suggestion")
     }
+
+    var allowsAutomaticReconnect: Bool {
+        switch self {
+        case .permissionDenied, .hostKeyVerificationFailed, .tooManyAuthenticationFailures:
+            return false
+        case .connectionTimedOut, .connectionRefused, .portForwardFailure:
+            return true
+        }
+    }
 }
 
 enum SSHConnectionIssueClassifier {
@@ -95,6 +104,40 @@ enum SSHConnectionIssueClassifier {
         }
 
         return nil
+    }
+}
+
+enum SSHAutomaticReconnectDecision: Equatable {
+    case reconnect(delaySeconds: Int)
+    case suppress
+    case exhausted
+}
+
+enum SSHReconnectPolicy {
+    static func decision(
+        profile: SSHConnectionProfile,
+        issue: SSHConnectionIssueKind?,
+        exitCode: Int32?,
+        completedAttempts: Int
+    ) -> SSHAutomaticReconnectDecision {
+        let clean = profile.normalized
+        guard clean.automaticReconnectEnabled,
+              clean.automaticReconnectAttempts > 0 else {
+            return .suppress
+        }
+        if exitCode == 0 {
+            return .suppress
+        }
+        if issue?.allowsAutomaticReconnect == false {
+            return .suppress
+        }
+        guard completedAttempts < clean.automaticReconnectAttempts else {
+            return .exhausted
+        }
+
+        let multiplier = max(1, completedAttempts + 1)
+        let delay = min(clean.automaticReconnectDelaySeconds * multiplier, 30)
+        return .reconnect(delaySeconds: delay)
     }
 }
 
@@ -207,6 +250,9 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
     var keepAliveCountMax: Int
     var connectionReuseEnabled: Bool
     var connectionReusePersistMinutes: Int
+    var automaticReconnectEnabled: Bool
+    var automaticReconnectAttempts: Int
+    var automaticReconnectDelaySeconds: Int
     var remoteShellIntegrationEnabled: Bool
     var environment: TerminalEnvironmentKind
     var safetyPolicy: SSHSafetyConfirmationPolicy
@@ -227,6 +273,9 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         keepAliveCountMax: Int = 6,
         connectionReuseEnabled: Bool = true,
         connectionReusePersistMinutes: Int = 10,
+        automaticReconnectEnabled: Bool = true,
+        automaticReconnectAttempts: Int = 3,
+        automaticReconnectDelaySeconds: Int = 3,
         remoteShellIntegrationEnabled: Bool = true,
         environment: TerminalEnvironmentKind = .development,
         safetyPolicy: SSHSafetyConfirmationPolicy? = nil
@@ -246,6 +295,9 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         self.keepAliveCountMax = keepAliveCountMax
         self.connectionReuseEnabled = connectionReuseEnabled
         self.connectionReusePersistMinutes = connectionReusePersistMinutes
+        self.automaticReconnectEnabled = automaticReconnectEnabled
+        self.automaticReconnectAttempts = automaticReconnectAttempts
+        self.automaticReconnectDelaySeconds = automaticReconnectDelaySeconds
         self.remoteShellIntegrationEnabled = remoteShellIntegrationEnabled
         self.environment = environment
         self.safetyPolicy = safetyPolicy ?? Self.defaultSafetyPolicy(for: environment)
@@ -267,6 +319,9 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         case keepAliveCountMax
         case connectionReuseEnabled
         case connectionReusePersistMinutes
+        case automaticReconnectEnabled
+        case automaticReconnectAttempts
+        case automaticReconnectDelaySeconds
         case remoteShellIntegrationEnabled
         case environment
         case safetyPolicy
@@ -292,6 +347,12 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
             Int.self,
             forKey: .connectionReusePersistMinutes
         ) ?? 10
+        automaticReconnectEnabled = try container.decodeIfPresent(Bool.self, forKey: .automaticReconnectEnabled) ?? true
+        automaticReconnectAttempts = try container.decodeIfPresent(Int.self, forKey: .automaticReconnectAttempts) ?? 3
+        automaticReconnectDelaySeconds = try container.decodeIfPresent(
+            Int.self,
+            forKey: .automaticReconnectDelaySeconds
+        ) ?? 3
         remoteShellIntegrationEnabled = try container.decodeIfPresent(
             Bool.self,
             forKey: .remoteShellIntegrationEnabled
@@ -318,6 +379,9 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
             keepAliveCountMax: min(max(keepAliveCountMax, 1), 20),
             connectionReuseEnabled: connectionReuseEnabled,
             connectionReusePersistMinutes: min(max(connectionReusePersistMinutes, 1), 1_440),
+            automaticReconnectEnabled: automaticReconnectEnabled,
+            automaticReconnectAttempts: min(max(automaticReconnectAttempts, 0), 20),
+            automaticReconnectDelaySeconds: min(max(automaticReconnectDelaySeconds, 1), 120),
             remoteShellIntegrationEnabled: remoteShellIntegrationEnabled,
             environment: environment,
             safetyPolicy: safetyPolicy

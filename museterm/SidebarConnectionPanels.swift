@@ -523,6 +523,9 @@ private struct SSHProfileEditorSheet: View {
     @State private var keepAliveCountText: String
     @State private var connectionReuseEnabled: Bool
     @State private var connectionReusePersistText: String
+    @State private var automaticReconnectEnabled: Bool
+    @State private var automaticReconnectAttemptsText: String
+    @State private var automaticReconnectDelayText: String
     @State private var remoteShellIntegrationEnabled: Bool
     @State private var environment: TerminalEnvironmentKind
     @State private var safetyPolicy: SSHSafetyConfirmationPolicy
@@ -546,6 +549,9 @@ private struct SSHProfileEditorSheet: View {
         _keepAliveCountText = State(initialValue: "\(clean.keepAliveCountMax)")
         _connectionReuseEnabled = State(initialValue: clean.connectionReuseEnabled)
         _connectionReusePersistText = State(initialValue: "\(clean.connectionReusePersistMinutes)")
+        _automaticReconnectEnabled = State(initialValue: clean.automaticReconnectEnabled)
+        _automaticReconnectAttemptsText = State(initialValue: "\(clean.automaticReconnectAttempts)")
+        _automaticReconnectDelayText = State(initialValue: "\(clean.automaticReconnectDelaySeconds)")
         _remoteShellIntegrationEnabled = State(initialValue: clean.remoteShellIntegrationEnabled)
         _environment = State(initialValue: clean.environment)
         _safetyPolicy = State(initialValue: clean.safetyPolicy)
@@ -566,6 +572,7 @@ private struct SSHProfileEditorSheet: View {
                 safetyPolicyRow
                 keepAliveRow
                 connectionReuseRow
+                automaticReconnectRow
                 remoteShellIntegrationRow
             }
 
@@ -606,6 +613,9 @@ private struct SSHProfileEditorSheet: View {
             keepAliveCountMax: Int(keepAliveCountText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 6,
             connectionReuseEnabled: connectionReuseEnabled,
             connectionReusePersistMinutes: Int(connectionReusePersistText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 10,
+            automaticReconnectEnabled: automaticReconnectEnabled,
+            automaticReconnectAttempts: Int(automaticReconnectAttemptsText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 3,
+            automaticReconnectDelaySeconds: Int(automaticReconnectDelayText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 3,
             remoteShellIntegrationEnabled: remoteShellIntegrationEnabled,
             environment: environment,
             safetyPolicy: safetyPolicy
@@ -670,6 +680,42 @@ private struct SSHProfileEditorSheet: View {
                 }
 
                 Text(L10n.string("ssh.connection_reuse.help"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var automaticReconnectRow: some View {
+        GridRow {
+            Text(L10n.string("ssh.reconnect"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 96, alignment: .trailing)
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle(L10n.string("ssh.reconnect.enabled"), isOn: $automaticReconnectEnabled)
+                    .toggleStyle(.checkbox)
+                    .font(.caption)
+
+                HStack(spacing: 8) {
+                    Text(L10n.string("ssh.reconnect.attempts"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    TextField("3", text: $automaticReconnectAttemptsText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 56)
+                        .disabled(!automaticReconnectEnabled)
+                    Text(L10n.string("ssh.reconnect.delay"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    TextField("3", text: $automaticReconnectDelayText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 56)
+                        .disabled(!automaticReconnectEnabled)
+                }
+
+                Text(L10n.string("ssh.reconnect.help"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

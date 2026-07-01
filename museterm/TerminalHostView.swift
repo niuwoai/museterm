@@ -78,6 +78,11 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private var sshDiagnosticBuffer = ""
     private var pendingSSHDiagnosticMessage: String?
     private var emittedSSHDiagnosticKinds: Set<String> = []
+    private var latestSSHConnectionIssueKind: SSHConnectionIssueKind?
+    private var sshReconnectAttemptCount = 0
+    private var sshLastStartUptime: TimeInterval = 0
+    private var pendingSSHReconnectWorkItem: DispatchWorkItem?
+    private var isTerminating = false
 
     init(session: TerminalSession) {
         self.session = session
@@ -153,6 +158,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func terminate() {
+        isTerminating = true
+        pendingSSHReconnectWorkItem?.cancel()
+        pendingSSHReconnectWorkItem = nil
         terminalView.terminate()
     }
 
@@ -373,6 +381,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             completionSource: .processExit,
             historySnapshot: fullHistoryText()
         )
+        if scheduleSSHReconnectIfNeeded(exitCode: exitCode) {
+            return
+        }
         session?.state = .exited(exitCode)
         session?.reportProcessExitAttention(exitCode: exitCode)
     }
@@ -410,6 +421,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         }
         terminalView.onProcessInputSent = { [weak self] in
             self?.didReceiveProcessInput = true
+        }
+        terminalView.onTerminalBell = { [weak self] in
+            self?.session?.reportBellAttention()
         }
         terminalView.onTerminalTitle = { [weak self] title in
             guard let self else { return }
@@ -483,6 +497,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             return
         }
 
+        latestSSHConnectionIssueKind = issue
         pendingSSHDiagnosticMessage = L10n.format(
             "ssh.diagnostic.message",
             issue.title,
@@ -765,6 +780,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             )
         case .ssh(let profile):
             do {
+                resetSSHDiagnosticsForNewAttempt()
+                sshLastStartUptime = ProcessInfo.processInfo.systemUptime
                 let descriptor = try SSHConfigMaterializer.descriptor(for: profile)
                 terminalView.startProcess(
                     executable: descriptor.executable,
@@ -780,6 +797,60 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 terminalView.feed(text: L10n.format("ssh.error.launch_failed", error.localizedDescription) + "\n")
                 session?.state = .exited(nil)
             }
+        }
+    }
+
+    private func resetSSHDiagnosticsForNewAttempt() {
+        sshDiagnosticBuffer = ""
+        pendingSSHDiagnosticMessage = nil
+        emittedSSHDiagnosticKinds.removeAll(keepingCapacity: true)
+        latestSSHConnectionIssueKind = nil
+    }
+
+    private func scheduleSSHReconnectIfNeeded(exitCode: Int32?) -> Bool {
+        guard !isTerminating,
+              case .ssh(let profile) = session?.launchConfiguration else {
+            return false
+        }
+        if sshLastStartUptime > 0,
+           ProcessInfo.processInfo.systemUptime - sshLastStartUptime > 60 {
+            sshReconnectAttemptCount = 0
+        }
+
+        switch SSHReconnectPolicy.decision(
+            profile: profile,
+            issue: latestSSHConnectionIssueKind,
+            exitCode: exitCode,
+            completedAttempts: sshReconnectAttemptCount
+        ) {
+        case .suppress:
+            return false
+        case .exhausted:
+            terminalView.feed(text: "\n\(L10n.string("ssh.reconnect.exhausted"))\n")
+            return false
+        case .reconnect(let delaySeconds):
+            sshReconnectAttemptCount += 1
+            let attempt = sshReconnectAttemptCount
+            let maxAttempts = profile.normalized.automaticReconnectAttempts
+            terminalView.feed(text: "\n\(L10n.format("ssh.reconnect.scheduled", attempt, maxAttempts, delaySeconds))\n")
+            session?.state = .running
+            pendingSSHReconnectWorkItem?.cancel()
+            let workItem = DispatchWorkItem { [weak self] in
+                guard let self,
+                      !self.isTerminating,
+                      case .ssh = self.session?.launchConfiguration,
+                      !self.terminalView.process.running else {
+                    return
+                }
+                self.terminalView.feed(text: "\(L10n.format("ssh.reconnect.attempting", attempt))\n")
+                self.didStart = false
+                self.pendingStart = false
+                self.resetSSHDiagnosticsForNewAttempt()
+                self.startProcessIfNeeded()
+            }
+            pendingSSHReconnectWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(delaySeconds), execute: workItem)
+            return true
         }
     }
 
@@ -1729,6 +1800,7 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
     var onReadyForProcessStart: (() -> Void)?
     var onStableTerminalResize: ((_ cols: Int, _ rows: Int) -> Void)?
     var onProcessInputSent: (() -> Void)?
+    var onTerminalBell: (() -> Void)?
     var onTerminalTitle: ((_ title: String) -> Void)?
     var onCurrentDirectory: ((_ directory: String?) -> Void)?
     var shouldRecordInput: (() -> Bool)?
@@ -2162,7 +2234,7 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
 
     fileprivate func terminalDidBell() {
         NSSound.beep()
-        session?.reportBellAttention()
+        onTerminalBell?()
     }
 
     override func dataReceived(slice: ArraySlice<UInt8>) {

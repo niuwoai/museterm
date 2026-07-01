@@ -301,8 +301,7 @@ def command_block_matches_query?(block, filters)
   filters["text"].all? { |term| searchable.include?(term.downcase) }
 end
 
-def filter_command_blocks(blocks, query)
-  filters = command_query_filters(query)
+def filter_command_blocks(blocks, filters)
   return blocks if filters.nil?
   blocks.select { |block| command_block_matches_query?(block, filters) }
 end
@@ -315,7 +314,7 @@ end
 def commands_payload(state, tab, chars, query = nil)
   source_blocks = tab.fetch("commandBlocks", [])
   query_filters = command_query_filters(query)
-  filtered_blocks = filter_command_blocks(source_blocks, query)
+  filtered_blocks = filter_command_blocks(source_blocks, query_filters)
   output_tail_limit = chars.nil? ? nil : chars.to_i
   blocks = filtered_blocks.map { |block|
     copy = block.dup
