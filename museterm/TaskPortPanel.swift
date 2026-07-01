@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import Darwin
 import Foundation
 import SwiftUI
 
@@ -9,6 +10,8 @@ struct LocalListeningPort: Identifiable, Equatable, Sendable {
     var protocolName: String
     var endpoint: String
     var port: Int
+    var serviceName: String?
+    var workingDirectory: String?
 
     nonisolated var id: String {
         "\(pid)-\(protocolName)-\(endpoint)"
@@ -16,6 +19,38 @@ struct LocalListeningPort: Identifiable, Equatable, Sendable {
 
     nonisolated var localURL: URL? {
         URL(string: "http://127.0.0.1:\(port)")
+    }
+
+    nonisolated func matchesSearch(_ query: String) -> Bool {
+        let tokens = query
+            .split(whereSeparator: \.isWhitespace)
+            .map { String($0) }
+        guard !tokens.isEmpty else { return true }
+
+        let haystack = searchableParts
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
+        return tokens.allSatisfy { token in
+            haystack.localizedCaseInsensitiveContains(token)
+        }
+    }
+
+    private nonisolated var searchableParts: [String] {
+        var parts = [
+            "\(pid)",
+            command,
+            protocolName,
+            endpoint,
+            "\(port)"
+        ]
+        if let serviceName {
+            parts.append(serviceName)
+        }
+        if let workingDirectory {
+            parts.append(workingDirectory)
+            parts.append(URL(fileURLWithPath: workingDirectory).lastPathComponent)
+        }
+        return parts
     }
 }
 
@@ -89,10 +124,17 @@ final class LocalServiceScanner: ObservableObject {
         }
 
         let text = String(data: data, encoding: .utf8) ?? ""
-        return parseLsofFields(text)
+        let ports = parseLsofFields(text)
+        let workingDirectories = processWorkingDirectories(for: Set(ports.map(\.pid)))
+        return ports.map { port in
+            var enriched = port
+            enriched.serviceName = serviceName(for: port.port, protocolName: port.protocolName)
+            enriched.workingDirectory = workingDirectories[port.pid]
+            return enriched
+        }
     }
 
-    private nonisolated static func parseLsofFields(_ text: String) -> [LocalListeningPort] {
+    nonisolated static func parseLsofFields(_ text: String) -> [LocalListeningPort] {
         var currentPID: Int32?
         var currentCommand = ""
         var currentProtocol = "TCP"
@@ -123,7 +165,9 @@ final class LocalServiceScanner: ObservableObject {
                     command: currentCommand,
                     protocolName: currentProtocol.isEmpty ? "TCP" : currentProtocol,
                     endpoint: value,
-                    port: port
+                    port: port,
+                    serviceName: nil,
+                    workingDirectory: nil
                 )
                 guard seen.insert(record.id).inserted else { continue }
                 ports.append(record)
@@ -152,6 +196,105 @@ final class LocalServiceScanner: ObservableObject {
         }
         return port
     }
+
+    private nonisolated static func processWorkingDirectories(for pids: Set<Int32>) -> [Int32: String] {
+        guard !pids.isEmpty else { return [:] }
+        let executable = URL(fileURLWithPath: "/usr/sbin/lsof")
+        guard FileManager.default.isExecutableFile(atPath: executable.path) else { return [:] }
+
+        let process = Process()
+        let output = Pipe()
+        process.executableURL = executable
+        process.arguments = [
+            "-nP",
+            "-a",
+            "-d", "cwd",
+            "-F", "pn",
+            "-p", pids.sorted().map(String.init).joined(separator: ",")
+        ]
+        process.standardOutput = output
+        process.standardError = Pipe()
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            return [:]
+        }
+
+        guard process.terminationStatus == 0 else { return [:] }
+        let text = String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        return parseWorkingDirectoryFields(text)
+    }
+
+    nonisolated static func parseWorkingDirectoryFields(_ text: String) -> [Int32: String] {
+        var currentPID: Int32?
+        var result: [Int32: String] = [:]
+
+        for rawLine in text.split(whereSeparator: \.isNewline) {
+            let line = String(rawLine)
+            guard let marker = line.first else { continue }
+            let value = String(line.dropFirst())
+
+            switch marker {
+            case "p":
+                currentPID = Int32(value)
+            case "n":
+                guard let currentPID, !value.isEmpty else { continue }
+                result[currentPID] = value
+            default:
+                continue
+            }
+        }
+
+        return result
+    }
+
+    nonisolated static func serviceName(for port: Int, protocolName: String = "TCP") -> String? {
+        commonPortNames[port] ?? systemServiceName(for: port, protocolName: protocolName)
+    }
+
+    private nonisolated static func systemServiceName(for port: Int, protocolName: String) -> String? {
+        guard let portValue = UInt16(exactly: port) else { return nil }
+        let networkOrderPort = Int32(portValue.bigEndian)
+        guard let service = getservbyport(networkOrderPort, protocolName.lowercased()) else {
+            return nil
+        }
+        return String(cString: service.pointee.s_name)
+    }
+
+    private nonisolated static let commonPortNames: [Int: String] = [
+        20: "ftp-data",
+        21: "ftp",
+        22: "ssh",
+        25: "smtp",
+        53: "dns",
+        80: "http",
+        110: "pop3",
+        143: "imap",
+        443: "https",
+        465: "smtps",
+        587: "smtp-submission",
+        993: "imaps",
+        995: "pop3s",
+        3000: "node-dev",
+        3306: "mysql",
+        5000: "dev-server",
+        5432: "postgres",
+        5672: "amqp",
+        5900: "vnc",
+        6379: "redis",
+        8000: "http-alt",
+        8080: "http-alt",
+        8443: "https-alt",
+        9000: "app-server",
+        9200: "elasticsearch",
+        11211: "memcached",
+        27017: "mongodb",
+        24678: "vite-hmr",
+        5173: "vite",
+        5174: "vite"
+    ]
 }
 
 private extension LocalServiceScannerError {
@@ -171,6 +314,7 @@ struct TaskPortPanelView: View {
     @StateObject private var dailyStatsStore = PersistentCommandStatsStore()
     @State private var message = ""
     @State private var processPIDText = ""
+    @State private var portSearchText = ""
     private let statsRefreshTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
     private var runningBlocks: [(tab: TerminalSession, block: TerminalCommandBlock)] {
@@ -190,6 +334,10 @@ struct TaskPortPanelView: View {
             blocks: allCommandBlocks,
             portCount: scanner.ports.count
         )
+    }
+
+    private var filteredPorts: [LocalListeningPort] {
+        scanner.ports.filter { $0.matchesSearch(portSearchText) }
     }
 
     var body: some View {
@@ -404,11 +552,17 @@ struct TaskPortPanelView: View {
 
     private var listeningPortsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionTitle("task_panel.local_ports", count: scanner.ports.count)
+            sectionTitle("task_panel.local_ports", count: filteredPorts.count)
+            TextField(L10n.string("task_panel.port_search_placeholder"), text: $portSearchText)
+                .textFieldStyle(.roundedBorder)
+                .font(.caption)
+                .help(L10n.string("task_panel.port_search_help"))
             if scanner.ports.isEmpty, !scanner.isScanning {
                 emptyLine("task_panel.no_ports")
+            } else if filteredPorts.isEmpty, !scanner.isScanning {
+                emptyLine("task_panel.no_matching_ports")
             } else {
-                ForEach(scanner.ports) { port in
+                ForEach(filteredPorts) { port in
                     ListeningPortRow(
                         port: port,
                         skin: preferences.skin,
@@ -1905,6 +2059,16 @@ private struct ListeningPortRow: View {
                 Text(verbatim: ":\(port.port)")
                     .font(.callout.monospacedDigit().weight(.semibold))
                     .foregroundStyle(skin.accent)
+                if let serviceName = port.serviceName, !serviceName.isEmpty {
+                    Text(serviceName)
+                        .font(.caption2.monospaced().weight(.semibold))
+                        .foregroundStyle(skin.accent)
+                        .lineLimit(1)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(skin.accent.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                }
                 Text(processName)
                     .font(.caption.weight(.semibold))
                     .lineLimit(1)
@@ -1919,6 +2083,14 @@ private struct ListeningPortRow: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
                 .textSelection(.enabled)
+
+            if let workingDirectory = port.workingDirectory, !workingDirectory.isEmpty {
+                Label(URL(fileURLWithPath: workingDirectory).lastPathComponent, systemImage: "folder")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .help(workingDirectory)
+            }
 
             HStack(spacing: 8) {
                 Button(action: openLocalURL) {

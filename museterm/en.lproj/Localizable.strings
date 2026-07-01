@@ -246,6 +246,9 @@
 "task_panel.no_running_commands" = "No structured command block is currently running.";
 "task_panel.local_ports" = "Local Listening Ports";
 "task_panel.no_ports" = "No listening TCP ports were found.";
+"task_panel.port_search_placeholder" = "Search process, folder, port, service";
+"task_panel.port_search_help" = "Filter by process name, PID, working directory, endpoint, port number, or service name";
+"task_panel.no_matching_ports" = "No listening ports match this search.";
 "task_panel.session_tools" = "Current Session Tools";
 "task_panel.session_tools_target" = "Target: %@";
 "task_panel.no_session_tools_target" = "Select a terminal tab to stage process commands.";
@@ -254,7 +257,7 @@
 "task_panel.stage_pid_details" = "Stage PID details command";
 "task_panel.stage_pid_term" = "Stage SIGTERM command for this PID";
 "task_panel.stage_pid_kill" = "Stage SIGKILL command for this PID";
-"task_panel.pid_placeholder" = "PID";
+"task_panel.pid_placeholder" = "PID for action";
 "task_panel.open_localhost" = "Open localhost URL in browser";
 "task_panel.copy_endpoint" = "Copy listening endpoint";
 "task_panel.stage_kill" = "Stage kill command";

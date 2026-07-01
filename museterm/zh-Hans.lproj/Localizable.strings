@@ -246,6 +246,9 @@
 "task_panel.no_running_commands" = "当前没有正在运行的结构化命令块。";
 "task_panel.local_ports" = "本机监听端口";
 "task_panel.no_ports" = "没有扫描到监听中的 TCP 端口。";
+"task_panel.port_search_placeholder" = "搜索进程、目录、端口、服务";
+"task_panel.port_search_help" = "可按进程名、PID、工作目录、监听地址、端口号或服务名过滤";
+"task_panel.no_matching_ports" = "没有匹配当前搜索的监听端口。";
 "task_panel.session_tools" = "当前会话工具";
 "task_panel.session_tools_target" = "目标：%@";
 "task_panel.no_session_tools_target" = "选中一个终端标签后即可填入进程命令。";
@@ -254,7 +257,7 @@
 "task_panel.stage_pid_details" = "填入 PID 详情命令";
 "task_panel.stage_pid_term" = "为此 PID 填入 SIGTERM 命令";
 "task_panel.stage_pid_kill" = "为此 PID 填入 SIGKILL 命令";
-"task_panel.pid_placeholder" = "PID";
+"task_panel.pid_placeholder" = "用于操作的 PID";
 "task_panel.open_localhost" = "用浏览器打开 localhost 地址";
 "task_panel.copy_endpoint" = "复制监听地址";
 "task_panel.stage_kill" = "填入 kill 命令";
