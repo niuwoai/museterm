@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.142.0] - 2026-07-01
+
+### Added
+- 连续同类失败诊断新增 `cadence`，把平均失败间隔归类为 `immediate_retry`、`rapid_retry` 或 `spaced_retry`，并同步到 AI 上下文、MCP/CLI 快照和 Runbook 导出，方便外部工具直接判断重复失败节奏。
+
 ## [1.141.0] - 2026-07-01
 
 ### Added

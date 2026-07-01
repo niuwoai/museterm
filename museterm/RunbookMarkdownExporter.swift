@@ -301,6 +301,9 @@ enum RunbookMarkdownExporter {
         lines.append(
             "- \(L10n.string("runbook.repeated_failure_average_interval")): \(repeatedFailureDiagnostic.averageIntervalMilliseconds) ms"
         )
+        lines.append(
+            "- \(L10n.string("runbook.repeated_failure_cadence")): \(repeatedFailureDiagnostic.cadence.rawValue)"
+        )
     }
 
     private static func appendSuggestedAction(_ action: CommandDiagnosticAction?, to lines: inout [String]) {

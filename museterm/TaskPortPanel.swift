@@ -673,6 +673,7 @@ struct CommandBlockDiagnostics: Equatable {
             )
             lines.append("Repeated failure duration: \(repeatedFailureDiagnostic.durationMilliseconds) ms")
             lines.append("Repeated failure average interval: \(repeatedFailureDiagnostic.averageIntervalMilliseconds) ms")
+            lines.append("Repeated failure cadence: \(repeatedFailureDiagnostic.cadence.rawValue)")
         }
         if diagnosticSeverity != .none {
             lines.append("Diagnostic severity: \(diagnosticSeverity.rawValue)")
@@ -953,6 +954,9 @@ struct CommandBlockDiagnostics: Equatable {
             durationMilliseconds: durationMilliseconds,
             count: count
         )
+        let cadence = repeatedFailureCadence(
+            averageIntervalMilliseconds: averageIntervalMilliseconds
+        )
         return RepeatedFailureDiagnostic(
             diagnostic: latestRecord.diagnostic,
             fingerprint: latestRecord.fingerprint,
@@ -977,6 +981,7 @@ struct CommandBlockDiagnostics: Equatable {
             latestOccurredAt: latestOccurredAt,
             durationMilliseconds: durationMilliseconds,
             averageIntervalMilliseconds: averageIntervalMilliseconds,
+            cadence: cadence,
             count: count
         )
     }
@@ -1693,6 +1698,18 @@ struct CommandBlockDiagnostics: Equatable {
         return durationMilliseconds / (count - 1)
     }
 
+    nonisolated private static func repeatedFailureCadence(
+        averageIntervalMilliseconds: Int
+    ) -> RepeatedFailureCadence {
+        if averageIntervalMilliseconds <= 1_000 {
+            return .immediateRetry
+        }
+        if averageIntervalMilliseconds <= 30_000 {
+            return .rapidRetry
+        }
+        return .spacedRetry
+    }
+
     nonisolated private static func repeatedFailureContextStability(
         uniqueCommandCount: Int,
         uniqueWorkingDirectoryCount: Int
@@ -1736,6 +1753,7 @@ struct RepeatedFailureDiagnostic: Equatable {
     let latestOccurredAt: Date
     let durationMilliseconds: Int
     let averageIntervalMilliseconds: Int
+    let cadence: RepeatedFailureCadence
     let count: Int
 }
 
@@ -1754,6 +1772,12 @@ enum RepeatedFailureContextStability: String, Codable, Equatable {
     case commandChanged = "command_changed"
     case workingDirectoryChanged = "working_directory_changed"
     case commandAndWorkingDirectoryChanged = "command_and_working_directory_changed"
+}
+
+enum RepeatedFailureCadence: String, Codable, Equatable {
+    case immediateRetry = "immediate_retry"
+    case rapidRetry = "rapid_retry"
+    case spacedRetry = "spaced_retry"
 }
 
 enum CommandDiagnosticSeverity: String, Codable, Equatable {

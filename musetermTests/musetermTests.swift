@@ -552,6 +552,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(repeatedFailure["latestOutputTailLineNumber"] as? Int, 3)
         XCTAssertEqual(repeatedFailure["latestOutputTailLineText"] as? String, diagnostic)
         XCTAssertEqual(repeatedFailure["averageIntervalMilliseconds"] as? Int, 10_000)
+        XCTAssertEqual(repeatedFailure["cadence"] as? String, RepeatedFailureCadence.rapidRetry.rawValue)
         XCTAssertEqual(
             encodedDiagnostics["suggestedNextInspection"] as? String,
             "Inspect the repeated failure output before rerunning: \(diagnostic)"
@@ -1180,6 +1181,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_window")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_duration")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_average_interval")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_cadence")))
         XCTAssertTrue(markdown.contains("3"))
         XCTAssertTrue(markdown.contains(CommandDiagnosticSeverity.repeated.rawValue))
         XCTAssertTrue(markdown.contains(CommandDiagnosticCategory.repeated.rawValue))
@@ -1284,6 +1286,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Repeated failure window:"))
         XCTAssertTrue(context.contains("Repeated failure duration: 20000 ms"))
         XCTAssertTrue(context.contains("Repeated failure average interval: 10000 ms"))
+        XCTAssertTrue(context.contains("Repeated failure cadence: rapid_retry"))
         XCTAssertTrue(context.contains("Diagnostic severity: repeated"))
         XCTAssertTrue(context.contains("Diagnostic category: repeated"))
         XCTAssertTrue(context.contains("Diagnostic category evidence: ERROR database is locked"))
@@ -1414,7 +1417,32 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(repeated.latestOccurredAt, Date(timeIntervalSince1970: 121))
         XCTAssertEqual(repeated.durationMilliseconds, 20_000)
         XCTAssertEqual(repeated.averageIntervalMilliseconds, 10_000)
+        XCTAssertEqual(repeated.cadence, .rapidRetry)
         XCTAssertEqual(diagnostics.diagnosticSeverity, .repeated)
+    }
+
+    func testCommandBlockDiagnosticsClassifiesRepeatedFailureCadence() throws {
+        let immediate = CommandBlockDiagnostics(
+            blocks: [
+                commandBlock(command: "make test", startedAt: 100, endedAt: 101, exitCode: 1, errorLine: "ERROR locked"),
+                commandBlock(command: "make test", startedAt: 101, endedAt: 102, exitCode: 1, errorLine: "ERROR locked"),
+                commandBlock(command: "make test", startedAt: 102, endedAt: 103, exitCode: 1, errorLine: "ERROR locked")
+            ],
+            redactSensitiveData: false
+        )
+        XCTAssertEqual(immediate.repeatedFailureDiagnostic?.averageIntervalMilliseconds, 1_000)
+        XCTAssertEqual(immediate.repeatedFailureDiagnostic?.cadence, .immediateRetry)
+
+        let spaced = CommandBlockDiagnostics(
+            blocks: [
+                commandBlock(command: "make test", startedAt: 100, endedAt: 101, exitCode: 1, errorLine: "ERROR locked"),
+                commandBlock(command: "make test", startedAt: 160, endedAt: 161, exitCode: 1, errorLine: "ERROR locked"),
+                commandBlock(command: "make test", startedAt: 220, endedAt: 221, exitCode: 1, errorLine: "ERROR locked")
+            ],
+            redactSensitiveData: false
+        )
+        XCTAssertEqual(spaced.repeatedFailureDiagnostic?.averageIntervalMilliseconds, 60_000)
+        XCTAssertEqual(spaced.repeatedFailureDiagnostic?.cadence, .spacedRetry)
     }
 
     func testCommandBlockDiagnosticsMarksCriticalFailure() {
@@ -1977,6 +2005,7 @@ final class musetermTests: XCTestCase {
 
         XCTAssertEqual(repeatedFailure.count, 3)
         XCTAssertEqual(repeatedFailure.diagnostic, repeated)
+        XCTAssertEqual(repeatedFailure.cadence, .rapidRetry)
     }
 
     func testSessionCommandStatsDoesNotRepeatAfterLatestSuccess() {
