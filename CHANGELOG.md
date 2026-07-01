@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.115.0] - 2026-07-01
+
+### Changed
+- 将 `TerminalShellArgumentEscaper` 从 `TerminalSafetyInputAnalyzer.swift` 拆分到独立文件，路径参数转义逻辑与多行/高危输入分析分离，现有转义测试继续覆盖行为不变。
+
 ## [1.114.0] - 2026-07-01
 
 ### Changed

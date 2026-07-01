@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.114.0
+> 当前版本基线：v1.115.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,7 +30,7 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.114.0 已完成一百零七条纵向切片：
+v1.115.0 已完成一百零八条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
@@ -132,6 +132,7 @@ v1.114.0 已完成一百零七条纵向切片：
 - 统计持久化第一版：任务与端口面板显示“今天”统计，跨 App 重启累计当天已结束命令数、失败数和最长命令耗时。
 - 统计持久化拆分：每日命令统计的本地 JSON 读写已从 `TaskPortPanel.swift` 拆分到 `PersistentCommandStatsStore.swift`，让任务与端口面板文件降到 2000 行以下。
 - 安全输入分析拆分：多行粘贴识别、高危命令规则、自定义文本/正则规则解析和确认预览控件已从 `TerminalHostView.swift` 拆分到 `TerminalSafetyInputAnalyzer.swift`，并补充单元测试，让终端宿主视图降到 2000 行以下。
+- 路径参数转义拆分：`TerminalShellArgumentEscaper` 已从 `TerminalSafetyInputAnalyzer.swift` 拆分到独立文件，路径参数转义逻辑与多行/高危输入分析分离，现有转义测试继续覆盖行为不变。
 - Shell marker 解析拆分：`TerminalShellIntegrationParser` 已从 `TerminalHostView.swift` 拆分到独立文件，终端宿主视图降到 2000 行以下，后续增强 marker 解析不再继续拖大视图文件。
 - Shell marker 分片测试：`TerminalShellIntegrationParser` 已补充边界测试，覆盖 marker 前缀跨 PTY 数据块拆分、无效 marker 后继续解析后续有效 marker，以及普通终端输出不产生事件。
 - Shell marker 终止符兼容：`TerminalShellIntegrationParser` 同时支持 BEL 与 `ESC \\` 两种 OSC marker 终止符，并覆盖跨数据块 ST 终止、BEL/ST 混合 marker 的解析顺序。
