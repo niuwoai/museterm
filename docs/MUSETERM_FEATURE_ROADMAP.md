@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.146.0
+> 当前版本基线：v1.147.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -29,6 +29,10 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 | P3 | 成就、统计与轻娱乐系统 | v4 | 高 | 增加记忆点，但不能干扰主流程 |
 
 ## 当前落地状态
+
+v1.147.0 已完成一百四十五条纵向切片：
+
+- 连续失败暂停冷却时间：`RepeatedFailureDiagnostic` 会输出 `retryPauseCooldownMilliseconds`，用毫秒值表达 `none`、`advisory`、`strong` 对应的建议冷却时间，让 AI/MCP 和 Runbook 可以给出更克制的重试节奏。
 
 v1.146.0 已完成一百四十四条纵向切片：
 

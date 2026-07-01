@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.147.0] - 2026-07-01
+
+### Added
+- 连续同类失败诊断新增 `retryPauseCooldownMilliseconds`，按暂停强度输出建议冷却时间，并同步到 AI 上下文、MCP/CLI 快照和 Runbook 导出。
+
 ## [1.146.0] - 2026-07-01
 
 ### Added

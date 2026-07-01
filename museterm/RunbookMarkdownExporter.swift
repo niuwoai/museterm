@@ -316,6 +316,9 @@ enum RunbookMarkdownExporter {
         lines.append(
             "- \(L10n.string("runbook.repeated_failure_retry_pause_severity")): \(repeatedFailureDiagnostic.retryPauseSeverity.rawValue)"
         )
+        lines.append(
+            "- \(L10n.string("runbook.repeated_failure_retry_pause_cooldown")): \(repeatedFailureDiagnostic.retryPauseCooldownMilliseconds) ms"
+        )
         appendRawValueList(
             repeatedFailureDiagnostic.retryPauseReasons,
             key: "runbook.repeated_failure_retry_pause_reasons",
