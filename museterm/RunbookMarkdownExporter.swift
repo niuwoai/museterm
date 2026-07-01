@@ -322,6 +322,11 @@ enum RunbookMarkdownExporter {
         lines.append(
             "- \(L10n.string("runbook.repeated_failure_retry_pause_decision_confidence")): \(repeatedFailureDiagnostic.retryPauseDecisionConfidence.rawValue)"
         )
+        appendRawValueList(
+            repeatedFailureDiagnostic.retryPauseDecisionReasons,
+            key: "runbook.repeated_failure_retry_pause_decision_reasons",
+            to: &lines
+        )
         lines.append(
             "- \(L10n.string("runbook.repeated_failure_retry_pause_cooldown")): \(repeatedFailureDiagnostic.retryPauseCooldownMilliseconds) ms"
         )

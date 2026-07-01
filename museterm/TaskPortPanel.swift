@@ -682,6 +682,10 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append(
                 "Repeated failure retry pause decision confidence: \(repeatedFailureDiagnostic.retryPauseDecisionConfidence.rawValue)"
             )
+            if !repeatedFailureDiagnostic.retryPauseDecisionReasons.isEmpty {
+                let reasons = repeatedFailureDiagnostic.retryPauseDecisionReasons.map(\.rawValue).joined(separator: "; ")
+                lines.append("Repeated failure retry pause decision reasons: \(reasons)")
+            }
             lines.append(
                 "Repeated failure retry pause cooldown: \(repeatedFailureDiagnostic.retryPauseCooldownMilliseconds) ms"
             )
@@ -1000,6 +1004,9 @@ struct CommandBlockDiagnostics: Equatable {
         let retryPauseDecisionConfidence = repeatedFailureRetryPauseDecisionConfidence(
             decision: retryPauseDecision
         )
+        let retryPauseDecisionReasons = repeatedFailureRetryPauseDecisionReasons(
+            reasons: retryPauseReasons
+        )
         let retryPauseCooldownMilliseconds = repeatedFailureRetryPauseCooldownMilliseconds(
             severity: retryPauseSeverity
         )
@@ -1038,6 +1045,7 @@ struct CommandBlockDiagnostics: Equatable {
             retryPauseSeverity: retryPauseSeverity,
             retryPauseDecision: retryPauseDecision,
             retryPauseDecisionConfidence: retryPauseDecisionConfidence,
+            retryPauseDecisionReasons: retryPauseDecisionReasons,
             retryPauseCooldownMilliseconds: retryPauseCooldownMilliseconds,
             retryPauseUntil: retryPauseUntil,
             retryPauseReasons: retryPauseReasons,
@@ -1850,6 +1858,12 @@ struct CommandBlockDiagnostics: Equatable {
         }
     }
 
+    nonisolated private static func repeatedFailureRetryPauseDecisionReasons(
+        reasons: [RepeatedFailureRetryPauseReason]
+    ) -> [RepeatedFailureRetryPauseReason] {
+        reasons
+    }
+
     nonisolated private static func repeatedFailureRetryPauseUntil(
         latestOccurredAt: Date,
         cooldownMilliseconds: Int
@@ -1908,6 +1922,7 @@ struct RepeatedFailureDiagnostic: Equatable {
     let retryPauseSeverity: RepeatedFailureRetryPauseSeverity
     let retryPauseDecision: RepeatedFailureRetryPauseDecision
     let retryPauseDecisionConfidence: RepeatedFailureRetryPauseDecisionConfidence
+    let retryPauseDecisionReasons: [RepeatedFailureRetryPauseReason]
     let retryPauseCooldownMilliseconds: Int
     let retryPauseUntil: Date?
     let retryPauseReasons: [RepeatedFailureRetryPauseReason]

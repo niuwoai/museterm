@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.151.0] - 2026-07-01
+
+### Added
+- 连续同类失败诊断新增 `retryPauseDecisionReasons`，用稳定 reason code 解释 `retryPauseDecision` 的来源，并同步到 AI 上下文、MCP/CLI 快照和 Runbook 导出。
+
 ## [1.150.0] - 2026-07-01
 
 ### Added

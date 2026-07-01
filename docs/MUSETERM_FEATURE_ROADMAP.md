@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.150.0
+> 当前版本基线：v1.151.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -29,6 +29,10 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 | P3 | 成就、统计与轻娱乐系统 | v4 | 高 | 增加记忆点，但不能干扰主流程 |
 
 ## 当前落地状态
+
+v1.151.0 已完成一百四十九条纵向切片：
+
+- 连续失败暂停决策依据：`RepeatedFailureDiagnostic` 会输出 `retryPauseDecisionReasons`，用稳定 reason code 解释暂停决策来源，让 AI/MCP 和 Runbook 不只知道结论，还能说明为什么先检查或先等待。
 
 v1.150.0 已完成一百四十八条纵向切片：
 
