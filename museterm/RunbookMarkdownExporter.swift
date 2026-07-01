@@ -230,6 +230,12 @@ enum RunbookMarkdownExporter {
         lines.append(
             "- \(L10n.string("runbook.repeated_failure_latest_command_id")): `\(repeatedFailureDiagnostic.latestCommandID.uuidString)`"
         )
+        lines.append(
+            "- \(L10n.string("runbook.repeated_failure_first_command")): `\(escapeInline(repeatedFailureDiagnostic.firstCommand))`"
+        )
+        lines.append(
+            "- \(L10n.string("runbook.repeated_failure_latest_command")): `\(escapeInline(repeatedFailureDiagnostic.latestCommand))`"
+        )
         if let firstWorkingDirectory = repeatedFailureDiagnostic.firstWorkingDirectory {
             lines.append(
                 "- \(L10n.string("runbook.repeated_failure_first_working_directory")): `\(escapeInline(firstWorkingDirectory))`"

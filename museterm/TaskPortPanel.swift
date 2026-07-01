@@ -632,6 +632,8 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append("Repeated failure match: \(repeatedFailureDiagnostic.matchKind.rawValue)")
             lines.append("Repeated failure first command id: \(repeatedFailureDiagnostic.firstCommandID.uuidString)")
             lines.append("Repeated failure latest command id: \(repeatedFailureDiagnostic.latestCommandID.uuidString)")
+            lines.append("Repeated failure first command: \(repeatedFailureDiagnostic.firstCommand)")
+            lines.append("Repeated failure latest command: \(repeatedFailureDiagnostic.latestCommand)")
             if let firstWorkingDirectory = repeatedFailureDiagnostic.firstWorkingDirectory {
                 lines.append("Repeated failure first working directory: \(firstWorkingDirectory)")
             }
@@ -829,6 +831,11 @@ struct CommandBlockDiagnostics: Equatable {
         return redactSensitiveData ? RunbookSensitiveRedactor.redact(path) : path
     }
 
+    nonisolated private static func redactedCommand(_ command: String, redactSensitiveData: Bool) -> String {
+        let cleaned = command.trimmingCharacters(in: .whitespacesAndNewlines)
+        return redactSensitiveData ? RunbookSensitiveRedactor.redact(cleaned) : cleaned
+    }
+
     nonisolated private static func failureDiagnosticFingerprint(for diagnostic: String) -> String {
         let redacted = RunbookSensitiveRedactor.redact(diagnostic)
         var normalized = redacted.lowercased()
@@ -894,6 +901,8 @@ struct CommandBlockDiagnostics: Equatable {
             matchKind: matchKind,
             firstCommandID: firstMatchedBlock.id,
             latestCommandID: latestMatchedBlock.id,
+            firstCommand: redactedCommand(firstMatchedBlock.command, redactSensitiveData: redactSensitiveData),
+            latestCommand: redactedCommand(latestMatchedBlock.command, redactSensitiveData: redactSensitiveData),
             firstWorkingDirectory: redactedPath(firstMatchedBlock.workingDirectory, redactSensitiveData: redactSensitiveData),
             latestWorkingDirectory: redactedPath(latestMatchedBlock.workingDirectory, redactSensitiveData: redactSensitiveData),
             firstOutputTailLineNumber: firstMatchedRecord.outputTailLineNumber,
@@ -1623,6 +1632,8 @@ struct RepeatedFailureDiagnostic: Equatable {
     let matchKind: RepeatedFailureMatchKind
     let firstCommandID: UUID
     let latestCommandID: UUID
+    let firstCommand: String
+    let latestCommand: String
     let firstWorkingDirectory: String?
     let latestWorkingDirectory: String?
     let firstOutputTailLineNumber: Int?

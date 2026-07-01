@@ -401,6 +401,8 @@
 "runbook.repeated_failure_match" = "Repeated failure match";
 "runbook.repeated_failure_first_command_id" = "Repeated failure first command ID";
 "runbook.repeated_failure_latest_command_id" = "Repeated failure latest command ID";
+"runbook.repeated_failure_first_command" = "Repeated failure first command";
+"runbook.repeated_failure_latest_command" = "Repeated failure latest command";
 "runbook.repeated_failure_first_working_directory" = "Repeated failure first working directory";
 "runbook.repeated_failure_latest_working_directory" = "Repeated failure latest working directory";
 "runbook.repeated_failure_first_output_tail_line" = "Repeated failure first output tail line";

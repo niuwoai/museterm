@@ -133,6 +133,8 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
                 matchKind: repeatedFailureDiagnostic.matchKind.rawValue,
                 firstCommandID: repeatedFailureDiagnostic.firstCommandID.uuidString,
                 latestCommandID: repeatedFailureDiagnostic.latestCommandID.uuidString,
+                firstCommand: repeatedFailureDiagnostic.firstCommand,
+                latestCommand: repeatedFailureDiagnostic.latestCommand,
                 firstWorkingDirectory: repeatedFailureDiagnostic.firstWorkingDirectory,
                 latestWorkingDirectory: repeatedFailureDiagnostic.latestWorkingDirectory,
                 firstOutputTailLineNumber: repeatedFailureDiagnostic.firstOutputTailLineNumber,
@@ -247,6 +249,8 @@ struct TerminalToolRepeatedFailureSnapshot: Codable, Equatable {
     let matchKind: String
     let firstCommandID: String
     let latestCommandID: String
+    let firstCommand: String
+    let latestCommand: String
     let firstWorkingDirectory: String?
     let latestWorkingDirectory: String?
     let firstOutputTailLineNumber: Int?

@@ -418,7 +418,7 @@ final class musetermTests: XCTestCase {
         let diagnostics = CommandBlockDiagnostics(
             blocks: [
                 commandBlock(
-                    command: "make test",
+                    command: "make test --token sk-abcdefghijklmnopqrstuvwxyz",
                     id: firstCommandID,
                     startedAt: 100,
                     endedAt: 101,
@@ -514,6 +514,8 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(encodedDiagnostics["recentFailureOutputTailLineText"] as? String, diagnostic)
         XCTAssertEqual(repeatedFailure["firstCommandID"] as? String, firstCommandID.uuidString)
         XCTAssertEqual(repeatedFailure["latestCommandID"] as? String, latestCommandID.uuidString)
+        XCTAssertEqual(repeatedFailure["firstCommand"] as? String, "make test --token [REDACTED]")
+        XCTAssertEqual(repeatedFailure["latestCommand"] as? String, "make test")
         XCTAssertEqual(repeatedFailure["firstWorkingDirectory"] as? String, "/tmp/project-first")
         XCTAssertEqual(repeatedFailure["latestWorkingDirectory"] as? String, "/tmp/project-latest")
         XCTAssertEqual(repeatedFailure["firstOutputTailLineNumber"] as? Int, 2)
@@ -1131,6 +1133,8 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_match")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_first_command_id")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_latest_command_id")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_first_command")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_latest_command")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_first_working_directory")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_latest_working_directory")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_first_output_tail_line")))
@@ -1214,6 +1218,8 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Repeated failure match: exact"))
         XCTAssertTrue(context.contains("Repeated failure first command id: \(firstCommandID.uuidString)"))
         XCTAssertTrue(context.contains("Repeated failure latest command id: \(latestCommandID.uuidString)"))
+        XCTAssertTrue(context.contains("Repeated failure first command: make test"))
+        XCTAssertTrue(context.contains("Repeated failure latest command: make test"))
         XCTAssertTrue(context.contains("Repeated failure first working directory: /tmp/project-first"))
         XCTAssertTrue(context.contains("Repeated failure latest working directory: /tmp/project-latest"))
         XCTAssertTrue(context.contains("Repeated failure first output tail line: 2"))
@@ -1294,7 +1300,7 @@ final class musetermTests: XCTestCase {
         let diagnostics = CommandBlockDiagnostics(
             blocks: [
                 commandBlock(
-                    command: "make test",
+                    command: "make test --retry 1",
                     id: firstCommandID,
                     startedAt: 100,
                     endedAt: 101,
@@ -1304,14 +1310,14 @@ final class musetermTests: XCTestCase {
                     workingDirectory: "/tmp/project-first"
                 ),
                 commandBlock(
-                    command: "make test",
+                    command: "make test --retry 2",
                     startedAt: 110,
                     endedAt: 111,
                     exitCode: 1,
                     errorLine: "ERROR retry 2 failed at /tmp/build-2/output.log"
                 ),
                 commandBlock(
-                    command: "make test",
+                    command: "make test --retry 3",
                     id: latestCommandID,
                     startedAt: 120,
                     endedAt: 121,
@@ -1332,6 +1338,8 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(repeated.matchKind, .normalized)
         XCTAssertEqual(repeated.firstCommandID, firstCommandID)
         XCTAssertEqual(repeated.latestCommandID, latestCommandID)
+        XCTAssertEqual(repeated.firstCommand, "make test --retry 1")
+        XCTAssertEqual(repeated.latestCommand, "make test --retry 3")
         XCTAssertEqual(repeated.firstWorkingDirectory, "/tmp/project-first")
         XCTAssertEqual(repeated.latestWorkingDirectory, "/tmp/project-latest")
         XCTAssertEqual(repeated.firstOutputTailLineNumber, 2)
