@@ -403,6 +403,7 @@
 "runbook.repeated_failure_unique_commands" = "连续失败唯一命令";
 "runbook.repeated_failure_unique_working_directories" = "连续失败唯一工作目录";
 "runbook.repeated_failure_context_changed" = "连续失败上下文是否变化";
+"runbook.repeated_failure_context_stability" = "连续失败上下文稳定性";
 "runbook.repeated_failure_context_change_reasons" = "连续失败上下文变化原因";
 "runbook.repeated_failure_first_command_id" = "连续失败首次命令 ID";
 "runbook.repeated_failure_latest_command_id" = "连续失败最近命令 ID";

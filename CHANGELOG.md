@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.140.0] - 2026-07-01
+
+### Added
+- 连续同类失败诊断新增 `contextStability`，用 `stable`、`command_changed`、`working_directory_changed` 或 `command_and_working_directory_changed` 汇总重复失败窗口的上下文状态，并同步到 AI 上下文、MCP/CLI 快照和 Runbook 导出。
+
 ## [1.139.0] - 2026-07-01
 
 ### Added

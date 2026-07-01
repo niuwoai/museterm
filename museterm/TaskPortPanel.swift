@@ -641,6 +641,7 @@ struct CommandBlockDiagnostics: Equatable {
                 )
             }
             lines.append("Repeated failure context changed: \(repeatedFailureDiagnostic.contextChanged)")
+            lines.append("Repeated failure context stability: \(repeatedFailureDiagnostic.contextStability.rawValue)")
             if !repeatedFailureDiagnostic.contextChangeReasons.isEmpty {
                 let reasons = repeatedFailureDiagnostic.contextChangeReasons.map(\.rawValue).joined(separator: "; ")
                 lines.append("Repeated failure context change reasons: \(reasons)")
@@ -937,6 +938,10 @@ struct CommandBlockDiagnostics: Equatable {
         if uniqueWorkingDirectories.count > 1 {
             contextChangeReasons.append(.workingDirectoryChanged)
         }
+        let contextStability = repeatedFailureContextStability(
+            uniqueCommandCount: uniqueCommands.count,
+            uniqueWorkingDirectoryCount: uniqueWorkingDirectories.count
+        )
         return RepeatedFailureDiagnostic(
             diagnostic: latestRecord.diagnostic,
             fingerprint: latestRecord.fingerprint,
@@ -945,6 +950,7 @@ struct CommandBlockDiagnostics: Equatable {
             uniqueCommands: uniqueCommands,
             uniqueWorkingDirectories: uniqueWorkingDirectories,
             contextChanged: !contextChangeReasons.isEmpty,
+            contextStability: contextStability,
             contextChangeReasons: contextChangeReasons,
             firstCommandID: firstMatchedBlock.id,
             latestCommandID: latestMatchedBlock.id,
@@ -1670,6 +1676,22 @@ struct CommandBlockDiagnostics: Equatable {
         max(0, Int(latestOccurredAt.timeIntervalSince(firstOccurredAt) * 1000))
     }
 
+    nonisolated private static func repeatedFailureContextStability(
+        uniqueCommandCount: Int,
+        uniqueWorkingDirectoryCount: Int
+    ) -> RepeatedFailureContextStability {
+        switch (uniqueCommandCount > 1, uniqueWorkingDirectoryCount > 1) {
+        case (false, false):
+            return .stable
+        case (true, false):
+            return .commandChanged
+        case (false, true):
+            return .workingDirectoryChanged
+        case (true, true):
+            return .commandAndWorkingDirectoryChanged
+        }
+    }
+
     nonisolated private static let repeatedFailureThreshold = 3
 }
 
@@ -1681,6 +1703,7 @@ struct RepeatedFailureDiagnostic: Equatable {
     let uniqueCommands: [String]
     let uniqueWorkingDirectories: [String]
     let contextChanged: Bool
+    let contextStability: RepeatedFailureContextStability
     let contextChangeReasons: [RepeatedFailureContextChangeReason]
     let firstCommandID: UUID
     let latestCommandID: UUID
@@ -1706,6 +1729,13 @@ enum RepeatedFailureMatchKind: String, Codable, Equatable {
 enum RepeatedFailureContextChangeReason: String, Codable, Equatable {
     case commandChanged = "command_changed"
     case workingDirectoryChanged = "working_directory_changed"
+}
+
+enum RepeatedFailureContextStability: String, Codable, Equatable {
+    case stable
+    case commandChanged = "command_changed"
+    case workingDirectoryChanged = "working_directory_changed"
+    case commandAndWorkingDirectoryChanged = "command_and_working_directory_changed"
 }
 
 enum CommandDiagnosticSeverity: String, Codable, Equatable {
