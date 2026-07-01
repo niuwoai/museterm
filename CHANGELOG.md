@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.149.0] - 2026-07-01
+
+### Added
+- 连续同类失败诊断新增 `retryPauseDecision`，将暂停强度折成 `none`、`inspect_before_retry` 或 `wait_before_retry` 的机器可读下一步决策，并同步到 AI 上下文、MCP/CLI 快照和 Runbook 导出。
+
 ## [1.148.0] - 2026-07-01
 
 ### Added
