@@ -13,6 +13,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
     }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        TerminalWindowCloseState.isAppTerminating = true
+        return .terminateNow
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        TerminalWindowCloseState.isAppTerminating = false
+    }
 }
 
 @main

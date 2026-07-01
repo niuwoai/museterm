@@ -4,6 +4,7 @@ struct SettingsView: View {
     static let defaultWindowSize = CGSize(width: 720, height: 590)
 
     @ObservedObject var preferences: TerminalPreferences
+    @ObservedObject private var notificationCoordinator = TerminalNotificationCoordinator.shared
     @State private var selectedSettingsTab: SettingsTab = .appearance
     @State private var cliInstallMessage = ""
     @State private var aiAPIKeyDraft = ""
@@ -55,6 +56,8 @@ struct SettingsView: View {
             glassSection
         case .behavior:
             behaviorSection
+        case .notifications:
+            notificationsSection
         case .ai:
             aiSection
         case .tools:
@@ -255,6 +258,86 @@ struct SettingsView: View {
         )
     }
 
+    private var notificationsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(L10n.string("settings.notifications"))
+                    .font(.headline)
+                Spacer()
+                Label(
+                    notificationCoordinator.authorizationStatusLabel,
+                    systemImage: notificationCoordinator.authorizationStatusSystemImage
+                )
+                .font(.caption.weight(.medium))
+                .foregroundStyle(notificationCoordinator.canRequestAuthorization ? .secondary : preferences.skin.accent)
+            }
+
+            Text(L10n.string("settings.notifications.summary"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Toggle(L10n.string("settings.notifications.enabled"), isOn: $preferences.notificationsEnabled)
+            Toggle(L10n.string("settings.notifications.inactive_tab_badges"), isOn: $preferences.showInactiveTabNotificationBadges)
+                .disabled(!preferences.notificationsEnabled)
+
+            HStack(spacing: 10) {
+                Button {
+                    notificationCoordinator.requestAuthorization()
+                } label: {
+                    Label(L10n.string("settings.notifications.request_permission"), systemImage: "bell.badge")
+                }
+                .disabled(!notificationCoordinator.canRequestAuthorization)
+
+                Button {
+                    notificationCoordinator.openNotificationSettings()
+                } label: {
+                    Label(L10n.string("settings.notifications.open_system_settings"), systemImage: "gearshape")
+                }
+            }
+            .disabled(!preferences.notificationsEnabled)
+
+            Divider()
+                .padding(.vertical, 2)
+
+            Text(L10n.string("settings.notifications.events"))
+                .font(.subheadline.weight(.semibold))
+            Toggle(L10n.string("settings.notifications.terminal_bell"), isOn: $preferences.notifyTerminalBell)
+            Toggle(L10n.string("settings.notifications.command_failures"), isOn: $preferences.notifyCommandFailures)
+            Toggle(L10n.string("settings.notifications.long_command_completion"), isOn: $preferences.notifyLongCommandCompletion)
+            Toggle(L10n.string("settings.notifications.process_exits"), isOn: $preferences.notifyProcessExits)
+
+            Divider()
+                .padding(.vertical, 2)
+
+            Text(L10n.string("settings.notifications.fatigue_controls"))
+                .font(.subheadline.weight(.semibold))
+            SliderRow(
+                title: L10n.string("settings.notifications.long_command_threshold"),
+                value: $preferences.longCommandNotificationThresholdSeconds,
+                range: 10...180,
+                format: "%.0fs"
+            )
+            SliderRow(
+                title: L10n.string("settings.notifications.failure_min_duration"),
+                value: $preferences.failureNotificationMinimumDurationSeconds,
+                range: 0...60,
+                format: "%.0fs"
+            )
+            SliderRow(
+                title: L10n.string("settings.notifications.cooldown"),
+                value: $preferences.notificationCooldownSeconds,
+                range: 0...120,
+                format: "%.0fs"
+            )
+            Toggle(L10n.string("settings.notifications.include_command"), isOn: $preferences.includeCommandInNotifications)
+            Text(L10n.string("settings.notifications.privacy_note"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     private var toolsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
@@ -348,6 +431,7 @@ private enum SettingsTab: CaseIterable, Identifiable {
     case typography
     case glass
     case behavior
+    case notifications
     case ai
     case tools
 
@@ -360,6 +444,7 @@ private enum SettingsTab: CaseIterable, Identifiable {
         case .typography: return "settings.tab.typography"
         case .glass: return "settings.tab.glass"
         case .behavior: return "settings.tab.behavior"
+        case .notifications: return "settings.tab.notifications"
         case .ai: return "settings.tab.ai"
         case .tools: return "settings.tab.tools"
         }
@@ -372,6 +457,7 @@ private enum SettingsTab: CaseIterable, Identifiable {
         case .typography: return "textformat"
         case .glass: return "square.on.square.dashed"
         case .behavior: return "keyboard"
+        case .notifications: return "bell.badge"
         case .ai: return "sparkles"
         case .tools: return "hammer"
         }

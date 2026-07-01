@@ -75,6 +75,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private weak var preferences: TerminalPreferences?
     private var pendingSafetyInputBytes: [UInt8] = []
     private let maxPendingSafetyInputBytes = 8_192
+    private var sshDiagnosticBuffer = ""
+    private var pendingSSHDiagnosticMessage: String?
+    private var emittedSSHDiagnosticKinds: Set<String> = []
 
     init(session: TerminalSession) {
         self.session = session
@@ -371,6 +374,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             historySnapshot: fullHistoryText()
         )
         session?.state = .exited(exitCode)
+        session?.reportProcessExitAttention(exitCode: exitCode)
     }
 
     private func configureViews() {
@@ -438,6 +442,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         }
         terminalView.onReceivedProcessData = { [weak self] data in
             guard let self else { return false }
+            self.observeSSHProcessOutput(data)
             self.handleProcessOutputForShellIntegration(data)
             return self.handleProcessOutputForZModem(data)
         }
@@ -446,6 +451,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             let historySnapshot = self.fullHistoryText()
             self.flushPendingShellIntegrationEvents(historySnapshot: historySnapshot)
             self.session?.observeProcessOutput(historySnapshot: historySnapshot)
+            self.flushPendingSSHDiagnosticMessage()
         }
         container.addSubview(terminalView)
 
@@ -458,6 +464,37 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         container.addSubview(startupCoverView)
 
         layoutTerminalViews()
+    }
+
+    private func observeSSHProcessOutput(_ data: ArraySlice<UInt8>) {
+        guard case .ssh = session?.launchConfiguration,
+              let output = String(bytes: data, encoding: .utf8),
+              !output.isEmpty else {
+            return
+        }
+
+        sshDiagnosticBuffer.append(output)
+        if sshDiagnosticBuffer.count > 8_000 {
+            sshDiagnosticBuffer = String(sshDiagnosticBuffer.suffix(8_000))
+        }
+
+        guard let issue = SSHConnectionIssueClassifier.classify(sshDiagnosticBuffer),
+              emittedSSHDiagnosticKinds.insert(issue.rawValue).inserted else {
+            return
+        }
+
+        pendingSSHDiagnosticMessage = L10n.format(
+            "ssh.diagnostic.message",
+            issue.title,
+            issue.summary,
+            issue.suggestion
+        )
+    }
+
+    private func flushPendingSSHDiagnosticMessage() {
+        guard let message = pendingSSHDiagnosticMessage else { return }
+        pendingSSHDiagnosticMessage = nil
+        terminalView.feed(text: "\n\(message)\n")
     }
 
     private func handleProcessOutputForZModem(_ data: ArraySlice<UInt8>) -> Bool {
@@ -2125,6 +2162,7 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
 
     fileprivate func terminalDidBell() {
         NSSound.beep()
+        session?.reportBellAttention()
     }
 
     override func dataReceived(slice: ArraySlice<UInt8>) {

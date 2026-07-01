@@ -104,6 +104,16 @@ final class TerminalPreferences: ObservableObject {
         static let confirmMultilinePaste = "terminal.confirmMultilinePaste"
         static let confirmDangerousCommands = "terminal.confirmDangerousCommands"
         static let customDangerousCommandRules = "terminal.customDangerousCommandRules"
+        static let notificationsEnabled = "notifications.enabled"
+        static let showInactiveTabNotificationBadges = "notifications.showInactiveTabBadges"
+        static let notifyTerminalBell = "notifications.terminalBell"
+        static let notifyCommandFailures = "notifications.commandFailures"
+        static let notifyLongCommandCompletion = "notifications.longCommandCompletion"
+        static let notifyProcessExits = "notifications.processExits"
+        static let longCommandNotificationThresholdSeconds = "notifications.longCommandThresholdSeconds"
+        static let failureNotificationMinimumDurationSeconds = "notifications.failureMinimumDurationSeconds"
+        static let notificationCooldownSeconds = "notifications.cooldownSeconds"
+        static let includeCommandInNotifications = "notifications.includeCommand"
         static let appIcon = "app.icon"
         static let aiProvider = "ai.provider"
         static let aiModel = "ai.model"
@@ -133,6 +143,16 @@ final class TerminalPreferences: ObservableObject {
     @Published var confirmMultilinePaste: Bool { didSet { defaults.set(confirmMultilinePaste, forKey: Keys.confirmMultilinePaste) } }
     @Published var confirmDangerousCommands: Bool { didSet { defaults.set(confirmDangerousCommands, forKey: Keys.confirmDangerousCommands) } }
     @Published var customDangerousCommandRules: String { didSet { defaults.set(customDangerousCommandRules, forKey: Keys.customDangerousCommandRules) } }
+    @Published var notificationsEnabled: Bool { didSet { defaults.set(notificationsEnabled, forKey: Keys.notificationsEnabled) } }
+    @Published var showInactiveTabNotificationBadges: Bool { didSet { defaults.set(showInactiveTabNotificationBadges, forKey: Keys.showInactiveTabNotificationBadges) } }
+    @Published var notifyTerminalBell: Bool { didSet { defaults.set(notifyTerminalBell, forKey: Keys.notifyTerminalBell) } }
+    @Published var notifyCommandFailures: Bool { didSet { defaults.set(notifyCommandFailures, forKey: Keys.notifyCommandFailures) } }
+    @Published var notifyLongCommandCompletion: Bool { didSet { defaults.set(notifyLongCommandCompletion, forKey: Keys.notifyLongCommandCompletion) } }
+    @Published var notifyProcessExits: Bool { didSet { defaults.set(notifyProcessExits, forKey: Keys.notifyProcessExits) } }
+    @Published var longCommandNotificationThresholdSeconds: Double { didSet { defaults.set(longCommandNotificationThresholdSeconds, forKey: Keys.longCommandNotificationThresholdSeconds) } }
+    @Published var failureNotificationMinimumDurationSeconds: Double { didSet { defaults.set(failureNotificationMinimumDurationSeconds, forKey: Keys.failureNotificationMinimumDurationSeconds) } }
+    @Published var notificationCooldownSeconds: Double { didSet { defaults.set(notificationCooldownSeconds, forKey: Keys.notificationCooldownSeconds) } }
+    @Published var includeCommandInNotifications: Bool { didSet { defaults.set(includeCommandInNotifications, forKey: Keys.includeCommandInNotifications) } }
     @Published var aiProvider: AIProviderKind {
         didSet {
             defaults.set(aiProvider.rawValue, forKey: Keys.aiProvider)
@@ -176,6 +196,16 @@ final class TerminalPreferences: ObservableObject {
         confirmMultilinePaste = defaults.object(forKey: Keys.confirmMultilinePaste) as? Bool ?? true
         confirmDangerousCommands = defaults.object(forKey: Keys.confirmDangerousCommands) as? Bool ?? true
         customDangerousCommandRules = defaults.string(forKey: Keys.customDangerousCommandRules) ?? ""
+        notificationsEnabled = defaults.object(forKey: Keys.notificationsEnabled) as? Bool ?? true
+        showInactiveTabNotificationBadges = defaults.object(forKey: Keys.showInactiveTabNotificationBadges) as? Bool ?? true
+        notifyTerminalBell = defaults.object(forKey: Keys.notifyTerminalBell) as? Bool ?? true
+        notifyCommandFailures = defaults.object(forKey: Keys.notifyCommandFailures) as? Bool ?? true
+        notifyLongCommandCompletion = defaults.object(forKey: Keys.notifyLongCommandCompletion) as? Bool ?? true
+        notifyProcessExits = defaults.object(forKey: Keys.notifyProcessExits) as? Bool ?? false
+        longCommandNotificationThresholdSeconds = defaults.object(forKey: Keys.longCommandNotificationThresholdSeconds) as? Double ?? 30
+        failureNotificationMinimumDurationSeconds = defaults.object(forKey: Keys.failureNotificationMinimumDurationSeconds) as? Double ?? 5
+        notificationCooldownSeconds = defaults.object(forKey: Keys.notificationCooldownSeconds) as? Double ?? 10
+        includeCommandInNotifications = defaults.object(forKey: Keys.includeCommandInNotifications) as? Bool ?? false
         let storedAIProvider = AIProviderKind(rawValue: defaults.string(forKey: Keys.aiProvider) ?? "") ?? .openAI
         aiProvider = storedAIProvider
         aiModel = defaults.string(forKey: Keys.aiModel) ?? storedAIProvider.defaultModel

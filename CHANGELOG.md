@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.165.0] - 2026-07-01
+
+### Added
+- CLI/MCP 命令查询响应新增 `commandQueryFilters`，用结构化数组回显 `risk`、`lifecycle`、`boundary` 与全文词过滤器，方便外部工具解释查询结果来源。
+
+## [1.164.1-rc1] - 2026-07-01
+
+### Fixed
+- 修复终端主窗口收到关闭请求时仍继续关闭窗口的问题：`Cmd+W` 或窗口关闭命令现在只关闭当前标签，确认运行中进程后也会保留其它标签和 App 窗口；真正退出 App 时仍允许系统关闭窗口。
+
+## [1.164.0] - 2026-07-01
+
+### Added
+- CLI `museterm commands --query` 与 MCP `read_commands.query` 新增结构化命令块过滤，支持 `risk:`、`lifecycle:` / `state:`、`boundary:` 和普通全文词组合，并在 payload 顶层返回 `filteredCommandCount` 与 `commandQuery`。
+
+## [1.163.0] - 2026-07-01
+
+### Added
+- SSH profile 新增连接复用设置，默认生成 `ControlMaster auto`、`ControlPersist 10m` 与独立 `ControlPath`，让同一主机的新标签页复用既有 SSH master 连接并更快打开。
+- SSH profile 新增结构化端口转发配置，支持生成 `LocalForward`、`RemoteForward` 和 `DynamicForward`，并在存在转发时默认启用 `ExitOnForwardFailure yes`，避免端口转发失败被静默吞掉。
+- SSH 会话新增常见连接失败诊断提示，可识别认证失败、Host Key 校验失败、连接超时、连接被拒绝、认证身份过多和端口转发失败，并在终端中给出下一步排查建议。
+- 新增 `docs/SSH_EXPERIENCE_PLAN.md`，沉淀 SSH 保活、复用、端口转发、跳板可视化、安全护栏、配置导入和失败诊断的后续体验计划。
+
 ## [1.162.0] - 2026-07-01
 
 ### Added

@@ -312,6 +312,7 @@ final class TerminalSession: ObservableObject, Identifiable {
     @Published private(set) var fileTransferStatus: TerminalFileTransferStatus?
     @Published private(set) var commandBlocks: [TerminalCommandBlock] = []
     @Published private(set) var historySearchSnapshot = ""
+    @Published private(set) var hasUnreadAttention = false
 
     private var didCreateController = false
     lazy var controller: TerminalHostController = {
@@ -325,6 +326,7 @@ final class TerminalSession: ObservableObject, Identifiable {
     private let maxCommandBlocks = 200
     private let maxCommandOutputTailCharacters = 12_000
     private let maxHistorySearchCharacters = 240_000
+    weak var attentionReporter: TerminalAttentionReporting?
 
     init(sequence: Int, launchConfiguration: TerminalLaunchConfiguration = .localShell()) {
         self.sequence = sequence
@@ -347,6 +349,24 @@ final class TerminalSession: ObservableObject, Identifiable {
 
     func startProcessIfNeeded() {
         controller.ensureProcessStarted()
+    }
+
+    func markUnreadAttention() {
+        guard !hasUnreadAttention else { return }
+        hasUnreadAttention = true
+    }
+
+    func clearUnreadAttention() {
+        guard hasUnreadAttention else { return }
+        hasUnreadAttention = false
+    }
+
+    func reportBellAttention() {
+        attentionReporter?.terminalSession(self, didProduceAttentionEvent: .bell)
+    }
+
+    func reportProcessExitAttention(exitCode: Int32?) {
+        attentionReporter?.terminalSession(self, didProduceAttentionEvent: .processExited(exitCode))
     }
 
     func terminate() {
@@ -508,8 +528,10 @@ final class TerminalSession: ObservableObject, Identifiable {
         commandBlocks[index].endedAt = Date()
         commandBlocks[index].exitCode = exitCode
         commandBlocks[index].completionSource = completionSource
+        let finishedBlock = commandBlocks[index]
         self.activeCommandBlockID = nil
         activeCommandOutputStartIndex = historySnapshot.count
+        attentionReporter?.terminalSession(self, didProduceAttentionEvent: .commandFinished(finishedBlock))
     }
 
     var displayTitle: String {
@@ -800,6 +822,12 @@ final class TerminalWorkspace: ObservableObject {
     @Published private(set) var tabs: [TerminalSession] = []
     @Published var selectedID: TerminalSession.ID?
     @Published private(set) var shortcuts: [TerminalShortcut] = TerminalShortcutStore.load()
+    weak var attentionReporter: TerminalAttentionReporting? {
+        didSet {
+            tabs.forEach { $0.attentionReporter = attentionReporter }
+            preparedTab?.attentionReporter = attentionReporter
+        }
+    }
 
     private let automaticallyStartProcesses: Bool
     private let tabCloseConfirmer: TerminalTabCloseConfirming
@@ -831,8 +859,10 @@ final class TerminalWorkspace: ObservableObject {
         let tab = startDirectory == nil
             ? takePreparedTab()
             : makeTab(launchConfiguration: .localShell(startDirectory: startDirectory))
+        tab.attentionReporter = attentionReporter
         tabs.append(tab)
         selectedID = tab.id
+        tab.clearUnreadAttention()
         if automaticallyStartProcesses {
             DispatchQueue.main.async {
                 tab.startProcessIfNeeded()
@@ -843,8 +873,10 @@ final class TerminalWorkspace: ObservableObject {
 
     func openSSH(profile: SSHConnectionProfile) {
         let tab = makeTab(launchConfiguration: .ssh(profile))
+        tab.attentionReporter = attentionReporter
         tabs.append(tab)
         selectedID = tab.id
+        tab.clearUnreadAttention()
         if automaticallyStartProcesses {
             DispatchQueue.main.async {
                 tab.startProcessIfNeeded()
@@ -904,9 +936,11 @@ final class TerminalWorkspace: ObservableObject {
         isPreparingNextTab = false
         tabs.forEach { $0.terminate() }
         tabs = restoredTabs
+        tabs.forEach { $0.attentionReporter = attentionReporter }
 
         let selectedIndex = min(max(snapshot.selectedIndex, 0), tabs.count - 1)
         selectedID = tabs[selectedIndex].id
+        tabs[selectedIndex].clearUnreadAttention()
 
         if automaticallyStartProcesses {
             let tabsToStart = tabs
@@ -934,6 +968,7 @@ final class TerminalWorkspace: ObservableObject {
 
     func select(_ tab: TerminalSession) {
         selectedID = tab.id
+        tab.clearUnreadAttention()
     }
 
     func selectNextTab() {
@@ -947,29 +982,35 @@ final class TerminalWorkspace: ObservableObject {
     func selectTab(at index: Int) {
         guard tabs.indices.contains(index) else { return }
         selectedID = tabs[index].id
+        tabs[index].clearUnreadAttention()
     }
 
-    func closeSelectedTab() {
-        guard let selectedTab else { return }
-        close(selectedTab)
+    @discardableResult
+    func closeSelectedTab() -> Bool {
+        guard let selectedTab else { return false }
+        return close(selectedTab)
     }
 
-    func close(_ tab: TerminalSession) {
-        guard let index = tabs.firstIndex(where: { $0.id == tab.id }) else { return }
-        guard tabCloseConfirmer.shouldClose(tab: tab) else { return }
+    @discardableResult
+    func close(_ tab: TerminalSession) -> Bool {
+        guard let index = tabs.firstIndex(where: { $0.id == tab.id }) else { return false }
+        guard tabCloseConfirmer.shouldClose(tab: tab) else { return false }
 
         tab.terminate()
         tabs.remove(at: index)
 
         guard !tabs.isEmpty else {
             newTab()
-            return
+            return true
         }
 
         if selectedID == tab.id {
             let fallbackIndex = min(index, tabs.count - 1)
             selectedID = tabs[fallbackIndex].id
+            tabs[fallbackIndex].clearUnreadAttention()
         }
+
+        return true
     }
 
     var isRecording: Bool {
@@ -1046,6 +1087,7 @@ final class TerminalWorkspace: ObservableObject {
 
         let nextIndex = (currentIndex + offset + tabs.count) % tabs.count
         selectedID = tabs[nextIndex].id
+        tabs[nextIndex].clearUnreadAttention()
     }
 
     func toolSnapshots(maxHistoryCharacters: Int) -> [TerminalToolTabSnapshot] {
@@ -1096,6 +1138,7 @@ final class TerminalWorkspace: ObservableObject {
     private func takePreparedTab() -> TerminalSession {
         if let preparedTab {
             self.preparedTab = nil
+            preparedTab.attentionReporter = attentionReporter
             return preparedTab
         }
 
@@ -1104,6 +1147,7 @@ final class TerminalWorkspace: ObservableObject {
 
     private func makeTab(launchConfiguration: TerminalLaunchConfiguration = .localShell()) -> TerminalSession {
         let tab = TerminalSession(sequence: nextSequence, launchConfiguration: launchConfiguration)
+        tab.attentionReporter = attentionReporter
         nextSequence += 1
         return tab
     }

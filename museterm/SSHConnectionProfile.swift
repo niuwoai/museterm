@@ -45,6 +45,59 @@ enum SSHSafetyConfirmationPolicy: String, CaseIterable, Codable, Identifiable {
     }
 }
 
+enum SSHConnectionIssueKind: String, Equatable {
+    case permissionDenied
+    case hostKeyVerificationFailed
+    case connectionTimedOut
+    case connectionRefused
+    case tooManyAuthenticationFailures
+    case portForwardFailure
+
+    var title: String {
+        L10n.string("ssh.diagnostic.\(rawValue).title")
+    }
+
+    var summary: String {
+        L10n.string("ssh.diagnostic.\(rawValue).summary")
+    }
+
+    var suggestion: String {
+        L10n.string("ssh.diagnostic.\(rawValue).suggestion")
+    }
+}
+
+enum SSHConnectionIssueClassifier {
+    static func classify(_ text: String) -> SSHConnectionIssueKind? {
+        let lowercased = text.lowercased()
+
+        if lowercased.contains("too many authentication failures") {
+            return .tooManyAuthenticationFailures
+        }
+        if lowercased.contains("permission denied") {
+            return .permissionDenied
+        }
+        if lowercased.contains("host key verification failed")
+            || lowercased.contains("remote host identification has changed") {
+            return .hostKeyVerificationFailed
+        }
+        if lowercased.contains("connection timed out")
+            || lowercased.contains("operation timed out") {
+            return .connectionTimedOut
+        }
+        if lowercased.contains("connection refused") {
+            return .connectionRefused
+        }
+        if lowercased.contains("cannot listen to port")
+            || lowercased.contains("port forwarding failed")
+            || lowercased.contains("channel_setup_fwd_listener")
+            || lowercased.contains("administratively prohibited") {
+            return .portForwardFailure
+        }
+
+        return nil
+    }
+}
+
 struct SSHJumpHost: Codable, Equatable, Identifiable {
     var id: UUID
     var name: String
@@ -87,6 +140,57 @@ struct SSHJumpHost: Codable, Equatable, Identifiable {
     }
 }
 
+enum SSHPortForwardKind: String, CaseIterable, Codable, Identifiable {
+    case local
+    case remote
+    case dynamic
+
+    var id: String { rawValue }
+}
+
+struct SSHPortForward: Codable, Equatable, Identifiable {
+    var id: UUID
+    var kind: SSHPortForwardKind
+    var bindHost: String
+    var bindPort: Int
+    var destinationHost: String
+    var destinationPort: Int
+
+    init(
+        id: UUID = UUID(),
+        kind: SSHPortForwardKind = .local,
+        bindHost: String = "",
+        bindPort: Int = 0,
+        destinationHost: String = "",
+        destinationPort: Int = 0
+    ) {
+        self.id = id
+        self.kind = kind
+        self.bindHost = bindHost
+        self.bindPort = bindPort
+        self.destinationHost = destinationHost
+        self.destinationPort = destinationPort
+    }
+
+    var normalized: SSHPortForward {
+        SSHPortForward(
+            id: id,
+            kind: kind,
+            bindHost: bindHost.trimmingCharacters(in: .whitespacesAndNewlines),
+            bindPort: min(max(bindPort, 1), 65_535),
+            destinationHost: destinationHost.trimmingCharacters(in: .whitespacesAndNewlines),
+            destinationPort: min(max(destinationPort, 1), 65_535)
+        )
+    }
+
+    var isUsable: Bool {
+        let clean = normalized
+        guard clean.bindPort > 0 else { return false }
+        if clean.kind == .dynamic { return true }
+        return !clean.destinationHost.isEmpty && clean.destinationPort > 0
+    }
+}
+
 struct SSHConnectionProfile: Codable, Equatable, Identifiable {
     var id: UUID
     var name: String
@@ -95,11 +199,14 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
     var port: Int
     var identityFiles: [String]
     var jumpHosts: [SSHJumpHost]
+    var portForwards: [SSHPortForward]
     var extraOptions: [String]
     var startupCommands: [String]
     var keepAliveEnabled: Bool
     var keepAliveIntervalSeconds: Int
     var keepAliveCountMax: Int
+    var connectionReuseEnabled: Bool
+    var connectionReusePersistMinutes: Int
     var remoteShellIntegrationEnabled: Bool
     var environment: TerminalEnvironmentKind
     var safetyPolicy: SSHSafetyConfirmationPolicy
@@ -112,11 +219,14 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         port: Int = 22,
         identityFiles: [String] = [],
         jumpHosts: [SSHJumpHost] = [],
+        portForwards: [SSHPortForward] = [],
         extraOptions: [String] = [],
         startupCommands: [String] = [],
         keepAliveEnabled: Bool = true,
         keepAliveIntervalSeconds: Int = 30,
         keepAliveCountMax: Int = 6,
+        connectionReuseEnabled: Bool = true,
+        connectionReusePersistMinutes: Int = 10,
         remoteShellIntegrationEnabled: Bool = true,
         environment: TerminalEnvironmentKind = .development,
         safetyPolicy: SSHSafetyConfirmationPolicy? = nil
@@ -128,11 +238,14 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         self.port = port
         self.identityFiles = identityFiles
         self.jumpHosts = jumpHosts
+        self.portForwards = portForwards
         self.extraOptions = extraOptions
         self.startupCommands = startupCommands
         self.keepAliveEnabled = keepAliveEnabled
         self.keepAliveIntervalSeconds = keepAliveIntervalSeconds
         self.keepAliveCountMax = keepAliveCountMax
+        self.connectionReuseEnabled = connectionReuseEnabled
+        self.connectionReusePersistMinutes = connectionReusePersistMinutes
         self.remoteShellIntegrationEnabled = remoteShellIntegrationEnabled
         self.environment = environment
         self.safetyPolicy = safetyPolicy ?? Self.defaultSafetyPolicy(for: environment)
@@ -146,11 +259,14 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         case port
         case identityFiles
         case jumpHosts
+        case portForwards
         case extraOptions
         case startupCommands
         case keepAliveEnabled
         case keepAliveIntervalSeconds
         case keepAliveCountMax
+        case connectionReuseEnabled
+        case connectionReusePersistMinutes
         case remoteShellIntegrationEnabled
         case environment
         case safetyPolicy
@@ -165,11 +281,17 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         port = try container.decodeIfPresent(Int.self, forKey: .port) ?? 22
         identityFiles = try container.decodeIfPresent([String].self, forKey: .identityFiles) ?? []
         jumpHosts = try container.decodeIfPresent([SSHJumpHost].self, forKey: .jumpHosts) ?? []
+        portForwards = try container.decodeIfPresent([SSHPortForward].self, forKey: .portForwards) ?? []
         extraOptions = try container.decodeIfPresent([String].self, forKey: .extraOptions) ?? []
         startupCommands = try container.decodeIfPresent([String].self, forKey: .startupCommands) ?? []
         keepAliveEnabled = try container.decodeIfPresent(Bool.self, forKey: .keepAliveEnabled) ?? true
         keepAliveIntervalSeconds = try container.decodeIfPresent(Int.self, forKey: .keepAliveIntervalSeconds) ?? 30
         keepAliveCountMax = try container.decodeIfPresent(Int.self, forKey: .keepAliveCountMax) ?? 6
+        connectionReuseEnabled = try container.decodeIfPresent(Bool.self, forKey: .connectionReuseEnabled) ?? true
+        connectionReusePersistMinutes = try container.decodeIfPresent(
+            Int.self,
+            forKey: .connectionReusePersistMinutes
+        ) ?? 10
         remoteShellIntegrationEnabled = try container.decodeIfPresent(
             Bool.self,
             forKey: .remoteShellIntegrationEnabled
@@ -188,11 +310,14 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
             port: min(max(port, 1), 65_535),
             identityFiles: identityFiles.cleanedPathList(),
             jumpHosts: jumpHosts.map(\.normalized).filter { !$0.host.isEmpty },
+            portForwards: portForwards.map(\.normalized).filter(\.isUsable),
             extraOptions: extraOptions.cleanedLineList(),
             startupCommands: startupCommands.cleanedLineList(),
             keepAliveEnabled: keepAliveEnabled,
             keepAliveIntervalSeconds: min(max(keepAliveIntervalSeconds, 5), 3_600),
             keepAliveCountMax: min(max(keepAliveCountMax, 1), 20),
+            connectionReuseEnabled: connectionReuseEnabled,
+            connectionReusePersistMinutes: min(max(connectionReusePersistMinutes, 1), 1_440),
             remoteShellIntegrationEnabled: remoteShellIntegrationEnabled,
             environment: environment,
             safetyPolicy: safetyPolicy
@@ -268,7 +393,8 @@ enum SSHConfigMaterializer {
         let directory = try configDirectory()
         let configURL = directory.appendingPathComponent("\(clean.id.uuidString).conf")
         let aliases = aliases(for: clean)
-        let config = renderConfig(profile: clean, aliases: aliases)
+        let controlPathTemplate = directory.appendingPathComponent("cm-%C").path
+        let config = renderConfig(profile: clean, aliases: aliases, controlPathTemplate: controlPathTemplate)
         try Data(config.utf8).write(to: configURL, options: .atomic)
         return SSHLaunchDescriptor(
             executable: "/usr/bin/ssh",
@@ -279,7 +405,12 @@ enum SSHConfigMaterializer {
     }
 
     static func renderConfig(profile: SSHConnectionProfile) -> String {
-        renderConfig(profile: profile.normalized, aliases: aliases(for: profile.normalized))
+        let clean = profile.normalized
+        return renderConfig(
+            profile: clean,
+            aliases: aliases(for: clean),
+            controlPathTemplate: "~/.ssh/museterm-cm-%C"
+        )
     }
 
     private struct HostAliases {
@@ -295,7 +426,11 @@ enum SSHConfigMaterializer {
         )
     }
 
-    private static func renderConfig(profile: SSHConnectionProfile, aliases: HostAliases) -> String {
+    private static func renderConfig(
+        profile: SSHConnectionProfile,
+        aliases: HostAliases,
+        controlPathTemplate: String
+    ) -> String {
         var lines: [String] = [
             "# Generated by MuseTerm. Edit SSH hosts in the app instead of this file."
         ]
@@ -319,7 +454,10 @@ enum SSHConfigMaterializer {
             port: profile.port,
             identityFiles: profile.identityFiles,
             proxyJump: aliases.jumps.last,
-            extraOptions: keepAliveOptions(for: profile) + profile.extraOptions
+            extraOptions: connectionReuseOptions(for: profile, controlPathTemplate: controlPathTemplate)
+                + keepAliveOptions(for: profile)
+                + portForwardOptions(for: profile)
+                + profile.extraOptions
         ))
 
         return lines.joined(separator: "\n") + "\n"
@@ -356,6 +494,26 @@ enum SSHConfigMaterializer {
         return lines
     }
 
+    private static func connectionReuseOptions(
+        for profile: SSHConnectionProfile,
+        controlPathTemplate: String
+    ) -> [String] {
+        guard profile.connectionReuseEnabled else { return [] }
+
+        let manualOptions = Set(profile.extraOptions.compactMap { optionName($0) })
+        var options: [String] = []
+        if !manualOptions.contains("controlmaster") {
+            options.append("ControlMaster auto")
+        }
+        if !manualOptions.contains("controlpersist") {
+            options.append("ControlPersist \(profile.connectionReusePersistMinutes)m")
+        }
+        if !manualOptions.contains("controlpath") {
+            options.append("ControlPath \(quote(controlPathTemplate))")
+        }
+        return options
+    }
+
     private static func keepAliveOptions(for profile: SSHConnectionProfile) -> [String] {
         guard profile.keepAliveEnabled else { return [] }
 
@@ -370,10 +528,38 @@ enum SSHConfigMaterializer {
         return options
     }
 
+    private static func portForwardOptions(for profile: SSHConnectionProfile) -> [String] {
+        let forwards = profile.portForwards.map(\.normalized).filter(\.isUsable)
+        guard !forwards.isEmpty else { return [] }
+
+        let manualOptions = Set(profile.extraOptions.compactMap { optionName($0) })
+        var options: [String] = []
+        if !manualOptions.contains("exitonforwardfailure") {
+            options.append("ExitOnForwardFailure yes")
+        }
+
+        for forward in forwards {
+            let listen = listenSpec(host: forward.bindHost, port: forward.bindPort)
+            switch forward.kind {
+            case .local:
+                options.append("LocalForward \(listen) \(forward.destinationHost):\(forward.destinationPort)")
+            case .remote:
+                options.append("RemoteForward \(listen) \(forward.destinationHost):\(forward.destinationPort)")
+            case .dynamic:
+                options.append("DynamicForward \(listen)")
+            }
+        }
+        return options
+    }
+
+    private static func listenSpec(host: String, port: Int) -> String {
+        host.isEmpty ? "\(port)" : "\(host):\(port)"
+    }
+
     private static func optionName(_ line: String) -> String? {
         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !trimmed.hasPrefix("#") else { return nil }
-        return trimmed.split(whereSeparator: { $0 == " " || $0 == "\t" }).first?.lowercased()
+        return trimmed.split(whereSeparator: { $0 == " " || $0 == "\t" || $0 == "=" }).first?.lowercased()
     }
 
     private static func configDirectory() throws -> URL {

@@ -515,11 +515,14 @@ private struct SSHProfileEditorSheet: View {
     @State private var portText: String
     @State private var identityText: String
     @State private var jumpText: String
+    @State private var portForwardText: String
     @State private var optionText: String
     @State private var startupText: String
     @State private var keepAliveEnabled: Bool
     @State private var keepAliveIntervalText: String
     @State private var keepAliveCountText: String
+    @State private var connectionReuseEnabled: Bool
+    @State private var connectionReusePersistText: String
     @State private var remoteShellIntegrationEnabled: Bool
     @State private var environment: TerminalEnvironmentKind
     @State private var safetyPolicy: SSHSafetyConfirmationPolicy
@@ -535,11 +538,14 @@ private struct SSHProfileEditorSheet: View {
         _portText = State(initialValue: "\(clean.port)")
         _identityText = State(initialValue: clean.identityFiles.joined(separator: "\n"))
         _jumpText = State(initialValue: Self.jumpText(from: clean.jumpHosts))
+        _portForwardText = State(initialValue: Self.portForwardText(from: clean.portForwards))
         _optionText = State(initialValue: clean.extraOptions.joined(separator: "\n"))
         _startupText = State(initialValue: clean.startupCommands.joined(separator: "\n"))
         _keepAliveEnabled = State(initialValue: clean.keepAliveEnabled)
         _keepAliveIntervalText = State(initialValue: "\(clean.keepAliveIntervalSeconds)")
         _keepAliveCountText = State(initialValue: "\(clean.keepAliveCountMax)")
+        _connectionReuseEnabled = State(initialValue: clean.connectionReuseEnabled)
+        _connectionReusePersistText = State(initialValue: "\(clean.connectionReusePersistMinutes)")
         _remoteShellIntegrationEnabled = State(initialValue: clean.remoteShellIntegrationEnabled)
         _environment = State(initialValue: clean.environment)
         _safetyPolicy = State(initialValue: clean.safetyPolicy)
@@ -559,11 +565,13 @@ private struct SSHProfileEditorSheet: View {
                 environmentRow
                 safetyPolicyRow
                 keepAliveRow
+                connectionReuseRow
                 remoteShellIntegrationRow
             }
 
             labeledEditor("ssh.identities", help: "ssh.identities.help", text: $identityText, height: 58)
             labeledEditor("ssh.jumps", help: "ssh.jumps.help", text: $jumpText, height: 86)
+            labeledEditor("ssh.port_forwards", help: "ssh.port_forwards.help", text: $portForwardText, height: 86)
             labeledEditor("ssh.options", help: "ssh.options.help", text: $optionText, height: 62)
             labeledEditor("ssh.startup", help: "ssh.startup.help", text: $startupText, height: 62)
 
@@ -590,11 +598,14 @@ private struct SSHProfileEditorSheet: View {
             port: Int(portText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 22,
             identityFiles: identityText.lines,
             jumpHosts: Self.parseJumpHosts(jumpText),
+            portForwards: Self.parsePortForwards(portForwardText),
             extraOptions: optionText.lines,
             startupCommands: startupText.lines,
             keepAliveEnabled: keepAliveEnabled,
             keepAliveIntervalSeconds: Int(keepAliveIntervalText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 30,
             keepAliveCountMax: Int(keepAliveCountText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 6,
+            connectionReuseEnabled: connectionReuseEnabled,
+            connectionReusePersistMinutes: Int(connectionReusePersistText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 10,
             remoteShellIntegrationEnabled: remoteShellIntegrationEnabled,
             environment: environment,
             safetyPolicy: safetyPolicy
@@ -630,6 +641,35 @@ private struct SSHProfileEditorSheet: View {
                 }
 
                 Text(L10n.string("ssh.keep_alive.help"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var connectionReuseRow: some View {
+        GridRow {
+            Text(L10n.string("ssh.connection_reuse"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 96, alignment: .trailing)
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle(L10n.string("ssh.connection_reuse.enabled"), isOn: $connectionReuseEnabled)
+                    .toggleStyle(.checkbox)
+                    .font(.caption)
+
+                HStack(spacing: 8) {
+                    Text(L10n.string("ssh.connection_reuse.persist"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    TextField("10", text: $connectionReusePersistText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 56)
+                        .disabled(!connectionReuseEnabled)
+                }
+
+                Text(L10n.string("ssh.connection_reuse.help"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -728,6 +768,22 @@ private struct SSHProfileEditorSheet: View {
         .joined(separator: "\n")
     }
 
+    private static func portForwardText(from forwards: [SSHPortForward]) -> String {
+        forwards.map { forward in
+            let clean = forward.normalized
+            let listen = clean.bindHost.isEmpty ? "\(clean.bindPort)" : "\(clean.bindHost):\(clean.bindPort)"
+            switch clean.kind {
+            case .local:
+                return "local|\(listen)|\(clean.destinationHost):\(clean.destinationPort)"
+            case .remote:
+                return "remote|\(listen)|\(clean.destinationHost):\(clean.destinationPort)"
+            case .dynamic:
+                return "dynamic|\(listen)"
+            }
+        }
+        .joined(separator: "\n")
+    }
+
     private static func parseJumpHosts(_ text: String) -> [SSHJumpHost] {
         text.lines.compactMap { line in
             let parts = line.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
@@ -753,6 +809,50 @@ private struct SSHProfileEditorSheet: View {
                 identityFiles: identityPart.split(separator: ",").map(String.init)
             )
         }
+    }
+
+    private static func parsePortForwards(_ text: String) -> [SSHPortForward] {
+        text.lines.compactMap { line in
+            let parts = line.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
+            guard let rawKind = parts.first?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+                  let kind = SSHPortForwardKind(rawValue: rawKind),
+                  parts.count >= 2 else {
+                return nil
+            }
+
+            let listen = parseListen(parts[1])
+            guard listen.port > 0 else { return nil }
+            if kind == .dynamic {
+                return SSHPortForward(kind: kind, bindHost: listen.host, bindPort: listen.port)
+            }
+
+            guard parts.count >= 3 else { return nil }
+            let destination = parseDestination(parts[2])
+            guard !destination.host.isEmpty, destination.port > 0 else { return nil }
+            return SSHPortForward(
+                kind: kind,
+                bindHost: listen.host,
+                bindPort: listen.port,
+                destinationHost: destination.host,
+                destinationPort: destination.port
+            )
+        }
+    }
+
+    private static func parseListen(_ value: String) -> (host: String, port: Int) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parts = trimmed.split(separator: ":", maxSplits: 1).map(String.init)
+        if parts.count == 2 {
+            return (parts[0], Int(parts[1]) ?? 0)
+        }
+        return ("", Int(trimmed) ?? 0)
+    }
+
+    private static func parseDestination(_ value: String) -> (host: String, port: Int) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parts = trimmed.split(separator: ":", maxSplits: 1).map(String.init)
+        guard parts.count == 2 else { return ("", 0) }
+        return (parts[0], Int(parts[1]) ?? 0)
     }
 
     private static func parseTarget(_ value: String) -> (user: String, host: String, port: Int) {

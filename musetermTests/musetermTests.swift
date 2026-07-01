@@ -76,6 +76,94 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(config.contains("  ServerAliveCountMax 2"))
     }
 
+    func testSSHConfigAddsConnectionReuseOptionsByDefault() {
+        let profile = SSHConnectionProfile(host: "example.com", user: "deploy")
+        let config = SSHConfigMaterializer.renderConfig(profile: profile)
+
+        XCTAssertTrue(config.contains("  ControlMaster auto"))
+        XCTAssertTrue(config.contains("  ControlPersist 10m"))
+        XCTAssertTrue(config.contains("  ControlPath \"~/.ssh/museterm-cm-%C\""))
+    }
+
+    func testSSHConfigDoesNotDuplicateManualConnectionReuseOptions() {
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            user: "deploy",
+            extraOptions: [
+                "ControlMaster no",
+                "ControlPersist=30m",
+                "ControlPath ~/.ssh/custom-%C"
+            ],
+            connectionReuseEnabled: true,
+            connectionReusePersistMinutes: 10
+        )
+        let config = SSHConfigMaterializer.renderConfig(profile: profile)
+
+        XCTAssertFalse(config.contains("  ControlMaster auto"))
+        XCTAssertFalse(config.contains("  ControlPersist 10m"))
+        XCTAssertFalse(config.contains("  ControlPath \"~/.ssh/museterm-cm-%C\""))
+        XCTAssertTrue(config.contains("  ControlMaster no"))
+        XCTAssertTrue(config.contains("  ControlPersist=30m"))
+        XCTAssertTrue(config.contains("  ControlPath ~/.ssh/custom-%C"))
+    }
+
+    func testSSHConfigRendersPortForwards() {
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            user: "deploy",
+            portForwards: [
+                SSHPortForward(
+                    kind: .local,
+                    bindHost: "",
+                    bindPort: 8080,
+                    destinationHost: "127.0.0.1",
+                    destinationPort: 80
+                ),
+                SSHPortForward(
+                    kind: .remote,
+                    bindHost: "0.0.0.0",
+                    bindPort: 9000,
+                    destinationHost: "127.0.0.1",
+                    destinationPort: 9000
+                ),
+                SSHPortForward(kind: .dynamic, bindHost: "127.0.0.1", bindPort: 1080)
+            ]
+        )
+        let config = SSHConfigMaterializer.renderConfig(profile: profile)
+
+        XCTAssertTrue(config.contains("  ExitOnForwardFailure yes"))
+        XCTAssertTrue(config.contains("  LocalForward 8080 127.0.0.1:80"))
+        XCTAssertTrue(config.contains("  RemoteForward 0.0.0.0:9000 127.0.0.1:9000"))
+        XCTAssertTrue(config.contains("  DynamicForward 127.0.0.1:1080"))
+    }
+
+    func testSSHConnectionIssueClassifierMatchesCommonFailures() {
+        XCTAssertEqual(
+            SSHConnectionIssueClassifier.classify("Permission denied (publickey,password)."),
+            .permissionDenied
+        )
+        XCTAssertEqual(
+            SSHConnectionIssueClassifier.classify("WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!"),
+            .hostKeyVerificationFailed
+        )
+        XCTAssertEqual(
+            SSHConnectionIssueClassifier.classify("ssh: connect to host example.com port 22: Operation timed out"),
+            .connectionTimedOut
+        )
+        XCTAssertEqual(
+            SSHConnectionIssueClassifier.classify("ssh: connect to host example.com port 22: Connection refused"),
+            .connectionRefused
+        )
+        XCTAssertEqual(
+            SSHConnectionIssueClassifier.classify("Received disconnect from 10.0.0.1: Too many authentication failures"),
+            .tooManyAuthenticationFailures
+        )
+        XCTAssertEqual(
+            SSHConnectionIssueClassifier.classify("channel_setup_fwd_listener_tcpip: cannot listen to port: 8080"),
+            .portForwardFailure
+        )
+    }
+
     func testToolInputMapsNamedControlKeys() {
         XCTAssertEqual(TerminalToolInput.bytes(text: nil, key: "enter", rawBytes: nil), [0x0D])
         XCTAssertEqual(TerminalToolInput.bytes(text: nil, key: "ctrl-c", rawBytes: nil), [0x03])
@@ -164,10 +252,14 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(script.contains("\"outputTailLimit\""))
         XCTAssertTrue(script.contains("\"outputTailTruncated\""))
         XCTAssertTrue(script.contains("\"outputTailStoredTruncated\""))
-        XCTAssertTrue(script.contains("commands_payload(state, tab, chars)"))
-        XCTAssertTrue(script.contains("commands_payload(state, tab, args[\"chars\"])"))
+        XCTAssertTrue(script.contains("commands_payload(state, tab, chars, query)"))
+        XCTAssertTrue(script.contains("commands_payload(state, tab, args[\"chars\"], args[\"query\"])"))
         XCTAssertTrue(script.contains("\"commandCount\" => source_blocks.length"))
+        XCTAssertTrue(script.contains("\"filteredCommandCount\" => filtered_blocks.length"))
         XCTAssertTrue(script.contains("\"returnedCommandCount\" => blocks.length"))
+        XCTAssertTrue(script.contains("\"commandQuery\""))
+        XCTAssertTrue(script.contains("\"commandQueryFilters\""))
+        XCTAssertTrue(script.contains("risk:dangerous lifecycle:failed rm"))
         XCTAssertTrue(script.contains("\"diagnostics\" => tab.fetch(\"commandDiagnostics\", {})"))
         XCTAssertTrue(script.contains("\"tools/call\""))
         XCTAssertTrue(script.contains("read_screen"))
@@ -246,6 +338,128 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(history["truncated"] as? Bool, false)
     }
 
+    func testCliAndMCPCommandsFilterStructuredQuery() throws {
+        let fixture = try makeMuseTermCLITestFixture(
+            commandBlocks: [
+                [
+                    "id": "cmd-safe",
+                    "command": "git status --short",
+                    "workingDirectory": "/tmp/project",
+                    "commandLifecycleState": "succeeded",
+                    "commandRiskLevel": "read_only",
+                    "commandRiskReasons": [
+                        "read_only_inspection"
+                    ],
+                    "commandBoundaryConfidence": "high",
+                    "commandBoundaryReasons": [
+                        "shell_integration_start",
+                        "shell_integration_completion"
+                    ],
+                    "outputCharacterCount": 6,
+                    "outputTail": "clean\n"
+                ],
+                [
+                    "id": "cmd-danger",
+                    "command": "sudo rm -rf /tmp/build",
+                    "workingDirectory": "/tmp/project",
+                    "commandLifecycleState": "failed",
+                    "commandRiskLevel": "dangerous",
+                    "commandRiskReasons": [
+                        "file_deletion",
+                        "privilege_escalation"
+                    ],
+                    "commandBoundaryConfidence": "low",
+                    "commandBoundaryReasons": [
+                        "heuristic_prompt_detection"
+                    ],
+                    "outputCharacterCount": 16,
+                    "outputTail": "permission denied"
+                ],
+                [
+                    "id": "cmd-unknown",
+                    "command": "make test",
+                    "workingDirectory": "/tmp/project",
+                    "commandLifecycleState": "failed",
+                    "commandRiskLevel": "unknown",
+                    "commandRiskReasons": [
+                        "unknown_effects"
+                    ],
+                    "commandBoundaryConfidence": "high",
+                    "commandBoundaryReasons": [
+                        "shell_integration_start",
+                        "shell_integration_completion"
+                    ],
+                    "outputCharacterCount": 11,
+                    "outputTail": "test failed"
+                ]
+            ]
+        )
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let dangerous = try runMuseTermCLIScript(
+            fixture.scriptURL,
+            home: fixture.root,
+            arguments: ["commands", "--query", "risk:dangerous lifecycle:failed rm", "--chars", "6"]
+        )
+        let dangerousCommands = try XCTUnwrap(dangerous["commands"] as? [[String: Any]])
+        let dangerousCommand = try XCTUnwrap(dangerousCommands.first)
+        XCTAssertEqual(dangerous["commandCount"] as? Int, 3)
+        XCTAssertEqual(dangerous["filteredCommandCount"] as? Int, 1)
+        XCTAssertEqual(dangerous["returnedCommandCount"] as? Int, 1)
+        XCTAssertEqual(dangerous["commandQuery"] as? String, "risk:dangerous lifecycle:failed rm")
+        let dangerousFilters = try XCTUnwrap(dangerous["commandQueryFilters"] as? [String: Any])
+        XCTAssertEqual(dangerousFilters["risk"] as? [String], ["dangerous"])
+        XCTAssertEqual(dangerousFilters["lifecycle"] as? [String], ["failed"])
+        XCTAssertEqual(dangerousFilters["boundary"] as? [String], [])
+        XCTAssertEqual(dangerousFilters["text"] as? [String], ["rm"])
+        XCTAssertEqual(dangerousCommand["id"] as? String, "cmd-danger")
+        XCTAssertEqual(dangerousCommand["outputTail"] as? String, "denied")
+
+        let safe = try runMuseTermCLIScript(
+            fixture.scriptURL,
+            home: fixture.root,
+            arguments: ["commands", "-q", "risk:read_only git"]
+        )
+        let safeCommand = try XCTUnwrap((safe["commands"] as? [[String: Any]])?.first)
+        XCTAssertEqual(safe["filteredCommandCount"] as? Int, 1)
+        XCTAssertEqual(safeCommand["id"] as? String, "cmd-safe")
+
+        let response = try runMuseTermMCPRequest(
+            fixture.scriptURL,
+            home: fixture.root,
+            request: [
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": [
+                    "name": "read_commands",
+                    "arguments": [
+                        "query": "state:failed boundary:low",
+                        "chars": 4
+                    ]
+                ]
+            ]
+        )
+        let result = try XCTUnwrap(response["result"] as? [String: Any])
+        let content = try XCTUnwrap(result["content"] as? [[String: Any]])
+        let text = try XCTUnwrap(content.first?["text"] as? String)
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]
+        )
+        let mcpCommand = try XCTUnwrap((payload["commands"] as? [[String: Any]])?.first)
+        XCTAssertEqual(payload["commandCount"] as? Int, 3)
+        XCTAssertEqual(payload["filteredCommandCount"] as? Int, 1)
+        XCTAssertEqual(payload["returnedCommandCount"] as? Int, 1)
+        XCTAssertEqual(payload["commandQuery"] as? String, "state:failed boundary:low")
+        let mcpFilters = try XCTUnwrap(payload["commandQueryFilters"] as? [String: Any])
+        XCTAssertEqual(mcpFilters["risk"] as? [String], [])
+        XCTAssertEqual(mcpFilters["lifecycle"] as? [String], ["failed"])
+        XCTAssertEqual(mcpFilters["boundary"] as? [String], ["low"])
+        XCTAssertEqual(mcpFilters["text"] as? [String], [])
+        XCTAssertEqual(mcpCommand["id"] as? String, "cmd-danger")
+        XCTAssertEqual(mcpCommand["outputTail"] as? String, "nied")
+    }
+
     func testMCPReadCommandsReportsPayloadMetadata() throws {
         let fixture = try makeMuseTermCLITestFixture()
         defer { try? FileManager.default.removeItem(at: fixture.root) }
@@ -283,6 +497,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(payload["currentDirectory"] as? String, "/tmp/project")
         XCTAssertEqual(payload["selectedTabID"] as? String, "tab-1")
         XCTAssertEqual(payload["commandCount"] as? Int, 1)
+        XCTAssertEqual(payload["filteredCommandCount"] as? Int, 1)
         XCTAssertEqual(payload["returnedCommandCount"] as? Int, 1)
         XCTAssertEqual(payload["outputTailLimit"] as? Int, 2)
         XCTAssertEqual(command["outputTail"] as? String, "ef")
@@ -2837,7 +3052,9 @@ final class musetermTests: XCTestCase {
         return try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
     }
 
-    private func makeMuseTermCLITestFixture() throws -> (root: URL, scriptURL: URL) {
+    private func makeMuseTermCLITestFixture(
+        commandBlocks: [[String: Any]]? = nil
+    ) throws -> (root: URL, scriptURL: URL) {
         let manager = FileManager.default
         let root = manager.temporaryDirectory
             .appendingPathComponent("museterm-cli-tests-\(UUID().uuidString)", isDirectory: true)
@@ -2847,6 +3064,27 @@ final class musetermTests: XCTestCase {
 
         let scriptURL = root.appendingPathComponent("museterm")
         try MuseTermCLIInstaller.script.write(to: scriptURL, atomically: true, encoding: .utf8)
+
+        let defaultCommandBlocks: [[String: Any]] = [
+            [
+                "id": "cmd-1",
+                "command": "make test",
+                "commandLifecycleState": "failed",
+                "commandRiskLevel": "unknown",
+                "commandRiskReasons": [
+                    "unknown_effects"
+                ],
+                "commandStartSource": "shellIntegration",
+                "completionSource": "shellIntegration",
+                "commandBoundaryConfidence": "high",
+                "commandBoundaryReasons": [
+                    "shell_integration_start",
+                    "shell_integration_completion"
+                ],
+                "outputCharacterCount": 10,
+                "outputTail": "abcdef"
+            ]
+        ]
 
         let state: [String: Any] = [
             "schemaVersion": 1,
@@ -2869,26 +3107,7 @@ final class musetermTests: XCTestCase {
                         "schemaVersion": 1,
                         "failedCommandCount": 0
                     ],
-                    "commandBlocks": [
-                        [
-                            "id": "cmd-1",
-                            "command": "make test",
-                            "commandLifecycleState": "failed",
-                            "commandRiskLevel": "unknown",
-                            "commandRiskReasons": [
-                                "unknown_effects"
-                            ],
-                            "commandStartSource": "shellIntegration",
-                            "completionSource": "shellIntegration",
-                            "commandBoundaryConfidence": "high",
-                            "commandBoundaryReasons": [
-                                "shell_integration_start",
-                                "shell_integration_completion"
-                            ],
-                            "outputCharacterCount": 10,
-                            "outputTail": "abcdef"
-                        ]
-                    ]
+                    "commandBlocks": commandBlocks ?? defaultCommandBlocks
                 ]
             ]
         ]

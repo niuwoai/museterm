@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.161.0
+> 当前版本基线：v1.165.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -29,6 +29,28 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 | P3 | 成就、统计与轻娱乐系统 | v4 | 高 | 增加记忆点，但不能干扰主流程 |
 
 ## 当前落地状态
+
+v1.165.0 已完成一百六十六条纵向切片：
+
+- CLI/MCP 查询解释元数据：命令查询 payload 新增 `commandQueryFilters`，回显 risk、lifecycle、boundary 和全文词过滤器，让外部工具能解释查询结果来源，而不是只能看到过滤后的命令块。
+
+v1.164.1-rc1 已完成关闭标签回归修复：
+
+- 标签关闭保护：终端主窗口收到系统关闭请求时会转为关闭当前标签并取消窗口关闭；运行中进程确认后仍保留其它标签和 App 窗口，真正退出 App 时才放行系统关闭窗口。
+
+v1.164.0 已完成一百六十五条纵向切片：
+
+- CLI/MCP 命令查询契约：`museterm commands --query` 与 MCP `read_commands.query` 支持和 App 命令搜索一致的 `risk:`、`lifecycle:` / `state:`、`boundary:` 与普通全文词组合过滤，并返回 `filteredCommandCount` 与 `commandQuery`，让外部工具可直接请求目标命令块。
+
+v1.163.0 已完成一百六十四条纵向切片：
+
+- SSH Profile 增强：新增连接复用与结构化端口转发，生成 OpenSSH config 时可默认启用 `ControlMaster`/`ControlPersist` 加速同主机新标签页，并支持 `LocalForward`、`RemoteForward`、`DynamicForward` 以及转发失败显式报错。
+- SSH 失败诊断：终端输出会识别认证失败、Host Key 校验失败、连接超时、连接被拒绝、认证身份过多和端口转发失败，并追加下一步排查提示。
+- SSH 体验路线图：新增 `docs/SSH_EXPERIENCE_PLAN.md`，把保活、复用、端口转发、跳板可视化、安全护栏、导入同步和失败诊断拆成可持续推进的体验计划。
+
+v1.162.0 已完成一百六十三条纵向切片：
+
+- SSH Profile 保活：新增显式保活设置，默认生成 `ServerAliveInterval 30` 与 `ServerAliveCountMax 6`，让空闲 SSH 连接通过协议层保活，减少被网络设备或服务端空闲踢下线的概率。
 
 v1.161.0 已完成一百六十二条纵向切片：
 

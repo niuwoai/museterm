@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @StateObject private var workspace = TerminalWorkspace()
     @StateObject private var sshStore = SSHConnectionStore()
+    @StateObject private var notificationCoordinator = TerminalNotificationCoordinator.shared
     @ObservedObject private var preferences: TerminalPreferences
     @State private var rightPanel: TerminalRightPanel?
 
@@ -52,7 +53,7 @@ struct ContentView: View {
                 }
             }
         }
-        .background(WindowConfigurator())
+        .background(WindowConfigurator(workspace: workspace))
         .background(TerminalShortcutBridge(workspace: workspace))
         .focusedValue(\.terminalWorkspace, workspace)
         .tint(preferences.skin.accent)
@@ -60,6 +61,7 @@ struct ContentView: View {
         .frame(minWidth: 920, minHeight: 560)
         .onAppear {
             TerminalToolBridge.shared.attach(workspace: workspace)
+            notificationCoordinator.attach(workspace: workspace, preferences: preferences)
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleCommandInspector)) { _ in
             toggleRightPanel(.commandInspector)
@@ -230,6 +232,15 @@ private struct TabRowView: View {
             Circle()
                 .fill(statusColor)
                 .frame(width: 7, height: 7)
+                .overlay(alignment: .topTrailing) {
+                    if tab.hasUnreadAttention && !isSelected {
+                        Circle()
+                            .fill(Color.red)
+                            .frame(width: 5, height: 5)
+                            .offset(x: 3, y: -3)
+                            .accessibilityLabel(L10n.string("tab.notification_unread"))
+                    }
+                }
 
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 5) {

@@ -81,6 +81,7 @@ def parse_common(args)
   chars = nil
   json = false
   timeout = nil
+  query = nil
   rest = []
   until args.empty?
     item = args.shift
@@ -89,6 +90,8 @@ def parse_common(args)
       tab = args.shift
     when "--chars", "-c"
       chars = args.shift
+    when "--query", "-q"
+      query = args.shift
     when "--timeout"
       timeout = args.shift
     when "--json"
@@ -97,7 +100,7 @@ def parse_common(args)
       rest << item
     end
   end
-  [tab, chars, json, rest, timeout]
+  [tab, chars, json, rest, timeout, query]
 end
 
 def print_json(value)
@@ -208,16 +211,113 @@ def command_history(args)
 end
 
 def command_commands(args)
-  tab_selector, chars, _json, _rest = parse_common(args)
+  tab_selector, chars, _json, _rest, _timeout, query = parse_common(args)
   state = read_state
   tab = require_tab(state, tab_selector)
-  print_json(commands_payload(state, tab, chars))
+  print_json(commands_payload(state, tab, chars, query))
 end
 
-def commands_payload(state, tab, chars)
+def normalize_query_value(value)
+  value.to_s.downcase.tr("-", "_")
+end
+
+def normalize_query_field(key, value)
+  normalized = normalize_query_value(value)
+  return nil if normalized.empty?
+
+  case key
+  when "risk", "risk_level"
+    case normalized
+    when "read_only", "readonly", "read" then ["risk", "read_only"]
+    when "mutating", "mutation", "write" then ["risk", "mutating"]
+    when "dangerous", "danger", "destructive" then ["risk", "dangerous"]
+    when "unknown", "unclear" then ["risk", "unknown"]
+    end
+  when "state", "lifecycle", "lifecycle_state"
+    case normalized
+    when "running" then ["lifecycle", "running"]
+    when "succeeded", "success", "ok" then ["lifecycle", "succeeded"]
+    when "failed", "failure", "error" then ["lifecycle", "failed"]
+    when "interrupted", "interrupt" then ["lifecycle", "interrupted"]
+    when "superseded" then ["lifecycle", "superseded"]
+    when "completed_unknown_status", "unknown" then ["lifecycle", "completed_unknown_status"]
+    end
+  when "boundary", "boundary_confidence"
+    case normalized
+    when "high" then ["boundary", "high"]
+    when "medium", "med" then ["boundary", "medium"]
+    when "low" then ["boundary", "low"]
+    end
+  end
+end
+
+def parse_command_query(query)
+  filters = { "risk" => [], "lifecycle" => [], "boundary" => [], "text" => [] }
+  query.to_s.split(/\s+/).each do |token|
+    next if token.empty?
+    key, raw_value = token.split(":", 2)
+    if raw_value && !raw_value.empty?
+      normalized = normalize_query_field(key.downcase, raw_value)
+      if normalized
+        filters[normalized[0]] << normalized[1]
+        next
+      end
+    end
+    filters["text"] << token
+  end
+  filters
+end
+
+def command_block_searchable_text(block)
+  [
+    block["command"],
+    block["workingDirectory"],
+    block["outputTail"],
+    block["outputSummary"],
+    block["statusText"],
+    block["commandLifecycleState"],
+    block["commandRiskLevel"],
+    Array(block["commandRiskReasons"]).join(" "),
+    block["commandStartSource"],
+    block["completionSource"],
+    block["commandBoundaryConfidence"],
+    Array(block["commandBoundaryReasons"]).join(" ")
+  ].compact.join("\n").downcase
+end
+
+def command_block_matches_query?(block, filters)
+  unless filters["risk"].empty?
+    return false unless filters["risk"].include?(block["commandRiskLevel"].to_s)
+  end
+  unless filters["lifecycle"].empty?
+    return false unless filters["lifecycle"].include?(block["commandLifecycleState"].to_s)
+  end
+  unless filters["boundary"].empty?
+    return false unless filters["boundary"].include?(block["commandBoundaryConfidence"].to_s)
+  end
+  return true if filters["text"].empty?
+
+  searchable = command_block_searchable_text(block)
+  filters["text"].all? { |term| searchable.include?(term.downcase) }
+end
+
+def filter_command_blocks(blocks, query)
+  filters = command_query_filters(query)
+  return blocks if filters.nil?
+  blocks.select { |block| command_block_matches_query?(block, filters) }
+end
+
+def command_query_filters(query)
+  return nil if query.nil? || query.to_s.strip.empty?
+  parse_command_query(query)
+end
+
+def commands_payload(state, tab, chars, query = nil)
   source_blocks = tab.fetch("commandBlocks", [])
+  query_filters = command_query_filters(query)
+  filtered_blocks = filter_command_blocks(source_blocks, query)
   output_tail_limit = chars.nil? ? nil : chars.to_i
-  blocks = source_blocks.map { |block|
+  blocks = filtered_blocks.map { |block|
     copy = block.dup
     output_tail = copy["outputTail"].to_s
     output_character_count = copy.key?("outputCharacterCount") ? copy["outputCharacterCount"].to_i : output_tail.length
@@ -240,7 +340,10 @@ def commands_payload(state, tab, chars)
     "currentDirectory" => tab["currentDirectory"],
     "selectedTabID" => state["selectedTabID"],
     "commandCount" => source_blocks.length,
+    "filteredCommandCount" => filtered_blocks.length,
     "returnedCommandCount" => blocks.length,
+    "commandQuery" => (query.nil? || query.to_s.strip.empty? ? nil : query.to_s),
+    "commandQueryFilters" => query_filters,
     "outputTailLimit" => output_tail_limit,
     "diagnostics" => tab.fetch("commandDiagnostics", {}),
     "commands" => blocks
@@ -339,12 +442,13 @@ def mcp_tools
     },
     {
       "name" => "read_commands",
-      "description" => "Read recent structured command blocks from a MuseTerm tab.",
+      "description" => "Read recent structured command blocks from a MuseTerm tab. Query supports risk:, lifecycle:/state:, boundary:, and text terms.",
       "inputSchema" => {
         "type" => "object",
         "properties" => {
           "tab" => { "type" => "string" },
-          "chars" => { "type" => "integer", "description" => "maximum tail characters per command output" }
+          "chars" => { "type" => "integer", "description" => "maximum tail characters per command output" },
+          "query" => { "type" => "string", "description" => "filter command blocks, for example risk:dangerous lifecycle:failed rm" }
         }
       }
     },
@@ -405,7 +509,7 @@ def call_tool(name, args)
   when "read_commands"
     state = read_state
     tab = require_tab(state, args["tab"])
-    tool_result_text(JSON.pretty_generate(commands_payload(state, tab, args["chars"])))
+    tool_result_text(JSON.pretty_generate(commands_payload(state, tab, args["chars"], args["query"])))
   when "send_text"
     response = send_request(action: "input", tab: args["tab"], text: args.fetch("text"), timeout_seconds: args["timeout"] || 3.0)
     raise(response["error"] || "request failed") unless response["ok"]
@@ -462,7 +566,7 @@ def command_help
       museterm tabs
       museterm screen [--tab selected|INDEX|ID] [--chars N] [--json]
       museterm history [--tab selected|INDEX|ID] [--chars N] [--json]
-      museterm commands [--tab selected|INDEX|ID] [--chars N]
+      museterm commands [--tab selected|INDEX|ID] [--chars N] [--query QUERY]
       museterm input [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] TEXT
       museterm key [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] enter|ctrl-c|tab|escape|up|down|left|right
       museterm mcp
