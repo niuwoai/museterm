@@ -557,8 +557,6 @@
 "app_icon.fox.summary" = "Bright orange shell helper.";
 "app_icon.panda.name" = "Terminal Panda";
 "app_icon.panda.summary" = "Soft cream badge and teal cursor.";
-"app_icon.penguin.name" = "Terminal Penguin";
-"app_icon.penguin.summary" = "Navy console companion.";
 "app_icon.owl.name" = "Terminal Owl";
 "app_icon.owl.summary" = "Violet night prompt.";
 "app_icon.dog.name" = "Terminal Dog";

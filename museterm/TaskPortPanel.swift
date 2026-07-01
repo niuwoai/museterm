@@ -1755,6 +1755,9 @@ struct CommandBlockDiagnostics: Equatable {
         if repeatedFailureDiagnostic != nil {
             anchors.append(.repeatedFailureDiagnostic)
         }
+        if repeatedFailureDiagnostic?.retryPauseDecisionAnchorCommandID != nil {
+            anchors.append(.retryPauseDecisionAnchorCommandID)
+        }
         if diagnosticCategoryEvidence != nil {
             anchors.append(.diagnosticCategoryEvidence)
         }

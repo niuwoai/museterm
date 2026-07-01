@@ -6,7 +6,6 @@ enum AppIconChoice: String, CaseIterable, Identifiable {
     case cat
     case fox
     case panda
-    case penguin
     case owl
     case dog
 
@@ -18,7 +17,6 @@ enum AppIconChoice: String, CaseIterable, Identifiable {
         case .cat: return "AppIconCat"
         case .fox: return "AppIconFox"
         case .panda: return "AppIconPanda"
-        case .penguin: return "AppIconPenguin"
         case .owl: return "AppIconOwl"
         case .dog: return "AppIconDog"
         }

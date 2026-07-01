@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.154.1-rc1] - 2026-07-01
+
+### Added
+- 建议排查动作的 `evidenceAnchors` 新增 `retry_pause_decision_anchor_command_id`，在暂停重试决策已锚定最新失败命令块时同步暴露该证据来源，方便 AI/MCP 和 Runbook 解释建议动作为何仍适用于当前失败尝试。
+
+### Fixed
+- 移除设置页 App 图标网格中与默认企鹅图标视觉重复的“终端企鹅”选项，保留默认企鹅入口作为唯一企鹅图标。
+
 ## [1.153.0] - 2026-07-01
 
 ### Added

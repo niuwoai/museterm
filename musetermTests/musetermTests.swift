@@ -41,6 +41,13 @@ final class musetermTests: XCTestCase {
         }
     }
 
+    func testAppIconChoicesKeepSinglePenguinEntry() {
+        let rawValues = AppIconChoice.allCases.map(\.rawValue)
+
+        XCTAssertTrue(rawValues.contains(AppIconChoice.defaultTerminal.rawValue))
+        XCTAssertFalse(rawValues.contains("penguin"))
+    }
+
     func testToolInputMapsNamedControlKeys() {
         XCTAssertEqual(TerminalToolInput.bytes(text: nil, key: "enter", rawBytes: nil), [0x0D])
         XCTAssertEqual(TerminalToolInput.bytes(text: nil, key: "ctrl-c", rawBytes: nil), [0x03])
@@ -798,10 +805,13 @@ final class musetermTests: XCTestCase {
         let data = try JSONEncoder().encode(snapshot)
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
         let repeatedFailure = try XCTUnwrap(object["repeatedFailureDiagnostic"] as? [String: Any])
+        let suggestedNextAction = try XCTUnwrap(object["suggestedNextAction"] as? [String: Any])
+        let evidenceAnchors = try XCTUnwrap(suggestedNextAction["evidenceAnchors"] as? [String])
 
         XCTAssertEqual(repeatedFailure["latestCommandID"] as? String, latestCommandID.uuidString)
         XCTAssertEqual(repeatedFailure["retryPauseDecision"] as? String, RepeatedFailureRetryPauseDecision.inspectBeforeRetry.rawValue)
         XCTAssertEqual(repeatedFailure["retryPauseDecisionAnchorCommandID"] as? String, latestCommandID.uuidString)
+        XCTAssertTrue(evidenceAnchors.contains(CommandDiagnosticEvidenceAnchor.retryPauseDecisionAnchorCommandID.rawValue))
     }
 
     func testWorkspaceCreatesAndSelectsTabs() throws {
@@ -1190,8 +1200,8 @@ final class musetermTests: XCTestCase {
         let repeated = "ERROR token=\(secret)"
         let blocks = [
             commandBlock(command: "make test", startedAt: 100, endedAt: 101, exitCode: 1, errorLine: repeated),
-            commandBlock(command: "make test", startedAt: 110, endedAt: 111, exitCode: 1, errorLine: repeated),
-            commandBlock(command: "make test", startedAt: 120, endedAt: 121, exitCode: 1, errorLine: repeated)
+            commandBlock(command: "make test", startedAt: 160, endedAt: 161, exitCode: 1, errorLine: repeated),
+            commandBlock(command: "make test", startedAt: 220, endedAt: 221, exitCode: 1, errorLine: repeated)
         ]
 
         let markdown = RunbookMarkdownExporter.markdown(
@@ -1273,7 +1283,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_unique_working_directories")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_context_changed")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_context_stability")))
-        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_context_change_reasons")))
+        XCTAssertFalse(markdown.contains(L10n.string("runbook.repeated_failure_context_change_reasons")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_first_command_id")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_latest_command_id")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_first_command")))
@@ -1314,6 +1324,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(CommandDiagnosticEvidenceAnchor.recentFailureCommandID.rawValue))
         XCTAssertTrue(markdown.contains(CommandDiagnosticEvidenceAnchor.recentFailureWorkingDirectory.rawValue))
         XCTAssertTrue(markdown.contains(CommandDiagnosticEvidenceAnchor.recentFailureOutputTailLine.rawValue))
+        XCTAssertTrue(markdown.contains(CommandDiagnosticEvidenceAnchor.retryPauseDecisionAnchorCommandID.rawValue))
         XCTAssertTrue(markdown.contains("Inspect the repeated failure output before rerunning"))
         XCTAssertTrue(markdown.contains("pwd && git status --short --branch 2>/dev/null || true"))
         XCTAssertTrue(markdown.contains(CommandDiagnosticActionID.inspectRepeatContext.rawValue))
