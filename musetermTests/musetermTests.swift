@@ -859,6 +859,19 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(block.aiContextText.contains("Command source: shellIntegration"))
     }
 
+    func testTerminalSessionNormalizesDetectedShellName() {
+        let tab = TerminalSession(sequence: 1)
+
+        tab.updateShellName("/usr/local/bin/fish\n")
+        XCTAssertEqual(tab.shellName, "fish")
+
+        tab.updateShellName("-bash")
+        XCTAssertEqual(tab.shellName, "bash")
+
+        tab.updateShellName("'zsh'")
+        XCTAssertEqual(tab.shellName, "zsh")
+    }
+
     func testCommandBlockStoresOutputSummary() throws {
         let tab = TerminalSession(sequence: 1)
 

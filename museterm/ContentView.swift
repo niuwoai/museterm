@@ -158,32 +158,42 @@ private struct SidebarView: View {
     @ViewBuilder
     private var header: some View {
         if preferences.showsTabList {
-            HStack(spacing: 8) {
-                Image(systemName: "terminal")
-                    .foregroundStyle(preferences.skin.accent)
-                Text(L10n.string("app.name"))
-                    .font(.headline)
-                Spacer()
-                IconButton(systemName: "plus", title: L10n.string("action.new_tab")) {
-                    workspace.newTab()
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "terminal")
+                        .foregroundStyle(preferences.skin.accent)
+                    Text(L10n.string("app.name"))
+                        .font(.headline)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                        .truncationMode(.tail)
+                        .layoutPriority(1)
+                    Spacer(minLength: 6)
+                    IconButton(
+                        systemName: "sidebar.left",
+                        title: L10n.string("action.hide_tab_list")
+                    ) {
+                        preferences.showsTabList = false
+                    }
                 }
-                IconButton(
-                    systemName: "magnifyingglass",
-                    title: L10n.string("command_inspector.title")
-                ) {
-                    NotificationCenter.default.post(name: .toggleCommandInspector, object: nil)
-                }
-                IconButton(
-                    systemName: "server.rack",
-                    title: L10n.string("task_panel.title")
-                ) {
-                    NotificationCenter.default.post(name: .toggleTaskPortPanel, object: nil)
-                }
-                IconButton(
-                    systemName: "sidebar.left",
-                    title: L10n.string("action.hide_tab_list")
-                ) {
-                    preferences.showsTabList = false
+
+                HStack(spacing: 10) {
+                    IconButton(systemName: "plus", title: L10n.string("action.new_tab")) {
+                        workspace.newTab()
+                    }
+                    IconButton(
+                        systemName: "magnifyingglass",
+                        title: L10n.string("command_inspector.title")
+                    ) {
+                        NotificationCenter.default.post(name: .toggleCommandInspector, object: nil)
+                    }
+                    IconButton(
+                        systemName: "server.rack",
+                        title: L10n.string("task_panel.title")
+                    ) {
+                        NotificationCenter.default.post(name: .toggleTaskPortPanel, object: nil)
+                    }
+                    Spacer(minLength: 0)
                 }
             }
         } else {
@@ -234,11 +244,19 @@ private struct TabRowView: View {
                             .foregroundStyle(.tertiary)
                     }
                 }
-                if let subtitle = tab.tabSubtitle {
-                    Text(subtitle)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                if tab.tabSubtitle != nil || tab.shellName != nil {
+                    HStack(spacing: 5) {
+                        if let shellName = tab.shellName {
+                            ShellBadge(shellName: shellName, skin: skin)
+                        }
+                        if let subtitle = tab.tabSubtitle {
+                            Text(subtitle)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                    }
                 }
             }
 
@@ -278,6 +296,24 @@ private struct TabRowView: View {
         case .running: return skin.accent
         case .exited: return .secondary.opacity(0.55)
         }
+    }
+}
+
+private struct ShellBadge: View {
+    let shellName: String
+    let skin: TerminalVisualSkin
+
+    var body: some View {
+        Text(shellName)
+            .font(.caption2.monospaced().weight(.semibold))
+            .foregroundStyle(skin.accent)
+            .lineLimit(1)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(skin.accent.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+            .fixedSize(horizontal: true, vertical: false)
+            .help(L10n.format("tab.shell.help", shellName))
     }
 }
 

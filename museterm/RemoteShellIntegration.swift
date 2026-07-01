@@ -1,6 +1,8 @@
 import Foundation
 
 enum RemoteShellIntegration {
+    static let shellProbeCommand = "printf '\\033]777;MuseTerm;shell=%s\\a' \"$SHELL\""
+
     static func startupCommands(for profile: SSHConnectionProfile) -> [String] {
         guard profile.normalized.remoteShellIntegrationEnabled else { return [] }
         return [installCommand]

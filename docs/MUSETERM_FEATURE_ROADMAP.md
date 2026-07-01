@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-01
-> 当前版本基线：v1.115.0
+> 当前版本基线：v1.116.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -30,12 +30,14 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 
 ## 当前落地状态
 
-v1.115.0 已完成一百零八条纵向切片：
+v1.116.0 已完成一百一十一条纵向切片：
 
 - AI Provider 设置：已支持常见 Provider 与自定义端点，API Key 保存到本机 Keychain。
 - 结构化命令块基础采集：已记录用户提交命令、工作目录、时间、输出尾部、输出字符数和中断/进程退出状态。
 - 命令块完成来源：已记录命令结束来源，区分 shell integration 真实退出码、进程退出兜底、用户中断、被下一条命令覆盖和未知来源，并同步给搜索、AI 上下文与 CLI/MCP 快照。
 - 命令块开始来源：本地 zsh/fish 与远端 zsh 已通过 shell marker 回传命令开始和命令文本，命令块会记录开始来源；bash 仍保守使用用户输入推断开始、shell hook 回传结束码。
+- 会话 shell 名探测：本地会话会记录登录 shell 名；SSH 启动时先发送轻量 shell 探测 marker，回传 `$SHELL` 后归一化为 `zsh` / `bash` / `fish` 等稳定 shell 名，为后续远端 fish 与 nested shell 降级判断打基础。
+- 标签 shell 标识：侧栏标签行会在目录/远端摘要前显示轻量 shell badge，帮助区分 zsh、bash、fish 等会话；侧栏顶部工具按钮分到第二行，避免标题与按钮在窄宽度下互相挤压。
 - 命令块输出摘要：已把输出洞察沉入结构化命令块，记录洞察类型、首个错误/警告、URL、文件路径、commit hash 和堆栈线索，并同步给搜索、AI 上下文与 CLI/MCP 快照。
 - Runbook 输出摘要：导出的 Markdown 会消费命令块里的紧凑输出摘要，把关键错误、URL、路径、commit 与堆栈线索写成独立段落，并沿用现有敏感信息脱敏开关。
 - 失败诊断展示：命令搜索卡片已优先使用结构化输出摘要展示洞察标签；失败命令会直接露出首条关键诊断行，让错误原因不必埋在输出尾部里。
@@ -133,6 +135,7 @@ v1.115.0 已完成一百零八条纵向切片：
 - 统计持久化拆分：每日命令统计的本地 JSON 读写已从 `TaskPortPanel.swift` 拆分到 `PersistentCommandStatsStore.swift`，让任务与端口面板文件降到 2000 行以下。
 - 安全输入分析拆分：多行粘贴识别、高危命令规则、自定义文本/正则规则解析和确认预览控件已从 `TerminalHostView.swift` 拆分到 `TerminalSafetyInputAnalyzer.swift`，并补充单元测试，让终端宿主视图降到 2000 行以下。
 - 路径参数转义拆分：`TerminalShellArgumentEscaper` 已从 `TerminalSafetyInputAnalyzer.swift` 拆分到独立文件，路径参数转义逻辑与多行/高危输入分析分离，现有转义测试继续覆盖行为不变。
+- 路径参数转义测试拆分：`TerminalShellArgumentEscaper` 的单元测试已迁移到独立 `TerminalShellArgumentEscaperTests.swift`，转义行为测试与多行/高危输入分析测试各归其位。
 - Shell marker 解析拆分：`TerminalShellIntegrationParser` 已从 `TerminalHostView.swift` 拆分到独立文件，终端宿主视图降到 2000 行以下，后续增强 marker 解析不再继续拖大视图文件。
 - Shell marker 分片测试：`TerminalShellIntegrationParser` 已补充边界测试，覆盖 marker 前缀跨 PTY 数据块拆分、无效 marker 后继续解析后续有效 marker，以及普通终端输出不产生事件。
 - Shell marker 终止符兼容：`TerminalShellIntegrationParser` 同时支持 BEL 与 `ESC \\` 两种 OSC marker 终止符，并覆盖跨数据块 ST 终止、BEL/ST 混合 marker 的解析顺序。

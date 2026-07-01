@@ -8,6 +8,7 @@ private struct LocalShellLaunchDescriptor {
     let args: [String]
     let execName: String
     let environment: [String]
+    let shellName: String
 }
 
 struct TerminalHostView: NSViewRepresentable {
@@ -493,6 +494,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                     completionSource: .shellIntegration,
                     historySnapshot: historySnapshot
                 )
+            case .shellDetected(let shellName):
+                session?.updateShellName(shellName)
             }
         }
     }
@@ -703,6 +706,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             let descriptor = Self.localShellLaunchDescriptor()
             let currentDirectory = TerminalWorkingDirectory.normalizedExistingDirectory(startDirectory)
                 ?? FileManager.default.homeDirectoryForCurrentUser.path
+            session?.updateShellName(descriptor.shellName)
             // 先盖上遮罩，再启动进程：保证 shell 的第一条 PS1 输出抵达前画面已被遮住。
             beginStartupPromptDeduplication()
             terminalView.startProcess(
@@ -721,7 +725,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                     environment: Self.environmentArray(shellPath: nil),
                     currentDirectory: FileManager.default.homeDirectoryForCurrentUser.path
                 )
-                let startupCommands = RemoteShellIntegration.startupCommands(for: profile)
+                let startupCommands = [RemoteShellIntegration.shellProbeCommand]
+                    + RemoteShellIntegration.startupCommands(for: profile)
                     + descriptor.startupCommands
                 drainStartupCommands(startupCommands)
             } catch {
@@ -1006,7 +1011,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             executable: shellPath,
             args: args,
             execName: execName,
-            environment: environmentArray(from: environment)
+            environment: environmentArray(from: environment),
+            shellName: shellName
         )
     }
 

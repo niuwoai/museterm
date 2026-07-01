@@ -40,6 +40,7 @@
 "workspace.error.unsupported_tab" = "保存的工作区包含无法恢复的标签类型。";
 
 "tab.default_title" = "Shell %d";
+"tab.shell.help" = "Shell：%@";
 
 "shortcut.section" = "录制捷径";
 "shortcut.start_recording" = "开始录制终端";

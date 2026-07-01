@@ -40,6 +40,7 @@
 "workspace.error.unsupported_tab" = "The saved workspace contains a tab type that cannot be restored.";
 
 "tab.default_title" = "Shell %d";
+"tab.shell.help" = "Shell: %@";
 
 "shortcut.section" = "Recordings";
 "shortcut.start_recording" = "Start terminal recording";

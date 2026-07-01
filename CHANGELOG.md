@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.116.0] - 2026-07-01
+
+### Added
+- 本地会话会记录登录 shell 名；SSH 启动时先发送轻量 shell 探测 marker，回传 `$SHELL` 后归一化为 `zsh` / `bash` / `fish` 等稳定 shell 名，并补充 parser 与 session 测试。
+- 侧栏标签行会在目录/远端摘要前显示轻量 shell badge，帮助区分 zsh、bash、fish 等会话；侧栏顶部工具按钮分到第二行，避免标题与按钮在窄宽度下互相挤压。
+
+### Changed
+- 侧栏标题区改为两行布局，`MuseTerm` 应用名固定单行显示，避免被工具按钮挤压成竖排导致侧栏变形。
+- 将 `TerminalShellArgumentEscaper` 的单元测试拆分到独立 `TerminalShellArgumentEscaperTests.swift`，让路径参数转义行为与多行/高危输入分析测试分离。
+
 ## [1.115.0] - 2026-07-01
 
 ### Changed

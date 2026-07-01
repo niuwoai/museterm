@@ -3,6 +3,7 @@ import Foundation
 enum TerminalShellIntegrationEvent: Equatable {
     case commandStarted(String)
     case commandFinished(Int32)
+    case shellDetected(String)
 }
 
 final class TerminalShellIntegrationParser {
@@ -52,6 +53,13 @@ final class TerminalShellIntegrationParser {
                 return nil
             }
             return .commandFinished(exitCode)
+        }
+
+        if payload.hasPrefix("shell=") {
+            let value = payload.dropFirst("shell=".count)
+            let shell = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !shell.isEmpty else { return nil }
+            return .shellDetected(shell)
         }
 
         return nil

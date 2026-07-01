@@ -184,6 +184,7 @@ final class TerminalSession: ObservableObject, Identifiable {
 
     @Published var title: String
     @Published var currentDirectory: String?
+    @Published private(set) var shellName: String?
     @Published var state: State = .running
     @Published private(set) var activeRecordingStartedAt: Date?
     @Published private(set) var isPlayingShortcut = false
@@ -310,6 +311,10 @@ final class TerminalSession: ObservableObject, Identifiable {
         commandBlocks[index].outputCharacterCount = output.count
         commandBlocks[index].outputTail = String(output.suffix(maxCommandOutputTailCharacters))
         commandBlocks[index].outputSummary = TerminalOutputInsightAnalyzer.outputSummary(in: output)
+    }
+
+    func updateShellName(_ rawShellName: String?) {
+        shellName = Self.normalizedShellName(rawShellName)
     }
 
     func playShortcut(_ shortcut: TerminalShortcut) {
@@ -447,6 +452,23 @@ final class TerminalSession: ObservableObject, Identifiable {
     private var remoteIdentity: String? {
         guard let identity = Self.identity(in: title) else { return nil }
         return Self.isLocalIdentity(identity) ? nil : identity
+    }
+
+    private static func normalizedShellName(_ rawShellName: String?) -> String? {
+        guard var shellName = rawShellName?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !shellName.isEmpty else {
+            return nil
+        }
+
+        shellName = shellName.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+        if shellName.contains("/") {
+            shellName = URL(fileURLWithPath: shellName).lastPathComponent
+        }
+        while shellName.hasPrefix("-") {
+            shellName.removeFirst()
+        }
+        guard !shellName.isEmpty else { return nil }
+        return shellName.lowercased()
     }
 
     private static func identity(in title: String) -> String? {

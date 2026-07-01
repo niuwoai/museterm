@@ -37,6 +37,13 @@ final class TerminalShellIntegrationParserTests: XCTestCase {
         XCTAssertEqual(parser.accept(Array(text.utf8)[...]), [.commandFinished(1), .commandFinished(2)])
     }
 
+    func testAcceptsShellDetectedMarker() {
+        let parser = TerminalShellIntegrationParser()
+        let marker = "\u{1B}]777;MuseTerm;shell=/usr/local/bin/fish\u{7}"
+
+        XCTAssertEqual(parser.accept(Array(marker.utf8)[...]), [.shellDetected("/usr/local/bin/fish")])
+    }
+
     func testIgnoresPlainTerminalOutputWithoutMarkers() {
         let parser = TerminalShellIntegrationParser()
 
