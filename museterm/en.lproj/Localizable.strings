@@ -9,6 +9,10 @@
 "action.ok" = "OK";
 "action.save" = "Save";
 "action.close" = "Close";
+"tab.close_running.title" = "Close running tab?";
+"tab.close_running.message" = "The tab \"%@\" still has a running terminal process. Closing it will stop that process.";
+"tab.close_running.action" = "Close Tab";
+"tab.close_running.do_not_ask_again" = "Do not ask again";
 "action.copy" = "Copy";
 "action.paste" = "Paste";
 "action.select_all" = "Select All";
@@ -426,6 +430,7 @@
 "runbook.repeated_failure_retry_pause_severity" = "Repeated failure retry pause severity";
 "runbook.repeated_failure_retry_pause_decision" = "Repeated failure retry pause decision";
 "runbook.repeated_failure_retry_pause_decision_confidence" = "Repeated failure retry pause decision confidence";
+"runbook.repeated_failure_retry_pause_decision_anchor_command_id" = "Repeated failure retry pause decision anchor command ID";
 "runbook.repeated_failure_retry_pause_decision_reasons" = "Repeated failure retry pause decision reasons";
 "runbook.repeated_failure_retry_pause_decision_refresh_triggers" = "Repeated failure retry pause decision refresh triggers";
 "runbook.repeated_failure_retry_pause_cooldown" = "Repeated failure retry pause cooldown";

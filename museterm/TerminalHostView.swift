@@ -261,6 +261,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.send(source: terminalView, data: bytes[...])
     }
 
+    var isProcessRunning: Bool {
+        didStart && terminalView.process.running
+    }
+
     func startZModemUpload(fileURLs: [URL]) {
         guard didStart, terminalView.process.running else {
             reportFileTransferFailure(kind: .upload, reason: L10n.string("file_transfer.error.process_unavailable"))

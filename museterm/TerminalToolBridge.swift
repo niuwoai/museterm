@@ -158,6 +158,7 @@ struct TerminalToolCommandDiagnosticsSnapshot: Codable, Equatable {
                 retryPauseSeverity: repeatedFailureDiagnostic.retryPauseSeverity.rawValue,
                 retryPauseDecision: repeatedFailureDiagnostic.retryPauseDecision.rawValue,
                 retryPauseDecisionConfidence: repeatedFailureDiagnostic.retryPauseDecisionConfidence.rawValue,
+                retryPauseDecisionAnchorCommandID: repeatedFailureDiagnostic.retryPauseDecisionAnchorCommandID?.uuidString,
                 retryPauseDecisionReasons: repeatedFailureDiagnostic.retryPauseDecisionReasons.map(\.rawValue),
                 retryPauseDecisionRefreshTriggers: repeatedFailureDiagnostic.retryPauseDecisionRefreshTriggers.map(\.rawValue),
                 retryPauseCooldownMilliseconds: repeatedFailureDiagnostic.retryPauseCooldownMilliseconds,
@@ -293,6 +294,7 @@ struct TerminalToolRepeatedFailureSnapshot: Codable, Equatable {
     let retryPauseSeverity: String
     let retryPauseDecision: String
     let retryPauseDecisionConfidence: String
+    let retryPauseDecisionAnchorCommandID: String?
     let retryPauseDecisionReasons: [String]
     let retryPauseDecisionRefreshTriggers: [String]
     let retryPauseCooldownMilliseconds: Int

@@ -192,7 +192,11 @@ final class TerminalSession: ObservableObject, Identifiable {
     @Published private(set) var commandBlocks: [TerminalCommandBlock] = []
     @Published private(set) var historySearchSnapshot = ""
 
-    lazy var controller = TerminalHostController(session: self)
+    private var didCreateController = false
+    lazy var controller: TerminalHostController = {
+        didCreateController = true
+        return TerminalHostController(session: self)
+    }()
     private var recorder: TerminalShortcutRecorder?
     private var pendingCommandBytes: [UInt8] = []
     private var activeCommandBlockID: UUID?
@@ -227,6 +231,10 @@ final class TerminalSession: ObservableObject, Identifiable {
     func terminate() {
         cancelRecording()
         controller.terminate()
+    }
+
+    var hasRunningProcess: Bool {
+        didCreateController && controller.isProcessRunning
     }
 
     var isRecording: Bool {
@@ -631,20 +639,61 @@ final class TerminalSession: ObservableObject, Identifiable {
     }
 }
 
+protocol TerminalTabCloseConfirming {
+    func shouldClose(tab: TerminalSession) -> Bool
+}
+
+struct SystemTerminalTabCloseConfirmer: TerminalTabCloseConfirming {
+    private static let skipRunningTabCloseConfirmationKey = "terminal.skipRunningTabCloseConfirmation"
+
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
+
+    func shouldClose(tab: TerminalSession) -> Bool {
+        guard tab.hasRunningProcess else { return true }
+        guard defaults.bool(forKey: Self.skipRunningTabCloseConfirmationKey) == false else {
+            return true
+        }
+
+        let alert = NSAlert()
+        alert.messageText = L10n.string("tab.close_running.title")
+        alert.informativeText = L10n.format("tab.close_running.message", tab.tabTitle)
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: L10n.string("tab.close_running.action"))
+        alert.addButton(withTitle: L10n.string("action.cancel"))
+        alert.showsSuppressionButton = true
+        alert.suppressionButton?.title = L10n.string("tab.close_running.do_not_ask_again")
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return false }
+        if alert.suppressionButton?.state == .on {
+            defaults.set(true, forKey: Self.skipRunningTabCloseConfirmationKey)
+        }
+        return true
+    }
+}
+
 final class TerminalWorkspace: ObservableObject {
     @Published private(set) var tabs: [TerminalSession] = []
     @Published var selectedID: TerminalSession.ID?
     @Published private(set) var shortcuts: [TerminalShortcut] = TerminalShortcutStore.load()
 
     private let automaticallyStartProcesses: Bool
+    private let tabCloseConfirmer: TerminalTabCloseConfirming
     private var nextSequence = 1
     private var preparedTab: TerminalSession?
     private var isPreparingNextTab = false
     private var lastShortcutNewTabUptime: TimeInterval = -.infinity
     private var lastShortcutNewTabEventTimestamp: TimeInterval?
 
-    init(automaticallyStartProcesses: Bool = true) {
+    init(
+        automaticallyStartProcesses: Bool = true,
+        tabCloseConfirmer: TerminalTabCloseConfirming = SystemTerminalTabCloseConfirmer()
+    ) {
         self.automaticallyStartProcesses = automaticallyStartProcesses
+        self.tabCloseConfirmer = tabCloseConfirmer
         newTab()
     }
 
@@ -785,27 +834,20 @@ final class TerminalWorkspace: ObservableObject {
     }
 
     func close(_ tab: TerminalSession) {
-        tab.terminate()
+        guard let index = tabs.firstIndex(where: { $0.id == tab.id }) else { return }
+        guard tabCloseConfirmer.shouldClose(tab: tab) else { return }
 
-        let index = tabs.firstIndex { $0.id == tab.id }
-        tabs.removeAll { $0.id == tab.id }
+        tab.terminate()
+        tabs.remove(at: index)
 
         guard !tabs.isEmpty else {
-            // 关闭最后一个标签 → 关闭其所在窗口；当所有窗口都关闭后 App 会退出
-            // （见 AppDelegate.applicationShouldTerminateAfterLastWindowClosed）。
-            closeContainingWindow()
+            newTab()
             return
         }
 
         if selectedID == tab.id {
-            let fallbackIndex = min(index ?? 0, tabs.count - 1)
+            let fallbackIndex = min(index, tabs.count - 1)
             selectedID = tabs[fallbackIndex].id
-        }
-    }
-
-    private func closeContainingWindow() {
-        DispatchQueue.main.async {
-            (NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first { $0.isVisible })?.close()
         }
     }
 

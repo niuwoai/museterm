@@ -59,6 +59,11 @@ struct TerminalShortcutBridge: NSViewRepresentable {
                 return nil
             }
 
+            if key == "w", !hasShift {
+                workspace?.closeSelectedTab()
+                return nil
+            }
+
             if key == "[", hasShift {
                 workspace?.selectPreviousTab()
                 return nil

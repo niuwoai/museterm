@@ -322,6 +322,11 @@ enum RunbookMarkdownExporter {
         lines.append(
             "- \(L10n.string("runbook.repeated_failure_retry_pause_decision_confidence")): \(repeatedFailureDiagnostic.retryPauseDecisionConfidence.rawValue)"
         )
+        if let retryPauseDecisionAnchorCommandID = repeatedFailureDiagnostic.retryPauseDecisionAnchorCommandID {
+            lines.append(
+                "- \(L10n.string("runbook.repeated_failure_retry_pause_decision_anchor_command_id")): `\(retryPauseDecisionAnchorCommandID.uuidString)`"
+            )
+        }
         appendRawValueList(
             repeatedFailureDiagnostic.retryPauseDecisionReasons,
             key: "runbook.repeated_failure_retry_pause_decision_reasons",

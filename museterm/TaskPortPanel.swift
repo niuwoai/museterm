@@ -682,6 +682,11 @@ struct CommandBlockDiagnostics: Equatable {
             lines.append(
                 "Repeated failure retry pause decision confidence: \(repeatedFailureDiagnostic.retryPauseDecisionConfidence.rawValue)"
             )
+            if let retryPauseDecisionAnchorCommandID = repeatedFailureDiagnostic.retryPauseDecisionAnchorCommandID {
+                lines.append(
+                    "Repeated failure retry pause decision anchor command id: \(retryPauseDecisionAnchorCommandID.uuidString)"
+                )
+            }
             if !repeatedFailureDiagnostic.retryPauseDecisionReasons.isEmpty {
                 let reasons = repeatedFailureDiagnostic.retryPauseDecisionReasons.map(\.rawValue).joined(separator: "; ")
                 lines.append("Repeated failure retry pause decision reasons: \(reasons)")
@@ -1008,6 +1013,10 @@ struct CommandBlockDiagnostics: Equatable {
         let retryPauseDecisionConfidence = repeatedFailureRetryPauseDecisionConfidence(
             decision: retryPauseDecision
         )
+        let retryPauseDecisionAnchorCommandID = repeatedFailureRetryPauseDecisionAnchorCommandID(
+            decision: retryPauseDecision,
+            latestCommandID: latestMatchedBlock.id
+        )
         let retryPauseDecisionReasons = repeatedFailureRetryPauseDecisionReasons(
             reasons: retryPauseReasons
         )
@@ -1053,6 +1062,7 @@ struct CommandBlockDiagnostics: Equatable {
             retryPauseSeverity: retryPauseSeverity,
             retryPauseDecision: retryPauseDecision,
             retryPauseDecisionConfidence: retryPauseDecisionConfidence,
+            retryPauseDecisionAnchorCommandID: retryPauseDecisionAnchorCommandID,
             retryPauseDecisionReasons: retryPauseDecisionReasons,
             retryPauseDecisionRefreshTriggers: retryPauseDecisionRefreshTriggers,
             retryPauseCooldownMilliseconds: retryPauseCooldownMilliseconds,
@@ -1873,6 +1883,13 @@ struct CommandBlockDiagnostics: Equatable {
         reasons
     }
 
+    nonisolated private static func repeatedFailureRetryPauseDecisionAnchorCommandID(
+        decision: RepeatedFailureRetryPauseDecision,
+        latestCommandID: UUID
+    ) -> UUID? {
+        decision == .none ? nil : latestCommandID
+    }
+
     nonisolated private static func repeatedFailureRetryPauseDecisionRefreshTriggers(
         decision: RepeatedFailureRetryPauseDecision,
         retryPauseUntil: Date?
@@ -1946,6 +1963,7 @@ struct RepeatedFailureDiagnostic: Equatable {
     let retryPauseSeverity: RepeatedFailureRetryPauseSeverity
     let retryPauseDecision: RepeatedFailureRetryPauseDecision
     let retryPauseDecisionConfidence: RepeatedFailureRetryPauseDecisionConfidence
+    let retryPauseDecisionAnchorCommandID: UUID?
     let retryPauseDecisionReasons: [RepeatedFailureRetryPauseReason]
     let retryPauseDecisionRefreshTriggers: [RepeatedFailureRetryPauseDecisionRefreshTrigger]
     let retryPauseCooldownMilliseconds: Int

@@ -9,7 +9,7 @@ import AppKit
 import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    // 所有窗口都关闭后（即最后一个标签被 Cmd+W 关掉、窗口随之关闭时）退出 App。
+    // 用户明确关闭所有窗口后退出 App；Cmd+W 在终端窗口内只关闭当前标签。
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
     }

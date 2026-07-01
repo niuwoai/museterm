@@ -10,6 +10,15 @@ import XCTest
 @testable import museterm
 
 final class musetermTests: XCTestCase {
+    private final class RecordingTabCloseConfirmer: TerminalTabCloseConfirming {
+        var shouldAllowClose = true
+        private(set) var requestedTabTitles: [String] = []
+
+        func shouldClose(tab: TerminalSession) -> Bool {
+            requestedTabTitles.append(tab.tabTitle)
+            return shouldAllowClose
+        }
+    }
 
     func testDefaultPreferencesUseSeaSaltSkin() throws {
         let suiteName = "museterm.tests.\(UUID().uuidString)"
@@ -562,6 +571,7 @@ final class musetermTests: XCTestCase {
             repeatedFailure["retryPauseDecisionConfidence"] as? String,
             RepeatedFailureRetryPauseDecisionConfidence.none.rawValue
         )
+        XCTAssertNil(repeatedFailure["retryPauseDecisionAnchorCommandID"])
         XCTAssertEqual(repeatedFailure["retryPauseDecisionReasons"] as? [String], [])
         XCTAssertEqual(repeatedFailure["retryPauseDecisionRefreshTriggers"] as? [String], [])
         XCTAssertEqual(repeatedFailure["retryPauseCooldownMilliseconds"] as? Int, 0)
@@ -767,6 +777,33 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(repeatedFailure["count"] as? Int, 3)
     }
 
+    func testToolCommandDiagnosticsEncodesRetryPauseDecisionAnchor() throws {
+        let latestCommandID = try XCTUnwrap(UUID(uuidString: "22222222-3333-4444-5555-666666666666"))
+        let diagnostics = CommandBlockDiagnostics(
+            blocks: [
+                commandBlock(command: "make test", startedAt: 100, endedAt: 101, exitCode: 1, errorLine: "ERROR locked"),
+                commandBlock(command: "make test", startedAt: 110, endedAt: 111, exitCode: 1, errorLine: "ERROR locked"),
+                commandBlock(
+                    command: "make test",
+                    id: latestCommandID,
+                    startedAt: 120,
+                    endedAt: 121,
+                    exitCode: 1,
+                    errorLine: "ERROR locked"
+                )
+            ],
+            redactSensitiveData: false
+        )
+        let snapshot = TerminalToolCommandDiagnosticsSnapshot(diagnostics: diagnostics)
+        let data = try JSONEncoder().encode(snapshot)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let repeatedFailure = try XCTUnwrap(object["repeatedFailureDiagnostic"] as? [String: Any])
+
+        XCTAssertEqual(repeatedFailure["latestCommandID"] as? String, latestCommandID.uuidString)
+        XCTAssertEqual(repeatedFailure["retryPauseDecision"] as? String, RepeatedFailureRetryPauseDecision.inspectBeforeRetry.rawValue)
+        XCTAssertEqual(repeatedFailure["retryPauseDecisionAnchorCommandID"] as? String, latestCommandID.uuidString)
+    }
+
     func testWorkspaceCreatesAndSelectsTabs() throws {
         let workspace = TerminalWorkspace(automaticallyStartProcesses: false)
         let firstTab = try XCTUnwrap(workspace.selectedTab)
@@ -789,6 +826,61 @@ final class musetermTests: XCTestCase {
 
         workspace.newTabFromShortcut(eventTimestamp: 101)
         XCTAssertEqual(workspace.tabs.count, 3)
+    }
+
+    func testCloseSelectedTabRemovesOnlyCurrentTab() throws {
+        let confirmer = RecordingTabCloseConfirmer()
+        let workspace = TerminalWorkspace(
+            automaticallyStartProcesses: false,
+            tabCloseConfirmer: confirmer
+        )
+        let firstTab = try XCTUnwrap(workspace.selectedTab)
+
+        workspace.newTab()
+        let secondTab = try XCTUnwrap(workspace.selectedTab)
+
+        workspace.newTab()
+        let thirdTab = try XCTUnwrap(workspace.selectedTab)
+
+        workspace.select(secondTab)
+        workspace.closeSelectedTab()
+
+        XCTAssertEqual(workspace.tabs.map(\.id), [firstTab.id, thirdTab.id])
+        XCTAssertEqual(workspace.selectedID, thirdTab.id)
+        XCTAssertEqual(confirmer.requestedTabTitles.count, 1)
+    }
+
+    func testCloseSelectedTabCanBeCancelledByConfirmer() throws {
+        let confirmer = RecordingTabCloseConfirmer()
+        confirmer.shouldAllowClose = false
+        let workspace = TerminalWorkspace(
+            automaticallyStartProcesses: false,
+            tabCloseConfirmer: confirmer
+        )
+        workspace.newTab()
+        let selectedTab = try XCTUnwrap(workspace.selectedTab)
+
+        workspace.closeSelectedTab()
+
+        XCTAssertEqual(workspace.tabs.count, 2)
+        XCTAssertEqual(workspace.selectedID, selectedTab.id)
+        XCTAssertEqual(confirmer.requestedTabTitles.count, 1)
+    }
+
+    func testClosingLastTabKeepsReplacementTab() throws {
+        let confirmer = RecordingTabCloseConfirmer()
+        let workspace = TerminalWorkspace(
+            automaticallyStartProcesses: false,
+            tabCloseConfirmer: confirmer
+        )
+        let originalTab = try XCTUnwrap(workspace.selectedTab)
+
+        workspace.closeSelectedTab()
+
+        let replacementTab = try XCTUnwrap(workspace.selectedTab)
+        XCTAssertEqual(workspace.tabs.count, 1)
+        XCTAssertNotEqual(replacementTab.id, originalTab.id)
+        XCTAssertEqual(workspace.selectedID, replacementTab.id)
     }
 
     func testWorkspaceCyclesTabsWithKeyboardActions() throws {
@@ -1202,6 +1294,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_retry_pause_severity")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_retry_pause_decision")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_retry_pause_decision_confidence")))
+        XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_retry_pause_decision_anchor_command_id")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_retry_pause_decision_reasons")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_retry_pause_decision_refresh_triggers")))
         XCTAssertTrue(markdown.contains(L10n.string("runbook.repeated_failure_retry_pause_cooldown")))
@@ -1320,6 +1413,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(context.contains("Repeated failure retry pause severity: none"))
         XCTAssertTrue(context.contains("Repeated failure retry pause decision: none"))
         XCTAssertTrue(context.contains("Repeated failure retry pause decision confidence: none"))
+        XCTAssertFalse(context.contains("Repeated failure retry pause decision anchor command id:"))
         XCTAssertFalse(context.contains("Repeated failure retry pause decision reasons:"))
         XCTAssertFalse(context.contains("Repeated failure retry pause decision refresh triggers:"))
         XCTAssertTrue(context.contains("Repeated failure retry pause cooldown: 0 ms"))
@@ -1461,6 +1555,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(repeated.retryPauseSeverity, .none)
         XCTAssertEqual(repeated.retryPauseDecision, .none)
         XCTAssertEqual(repeated.retryPauseDecisionConfidence, .none)
+        XCTAssertNil(repeated.retryPauseDecisionAnchorCommandID)
         XCTAssertEqual(repeated.retryPauseDecisionReasons, [])
         XCTAssertEqual(repeated.retryPauseDecisionRefreshTriggers, [])
         XCTAssertEqual(repeated.retryPauseCooldownMilliseconds, 0)
@@ -1485,6 +1580,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(immediate.repeatedFailureDiagnostic?.retryPauseSeverity, .strong)
         XCTAssertEqual(immediate.repeatedFailureDiagnostic?.retryPauseDecision, .waitBeforeRetry)
         XCTAssertEqual(immediate.repeatedFailureDiagnostic?.retryPauseDecisionConfidence, .high)
+        XCTAssertEqual(
+            immediate.repeatedFailureDiagnostic?.retryPauseDecisionAnchorCommandID,
+            immediate.repeatedFailureDiagnostic?.latestCommandID
+        )
         XCTAssertEqual(
             immediate.repeatedFailureDiagnostic?.retryPauseDecisionReasons,
             [.immediateRetry, .stableContext]
@@ -1518,6 +1617,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(spaced.repeatedFailureDiagnostic?.retryPauseSeverity, .advisory)
         XCTAssertEqual(spaced.repeatedFailureDiagnostic?.retryPauseDecision, .inspectBeforeRetry)
         XCTAssertEqual(spaced.repeatedFailureDiagnostic?.retryPauseDecisionConfidence, .medium)
+        XCTAssertEqual(
+            spaced.repeatedFailureDiagnostic?.retryPauseDecisionAnchorCommandID,
+            spaced.repeatedFailureDiagnostic?.latestCommandID
+        )
         XCTAssertEqual(spaced.repeatedFailureDiagnostic?.retryPauseDecisionReasons, [.stableContext])
         XCTAssertEqual(
             spaced.repeatedFailureDiagnostic?.retryPauseDecisionRefreshTriggers,
@@ -1546,6 +1649,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(accelerating.repeatedFailureDiagnostic?.retryPauseSeverity, .strong)
         XCTAssertEqual(accelerating.repeatedFailureDiagnostic?.retryPauseDecision, .waitBeforeRetry)
         XCTAssertEqual(accelerating.repeatedFailureDiagnostic?.retryPauseDecisionConfidence, .high)
+        XCTAssertEqual(
+            accelerating.repeatedFailureDiagnostic?.retryPauseDecisionAnchorCommandID,
+            accelerating.repeatedFailureDiagnostic?.latestCommandID
+        )
         XCTAssertEqual(
             accelerating.repeatedFailureDiagnostic?.retryPauseDecisionReasons,
             [.acceleratingRetry, .stableContext]
@@ -1578,6 +1685,10 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(slowing.repeatedFailureDiagnostic?.retryPauseSeverity, .advisory)
         XCTAssertEqual(slowing.repeatedFailureDiagnostic?.retryPauseDecision, .inspectBeforeRetry)
         XCTAssertEqual(slowing.repeatedFailureDiagnostic?.retryPauseDecisionConfidence, .medium)
+        XCTAssertEqual(
+            slowing.repeatedFailureDiagnostic?.retryPauseDecisionAnchorCommandID,
+            slowing.repeatedFailureDiagnostic?.latestCommandID
+        )
         XCTAssertEqual(slowing.repeatedFailureDiagnostic?.retryPauseDecisionReasons, [.stableContext])
         XCTAssertEqual(
             slowing.repeatedFailureDiagnostic?.retryPauseDecisionRefreshTriggers,
@@ -2157,6 +2268,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(repeatedFailure.retryPauseSeverity, .advisory)
         XCTAssertEqual(repeatedFailure.retryPauseDecision, .inspectBeforeRetry)
         XCTAssertEqual(repeatedFailure.retryPauseDecisionConfidence, .medium)
+        XCTAssertEqual(repeatedFailure.retryPauseDecisionAnchorCommandID, repeatedFailure.latestCommandID)
         XCTAssertEqual(repeatedFailure.retryPauseDecisionReasons, [.stableContext])
         XCTAssertEqual(
             repeatedFailure.retryPauseDecisionRefreshTriggers,
