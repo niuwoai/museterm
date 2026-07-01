@@ -562,10 +562,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = L10n.string("safety.multiline.title")
-        alert.informativeText = [
-            L10n.format("safety.multiline.message", SafetyInputAnalyzer.nonEmptyLineCount(in: text)),
-            L10n.string("safety.multiline.reason")
-        ].joined(separator: "\n\n")
+        alert.informativeText = SafetyInputAnalyzer.multilinePasteConfirmationMessage(for: text)
         alert.addButton(withTitle: L10n.string("safety.action.send"))
         alert.addButton(withTitle: L10n.string("action.cancel"))
         alert.accessoryView = SafetyPreviewTextView(text: SafetyInputAnalyzer.preview(text))

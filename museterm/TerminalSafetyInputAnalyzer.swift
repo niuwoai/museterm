@@ -89,6 +89,13 @@ enum SafetyInputAnalyzer {
         return String(text.prefix(limit)) + "\n..."
     }
 
+    static func multilinePasteConfirmationMessage(for text: String) -> String {
+        [
+            L10n.format("safety.multiline.message", nonEmptyLineCount(in: text)),
+            L10n.string("safety.multiline.reason")
+        ].joined(separator: "\n\n")
+    }
+
     private static func normalized(_ command: String) -> String {
         command
             .lowercased()

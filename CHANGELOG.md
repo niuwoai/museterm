@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.110.0] - 2026-07-01
+
+### Changed
+- 将多行粘贴确认说明的文案组装沉入 `SafetyInputAnalyzer.multilinePasteConfirmationMessage(for:)`，弹窗实现复用同一入口。
+- 新增测试覆盖多行粘贴确认说明必须同时包含非空行数提示、触发原因和段落分隔。
+
 ## [1.109.0] - 2026-07-01
 
 ### Added

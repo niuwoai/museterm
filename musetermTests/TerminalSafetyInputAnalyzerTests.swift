@@ -36,4 +36,12 @@ final class TerminalSafetyInputAnalyzerTests: XCTestCase {
         XCTAssertEqual(preview.count, 4_004)
         XCTAssertTrue(preview.hasSuffix("\n..."))
     }
+
+    func testMultilinePasteConfirmationMessageIncludesCountAndReason() {
+        let message = SafetyInputAnalyzer.multilinePasteConfirmationMessage(for: "echo one\n\necho two\n")
+
+        XCTAssertTrue(message.contains(L10n.format("safety.multiline.message", 2)))
+        XCTAssertTrue(message.contains(L10n.string("safety.multiline.reason")))
+        XCTAssertTrue(message.contains("\n\n"))
+    }
 }
