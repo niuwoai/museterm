@@ -205,6 +205,8 @@
 "ssh.diagnostic.hostKeyVerificationFailed.title" = "主机指纹校验失败";
 "ssh.diagnostic.hostKeyVerificationFailed.summary" = "服务器身份与 known_hosts 不一致，或尚未被信任。";
 "ssh.diagnostic.hostKeyVerificationFailed.suggestion" = "只有在确认机器重装或指纹可信后，再修复 known_hosts。";
+"ssh.diagnostic.hostKeyVerificationFailed.repair_known_location" = "修复向导：先通过云控制台或管理员核对 %@ 的新指纹；如果确认可信，再移除旧记录（%@）：\n%@";
+"ssh.diagnostic.hostKeyVerificationFailed.repair_unknown_location" = "修复向导：先通过云控制台或管理员核对 %@ 的新指纹；如果确认可信，再移除旧 known_hosts 记录：\n%@";
 "ssh.diagnostic.connectionTimedOut.title" = "连接超时";
 "ssh.diagnostic.connectionTimedOut.summary" = "MuseTerm 在网络超时前没能连到 SSH 服务。";
 "ssh.diagnostic.connectionTimedOut.suggestion" = "检查 VPN、防火墙、主机名、端口，以及每一跳 ProxyJump。";

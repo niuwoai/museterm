@@ -205,6 +205,8 @@
 "ssh.diagnostic.hostKeyVerificationFailed.title" = "Host key verification failed";
 "ssh.diagnostic.hostKeyVerificationFailed.summary" = "The server identity does not match known_hosts or has not been accepted.";
 "ssh.diagnostic.hostKeyVerificationFailed.suggestion" = "Only fix known_hosts after confirming the host was rebuilt or the fingerprint is trusted.";
+"ssh.diagnostic.hostKeyVerificationFailed.repair_known_location" = "Repair guide: first verify the new fingerprint for %@ through your cloud console or administrator. If it is trusted, remove the old record (%@):\n%@";
+"ssh.diagnostic.hostKeyVerificationFailed.repair_unknown_location" = "Repair guide: first verify the new fingerprint for %@ through your cloud console or administrator. If it is trusted, remove the old known_hosts record:\n%@";
 "ssh.diagnostic.connectionTimedOut.title" = "Connection timed out";
 "ssh.diagnostic.connectionTimedOut.summary" = "MuseTerm could not reach the SSH service before the network timeout.";
 "ssh.diagnostic.connectionTimedOut.suggestion" = "Check VPN, firewall, hostname, port, and every ProxyJump hop.";

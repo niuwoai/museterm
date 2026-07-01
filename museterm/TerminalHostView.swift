@@ -481,7 +481,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     private func observeSSHProcessOutput(_ data: ArraySlice<UInt8>) {
-        guard case .ssh = session?.launchConfiguration,
+        guard case .ssh(let profile) = session?.launchConfiguration,
               let output = String(bytes: data, encoding: .utf8),
               !output.isEmpty else {
             return
@@ -498,11 +498,21 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         }
 
         latestSSHConnectionIssueKind = issue
+        let suggestion = [
+            issue.suggestion,
+            SSHConnectionIssueRepairGuide.message(
+                for: issue,
+                profile: profile,
+                diagnosticText: sshDiagnosticBuffer
+            )
+        ]
+            .compactMap { $0 }
+            .joined(separator: "\n")
         pendingSSHDiagnosticMessage = L10n.format(
             "ssh.diagnostic.message",
             issue.title,
             issue.summary,
-            issue.suggestion
+            suggestion
         )
     }
 

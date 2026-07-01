@@ -107,6 +107,79 @@ enum SSHConnectionIssueClassifier {
     }
 }
 
+struct SSHConnectionHostKeyRepairGuide: Equatable {
+    let knownHostsTarget: String
+    let removalCommand: String
+    let offendingLocation: String?
+
+    var message: String {
+        if let offendingLocation, !offendingLocation.isEmpty {
+            return L10n.format(
+                "ssh.diagnostic.hostKeyVerificationFailed.repair_known_location",
+                knownHostsTarget,
+                offendingLocation,
+                removalCommand
+            )
+        }
+        return L10n.format(
+            "ssh.diagnostic.hostKeyVerificationFailed.repair_unknown_location",
+            knownHostsTarget,
+            removalCommand
+        )
+    }
+}
+
+enum SSHConnectionIssueRepairGuide {
+    static func message(
+        for issue: SSHConnectionIssueKind,
+        profile: SSHConnectionProfile,
+        diagnosticText: String
+    ) -> String? {
+        switch issue {
+        case .hostKeyVerificationFailed:
+            return hostKeyGuide(for: profile, diagnosticText: diagnosticText)?.message
+        case .permissionDenied, .connectionTimedOut, .connectionRefused, .tooManyAuthenticationFailures, .portForwardFailure:
+            return nil
+        }
+    }
+
+    static func hostKeyGuide(
+        for profile: SSHConnectionProfile,
+        diagnosticText: String
+    ) -> SSHConnectionHostKeyRepairGuide? {
+        let clean = profile.normalized
+        guard !clean.host.isEmpty else { return nil }
+        let target = knownHostsTarget(host: clean.host, port: clean.port)
+        return SSHConnectionHostKeyRepairGuide(
+            knownHostsTarget: target,
+            removalCommand: "ssh-keygen -R \(shellArgument(target))",
+            offendingLocation: offendingKnownHostsLocation(in: diagnosticText)
+        )
+    }
+
+    private static func knownHostsTarget(host: String, port: Int) -> String {
+        port == 22 ? host : "[\(host)]:\(port)"
+    }
+
+    private static func shellArgument(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    private static func offendingKnownHostsLocation(in text: String) -> String? {
+        for line in text.split(whereSeparator: \.isNewline) {
+            let original = String(line).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let markerRange = original.range(of: " key in ", options: .caseInsensitive) else { continue }
+            let location = original[markerRange.upperBound...]
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "."))
+            if !location.isEmpty {
+                return location
+            }
+        }
+        return nil
+    }
+}
+
 enum SSHAutomaticReconnectDecision: Equatable {
     case reconnect(delaySeconds: Int)
     case suppress

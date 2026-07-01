@@ -516,6 +516,33 @@ final class musetermTests: XCTestCase {
         )
     }
 
+    @MainActor
+    func testSSHHostKeyRepairGuideBuildsKnownHostsCommandForCustomPort() {
+        let profile = SSHConnectionProfile(host: "example.com", port: 2222)
+        let guide = SSHConnectionIssueRepairGuide.hostKeyGuide(
+            for: profile,
+            diagnosticText: "Offending ECDSA key in /Users/rocky/.ssh/known_hosts:42"
+        )
+
+        XCTAssertEqual(guide?.knownHostsTarget, "[example.com]:2222")
+        XCTAssertEqual(guide?.removalCommand, "ssh-keygen -R '[example.com]:2222'")
+        XCTAssertEqual(guide?.offendingLocation, "/Users/rocky/.ssh/known_hosts:42")
+        XCTAssertTrue(guide?.message.contains("ssh-keygen -R '[example.com]:2222'") ?? false)
+    }
+
+    @MainActor
+    func testSSHHostKeyRepairGuideUsesPlainHostForDefaultPort() {
+        let profile = SSHConnectionProfile(host: "example.com", port: 22)
+        let guide = SSHConnectionIssueRepairGuide.hostKeyGuide(
+            for: profile,
+            diagnosticText: "Host key verification failed."
+        )
+
+        XCTAssertEqual(guide?.knownHostsTarget, "example.com")
+        XCTAssertEqual(guide?.removalCommand, "ssh-keygen -R 'example.com'")
+        XCTAssertNil(guide?.offendingLocation)
+    }
+
     func testToolInputMapsNamedControlKeys() {
         XCTAssertEqual(TerminalToolInput.bytes(text: nil, key: "enter", rawBytes: nil), [0x0D])
         XCTAssertEqual(TerminalToolInput.bytes(text: nil, key: "ctrl-c", rawBytes: nil), [0x03])

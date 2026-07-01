@@ -34,7 +34,8 @@ MuseTerm 的 SSH 管理不应只是替用户记住 `user@host -p 22`，而要把
 - 当前能力：Profile 已区分开发、预发、生产环境，并可为生产环境强制高危操作确认。
 - 已落地：`ForwardAgent yes`、关闭 Host Key 校验、known_hosts 写入 `/dev/null` 等高风险高级选项会在编辑器中显示明显提示。
 - 已落地：编辑器会在连接前提示目标主机和跳转机的密钥文件路径不可用，减少保存后才发现认证失败的情况。
-- 下一步：Host Key 首次连接/变更时给出更细的风险说明、指纹比对和修复引导。
+- 已落地：Host Key 校验失败时，终端诊断会要求先核对服务器新指纹；确认可信后再展示 `ssh-keygen -R` 清理旧 known_hosts 记录的命令，并尽量带上 OpenSSH 报出的 known_hosts 文件位置。
+- 下一步：Host Key 首次连接时展示更细的指纹比对说明。
 - 下一步：私钥权限过宽时提示 `chmod 600` 修复命令。
 
 ## P2：配置导入与双向同步
@@ -46,9 +47,9 @@ MuseTerm 的 SSH 管理不应只是替用户记住 `user@host -p 22`，而要把
 ## P2：智能诊断
 
 - 已落地：终端输出旁路识别常见 SSH 失败，并追加 MuseTerm 提示，覆盖认证失败、Host Key 校验失败、连接超时、连接被拒绝、认证身份过多和端口转发失败。
+- 已落地：`Host key verification failed` 会给出 known_hosts 定位与保守清理命令，且不会自动执行。
 - 下一步：解析 SSH stderr 常见错误并给出面向行动的建议：
 - `Permission denied`：检查用户名、密钥、`IdentitiesOnly` 或 agent。
-- `Host key verification failed`：解释风险，提供 known_hosts 定位与清理引导。
 - `Connection timed out`：建议检查端口、防火墙、VPN、跳板链路。
 - `Too many authentication failures`：建议启用 `IdentitiesOnly yes` 或指定更少密钥。
 
