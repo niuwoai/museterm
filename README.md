@@ -19,6 +19,14 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 2. 选择 `museterm` scheme
 3. 在 Xcode 中运行
 
+## 常见操作
+
+如果关闭运行中标签时勾选过“以后不再询问”，本机偏好会保留这个选择。要恢复关闭确认弹窗，可以运行：
+
+```bash
+defaults delete im.some.museterm terminal.skipRunningTabCloseConfirmation
+```
+
 ## 版本
 
-当前版本：`v1.8.1-rc1`
+当前版本：`v1.170.1-rc1`

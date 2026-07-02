@@ -13,7 +13,7 @@ struct TerminalCommands: Commands {
             .disabled(workspace == nil)
 
             Button(L10n.string("action.close_tab")) {
-                workspace?.closeSelectedTab()
+                workspace?.closeSelectedTabFromShortcut(eventTimestamp: NSApp.currentEvent?.timestamp)
             }
             .keyboardShortcut("w", modifiers: .command)
             .disabled(workspace == nil)

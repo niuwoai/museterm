@@ -60,7 +60,7 @@ struct TerminalShortcutBridge: NSViewRepresentable {
             }
 
             if key == "w", !hasShift {
-                workspace?.closeSelectedTab()
+                workspace?.closeSelectedTabFromShortcut(eventTimestamp: event.timestamp)
                 return nil
             }
 

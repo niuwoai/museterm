@@ -836,6 +836,9 @@ final class TerminalWorkspace: ObservableObject {
     private var isPreparingNextTab = false
     private var lastShortcutNewTabUptime: TimeInterval = -.infinity
     private var lastShortcutNewTabEventTimestamp: TimeInterval?
+    private var lastShortcutCloseTabUptime: TimeInterval = -.infinity
+    private var lastShortcutCloseTabEventTimestamp: TimeInterval?
+    private var isHandlingCloseTabShortcut = false
 
     init(
         automaticallyStartProcesses: Bool = true,
@@ -966,6 +969,15 @@ final class TerminalWorkspace: ObservableObject {
         newTab()
     }
 
+    @discardableResult
+    func closeSelectedTabFromShortcut(eventTimestamp: TimeInterval? = nil) -> Bool {
+        guard !isHandlingCloseTabShortcut else { return false }
+        guard shouldHandleCloseTabShortcut(eventTimestamp: eventTimestamp) else { return false }
+        isHandlingCloseTabShortcut = true
+        defer { isHandlingCloseTabShortcut = false }
+        return closeSelectedTab()
+    }
+
     func select(_ tab: TerminalSession) {
         selectedID = tab.id
         tab.clearUnreadAttention()
@@ -1010,6 +1022,20 @@ final class TerminalWorkspace: ObservableObject {
             tabs[fallbackIndex].clearUnreadAttention()
         }
 
+        return true
+    }
+
+    private func shouldHandleCloseTabShortcut(eventTimestamp: TimeInterval?) -> Bool {
+        if let eventTimestamp {
+            guard eventTimestamp != lastShortcutCloseTabEventTimestamp else { return false }
+            lastShortcutCloseTabEventTimestamp = eventTimestamp
+            lastShortcutCloseTabUptime = ProcessInfo.processInfo.systemUptime
+            return true
+        }
+
+        let now = ProcessInfo.processInfo.systemUptime
+        guard now - lastShortcutCloseTabUptime > 0.2 else { return false }
+        lastShortcutCloseTabUptime = now
         return true
     }
 

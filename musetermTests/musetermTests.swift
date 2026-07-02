@@ -1484,6 +1484,51 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(workspace.tabs.count, 3)
     }
 
+    func testShortcutCloseTabDeduplicatesDoubleDispatch() throws {
+        let confirmer = RecordingTabCloseConfirmer()
+        let workspace = TerminalWorkspace(
+            automaticallyStartProcesses: false,
+            tabCloseConfirmer: confirmer
+        )
+        let firstTab = try XCTUnwrap(workspace.selectedTab)
+        workspace.newTab()
+        let secondTab = try XCTUnwrap(workspace.selectedTab)
+        workspace.newTab()
+        let thirdTab = try XCTUnwrap(workspace.selectedTab)
+        workspace.select(secondTab)
+
+        workspace.closeSelectedTabFromShortcut(eventTimestamp: 200)
+        workspace.closeSelectedTabFromShortcut(eventTimestamp: 200)
+
+        XCTAssertEqual(workspace.tabs.map(\.id), [firstTab.id, thirdTab.id])
+        XCTAssertEqual(workspace.selectedID, thirdTab.id)
+        XCTAssertEqual(confirmer.requestedTabTitles.count, 1)
+    }
+
+    func testShortcutCloseTabDeduplicatesCancelledCloseAttempt() throws {
+        let confirmer = RecordingTabCloseConfirmer()
+        confirmer.shouldAllowClose = false
+        let workspace = TerminalWorkspace(
+            automaticallyStartProcesses: false,
+            tabCloseConfirmer: confirmer
+        )
+        workspace.newTab()
+        let selectedTab = try XCTUnwrap(workspace.selectedTab)
+
+        workspace.closeSelectedTabFromShortcut(eventTimestamp: 200)
+        workspace.closeSelectedTabFromShortcut(eventTimestamp: 200)
+
+        XCTAssertEqual(workspace.tabs.count, 2)
+        XCTAssertEqual(workspace.selectedID, selectedTab.id)
+        XCTAssertEqual(confirmer.requestedTabTitles.count, 1)
+
+        confirmer.shouldAllowClose = true
+        workspace.closeSelectedTabFromShortcut(eventTimestamp: 201)
+
+        XCTAssertEqual(workspace.tabs.count, 1)
+        XCTAssertEqual(confirmer.requestedTabTitles.count, 2)
+    }
+
     func testCloseSelectedTabRemovesOnlyCurrentTab() throws {
         let confirmer = RecordingTabCloseConfirmer()
         let workspace = TerminalWorkspace(

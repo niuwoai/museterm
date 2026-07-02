@@ -52,15 +52,15 @@ final class TerminalWindowCloseCoordinator: NSObject, NSWindowDelegate {
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        handleWindowCloseRequest()
+        handleWindowCloseRequest(eventTimestamp: NSApp.currentEvent?.timestamp)
     }
 
     @discardableResult
-    func handleWindowCloseRequest() -> Bool {
+    func handleWindowCloseRequest(eventTimestamp: TimeInterval? = nil) -> Bool {
         guard !TerminalWindowCloseState.isAppTerminating else { return true }
         guard let workspace else { return true }
 
-        _ = workspace.closeSelectedTab()
+        _ = workspace.closeSelectedTabFromShortcut(eventTimestamp: eventTimestamp)
         return false
     }
 
