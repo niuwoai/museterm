@@ -176,6 +176,10 @@
 "ssh.search.empty" = "No SSH hosts match the current search.";
 "ssh.tags.all" = "All";
 "ssh.group.ungrouped" = "Ungrouped";
+"ssh.groups.expand_all" = "Expand all SSH groups";
+"ssh.groups.collapse_all" = "Collapse all SSH groups";
+"ssh.group.expand.help" = "Expand %@.";
+"ssh.group.collapse.help" = "Collapse %@.";
 "ssh.empty" = "Save SSH hosts here. Profiles can use jump hosts and different keys per hop.";
 "ssh.connect" = "Connect";
 "ssh.edit" = "Edit";

@@ -519,7 +519,17 @@ enum SSHConnectionIssueRepairGuide {
     }
 
     private static func knownHostsTarget(host: String, port: Int) -> String {
-        port == 22 ? host : "[\(host)]:\(port)"
+        let cleanHost = normalizedKnownHostsHost(host)
+        return port == 22 ? cleanHost : "[\(cleanHost)]:\(port)"
+    }
+
+    private static func normalizedKnownHostsHost(_ host: String) -> String {
+        let trimmed = host.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasPrefix("["),
+           let closingBracket = trimmed.firstIndex(of: "]") {
+            return String(trimmed[trimmed.index(after: trimmed.startIndex)..<closingBracket])
+        }
+        return trimmed
     }
 
     private static func shellArgument(_ value: String) -> String {

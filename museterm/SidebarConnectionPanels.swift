@@ -133,6 +133,7 @@ struct SSHProfilesSection: View {
     @State private var importMessage = ""
     @State private var searchText = ""
     @State private var selectedTag: String?
+    @State private var collapsedProfileGroups: Set<String> = []
 
     var body: some View {
         SidebarSection(title: L10n.string("ssh.section"), systemImage: "network", skin: skin) {
@@ -187,13 +188,12 @@ struct SSHProfilesSection: View {
                 searchControls
                 ForEach(groupedProfiles) { group in
                     if groupedProfiles.count > 1 {
-                        Text(group.name)
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .padding(.top, 3)
+                        profileGroupHeader(group)
                     }
-                    ForEach(group.profiles) { profile in
-                        sshProfileRow(profile)
+                    if !isProfileGroupCollapsed(group) {
+                        ForEach(group.profiles) { profile in
+                            sshProfileRow(profile)
+                        }
                     }
                 }
             }
@@ -244,6 +244,27 @@ struct SSHProfilesSection: View {
                     }
                     .buttonStyle(.plain)
                     .help(L10n.string("action.clear"))
+                }
+                if groupedProfiles.count > 1 {
+                    Button {
+                        expandAllProfileGroups()
+                    } label: {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(L10n.string("ssh.groups.expand_all"))
+
+                    Button {
+                        collapseAllProfileGroups()
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(L10n.string("ssh.groups.collapse_all"))
                 }
             }
             .padding(.horizontal, 7)
@@ -308,6 +329,56 @@ struct SSHProfilesSection: View {
                 if rhs.name == L10n.string("ssh.group.ungrouped") { return true }
                 return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
             }
+    }
+
+    private func profileGroupHeader(_ group: SSHProfileListGroup) -> some View {
+        let isCollapsed = isProfileGroupCollapsed(group)
+        return Button {
+            toggleProfileGroup(group)
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
+                    .font(.system(size: 9, weight: .bold))
+                    .frame(width: 10)
+                    .foregroundStyle(.secondary)
+                Text(group.name)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                Text("\(group.profiles.count)")
+                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(skin.controlFill)
+                    .clipShape(Capsule())
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 3)
+        .help(L10n.format(isCollapsed ? "ssh.group.expand.help" : "ssh.group.collapse.help", group.name))
+    }
+
+    private func isProfileGroupCollapsed(_ group: SSHProfileListGroup) -> Bool {
+        collapsedProfileGroups.contains(group.id)
+    }
+
+    private func toggleProfileGroup(_ group: SSHProfileListGroup) {
+        if collapsedProfileGroups.contains(group.id) {
+            collapsedProfileGroups.remove(group.id)
+        } else {
+            collapsedProfileGroups.insert(group.id)
+        }
+    }
+
+    private func expandAllProfileGroups() {
+        collapsedProfileGroups.removeAll()
+    }
+
+    private func collapseAllProfileGroups() {
+        collapsedProfileGroups = Set(groupedProfiles.map(\.id))
     }
 
     private func sshProfileRow(_ profile: SSHConnectionProfile) -> some View {

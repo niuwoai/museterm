@@ -1386,6 +1386,29 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertNil(guide?.offendingLocation)
     }
 
+    @MainActor
+    func testSSHHostKeyRepairGuideFormatsIPv6KnownHostsTargets() {
+        let defaultPort = SSHConnectionIssueRepairGuide.hostKeyGuide(
+            for: SSHConnectionProfile(host: "2001:db8::10", port: 22),
+            diagnosticText: "Host key verification failed."
+        )
+        let customPort = SSHConnectionIssueRepairGuide.hostKeyGuide(
+            for: SSHConnectionProfile(host: "2001:db8::10", port: 2222),
+            diagnosticText: "Host key verification failed."
+        )
+        let bracketedCustomPort = SSHConnectionIssueRepairGuide.hostKeyGuide(
+            for: SSHConnectionProfile(host: "[2001:db8::10]", port: 2222),
+            diagnosticText: "Host key verification failed."
+        )
+
+        XCTAssertEqual(defaultPort?.knownHostsTarget, "2001:db8::10")
+        XCTAssertEqual(defaultPort?.removalCommand, "ssh-keygen -R '2001:db8::10'")
+        XCTAssertEqual(customPort?.knownHostsTarget, "[2001:db8::10]:2222")
+        XCTAssertEqual(customPort?.removalCommand, "ssh-keygen -R '[2001:db8::10]:2222'")
+        XCTAssertEqual(bracketedCustomPort?.knownHostsTarget, "[2001:db8::10]:2222")
+        XCTAssertEqual(bracketedCustomPort?.removalCommand, "ssh-keygen -R '[2001:db8::10]:2222'")
+    }
+
     func testSSHConfigRendersPerHopIdentityAndProxyJump() {
         let firstJump = SSHJumpHost(
             name: "bastion",

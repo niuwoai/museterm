@@ -176,6 +176,10 @@
 "ssh.search.empty" = "没有匹配当前搜索条件的 SSH 主机。";
 "ssh.tags.all" = "全部";
 "ssh.group.ungrouped" = "未分组";
+"ssh.groups.expand_all" = "展开全部 SSH 分组";
+"ssh.groups.collapse_all" = "收起全部 SSH 分组";
+"ssh.group.expand.help" = "展开 %@。";
+"ssh.group.collapse.help" = "收起 %@。";
 "ssh.empty" = "把 SSH 主机存到这里。Profile 支持跳转机、多跳，以及每一跳使用不同密钥。";
 "ssh.connect" = "连接";
 "ssh.edit" = "编辑";
