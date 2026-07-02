@@ -17,6 +17,49 @@ struct SSHRouteDiagnosticStepResult: Equatable {
     let evidence: String?
 }
 
+struct SSHRouteDiagnosticResultSummary: Equatable {
+    let totalSteps: Int
+    let parsedSteps: Int
+    let passed: Int
+    let failed: Int
+    let needsAttention: Int
+    let unknown: Int
+
+    init(totalSteps: Int, results: [Int: SSHRouteDiagnosticStepResult]) {
+        self.totalSteps = totalSteps
+        let scopedResults = (0..<max(totalSteps, 0)).compactMap { results[$0] }
+        self.parsedSteps = scopedResults.count
+        self.passed = scopedResults.filter { $0.status == .passed }.count
+        self.failed = scopedResults.filter { $0.status == .failed }.count
+        self.needsAttention = scopedResults.filter { $0.status == .needsAttention }.count
+        self.unknown = scopedResults.filter { $0.status == .unknown }.count
+    }
+
+    var hasResults: Bool {
+        parsedSteps > 0
+    }
+
+    var remainingSteps: Int {
+        max(totalSteps - parsedSteps, 0)
+    }
+
+    var leadingStatus: SSHRouteDiagnosticResultStatus? {
+        if failed > 0 {
+            return .failed
+        }
+        if needsAttention > 0 {
+            return .needsAttention
+        }
+        if unknown > 0 {
+            return .unknown
+        }
+        if passed > 0 {
+            return .passed
+        }
+        return nil
+    }
+}
+
 enum SSHRouteDiagnosticStepResultInterpreter {
     private struct Match {
         let summaryKey: String
@@ -40,7 +83,7 @@ enum SSHRouteDiagnosticStepResultInterpreter {
             ) {
                 return result(.failed, match)
             }
-            if exitCode == 0,
+            if allowsSuccess(exitCode: exitCode),
                containsAny(lowercased, ["name:", "has address", "canonical name", "address:"]) {
                 return SSHRouteDiagnosticStepResult(
                     status: .passed,
@@ -82,7 +125,7 @@ enum SSHRouteDiagnosticStepResultInterpreter {
             ) {
                 return result(.failed, match)
             }
-            if exitCode == 0,
+            if allowsSuccess(exitCode: exitCode),
                containsAny(lowercased, ["hostname ", "user ", "port "]) {
                 return SSHRouteDiagnosticStepResult(
                     status: .passed,
@@ -146,6 +189,11 @@ enum SSHRouteDiagnosticStepResultInterpreter {
             summary: L10n.string(match.summaryKey),
             evidence: match.evidence
         )
+    }
+
+    private static func allowsSuccess(exitCode: Int32?) -> Bool {
+        guard let exitCode else { return true }
+        return exitCode == 0
     }
 
     private static func meaningfulLines(in output: String) -> [String] {

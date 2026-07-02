@@ -7,6 +7,7 @@ struct SSHRouteDiagnosticPlanSheet: View {
     let skin: TerminalVisualSkin
     let onClose: () -> Void
     @State private var message = ""
+    @State private var parsedResults: [Int: SSHRouteDiagnosticStepResult] = [:]
 
     private var plan: SSHRouteDiagnosticPlan? {
         SSHRouteProbeGuideBuilder.plan(for: profile, issue: .connectionTimedOut)
@@ -18,6 +19,7 @@ struct SSHRouteDiagnosticPlanSheet: View {
 
             if let plan {
                 routeSummary(plan.routeSummary)
+                resultSummary(totalSteps: plan.steps.count)
                 stepList(plan.steps)
                 footer(plan.steps)
             } else {
@@ -80,6 +82,37 @@ struct SSHRouteDiagnosticPlanSheet: View {
         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
     }
 
+    @ViewBuilder
+    private func resultSummary(totalSteps: Int) -> some View {
+        let summary = SSHRouteDiagnosticResultSummary(totalSteps: totalSteps, results: parsedResults)
+        if summary.hasResults {
+            Label {
+                Text(
+                    L10n.format(
+                        "ssh.diagnostic_plan.result_summary",
+                        summary.parsedSteps,
+                        summary.totalSteps,
+                        summary.passed,
+                        summary.failed,
+                        summary.needsAttention,
+                        summary.unknown
+                    )
+                )
+                .font(.caption)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: resultSummaryIcon(summary.leadingStatus))
+            }
+            .foregroundStyle(resultSummaryColor(summary.leadingStatus))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(resultSummaryColor(summary.leadingStatus).opacity(0.10))
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        }
+    }
+
     private func stepList(_ steps: [SSHRouteDiagnosticPlanStep]) -> some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 8) {
@@ -88,9 +121,11 @@ struct SSHRouteDiagnosticPlanSheet: View {
                         index: index + 1,
                         step: step,
                         skin: skin,
+                        result: parsedResults[index],
                         canStage: hasLocalSelectedTab,
                         stageHelp: stageHelp,
                         copyAction: { copy(step.command, messageKey: "ssh.diagnostic_plan.copied_step") },
+                        parseClipboardAction: { parseClipboardResult(for: step, at: index) },
                         stageAction: { stage(step.command) }
                     )
                 }
@@ -107,6 +142,23 @@ struct SSHRouteDiagnosticPlanSheet: View {
             } label: {
                 Label(L10n.string("ssh.diagnostic_plan.copy_all"), systemImage: "doc.on.doc")
             }
+
+            Spacer()
+
+            Button {
+                copyResultSummary(for: steps)
+            } label: {
+                Label(L10n.string("ssh.diagnostic_plan.copy_results"), systemImage: "checklist.checked")
+            }
+            .disabled(parsedResults.isEmpty)
+
+            Button {
+                parsedResults.removeAll()
+                message = L10n.string("ssh.diagnostic_plan.results_cleared")
+            } label: {
+                Label(L10n.string("ssh.diagnostic_plan.clear_results"), systemImage: "xmark.circle")
+            }
+            .disabled(parsedResults.isEmpty)
         }
         .buttonStyle(.bordered)
     }
@@ -138,6 +190,42 @@ struct SSHRouteDiagnosticPlanSheet: View {
         message = L10n.string(messageKey)
     }
 
+    private func parseClipboardResult(for step: SSHRouteDiagnosticPlanStep, at index: Int) {
+        guard let output = NSPasteboard.general.string(forType: .string),
+              !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            message = L10n.string("ssh.diagnostic_plan.parse_clipboard.empty")
+            return
+        }
+        parsedResults[index] = step.interpretResult(exitCode: nil, output: output)
+        message = L10n.string("ssh.diagnostic_plan.parse_clipboard.parsed")
+    }
+
+    private func copyResultSummary(for steps: [SSHRouteDiagnosticPlanStep]) {
+        let lines = diagnosticResultLines(for: steps)
+        guard !lines.isEmpty else {
+            message = L10n.string("ssh.diagnostic_plan.no_results")
+            return
+        }
+        copy(lines.joined(separator: "\n"), messageKey: "ssh.diagnostic_plan.results_copied")
+    }
+
+    private func diagnosticResultLines(for steps: [SSHRouteDiagnosticPlanStep]) -> [String] {
+        steps.enumerated().compactMap { index, step in
+            guard let result = parsedResults[index] else { return nil }
+            var line = L10n.format(
+                "ssh.diagnostic_plan.result_line",
+                index + 1,
+                step.title,
+                result.status.title,
+                result.summary
+            )
+            if let evidence = result.evidence, !evidence.isEmpty {
+                line += "\n  " + L10n.format("ssh.diagnostic_plan.result_evidence", evidence)
+            }
+            return line
+        }
+    }
+
     private func stage(_ command: String) {
         guard let tab = workspace.selectedTab,
               case .localShell = tab.launchConfiguration else {
@@ -148,15 +236,45 @@ struct SSHRouteDiagnosticPlanSheet: View {
         tab.controller.sendProcessInput(bytes: Array(command.utf8))
         message = L10n.string("ssh.diagnostic_plan.staged")
     }
+
+    private func resultSummaryIcon(_ status: SSHRouteDiagnosticResultStatus?) -> String {
+        switch status {
+        case .passed:
+            return "checkmark.seal"
+        case .failed:
+            return "xmark.octagon"
+        case .needsAttention:
+            return "exclamationmark.triangle"
+        case .unknown:
+            return "questionmark.circle"
+        case nil:
+            return "checklist"
+        }
+    }
+
+    private func resultSummaryColor(_ status: SSHRouteDiagnosticResultStatus?) -> Color {
+        switch status {
+        case .passed:
+            return .green
+        case .failed:
+            return .red
+        case .needsAttention:
+            return .orange
+        case .unknown, nil:
+            return .secondary
+        }
+    }
 }
 
 private struct SSHRouteDiagnosticStepRow: View {
     let index: Int
     let step: SSHRouteDiagnosticPlanStep
     let skin: TerminalVisualSkin
+    let result: SSHRouteDiagnosticStepResult?
     let canStage: Bool
     let stageHelp: String
     let copyAction: () -> Void
+    let parseClipboardAction: () -> Void
     let stageAction: () -> Void
 
     var body: some View {
@@ -184,6 +302,13 @@ private struct SSHRouteDiagnosticStepRow: View {
                 .buttonStyle(.plain)
                 .help(L10n.string("ssh.diagnostic_plan.copy_step"))
 
+                Button(action: parseClipboardAction) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .frame(width: 22, height: 22)
+                }
+                .buttonStyle(.plain)
+                .help(L10n.string("ssh.diagnostic_plan.parse_clipboard"))
+
                 Button(action: stageAction) {
                     Image(systemName: "terminal")
                         .frame(width: 22, height: 22)
@@ -202,6 +327,10 @@ private struct SSHRouteDiagnosticStepRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.black.opacity(0.05))
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+
+            if let result {
+                resultView(result)
+            }
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -235,6 +364,32 @@ private struct SSHRouteDiagnosticStepRow: View {
         }
     }
 
+    private func resultView(_ result: SSHRouteDiagnosticStepResult) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(result.status.title)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(resultColor(result.status))
+                Text(result.summary)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let evidence = result.evidence, !evidence.isEmpty {
+                Text(evidence)
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+            }
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(resultColor(result.status).opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+    }
+
     private var kindLabel: String {
         switch step.kind {
         case .dnsLookup:
@@ -258,6 +413,19 @@ private struct SSHRouteDiagnosticStepRow: View {
             return .purple
         case .verboseRoute:
             return .green
+        }
+    }
+
+    private func resultColor(_ status: SSHRouteDiagnosticResultStatus) -> Color {
+        switch status {
+        case .passed:
+            return .green
+        case .failed:
+            return .red
+        case .needsAttention:
+            return .orange
+        case .unknown:
+            return .secondary
         }
     }
 }

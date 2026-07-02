@@ -566,7 +566,7 @@ final class SSHConnectionProfileTests: XCTestCase {
         )
 
         let passed = step.interpretResult(
-            exitCode: 0,
+            exitCode: nil,
             output: "name: example.com\nip_address: 93.184.216.34"
         )
         let failed = step.interpretResult(
@@ -615,7 +615,7 @@ final class SSHConnectionProfileTests: XCTestCase {
             includeInFailureGuide: true
         )
 
-        let passed = step.interpretResult(exitCode: 0, output: "hostname example.com\nuser deploy\nport 22")
+        let passed = step.interpretResult(exitCode: nil, output: "hostname example.com\nuser deploy\nport 22")
         let failed = step.interpretResult(exitCode: 255, output: "Bad configuration option: proxyjumpx")
 
         XCTAssertEqual(passed.status, .passed)
@@ -645,6 +645,26 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertEqual(denied.status, .failed)
         XCTAssertTrue(denied.summary.contains(SSHConnectionIssueKind.permissionDenied.title))
         XCTAssertEqual(unknown.status, .unknown)
+    }
+
+    func testSSHRouteDiagnosticResultSummaryCountsScopedResults() {
+        let results: [Int: SSHRouteDiagnosticStepResult] = [
+            0: SSHRouteDiagnosticStepResult(status: .passed, summary: "ok", evidence: nil),
+            1: SSHRouteDiagnosticStepResult(status: .failed, summary: "bad", evidence: "Connection refused"),
+            2: SSHRouteDiagnosticStepResult(status: .needsAttention, summary: "maybe", evidence: nil),
+            9: SSHRouteDiagnosticStepResult(status: .unknown, summary: "stale", evidence: nil)
+        ]
+
+        let summary = SSHRouteDiagnosticResultSummary(totalSteps: 4, results: results)
+
+        XCTAssertTrue(summary.hasResults)
+        XCTAssertEqual(summary.parsedSteps, 3)
+        XCTAssertEqual(summary.remainingSteps, 1)
+        XCTAssertEqual(summary.passed, 1)
+        XCTAssertEqual(summary.failed, 1)
+        XCTAssertEqual(summary.needsAttention, 1)
+        XCTAssertEqual(summary.unknown, 0)
+        XCTAssertEqual(summary.leadingStatus, .failed)
     }
 
     @MainActor
