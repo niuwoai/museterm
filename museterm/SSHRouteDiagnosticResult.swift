@@ -82,6 +82,7 @@ struct SSHRouteDiagnosticRecommendation: Equatable {
 
 struct SSHRouteDiagnosticRecommendationDetail: Equatable {
     let oneBasedStepIndex: Int?
+    let zeroBasedStepIndex: Int?
     let stepTitle: String?
     let command: String?
     let evidence: String?
@@ -93,6 +94,7 @@ struct SSHRouteDiagnosticRecommendationDetail: Equatable {
     ) {
         guard let oneBasedStepIndex = recommendation.relatedStepIndex else {
             self.oneBasedStepIndex = nil
+            self.zeroBasedStepIndex = nil
             self.stepTitle = nil
             self.command = nil
             self.evidence = nil
@@ -101,6 +103,7 @@ struct SSHRouteDiagnosticRecommendationDetail: Equatable {
 
         let zeroBasedStepIndex = oneBasedStepIndex - 1
         self.oneBasedStepIndex = oneBasedStepIndex
+        self.zeroBasedStepIndex = zeroBasedStepIndex
         if planSteps.indices.contains(zeroBasedStepIndex) {
             let step = planSteps[zeroBasedStepIndex]
             self.stepTitle = step.title

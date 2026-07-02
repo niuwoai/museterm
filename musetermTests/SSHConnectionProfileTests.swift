@@ -170,6 +170,7 @@ final class SSHConnectionProfileTests: XCTestCase {
             ]
         )
         XCTAssertEqual(tcpDetail.oneBasedStepIndex, 2)
+        XCTAssertEqual(tcpDetail.zeroBasedStepIndex, 1)
         XCTAssertEqual(tcpDetail.stepTitle, steps[1].title)
         XCTAssertTrue(tcpDetail.command?.contains("nc -vz -w 5") == true)
         XCTAssertTrue(tcpDetail.command?.contains("'bastion.internal' 2200") == true)

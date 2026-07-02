@@ -167,6 +167,8 @@
 "ssh.config_preview.recommendation.step" = "Step %d · %@";
 "ssh.config_preview.recommendation.evidence" = "Evidence";
 "ssh.config_preview.recommendation.command" = "Command";
+"ssh.config_preview.recommendation.copy_command" = "Copy this recommended check command";
+"ssh.config_preview.recommendation.parse_output" = "Parse this recommended check output from the clipboard";
 "ssh.config_preview.copy" = "Copy config";
 "ssh.config_preview.copied" = "Effective OpenSSH config copied.";
 "ssh.search.placeholder" = "Search hosts";

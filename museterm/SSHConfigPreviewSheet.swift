@@ -217,6 +217,11 @@ struct SSHConfigPreviewSheet: View {
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(.secondary)
                     }
+                    Spacer(minLength: 8)
+                    if let commandIndex = detail.zeroBasedStepIndex,
+                       preview.commands.indices.contains(commandIndex) {
+                        recommendationActionButtons(for: preview.commands[commandIndex], at: commandIndex)
+                    }
                 }
                 Text(recommendation.summary)
                     .font(.caption2)
@@ -246,6 +251,31 @@ struct SSHConfigPreviewSheet: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(resultColor(recommendation.status).opacity(0.10))
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+    }
+
+    private func recommendationActionButtons(
+        for command: SSHConfigPreviewCommand,
+        at index: Int
+    ) -> some View {
+        HStack(spacing: 4) {
+            Button {
+                copyCommands([command])
+            } label: {
+                Image(systemName: "doc.on.doc")
+                    .frame(width: 22, height: 20)
+            }
+            .buttonStyle(.plain)
+            .help(L10n.string("ssh.config_preview.recommendation.copy_command"))
+
+            Button {
+                parseClipboardResult(for: command, at: index)
+            } label: {
+                Image(systemName: "doc.text.magnifyingglass")
+                    .frame(width: 22, height: 20)
+            }
+            .buttonStyle(.plain)
+            .help(L10n.string("ssh.config_preview.recommendation.parse_output"))
         }
     }
 
