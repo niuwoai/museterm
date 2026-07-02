@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.200.0] - 2026-07-02
+
+### Added
+- SSH config 导入会规范化端口转发里的 bracketed IPv6 endpoint，例如 `[::1]:8443` 和 `[2001:db8::20]:443` 会导入为不带括号的内部 host，再由摘要、编辑器和导出统一渲染为 `[地址]:端口`。
+- SSH 主机菜单新增本地入口快捷菜单，可直接打开浏览器可访问的 LocalForward URL，并可复制 DynamicForward 的 SOCKS 代理地址。
+
 ## [1.199.0] - 2026-07-02
 
 ### Added

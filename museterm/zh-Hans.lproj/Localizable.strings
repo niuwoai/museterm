@@ -217,6 +217,11 @@
 "ssh.copy_port_forwards" = "复制端口转发";
 "ssh.copy_port_forwards.help" = "复制这个 Profile 的端口转发摘要。";
 "ssh.copy_port_forwards.copied" = "已复制 %@ 的端口转发摘要。";
+"ssh.open_port_forward_entries" = "打开本地入口";
+"ssh.open_port_forward_entries.help" = "打开可用浏览器访问的 LocalForward 入口，或复制 SOCKS 代理入口。";
+"ssh.open_port_forward_entry" = "打开 %@";
+"ssh.copy_port_forward_entry" = "复制 %@";
+"ssh.copy_port_forward_entry.copied" = "已复制 %@。";
 "ssh.port_forward.localhost" = "localhost";
 "ssh.port_forward.kind.local" = "本机";
 "ssh.port_forward.kind.remote" = "远端";

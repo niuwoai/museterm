@@ -313,6 +313,7 @@ struct SSHProfilesSection: View {
     private func sshProfileRow(_ profile: SSHConnectionProfile) -> some View {
         let health = profile.healthSummary
         let portForwardSummary = profile.portForwardSummaryText
+        let portForwardAccessEntries = profile.portForwardAccessEntries
         return HStack(spacing: 7) {
             Button {
                 workspace.openSSH(profile: profile)
@@ -374,6 +375,33 @@ struct SSHProfilesSection: View {
                 }
                 .disabled(profile.usablePortForwards.isEmpty)
                 .help(L10n.string("ssh.copy_port_forwards.help"))
+                Menu {
+                    ForEach(portForwardAccessEntries) { entry in
+                        if entry.canOpenInBrowser {
+                            Button {
+                                openPortForwardAccess(entry)
+                            } label: {
+                                Label(
+                                    L10n.format("ssh.open_port_forward_entry", entry.urlString),
+                                    systemImage: "safari"
+                                )
+                            }
+                        } else {
+                            Button {
+                                copyPortForwardAccess(entry)
+                            } label: {
+                                Label(
+                                    L10n.format("ssh.copy_port_forward_entry", entry.urlString),
+                                    systemImage: "doc.on.doc"
+                                )
+                            }
+                        }
+                    }
+                } label: {
+                    Label(L10n.string("ssh.open_port_forward_entries"), systemImage: "link")
+                }
+                .disabled(portForwardAccessEntries.isEmpty)
+                .help(L10n.string("ssh.open_port_forward_entries.help"))
                 Button {
                     diagnosticProfile = profile
                 } label: {
@@ -438,6 +466,20 @@ struct SSHProfilesSection: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(summary, forType: .string)
         importMessage = L10n.format("ssh.copy_port_forwards.copied", profile.displayName)
+    }
+
+    private func openPortForwardAccess(_ entry: SSHPortForwardAccessEntry) {
+        guard let url = URL(string: entry.urlString) else {
+            NSSound.beep()
+            return
+        }
+        NSWorkspace.shared.open(url)
+    }
+
+    private func copyPortForwardAccess(_ entry: SSHPortForwardAccessEntry) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(entry.urlString, forType: .string)
+        importMessage = L10n.format("ssh.copy_port_forward_entry.copied", entry.urlString)
     }
 }
 

@@ -360,6 +360,15 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertEqual(profile.portForwardSummaryText.occurrences(of: "[::]:1080"), 1)
         XCTAssertEqual(profile.portForwardAccessText.occurrences(of: "http://localhost:8080"), 1)
         XCTAssertEqual(profile.portForwardAccessText.occurrences(of: "socks5://localhost:1080"), 1)
+        XCTAssertEqual(
+            profile.portForwardAccessEntries,
+            [
+                SSHPortForwardAccessEntry(kind: .local, urlString: "http://localhost:8080"),
+                SSHPortForwardAccessEntry(kind: .dynamic, urlString: "socks5://localhost:1080")
+            ]
+        )
+        XCTAssertTrue(profile.portForwardAccessEntries[0].canOpenInBrowser)
+        XCTAssertFalse(profile.portForwardAccessEntries[1].canOpenInBrowser)
     }
 
     func testSSHProfileBuildsConnectionCapabilitySummary() {

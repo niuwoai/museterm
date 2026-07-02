@@ -1175,22 +1175,40 @@ enum OpenSSHConfigImporter {
     }
 
     private static func parseListenSpec(_ rawValue: String) -> (host: String, port: Int)? {
-        let parts = rawValue.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
-        if parts.count == 1, let port = Int(parts[0]) {
-            return ("", port)
-        }
-        if parts.count >= 2, let port = Int(parts.last ?? "") {
-            return (parts.dropLast().joined(separator: ":"), port)
-        }
-        return nil
+        parseEndpointSpec(rawValue, allowsPortOnly: true)
     }
 
     private static func parseDestinationSpec(_ rawValue: String) -> (host: String, port: Int)? {
-        guard let separator = rawValue.lastIndex(of: ":"),
-              let port = Int(rawValue[rawValue.index(after: separator)...]) else {
+        parseEndpointSpec(rawValue, allowsPortOnly: false)
+    }
+
+    private static func parseEndpointSpec(_ rawValue: String, allowsPortOnly: Bool) -> (host: String, port: Int)? {
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        if trimmed.hasPrefix("[") {
+            guard let closingBracket = trimmed.firstIndex(of: "]") else { return nil }
+            let host = String(trimmed[trimmed.index(after: trimmed.startIndex)..<closingBracket])
+            let remainder = String(trimmed[trimmed.index(after: closingBracket)...])
+            guard !host.isEmpty,
+                  remainder.hasPrefix(":"),
+                  let port = Int(remainder.dropFirst()) else {
+                return nil
+            }
+            return (host, port)
+        }
+
+        let parts = trimmed.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
+        if allowsPortOnly, parts.count == 1, let port = Int(parts[0]) {
+            return ("", port)
+        }
+        guard parts.count >= 2,
+              let port = Int(parts.last ?? "") else {
             return nil
         }
-        return (String(rawValue[..<separator]), port)
+        let host = parts.dropLast().joined(separator: ":")
+        guard !host.isEmpty || allowsPortOnly else { return nil }
+        return (host, port)
     }
 
     private static func parseUserHostPort(_ rawValue: String) -> (user: String, host: String, port: Int) {
@@ -1362,6 +1380,11 @@ struct SSHPortForward: Codable, Equatable, Identifiable {
         }
     }
 
+    var accessEntry: SSHPortForwardAccessEntry? {
+        guard let localAccessURLString else { return nil }
+        return SSHPortForwardAccessEntry(kind: normalized.kind, urlString: localAccessURLString)
+    }
+
     var summaryLine: String {
         let clean = normalized
         switch clean.kind {
@@ -1477,6 +1500,30 @@ struct SSHPortForward: Codable, Equatable, Identifiable {
         let host = String(trimmed[..<separator])
         let port = String(trimmed[trimmed.index(after: separator)...])
         return (host, Int(port) ?? 0)
+    }
+}
+
+struct SSHPortForwardAccessEntry: Equatable, Identifiable {
+    let kind: SSHPortForwardKind
+    let urlString: String
+
+    var id: String {
+        "\(kind.rawValue)|\(urlString)"
+    }
+
+    var canOpenInBrowser: Bool {
+        kind == .local
+    }
+
+    var summaryLine: String {
+        switch kind {
+        case .local:
+            return L10n.format("ssh.port_forward.access.local", urlString)
+        case .dynamic:
+            return L10n.format("ssh.port_forward.access.dynamic", urlString)
+        case .remote:
+            return ""
+        }
     }
 }
 
@@ -1733,15 +1780,17 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
     }
 
     var portForwardAccessLines: [String] {
+        portForwardAccessEntries.map(\.summaryLine).filter { !$0.isEmpty }
+    }
+
+    var portForwardAccessEntries: [SSHPortForwardAccessEntry] {
         var seenAccessURLs: Set<String> = []
         return usablePortForwards.compactMap { forward in
-            guard
-                let localAccessURLString = forward.localAccessURLString,
-                seenAccessURLs.insert(localAccessURLString).inserted
-            else {
+            guard let entry = forward.accessEntry,
+                  seenAccessURLs.insert(entry.urlString).inserted else {
                 return nil
             }
-            return forward.accessLine
+            return entry
         }
     }
 

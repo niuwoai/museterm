@@ -59,6 +59,44 @@ final class SSHConfigImportTests: XCTestCase {
         XCTAssertEqual(profile.identityFiles, ["~/.ssh/prod key"])
     }
 
+    func testOpenSSHConfigImporterNormalizesBracketedIPv6PortForwards() throws {
+        let config = """
+        Host ipv6-tunnel
+          HostName tunnel.example.com
+          LocalForward [::1]:8443 [2001:db8::20]:443
+          RemoteForward 9443 [2001:db8::30]:9443
+          DynamicForward [::]:1080
+        """
+
+        let profile = try XCTUnwrap(OpenSSHConfigImporter.profiles(from: config).first)
+
+        XCTAssertEqual(profile.portForwards.count, 3)
+        XCTAssertEqual(profile.portForwards[0].kind, .local)
+        XCTAssertEqual(profile.portForwards[0].bindHost, "::1")
+        XCTAssertEqual(profile.portForwards[0].bindPort, 8443)
+        XCTAssertEqual(profile.portForwards[0].destinationHost, "2001:db8::20")
+        XCTAssertEqual(profile.portForwards[0].destinationPort, 443)
+        XCTAssertEqual(profile.portForwards[1].kind, .remote)
+        XCTAssertEqual(profile.portForwards[1].bindHost, "")
+        XCTAssertEqual(profile.portForwards[1].bindPort, 9443)
+        XCTAssertEqual(profile.portForwards[1].destinationHost, "2001:db8::30")
+        XCTAssertEqual(profile.portForwards[1].destinationPort, 9443)
+        XCTAssertEqual(profile.portForwards[2].kind, .dynamic)
+        XCTAssertEqual(profile.portForwards[2].bindHost, "::")
+        XCTAssertEqual(profile.portForwards[2].bindPort, 1080)
+        XCTAssertTrue(profile.portForwardSummaryText.contains("[::1]:8443"))
+        XCTAssertTrue(profile.portForwardSummaryText.contains("[2001:db8::20]:443"))
+        XCTAssertTrue(profile.portForwardSummaryText.contains("[2001:db8::30]:9443"))
+        XCTAssertTrue(profile.portForwardSummaryText.contains("[::]:1080"))
+        XCTAssertEqual(
+            profile.portForwardAccessEntries,
+            [
+                SSHPortForwardAccessEntry(kind: .local, urlString: "https://[::1]:8443"),
+                SSHPortForwardAccessEntry(kind: .dynamic, urlString: "socks5://localhost:1080")
+            ]
+        )
+    }
+
     @MainActor
     func testSSHConnectionStoreImportsExplicitHostsAndReplacesByName() throws {
         let suiteName = "museterm.tests.\(UUID().uuidString)"

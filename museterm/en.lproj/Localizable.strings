@@ -217,6 +217,11 @@
 "ssh.copy_port_forwards" = "Copy port forwards";
 "ssh.copy_port_forwards.help" = "Copy a readable summary of this profile's port forwards.";
 "ssh.copy_port_forwards.copied" = "Copied port forwards for %@.";
+"ssh.open_port_forward_entries" = "Open local entries";
+"ssh.open_port_forward_entries.help" = "Open browser-ready LocalForward entries or copy SOCKS proxy entries.";
+"ssh.open_port_forward_entry" = "Open %@";
+"ssh.copy_port_forward_entry" = "Copy %@";
+"ssh.copy_port_forward_entry.copied" = "Copied %@.";
 "ssh.port_forward.localhost" = "localhost";
 "ssh.port_forward.kind.local" = "Local";
 "ssh.port_forward.kind.remote" = "Remote";
