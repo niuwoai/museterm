@@ -107,6 +107,183 @@ enum SSHConnectionIssueClassifier {
     }
 }
 
+enum SSHRouteDiagnosticStepKind: Equatable {
+    case target
+    case jump(index: Int)
+    case unknown
+}
+
+struct SSHRouteDiagnosticContext: Equatable {
+    let kind: SSHRouteDiagnosticStepKind
+    let displayName: String
+    let host: String?
+    let port: Int?
+    let evidence: String?
+    let routeSummary: String
+
+    var message: String {
+        let evidenceMessage = evidence.map { L10n.format("ssh.route_diagnostic.evidence", $0) }
+        let routeMessage = L10n.format("ssh.route_diagnostic.route", routeSummary)
+        let headline: String
+        switch kind {
+        case .target:
+            headline = L10n.format(
+                "ssh.route_diagnostic.target",
+                displayName,
+                host ?? displayName,
+                port ?? 22
+            )
+        case .jump(let index):
+            headline = L10n.format(
+                "ssh.route_diagnostic.jump",
+                index,
+                displayName,
+                host ?? displayName,
+                port ?? 22
+            )
+        case .unknown:
+            headline = L10n.string("ssh.route_diagnostic.unknown")
+        }
+        return ([headline, routeMessage] + [evidenceMessage].compactMap { $0 }).joined(separator: "\n")
+    }
+}
+
+enum SSHRouteDiagnosticAnalyzer {
+    private struct RouteStep {
+        let kind: SSHRouteDiagnosticStepKind
+        let displayName: String
+        let host: String
+        let port: Int
+        let aliases: [String]
+    }
+
+    static func context(
+        for profile: SSHConnectionProfile,
+        diagnosticText: String
+    ) -> SSHRouteDiagnosticContext? {
+        let clean = profile.normalized
+        guard !clean.host.isEmpty else { return nil }
+        let steps = routeSteps(for: clean)
+        let endpoint = endpointMentioned(in: diagnosticText)
+        let evidence = evidenceLine(in: diagnosticText)
+
+        if let endpoint,
+           let step = steps.first(where: { matches(endpoint: endpoint, step: $0) }) {
+            return SSHRouteDiagnosticContext(
+                kind: step.kind,
+                displayName: step.displayName,
+                host: step.host,
+                port: step.port,
+                evidence: endpoint.evidence ?? evidence,
+                routeSummary: clean.routeSummary
+            )
+        }
+
+        if clean.jumpHosts.isEmpty, let target = steps.last {
+            return SSHRouteDiagnosticContext(
+                kind: target.kind,
+                displayName: target.displayName,
+                host: target.host,
+                port: target.port,
+                evidence: evidence,
+                routeSummary: clean.routeSummary
+            )
+        }
+
+        return SSHRouteDiagnosticContext(
+            kind: .unknown,
+            displayName: "",
+            host: nil,
+            port: nil,
+            evidence: evidence,
+            routeSummary: clean.routeSummary
+        )
+    }
+
+    private static func routeSteps(for profile: SSHConnectionProfile) -> [RouteStep] {
+        let base = "museterm-\(profile.id.uuidString.lowercased())"
+        let jumps = profile.jumpHosts.enumerated().map { index, jump in
+            RouteStep(
+                kind: .jump(index: index + 1),
+                displayName: jump.displayName,
+                host: jump.host,
+                port: jump.port,
+                aliases: ["\(base)-jump-\(index + 1)"]
+            )
+        }
+        let target = RouteStep(
+            kind: .target,
+            displayName: profile.displayName,
+            host: profile.host,
+            port: profile.port,
+            aliases: ["\(base)-target"]
+        )
+        return jumps + [target]
+    }
+
+    private static func matches(endpoint: (host: String, port: Int?, evidence: String?), step: RouteStep) -> Bool {
+        let endpointHost = normalizedHost(endpoint.host)
+        let hostMatches = normalizedHost(step.host) == endpointHost
+            || step.aliases.contains(where: { normalizedHost($0) == endpointHost })
+            || normalizedHost(step.displayName) == endpointHost
+        guard hostMatches else { return false }
+        if let port = endpoint.port {
+            return port == step.port
+        }
+        return true
+    }
+
+    private static func endpointMentioned(in text: String) -> (host: String, port: Int?, evidence: String?)? {
+        for line in text.components(separatedBy: .newlines).reversed() {
+            let clean = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !clean.isEmpty else { continue }
+            if let endpoint = connectToHostEndpoint(in: clean) {
+                return (endpoint.host, endpoint.port, clean)
+            }
+            if let endpoint = resolvingHostnameEndpoint(in: clean) {
+                return (endpoint, nil, clean)
+            }
+        }
+        return nil
+    }
+
+    private static func connectToHostEndpoint(in line: String) -> (host: String, port: Int)? {
+        let pattern = #"connect to host\s+([^\s]+)\s+port\s+([0-9]+)"#
+        guard let match = firstRegexMatch(pattern: pattern, in: line) else { return nil }
+        guard match.count >= 3, let port = Int(match[2]) else { return nil }
+        return (match[1], port)
+    }
+
+    private static func resolvingHostnameEndpoint(in line: String) -> String? {
+        let pattern = #"Could not resolve hostname\s+([^:\s]+)"#
+        guard let match = firstRegexMatch(pattern: pattern, in: line), match.count >= 2 else { return nil }
+        return match[1]
+    }
+
+    private static func evidenceLine(in text: String) -> String? {
+        text.components(separatedBy: .newlines)
+            .reversed()
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty }
+    }
+
+    private static func firstRegexMatch(pattern: String, in text: String) -> [String]? {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return nil }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        guard let match = regex.firstMatch(in: text, range: range) else { return nil }
+        return (0..<match.numberOfRanges).compactMap { index in
+            guard let range = Range(match.range(at: index), in: text) else { return nil }
+            return String(text[range])
+        }
+    }
+
+    private static func normalizedHost(_ value: String) -> String {
+        value
+            .trimmingCharacters(in: CharacterSet(charactersIn: "[] \t\r\n."))
+            .lowercased()
+    }
+}
+
 struct SSHConnectionHostKeyRepairGuide: Equatable {
     let knownHostsTarget: String
     let removalCommand: String

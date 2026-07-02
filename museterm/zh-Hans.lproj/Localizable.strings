@@ -199,6 +199,11 @@
 "ssh.tab.subtitle_with_jumps" = "%@ · %d 跳";
 "ssh.route.local" = "本机";
 "ssh.route.help" = "从本机经过跳转机到目标主机的连接链路。";
+"ssh.route_diagnostic.target" = "失败位置：目标主机 %@（%@:%d）。";
+"ssh.route_diagnostic.jump" = "失败位置：第 %d 跳 %@（%@:%d）。";
+"ssh.route_diagnostic.unknown" = "失败位置：OpenSSH 输出里没有明确指出是哪台主机。";
+"ssh.route_diagnostic.route" = "完整链路：%@。";
+"ssh.route_diagnostic.evidence" = "证据：%@";
 "ssh.error.launch_failed" = "SSH 启动失败：%@";
 "ssh.reconnect.scheduled" = "SSH 已断开。MuseTerm 将自动重连：第 %d/%d 次，%d 秒后开始。";
 "ssh.reconnect.attempting" = "正在重连 SSH 会话（第 %d 次）...";

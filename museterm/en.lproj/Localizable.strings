@@ -199,6 +199,11 @@
 "ssh.tab.subtitle_with_jumps" = "%@ · %d jumps";
 "ssh.route.local" = "This Mac";
 "ssh.route.help" = "Connection route from this Mac through jump hosts to the target.";
+"ssh.route_diagnostic.target" = "Route step: target %@ (%@:%d).";
+"ssh.route_diagnostic.jump" = "Route step: jump %d %@ (%@:%d).";
+"ssh.route_diagnostic.unknown" = "Route step: OpenSSH did not name the failing host.";
+"ssh.route_diagnostic.route" = "Full route: %@.";
+"ssh.route_diagnostic.evidence" = "Evidence: %@";
 "ssh.error.launch_failed" = "SSH launch failed: %@";
 "ssh.reconnect.scheduled" = "SSH disconnected. MuseTerm will reconnect: attempt %d/%d in %d seconds.";
 "ssh.reconnect.attempting" = "Reconnecting SSH session (%d)...";

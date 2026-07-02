@@ -156,6 +156,38 @@ final class SSHConnectionProfileTests: XCTestCase {
         )
     }
 
+    func testSSHRouteDiagnosticAnalyzerIdentifiesJumpHostFailure() throws {
+        let profile = SSHConnectionProfile(
+            name: "Production API",
+            host: "prod.internal",
+            user: "deploy",
+            jumpHosts: [
+                SSHJumpHost(name: "Bastion", host: "bastion.internal", user: "ops"),
+                SSHJumpHost(name: "Inner", host: "inner.internal", user: "ops", port: 2222)
+            ]
+        )
+        let diagnosticText = "ssh: connect to host inner.internal port 2222: Connection refused"
+
+        let context = try XCTUnwrap(SSHRouteDiagnosticAnalyzer.context(for: profile, diagnosticText: diagnosticText))
+
+        XCTAssertEqual(context.kind, .jump(index: 2))
+        XCTAssertEqual(context.host, "inner.internal")
+        XCTAssertEqual(context.port, 2222)
+        XCTAssertEqual(context.evidence, diagnosticText)
+        XCTAssertTrue(context.message.contains("inner.internal:2222"))
+    }
+
+    func testSSHRouteDiagnosticAnalyzerIdentifiesTargetFailureWithoutJumps() throws {
+        let profile = SSHConnectionProfile(name: "Production API", host: "prod.internal", user: "deploy")
+        let diagnosticText = "ssh: Could not resolve hostname prod.internal: nodename nor servname provided"
+
+        let context = try XCTUnwrap(SSHRouteDiagnosticAnalyzer.context(for: profile, diagnosticText: diagnosticText))
+
+        XCTAssertEqual(context.kind, .target)
+        XCTAssertEqual(context.host, "prod.internal")
+        XCTAssertEqual(context.evidence, diagnosticText)
+    }
+
     @MainActor
     func testSSHProfileNormalizesAutomaticReconnectSettings() {
         let profile = SSHConnectionProfile(
@@ -271,6 +303,86 @@ final class SSHConnectionProfileTests: XCTestCase {
             profile.routeSummary,
             "\(L10n.string("ssh.route.local")) -> edge -> deploy@bastion.internal -> deploy@10.0.2.15"
         )
+    }
+
+    func testSSHRouteDiagnosticAnalyzerLocatesJumpHostFailure() {
+        let profile = SSHConnectionProfile(
+            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            name: "Prod",
+            host: "prod.internal",
+            user: "deploy",
+            port: 2200,
+            jumpHosts: [
+                SSHJumpHost(
+                    name: "bastion",
+                    host: "jump1.example.com",
+                    user: "ops",
+                    port: 2222
+                )
+            ]
+        )
+
+        let context = SSHRouteDiagnosticAnalyzer.context(
+            for: profile,
+            diagnosticText: "ssh: connect to host jump1.example.com port 2222: Operation timed out"
+        )
+
+        XCTAssertEqual(context?.kind, .jump(index: 1))
+        XCTAssertEqual(context?.displayName, "bastion")
+        XCTAssertEqual(context?.host, "jump1.example.com")
+        XCTAssertEqual(context?.port, 2222)
+        XCTAssertTrue(context?.message.contains("jump1.example.com") ?? false)
+        XCTAssertTrue(context?.message.contains("Operation timed out") ?? false)
+    }
+
+    func testSSHRouteDiagnosticAnalyzerLocatesTargetAliasFailure() {
+        let profile = SSHConnectionProfile(
+            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            name: "Prod",
+            host: "prod.internal",
+            user: "deploy",
+            port: 2200,
+            jumpHosts: [
+                SSHJumpHost(name: "bastion", host: "jump1.example.com", user: "ops")
+            ]
+        )
+
+        let context = SSHRouteDiagnosticAnalyzer.context(
+            for: profile,
+            diagnosticText: """
+            channel 0: open failed: connect failed: Connection refused
+            ssh: connect to host museterm-11111111-1111-1111-1111-111111111111-target port 2200: Connection refused
+            """
+        )
+
+        XCTAssertEqual(context?.kind, .target)
+        XCTAssertEqual(context?.displayName, "Prod")
+        XCTAssertEqual(context?.host, "prod.internal")
+        XCTAssertEqual(context?.port, 2200)
+        XCTAssertTrue(context?.message.contains("prod.internal") ?? false)
+        XCTAssertTrue(context?.message.contains("Connection refused") ?? false)
+    }
+
+    func testSSHRouteDiagnosticAnalyzerFallsBackToUnknownWhenJumpRouteOutputOmitsHost() {
+        let profile = SSHConnectionProfile(
+            name: "Prod",
+            host: "prod.internal",
+            user: "deploy",
+            jumpHosts: [
+                SSHJumpHost(name: "bastion", host: "jump1.example.com", user: "ops")
+            ]
+        )
+
+        let context = SSHRouteDiagnosticAnalyzer.context(
+            for: profile,
+            diagnosticText: "Permission denied (publickey)."
+        )
+
+        XCTAssertEqual(context?.kind, .unknown)
+        XCTAssertNil(context?.host)
+        XCTAssertNil(context?.port)
+        XCTAssertEqual(context?.evidence, "Permission denied (publickey).")
+        XCTAssertEqual(context?.routeSummary, profile.routeSummary)
     }
 
     @MainActor
