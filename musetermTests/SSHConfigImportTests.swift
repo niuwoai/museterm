@@ -89,6 +89,23 @@ final class SSHConfigImportTests: XCTestCase {
         XCTAssertEqual(profiles.map(\.host), ["prod.internal", "literal%host.example.com"])
     }
 
+    func testOpenSSHConfigImporterExpandsIdentityFileTokens() throws {
+        let config = """
+        Host prod
+          HostName prod.internal
+          User deploy
+          IdentityFile ~/.ssh/%h-%r
+          IdentityFile ~/.ssh/%n%%backup
+        """
+
+        let profile = try XCTUnwrap(OpenSSHConfigImporter.profiles(from: config).first)
+
+        XCTAssertEqual(
+            profile.identityFiles,
+            ["~/.ssh/prod%backup", "~/.ssh/prod.internal-deploy"]
+        )
+    }
+
     func testOpenSSHConfigImporterExpandsRelativeIncludeGlobFiles() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("museterm-ssh-include-\(UUID().uuidString)", isDirectory: true)

@@ -56,11 +56,12 @@ MuseTerm 的 SSH 管理不应只是替用户记住 `user@host -p 22`，而要把
 
 ## P2：配置导入与双向同步
 
-- 已落地：从 `~/.ssh/config` 导入明确 Host，保留原始别名、用户、端口、密钥、跳板、常见转发规则、保活和连接复用设置；默认导入入口会展开 `Include` 指令，支持相对路径与 glob 文件匹配，并跳过递归 include；`Host *` 与 `Host *.internal` 这类只包含模式的默认块会按 alias 匹配后应用到明确 Host Profile，并支持 `!host` 否定模式；`HostName` 会展开 `%h`、`%n` 和 `%%` token；具体 Host block 的同名标量配置会覆盖这些默认值，多值配置如 `IdentityFile` 会继续叠加；同一个 `Host` block 里的多个明确 alias 会展开成多个 Profile，并跳过通配符、否定 alias 和重复 alias。
+- 已落地：从 `~/.ssh/config` 导入明确 Host，保留原始别名、用户、端口、密钥、跳板、常见转发规则、保活和连接复用设置；默认导入入口会展开 `Include` 指令，支持相对路径与 glob 文件匹配，并跳过递归 include；`Host *` 与 `Host *.internal` 这类只包含模式的默认块会按 alias 匹配后应用到明确 Host Profile，并支持 `!host` 否定模式；`HostName` 会展开 `%h`、`%n` 和 `%%` token，`IdentityFile` 会展开 `%h`、`%n`、`%r`、`%d` 和 `%%` token；具体 Host block 的同名标量配置会覆盖这些默认值，多值配置如 `IdentityFile` 会继续叠加；同一个 `Host` block 里的多个明确 alias 会展开成多个 Profile，并跳过通配符、否定 alias 和重复 alias。
 - 已落地：MuseTerm 编辑后的 Profile 可复制为 OpenSSH config 片段，默认只进入剪贴板，不覆盖用户原文件。
 - 已落地：Profile 编辑器可维护分组与标签，例如个人服务器、公司内网、云主机、临时机器；侧栏支持按名称、主机、用户、环境、分组、标签与跳转机信息搜索 Profile，并可按标签筛选、按分组展示。
 - 已落地：SSH 主机列表支持分组折叠，并提供展开全部与收起全部入口，减少大量 Profile 下的纵向滚动。
 - 已落地：SSH 主机可从菜单收藏或取消收藏，收藏主机会固定到顶部收藏分组，并在行内显示星标，适合高频主机快速触达。
+- 已落地：SSH 主机会在打开时自动记录最近连接时间和打开次数，非收藏的最近主机会进入顶部“最近连接”分组并显示时钟标记，减少临时高频机器的查找成本。
 - 下一步：增加批量标签管理。
 
 ## P2：智能诊断

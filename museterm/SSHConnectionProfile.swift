@@ -1133,12 +1133,15 @@ enum OpenSSHConfigImporter {
         }
 
         let cleanHost = host.isEmpty ? alias : host
+        let expandedIdentityFiles = identityFiles.map {
+            expandConfigTokens($0, alias: alias, host: cleanHost, user: user)
+        }
         return SSHConnectionProfile(
             name: alias,
             host: cleanHost,
             user: user,
             port: port,
-            identityFiles: identityFiles,
+            identityFiles: expandedIdentityFiles,
             jumpHosts: jumpHosts,
             portForwards: portForwards,
             extraOptions: extraOptions,
@@ -1209,7 +1212,18 @@ enum OpenSSHConfigImporter {
     }
 
     private nonisolated static func expandHostNameTokens(_ value: String, alias: String) -> String {
+        expandConfigTokens(value, alias: alias, host: alias, user: "")
+    }
+
+    private nonisolated static func expandConfigTokens(
+        _ value: String,
+        alias: String,
+        host: String,
+        user: String
+    ) -> String {
         let cleanAlias = alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanHost = host.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanUser = user.trimmingCharacters(in: .whitespacesAndNewlines)
         var result = ""
         var iterator = value.makeIterator()
         while let character = iterator.next() {
@@ -1225,7 +1239,11 @@ enum OpenSSHConfigImporter {
             case "%":
                 result.append("%")
             case "h", "n":
-                result.append(cleanAlias)
+                result.append(token == "h" ? cleanHost : cleanAlias)
+            case "r":
+                result.append(cleanUser)
+            case "d":
+                result.append(NSHomeDirectory())
             default:
                 result.append("%")
                 result.append(token)
@@ -1863,6 +1881,8 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
     var automaticReconnectDelaySeconds: Int
     var remoteShellIntegrationEnabled: Bool
     var isFavorite: Bool
+    var lastConnectedAt: Date?
+    var connectionOpenCount: Int
     var environment: TerminalEnvironmentKind
     var safetyPolicy: SSHSafetyConfirmationPolicy
     var groupName: String
@@ -1889,6 +1909,8 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         automaticReconnectDelaySeconds: Int = 3,
         remoteShellIntegrationEnabled: Bool = true,
         isFavorite: Bool = false,
+        lastConnectedAt: Date? = nil,
+        connectionOpenCount: Int = 0,
         environment: TerminalEnvironmentKind = .development,
         safetyPolicy: SSHSafetyConfirmationPolicy? = nil,
         groupName: String = "",
@@ -1914,6 +1936,8 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         self.automaticReconnectDelaySeconds = automaticReconnectDelaySeconds
         self.remoteShellIntegrationEnabled = remoteShellIntegrationEnabled
         self.isFavorite = isFavorite
+        self.lastConnectedAt = lastConnectedAt
+        self.connectionOpenCount = connectionOpenCount
         self.environment = environment
         self.safetyPolicy = safetyPolicy ?? Self.defaultSafetyPolicy(for: environment)
         self.groupName = groupName
@@ -1941,6 +1965,8 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         case automaticReconnectDelaySeconds
         case remoteShellIntegrationEnabled
         case isFavorite
+        case lastConnectedAt
+        case connectionOpenCount
         case environment
         case safetyPolicy
         case groupName
@@ -1978,6 +2004,8 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
             forKey: .remoteShellIntegrationEnabled
         ) ?? true
         isFavorite = try container.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
+        lastConnectedAt = try container.decodeIfPresent(Date.self, forKey: .lastConnectedAt)
+        connectionOpenCount = try container.decodeIfPresent(Int.self, forKey: .connectionOpenCount) ?? 0
         environment = try container.decodeIfPresent(TerminalEnvironmentKind.self, forKey: .environment) ?? .development
         safetyPolicy = try container.decodeIfPresent(SSHSafetyConfirmationPolicy.self, forKey: .safetyPolicy)
             ?? Self.defaultSafetyPolicy(for: environment)
@@ -2007,6 +2035,8 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
             automaticReconnectDelaySeconds: min(max(automaticReconnectDelaySeconds, 1), 120),
             remoteShellIntegrationEnabled: remoteShellIntegrationEnabled,
             isFavorite: isFavorite,
+            lastConnectedAt: lastConnectedAt,
+            connectionOpenCount: max(connectionOpenCount, 0),
             environment: environment,
             safetyPolicy: safetyPolicy,
             groupName: groupName.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -2064,6 +2094,7 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
             clean.environment.shortName
         ]
             + (clean.isFavorite ? [L10n.string("ssh.group.favorites"), "favorite", "star"] : [])
+            + (clean.lastConnectedAt == nil ? [] : [L10n.string("ssh.group.recent"), "recent"])
             + clean.tags
             + clean.jumpHosts.flatMap { [$0.displayName, $0.host, $0.user, $0.name] }
     }
@@ -2263,6 +2294,19 @@ final class SSHConnectionStore: ObservableObject {
         clean.isFavorite = isFavorite
         profiles[index] = clean.normalized
         persist()
+    }
+
+    @discardableResult
+    func recordConnection(_ profile: SSHConnectionProfile, at date: Date = Date()) -> SSHConnectionProfile {
+        guard let index = profiles.firstIndex(where: { $0.id == profile.id }) else { return profile.normalized }
+        var clean = profiles[index].normalized
+        clean.lastConnectedAt = date
+        if clean.connectionOpenCount < Int.max {
+            clean.connectionOpenCount += 1
+        }
+        profiles[index] = clean.normalized
+        persist()
+        return profiles[index]
     }
 
     private func persist() {

@@ -176,6 +176,7 @@
 "ssh.search.empty" = "没有匹配当前搜索条件的 SSH 主机。";
 "ssh.tags.all" = "全部";
 "ssh.group.favorites" = "收藏";
+"ssh.group.recent" = "最近连接";
 "ssh.group.ungrouped" = "未分组";
 "ssh.groups.expand_all" = "展开全部 SSH 分组";
 "ssh.groups.collapse_all" = "收起全部 SSH 分组";
@@ -188,6 +189,7 @@
 "ssh.favorite.remove" = "取消收藏";
 "ssh.favorite.remove.help" = "从收藏分组移除这个 SSH 主机。";
 "ssh.favorite.status" = "已收藏";
+"ssh.recent.status" = "最近连接过";
 "ssh.edit" = "编辑";
 "ssh.delete" = "删除";
 "ssh.name" = "名称";

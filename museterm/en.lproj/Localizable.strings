@@ -176,6 +176,7 @@
 "ssh.search.empty" = "No SSH hosts match the current search.";
 "ssh.tags.all" = "All";
 "ssh.group.favorites" = "Favorites";
+"ssh.group.recent" = "Recent";
 "ssh.group.ungrouped" = "Ungrouped";
 "ssh.groups.expand_all" = "Expand all SSH groups";
 "ssh.groups.collapse_all" = "Collapse all SSH groups";
@@ -188,6 +189,7 @@
 "ssh.favorite.remove" = "Remove favorite";
 "ssh.favorite.remove.help" = "Remove this SSH host from the favorites group.";
 "ssh.favorite.status" = "Favorited";
+"ssh.recent.status" = "Recently connected";
 "ssh.edit" = "Edit";
 "ssh.delete" = "Delete";
 "ssh.name" = "Name";

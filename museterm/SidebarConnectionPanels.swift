@@ -124,6 +124,8 @@ struct TerminalShortcutSection: View {
 }
 
 struct SSHProfilesSection: View {
+    private static let maxRecentProfileCount = 5
+
     @ObservedObject var workspace: TerminalWorkspace
     @ObservedObject var store: SSHConnectionStore
     let skin: TerminalVisualSkin
@@ -320,7 +322,19 @@ struct SSHProfilesSection: View {
 
     private var groupedProfiles: [SSHProfileListGroup] {
         let favoriteProfiles = sortedProfiles(filteredProfiles.filter { $0.normalized.isFavorite })
-        let regularProfiles = filteredProfiles.filter { !$0.normalized.isFavorite }
+        let favoriteIDs = Set(favoriteProfiles.map(\.id))
+        let recentProfiles = Array(
+            sortedRecentProfiles(
+                filteredProfiles.filter {
+                    !$0.normalized.isFavorite && $0.normalized.lastConnectedAt != nil
+                }
+            )
+            .prefix(Self.maxRecentProfileCount)
+        )
+        let recentIDs = Set(recentProfiles.map(\.id))
+        let regularProfiles = filteredProfiles.filter { profile in
+            !favoriteIDs.contains(profile.id) && !recentIDs.contains(profile.id)
+        }
         let groups = Dictionary(grouping: regularProfiles) { profile in
             profile.normalized.groupDisplayName
         }
@@ -332,6 +346,16 @@ struct SSHProfilesSection: View {
                     id: "__favorites",
                     name: L10n.string("ssh.group.favorites"),
                     profiles: favoriteProfiles
+                )
+            )
+        }
+        if !recentProfiles.isEmpty {
+            result.append(
+                SSHProfileListGroup(
+                    id: "__recent",
+                    name: L10n.string("ssh.group.recent"),
+                    profiles: recentProfiles,
+                    sortMode: .preserveOrder
                 )
             )
         }
@@ -353,6 +377,18 @@ struct SSHProfilesSection: View {
             let targetOrder = lhs.target.localizedCaseInsensitiveCompare(rhs.target)
             if targetOrder != .orderedSame { return targetOrder == .orderedAscending }
             return lhs.id.uuidString < rhs.id.uuidString
+        }
+    }
+
+    private func sortedRecentProfiles(_ profiles: [SSHConnectionProfile]) -> [SSHConnectionProfile] {
+        profiles.sorted { lhs, rhs in
+            let lhsDate = lhs.normalized.lastConnectedAt ?? .distantPast
+            let rhsDate = rhs.normalized.lastConnectedAt ?? .distantPast
+            if lhsDate != rhsDate { return lhsDate > rhsDate }
+            let lhsCount = lhs.normalized.connectionOpenCount
+            let rhsCount = rhs.normalized.connectionOpenCount
+            if lhsCount != rhsCount { return lhsCount > rhsCount }
+            return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
         }
     }
 
@@ -412,7 +448,8 @@ struct SSHProfilesSection: View {
         let portForwardAccessEntries = profile.portForwardAccessEntries
         return HStack(spacing: 7) {
             Button {
-                workspace.openSSH(profile: profile)
+                let openedProfile = store.recordConnection(profile)
+                workspace.openSSH(profile: openedProfile)
             } label: {
                 HStack(spacing: 7) {
                     Image(systemName: profile.jumpHosts.isEmpty ? "network" : "point.3.connected.trianglepath.dotted")
@@ -422,6 +459,12 @@ struct SSHProfilesSection: View {
                             .font(.system(size: 9, weight: .semibold))
                             .foregroundStyle(.yellow)
                             .help(L10n.string("ssh.favorite.status"))
+                    }
+                    if profile.normalized.lastConnectedAt != nil && !profile.normalized.isFavorite {
+                        Image(systemName: "clock")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .help(L10n.string("ssh.recent.status"))
                     }
                     VStack(alignment: .leading, spacing: 1) {
                         Text(profile.displayName)
@@ -601,13 +644,27 @@ struct SSHProfilesSection: View {
 }
 
 private struct SSHProfileListGroup: Identifiable {
+    enum SortMode {
+        case alphabetical
+        case preserveOrder
+    }
+
     let id: String
     let name: String
     let profiles: [SSHConnectionProfile]
 
-    init(id: String? = nil, name: String, profiles: [SSHConnectionProfile]) {
+    init(
+        id: String? = nil,
+        name: String,
+        profiles: [SSHConnectionProfile],
+        sortMode: SortMode = .alphabetical
+    ) {
         self.id = id ?? "group:\(name)"
         self.name = name
+        if sortMode == .preserveOrder {
+            self.profiles = profiles
+            return
+        }
         self.profiles = profiles.sorted { lhs, rhs in
             let nameOrder = lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName)
             if nameOrder != .orderedSame { return nameOrder == .orderedAscending }
