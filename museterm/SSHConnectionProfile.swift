@@ -360,6 +360,354 @@ enum SSHProfilePreflightAnalyzer {
     }
 }
 
+enum SSHConfigImportError: LocalizedError {
+    case missingDefaultConfig
+
+    var errorDescription: String? {
+        switch self {
+        case .missingDefaultConfig:
+            return L10n.string("ssh.import.error.missing_config")
+        }
+    }
+}
+
+enum OpenSSHConfigImporter {
+    private struct ParsedLine {
+        var key: String
+        var args: [String]
+        var originalOption: String
+    }
+
+    private struct HostBlock {
+        var aliases: [String]
+        var options: [ParsedLine]
+    }
+
+    static func profiles(from text: String) -> [SSHConnectionProfile] {
+        var profiles: [SSHConnectionProfile] = []
+        for block in hostBlocks(from: text) {
+            if let profile = profile(from: block) {
+                profiles.append(profile)
+            }
+        }
+        return profiles
+    }
+
+    private static func hostBlocks(from text: String) -> [HostBlock] {
+        var blocks: [HostBlock] = []
+        var current: HostBlock?
+        var isInsideMatchBlock = false
+
+        for rawLine in text.components(separatedBy: .newlines) {
+            guard let parsed = parseLine(rawLine) else { continue }
+            let key = parsed.key.lowercased()
+
+            if key == "host" {
+                if let current {
+                    blocks.append(current)
+                }
+                isInsideMatchBlock = false
+                current = HostBlock(aliases: parsed.args, options: [])
+                continue
+            }
+
+            if key == "match" {
+                if let current {
+                    blocks.append(current)
+                }
+                current = nil
+                isInsideMatchBlock = true
+                continue
+            }
+
+            guard !isInsideMatchBlock else { continue }
+            current?.options.append(parsed)
+        }
+
+        if let current {
+            blocks.append(current)
+        }
+        return blocks
+    }
+
+    private static func profile(from block: HostBlock) -> SSHConnectionProfile? {
+        var alias = ""
+        for candidate in block.aliases where isImportableHostAlias(candidate) {
+            alias = candidate
+            break
+        }
+        guard !alias.isEmpty else { return nil }
+
+        var host = ""
+        var user = ""
+        var port = 22
+        var identityFiles: [String] = []
+        var jumpHosts: [SSHJumpHost] = []
+        var portForwards: [SSHPortForward] = []
+        var extraOptions: [String] = []
+        var keepAliveEnabled = true
+        var keepAliveIntervalSeconds = 30
+        var keepAliveCountMax = 6
+        var connectionReuseEnabled = true
+        var connectionReusePersistMinutes = 10
+
+        for option in block.options {
+            let key = option.key.lowercased()
+            switch key {
+            case "hostname":
+                host = option.args.first ?? host
+            case "user":
+                user = option.args.first ?? user
+            case "port":
+                port = option.args.first.flatMap(Int.init) ?? port
+            case "identityfile":
+                identityFiles.append(contentsOf: option.args)
+            case "proxyjump":
+                jumpHosts = parseProxyJump(option.args.first)
+            case "localforward":
+                if let forward = parseForward(kind: .local, args: option.args) {
+                    portForwards.append(forward)
+                }
+            case "remoteforward":
+                if let forward = parseForward(kind: .remote, args: option.args) {
+                    portForwards.append(forward)
+                }
+            case "dynamicforward":
+                if let forward = parseDynamicForward(args: option.args) {
+                    portForwards.append(forward)
+                }
+            case "serveraliveinterval":
+                if let value = option.args.first.flatMap(Int.init) {
+                    keepAliveEnabled = value > 0
+                    keepAliveIntervalSeconds = max(5, value)
+                }
+            case "serveralivecountmax":
+                if let value = option.args.first.flatMap(Int.init) {
+                    keepAliveCountMax = max(1, value)
+                }
+            case "controlmaster":
+                if let value = option.args.first?.lowercased() {
+                    connectionReuseEnabled = !["no", "false", "0"].contains(value)
+                }
+            case "controlpersist":
+                if let value = option.args.first?.lowercased() {
+                    if ["no", "false", "0"].contains(value) {
+                        connectionReuseEnabled = false
+                    } else if let minutes = parseDurationMinutes(value) {
+                        connectionReusePersistMinutes = minutes
+                    }
+                }
+            default:
+                extraOptions.append(option.originalOption)
+            }
+        }
+
+        let cleanHost = host.isEmpty ? alias : host
+        return SSHConnectionProfile(
+            name: alias,
+            host: cleanHost,
+            user: user,
+            port: port,
+            identityFiles: identityFiles,
+            jumpHosts: jumpHosts,
+            portForwards: portForwards,
+            extraOptions: extraOptions,
+            keepAliveEnabled: keepAliveEnabled,
+            keepAliveIntervalSeconds: keepAliveIntervalSeconds,
+            keepAliveCountMax: keepAliveCountMax,
+            connectionReuseEnabled: connectionReuseEnabled,
+            connectionReusePersistMinutes: connectionReusePersistMinutes
+        ).normalized
+    }
+
+    private static func parseLine(_ rawLine: String) -> ParsedLine? {
+        let tokens = tokens(from: rawLine)
+        guard !tokens.isEmpty else { return nil }
+
+        var key = tokens[0]
+        var args = Array(tokens.dropFirst())
+        if let separator = key.firstIndex(of: "=") {
+            let rawKey = String(key[..<separator])
+            let value = String(key[key.index(after: separator)...])
+            key = rawKey
+            if !value.isEmpty {
+                args.insert(value, at: 0)
+            }
+        } else if let firstArg = args.first {
+            if firstArg == "=" {
+                args.removeFirst()
+            } else if firstArg.hasPrefix("=") {
+                let value = String(firstArg.dropFirst())
+                args.removeFirst()
+                if !value.isEmpty {
+                    args.insert(value, at: 0)
+                }
+            }
+        }
+
+        let cleanKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanKey.isEmpty else { return nil }
+        return ParsedLine(
+            key: cleanKey,
+            args: args,
+            originalOption: ([cleanKey] + args).joined(separator: " ")
+        )
+    }
+
+    private static func tokens(from line: String) -> [String] {
+        var tokens: [String] = []
+        var current = ""
+        var quote: Character?
+        var isEscaped = false
+
+        for character in line {
+            if isEscaped {
+                current.append(character)
+                isEscaped = false
+                continue
+            }
+
+            if character == "\\" {
+                isEscaped = true
+                continue
+            }
+
+            if let activeQuote = quote {
+                if character == activeQuote {
+                    quote = nil
+                } else {
+                    current.append(character)
+                }
+                continue
+            }
+
+            if character == "\"" || character == "'" {
+                quote = character
+                continue
+            }
+
+            if character == "#" {
+                break
+            }
+
+            if character == " " || character == "\t" {
+                if !current.isEmpty {
+                    tokens.append(current)
+                    current.removeAll(keepingCapacity: true)
+                }
+                continue
+            }
+
+            current.append(character)
+        }
+
+        if !current.isEmpty {
+            tokens.append(current)
+        }
+        return tokens
+    }
+
+    private static func isImportableHostAlias(_ alias: String) -> Bool {
+        let trimmed = alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        return !trimmed.contains("*")
+            && !trimmed.contains("?")
+            && !trimmed.hasPrefix("!")
+    }
+
+    private static func parseProxyJump(_ rawValue: String?) -> [SSHJumpHost] {
+        guard let rawValue else { return [] }
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed.lowercased() != "none" else { return [] }
+        return trimmed
+            .split(separator: ",")
+            .compactMap { parseJumpHost(String($0)) }
+    }
+
+    private static func parseJumpHost(_ rawValue: String) -> SSHJumpHost? {
+        let spec = parseUserHostPort(rawValue)
+        guard !spec.host.isEmpty else { return nil }
+        return SSHJumpHost(host: spec.host, user: spec.user, port: spec.port)
+    }
+
+    private static func parseForward(kind: SSHPortForwardKind, args: [String]) -> SSHPortForward? {
+        guard args.count >= 2,
+              let listen = parseListenSpec(args[0]),
+              let destination = parseDestinationSpec(args[1]) else {
+            return nil
+        }
+        return SSHPortForward(
+            kind: kind,
+            bindHost: listen.host,
+            bindPort: listen.port,
+            destinationHost: destination.host,
+            destinationPort: destination.port
+        )
+    }
+
+    private static func parseDynamicForward(args: [String]) -> SSHPortForward? {
+        guard let first = args.first,
+              let listen = parseListenSpec(first) else {
+            return nil
+        }
+        return SSHPortForward(kind: .dynamic, bindHost: listen.host, bindPort: listen.port)
+    }
+
+    private static func parseListenSpec(_ rawValue: String) -> (host: String, port: Int)? {
+        let parts = rawValue.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
+        if parts.count == 1, let port = Int(parts[0]) {
+            return ("", port)
+        }
+        if parts.count >= 2, let port = Int(parts.last ?? "") {
+            return (parts.dropLast().joined(separator: ":"), port)
+        }
+        return nil
+    }
+
+    private static func parseDestinationSpec(_ rawValue: String) -> (host: String, port: Int)? {
+        guard let separator = rawValue.lastIndex(of: ":"),
+              let port = Int(rawValue[rawValue.index(after: separator)...]) else {
+            return nil
+        }
+        return (String(rawValue[..<separator]), port)
+    }
+
+    private static func parseUserHostPort(_ rawValue: String) -> (user: String, host: String, port: Int) {
+        var user = ""
+        var hostAndPort = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let separator = hostAndPort.firstIndex(of: "@") {
+            user = String(hostAndPort[..<separator])
+            hostAndPort = String(hostAndPort[hostAndPort.index(after: separator)...])
+        }
+
+        var host = hostAndPort
+        var port = 22
+        if let separator = hostAndPort.lastIndex(of: ":"),
+           let parsedPort = Int(hostAndPort[hostAndPort.index(after: separator)...]) {
+            host = String(hostAndPort[..<separator])
+            port = parsedPort
+        }
+        return (user, host, port)
+    }
+
+    private static func parseDurationMinutes(_ rawValue: String) -> Int? {
+        if rawValue == "yes" { return nil }
+        let digits = rawValue.prefix { $0.isNumber }
+        guard let value = Int(digits), value > 0 else { return nil }
+        let suffix = rawValue.dropFirst(digits.count).lowercased()
+        switch suffix {
+        case "h":
+            return value * 60
+        case "m":
+            return value
+        case "s":
+            return max(1, Int(ceil(Double(value) / 60.0)))
+        default:
+            return max(1, Int(ceil(Double(value) / 60.0)))
+        }
+    }
+}
+
 struct SSHJumpHost: Codable, Equatable, Identifiable {
     var id: UUID
     var name: String
@@ -475,6 +823,8 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
     var remoteShellIntegrationEnabled: Bool
     var environment: TerminalEnvironmentKind
     var safetyPolicy: SSHSafetyConfirmationPolicy
+    var groupName: String
+    var tags: [String]
 
     init(
         id: UUID = UUID(),
@@ -497,7 +847,9 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         automaticReconnectDelaySeconds: Int = 3,
         remoteShellIntegrationEnabled: Bool = true,
         environment: TerminalEnvironmentKind = .development,
-        safetyPolicy: SSHSafetyConfirmationPolicy? = nil
+        safetyPolicy: SSHSafetyConfirmationPolicy? = nil,
+        groupName: String = "",
+        tags: [String] = []
     ) {
         self.id = id
         self.name = name
@@ -520,6 +872,8 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         self.remoteShellIntegrationEnabled = remoteShellIntegrationEnabled
         self.environment = environment
         self.safetyPolicy = safetyPolicy ?? Self.defaultSafetyPolicy(for: environment)
+        self.groupName = groupName
+        self.tags = tags
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -544,6 +898,8 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         case remoteShellIntegrationEnabled
         case environment
         case safetyPolicy
+        case groupName
+        case tags
     }
 
     init(from decoder: Decoder) throws {
@@ -579,6 +935,8 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         environment = try container.decodeIfPresent(TerminalEnvironmentKind.self, forKey: .environment) ?? .development
         safetyPolicy = try container.decodeIfPresent(SSHSafetyConfirmationPolicy.self, forKey: .safetyPolicy)
             ?? Self.defaultSafetyPolicy(for: environment)
+        groupName = try container.decodeIfPresent(String.self, forKey: .groupName) ?? ""
+        tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []
     }
 
     var normalized: SSHConnectionProfile {
@@ -603,7 +961,9 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
             automaticReconnectDelaySeconds: min(max(automaticReconnectDelaySeconds, 1), 120),
             remoteShellIntegrationEnabled: remoteShellIntegrationEnabled,
             environment: environment,
-            safetyPolicy: safetyPolicy
+            safetyPolicy: safetyPolicy,
+            groupName: groupName.trimmingCharacters(in: .whitespacesAndNewlines),
+            tags: tags.cleanedTagList()
         )
     }
 
@@ -620,6 +980,42 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
     var target: String {
         let clean = normalized
         return clean.user.isEmpty ? clean.host : "\(clean.user)@\(clean.host)"
+    }
+
+    var groupDisplayName: String {
+        let clean = normalized.groupName
+        return clean.isEmpty ? L10n.string("ssh.group.ungrouped") : clean
+    }
+
+    func matchesSearch(_ query: String, selectedTag: String? = nil) -> Bool {
+        let clean = normalized
+        if let selectedTag, !clean.tags.contains(where: { $0.caseInsensitiveCompare(selectedTag) == .orderedSame }) {
+            return false
+        }
+
+        let terms = query
+            .split(whereSeparator: \.isWhitespace)
+            .map { String($0).lowercased() }
+        guard !terms.isEmpty else { return true }
+
+        let haystacks = searchTokens.map { $0.lowercased() }
+        return terms.allSatisfy { term in
+            haystacks.contains(where: { $0.contains(term) })
+        }
+    }
+
+    var searchTokens: [String] {
+        let clean = normalized
+        return [
+            clean.displayName,
+            clean.name,
+            clean.host,
+            clean.user,
+            clean.target,
+            clean.groupName,
+            clean.environment.name,
+            clean.environment.shortName
+        ] + clean.tags + clean.jumpHosts.flatMap { [$0.displayName, $0.host, $0.user, $0.name] }
     }
 
     var routeSummary: String {
@@ -657,6 +1053,41 @@ final class SSHConnectionStore: ObservableObject {
         profiles.append(clean)
         profiles.sort { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
         persist()
+    }
+
+    @discardableResult
+    func importProfiles(_ importedProfiles: [SSHConnectionProfile]) -> Int {
+        var importedCount = 0
+        for profile in importedProfiles {
+            let clean = profile.normalized
+            guard !clean.host.isEmpty else { continue }
+            profiles.removeAll { existing in
+                if !clean.name.isEmpty, !existing.name.isEmpty {
+                    return existing.name.caseInsensitiveCompare(clean.name) == .orderedSame
+                }
+                return existing.host.caseInsensitiveCompare(clean.host) == .orderedSame
+                    && existing.user.caseInsensitiveCompare(clean.user) == .orderedSame
+                    && existing.port == clean.port
+            }
+            profiles.append(clean)
+            importedCount += 1
+        }
+        guard importedCount > 0 else { return 0 }
+        profiles.sort { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+        persist()
+        return importedCount
+    }
+
+    @discardableResult
+    func importDefaultOpenSSHConfig() throws -> Int {
+        let configURL = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".ssh", isDirectory: true)
+            .appendingPathComponent("config")
+        guard FileManager.default.fileExists(atPath: configURL.path) else {
+            throw SSHConfigImportError.missingDefaultConfig
+        }
+        let configText = try String(contentsOf: configURL, encoding: .utf8)
+        return importProfiles(OpenSSHConfigImporter.profiles(from: configText))
     }
 
     func delete(_ profile: SSHConnectionProfile) {
@@ -710,6 +1141,10 @@ enum SSHConfigMaterializer {
             aliases: aliases(for: clean),
             controlPathTemplate: "~/.ssh/museterm-cm-%C"
         )
+    }
+
+    static func exportSnippet(for profile: SSHConnectionProfile) -> String {
+        renderConfig(profile: profile)
     }
 
     private struct HostAliases {
@@ -889,5 +1324,20 @@ extension Array where Element == String {
 
     func cleanedPathList() -> [String] {
         Array(Set(cleanedLineList())).sorted()
+    }
+
+    func cleanedTagList() -> [String] {
+        var seen: Set<String> = []
+        var tags: [String] = []
+        for rawTag in self {
+            let tag = rawTag
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+            guard !tag.isEmpty else { continue }
+            let key = tag.lowercased()
+            guard seen.insert(key).inserted else { continue }
+            tags.append(tag)
+        }
+        return tags.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 }

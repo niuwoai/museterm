@@ -9,6 +9,7 @@
 "action.ok" = "OK";
 "action.save" = "Save";
 "action.close" = "Close";
+"action.clear" = "Clear";
 "tab.close_running.title" = "Close running tab?";
 "tab.close_running.message" = "The tab \"%@\" still has a running terminal process. Closing it will stop that process.";
 "tab.close_running.action" = "Close Tab";
@@ -134,11 +135,27 @@
 
 "ssh.section" = "SSH Hosts";
 "ssh.add" = "Add host";
+"ssh.import" = "Import";
+"ssh.import.help" = "Import explicit Host entries from ~/.ssh/config.";
+"ssh.import.success" = "Imported %d SSH hosts from ~/.ssh/config.";
+"ssh.import.none" = "No explicit SSH hosts were found in ~/.ssh/config.";
+"ssh.import.failed" = "Import failed: %@";
+"ssh.import.error.missing_config" = "~/.ssh/config was not found.";
+"ssh.copy_config" = "Copy OpenSSH Config";
+"ssh.copy_config.help" = "Copy this profile as an OpenSSH config snippet without changing ~/.ssh/config.";
+"ssh.copy_config.copied" = "Copied OpenSSH config for %@.";
+"ssh.search.placeholder" = "Search hosts";
+"ssh.search.help" = "Search by name, host, user, group, tag, environment, or jump host.";
+"ssh.search.empty" = "No SSH hosts match the current search.";
+"ssh.tags.all" = "All";
+"ssh.group.ungrouped" = "Ungrouped";
 "ssh.empty" = "Save SSH hosts here. Profiles can use jump hosts and different keys per hop.";
 "ssh.connect" = "Connect";
 "ssh.edit" = "Edit";
 "ssh.delete" = "Delete";
 "ssh.name" = "Name";
+"ssh.group" = "Group";
+"ssh.tags" = "Tags";
 "ssh.host" = "Host";
 "ssh.user" = "User";
 "ssh.port" = "Port";

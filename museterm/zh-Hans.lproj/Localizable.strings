@@ -9,6 +9,7 @@
 "action.ok" = "好";
 "action.save" = "保存";
 "action.close" = "关闭";
+"action.clear" = "清除";
 "tab.close_running.title" = "关闭正在运行的标签？";
 "tab.close_running.message" = "标签“%@”仍有终端进程在运行。关闭它会停止该进程。";
 "tab.close_running.action" = "关闭标签";
@@ -134,11 +135,27 @@
 
 "ssh.section" = "SSH 主机";
 "ssh.add" = "添加主机";
+"ssh.import" = "导入";
+"ssh.import.help" = "从 ~/.ssh/config 导入明确的 Host 条目。";
+"ssh.import.success" = "已从 ~/.ssh/config 导入 %d 个 SSH 主机。";
+"ssh.import.none" = "~/.ssh/config 中没有找到可导入的明确 SSH 主机。";
+"ssh.import.failed" = "导入失败：%@";
+"ssh.import.error.missing_config" = "没有找到 ~/.ssh/config。";
+"ssh.copy_config" = "复制 OpenSSH 配置";
+"ssh.copy_config.help" = "复制该 Profile 的 OpenSSH config 片段，不会改写 ~/.ssh/config。";
+"ssh.copy_config.copied" = "已复制 %@ 的 OpenSSH 配置。";
+"ssh.search.placeholder" = "搜索主机";
+"ssh.search.help" = "可按名称、主机、用户、分组、标签、环境或跳转机搜索。";
+"ssh.search.empty" = "没有匹配当前搜索条件的 SSH 主机。";
+"ssh.tags.all" = "全部";
+"ssh.group.ungrouped" = "未分组";
 "ssh.empty" = "把 SSH 主机存到这里。Profile 支持跳转机、多跳，以及每一跳使用不同密钥。";
 "ssh.connect" = "连接";
 "ssh.edit" = "编辑";
 "ssh.delete" = "删除";
 "ssh.name" = "名称";
+"ssh.group" = "分组";
+"ssh.tags" = "标签";
 "ssh.host" = "主机";
 "ssh.user" = "用户";
 "ssh.port" = "端口";

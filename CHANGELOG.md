@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.174.0] - 2026-07-02
+
+### Added
+- SSH 侧栏新增 `~/.ssh/config` 导入入口，可导入明确 Host 的主机名、用户、端口、密钥、ProxyJump、端口转发、保活和连接复用配置，并跳过通配符 Host。
+- SSH 主机菜单新增复制 OpenSSH config 片段，便于把 MuseTerm Profile 带回原生 SSH 配置，同时不会自动改写用户的 `~/.ssh/config`。
+- SSH 主机列表新增搜索、分组展示和标签筛选；Profile 编辑器新增分组与标签字段，可按名称、主机、用户、环境、分组、标签与跳转机信息过滤 Profile。
+
 ## [1.171.1-rc1] - 2026-07-02
 
 ### Fixed

@@ -1,6 +1,7 @@
 import XCTest
 @testable import museterm
 
+@MainActor
 final class TerminalSelectionAutoscrollTests: XCTestCase {
     func testReturnsNilAwayFromEdges() {
         XCTAssertNil(TerminalSelectionAutoscroll.action(pointerY: 120, viewHeight: 240))

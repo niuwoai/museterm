@@ -128,6 +128,9 @@ struct SSHProfilesSection: View {
     @ObservedObject var store: SSHConnectionStore
     let skin: TerminalVisualSkin
     @State private var editingProfile: SSHConnectionProfile?
+    @State private var importMessage = ""
+    @State private var searchText = ""
+    @State private var selectedTag: String?
 
     var body: some View {
         SidebarSection(title: L10n.string("ssh.section"), systemImage: "network", skin: skin) {
@@ -144,7 +147,27 @@ struct SSHProfilesSection: View {
                 .background(skin.controlFill)
                 .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
 
+                Button {
+                    importDefaultOpenSSHConfig()
+                } label: {
+                    Label(L10n.string("ssh.import"), systemImage: "tray.and.arrow.down")
+                        .font(.caption.weight(.medium))
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(skin.controlFill)
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .help(L10n.string("ssh.import.help"))
+
                 Spacer()
+            }
+
+            if !importMessage.isEmpty {
+                Text(importMessage)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             if store.profiles.isEmpty {
@@ -152,9 +175,24 @@ struct SSHProfilesSection: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+            } else if filteredProfiles.isEmpty {
+                searchControls
+                Text(L10n.string("ssh.search.empty"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             } else {
-                ForEach(store.profiles) { profile in
-                    sshProfileRow(profile)
+                searchControls
+                ForEach(groupedProfiles) { group in
+                    if groupedProfiles.count > 1 {
+                        Text(group.name)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 3)
+                    }
+                    ForEach(group.profiles) { profile in
+                        sshProfileRow(profile)
+                    }
                 }
             }
         }
@@ -168,6 +206,91 @@ struct SSHProfilesSection: View {
                 }
             )
         }
+    }
+
+    private var searchControls: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 5) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                TextField(L10n.string("ssh.search.placeholder"), text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.caption2)
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(L10n.string("action.clear"))
+                }
+            }
+            .padding(.horizontal, 7)
+            .padding(.vertical, 5)
+            .background(skin.controlFill)
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .help(L10n.string("ssh.search.help"))
+
+            if !availableTags.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 5) {
+                        tagFilterButton(title: L10n.string("ssh.tags.all"), tag: nil)
+                        ForEach(availableTags, id: \.self) { tag in
+                            tagFilterButton(title: "#\(tag)", tag: tag)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func tagFilterButton(title: String, tag: String?) -> some View {
+        let isSelected = selectedTag == tag
+        return Button {
+            selectedTag = tag
+        } label: {
+            Text(title)
+                .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
+                .lineLimit(1)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .foregroundStyle(isSelected ? Color.white : Color.secondary)
+                .background(isSelected ? Color.accentColor : skin.controlFill)
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var filteredProfiles: [SSHConnectionProfile] {
+        store.profiles.filter { $0.matchesSearch(searchText, selectedTag: selectedTag) }
+    }
+
+    private var availableTags: [String] {
+        var seen: Set<String> = []
+        var tags: [String] = []
+        for tag in store.profiles.flatMap({ $0.normalized.tags }) {
+            let key = tag.lowercased()
+            guard seen.insert(key).inserted else { continue }
+            tags.append(tag)
+        }
+        return tags.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    private var groupedProfiles: [SSHProfileListGroup] {
+        let groups = Dictionary(grouping: filteredProfiles) { profile in
+            profile.normalized.groupDisplayName
+        }
+        return groups
+            .map { SSHProfileListGroup(name: $0.key, profiles: $0.value) }
+            .sorted { lhs, rhs in
+                if lhs.name == L10n.string("ssh.group.ungrouped") { return false }
+                if rhs.name == L10n.string("ssh.group.ungrouped") { return true }
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
     }
 
     private func sshProfileRow(_ profile: SSHConnectionProfile) -> some View {
@@ -186,6 +309,12 @@ struct SSHProfilesSection: View {
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
+                        if !profile.normalized.tags.isEmpty {
+                            Text(profile.normalized.tags.map { "#\($0)" }.joined(separator: " "))
+                                .font(.system(size: 9))
+                                .foregroundStyle(.secondary.opacity(0.8))
+                                .lineLimit(1)
+                        }
                     }
                     Spacer(minLength: 2)
                     EnvironmentBadge(environment: profile.environment)
@@ -202,6 +331,12 @@ struct SSHProfilesSection: View {
                 } label: {
                     Label(L10n.string("ssh.edit"), systemImage: "pencil")
                 }
+                Button {
+                    copyOpenSSHConfigSnippet(for: profile)
+                } label: {
+                    Label(L10n.string("ssh.copy_config"), systemImage: "doc.on.doc")
+                }
+                .help(L10n.string("ssh.copy_config.help"))
                 Divider()
                 Button(role: .destructive) {
                     store.delete(profile)
@@ -222,6 +357,30 @@ struct SSHProfilesSection: View {
         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         .help(profile.jumpHosts.isEmpty ? profile.target : L10n.format("ssh.tooltip_route", profile.routeSummary))
     }
+
+    private func importDefaultOpenSSHConfig() {
+        do {
+            let count = try store.importDefaultOpenSSHConfig()
+            importMessage = count == 0
+                ? L10n.string("ssh.import.none")
+                : L10n.format("ssh.import.success", count)
+        } catch {
+            importMessage = L10n.format("ssh.import.failed", error.localizedDescription)
+        }
+    }
+
+    private func copyOpenSSHConfigSnippet(for profile: SSHConnectionProfile) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(SSHConfigMaterializer.exportSnippet(for: profile), forType: .string)
+        importMessage = L10n.format("ssh.copy_config.copied", profile.displayName)
+    }
+}
+
+private struct SSHProfileListGroup: Identifiable {
+    let name: String
+    let profiles: [SSHConnectionProfile]
+
+    var id: String { name }
 }
 
 struct FileTransferSection: View {
@@ -510,6 +669,8 @@ private struct TerminalShortcutJSONEditorSheet: View {
 private struct SSHProfileEditorSheet: View {
     @State private var id: UUID
     @State private var name: String
+    @State private var groupName: String
+    @State private var tagsText: String
     @State private var host: String
     @State private var user: String
     @State private var portText: String
@@ -536,6 +697,8 @@ private struct SSHProfileEditorSheet: View {
         let clean = profile.normalized
         _id = State(initialValue: clean.id)
         _name = State(initialValue: clean.name)
+        _groupName = State(initialValue: clean.groupName)
+        _tagsText = State(initialValue: clean.tags.joined(separator: ", "))
         _host = State(initialValue: clean.host)
         _user = State(initialValue: clean.user)
         _portText = State(initialValue: "\(clean.port)")
@@ -565,6 +728,8 @@ private struct SSHProfileEditorSheet: View {
                 .font(.headline)
             Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
                 textRow("ssh.name", text: $name)
+                textRow("ssh.group", text: $groupName)
+                textRow("ssh.tags", text: $tagsText)
                 textRow("ssh.host", text: $host)
                 textRow("ssh.user", text: $user)
                 textRow("ssh.port", text: $portText)
@@ -621,7 +786,9 @@ private struct SSHProfileEditorSheet: View {
             automaticReconnectDelaySeconds: Int(automaticReconnectDelayText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 3,
             remoteShellIntegrationEnabled: remoteShellIntegrationEnabled,
             environment: environment,
-            safetyPolicy: safetyPolicy
+            safetyPolicy: safetyPolicy,
+            groupName: groupName,
+            tags: Self.parseTags(tagsText)
         )
     }
 
@@ -953,6 +1120,11 @@ private struct SSHProfileEditorSheet: View {
                 destinationPort: destination.port
             )
         }
+    }
+
+    private static func parseTags(_ text: String) -> [String] {
+        text.components(separatedBy: CharacterSet(charactersIn: ",， \n\t"))
+            .cleanedTagList()
     }
 
     private static func parseListen(_ value: String) -> (host: String, port: Int) {
