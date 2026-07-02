@@ -805,6 +805,12 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertTrue(markdown.contains("## \(L10n.string("ssh.diagnostic_report.recommendation"))"))
         XCTAssertTrue(markdown.contains(L10n.string("ssh.diagnostic_recommendation.tcpFailure.title")))
         XCTAssertTrue(markdown.contains("- **\(L10n.string("ssh.diagnostic_report.recommendation.step")):** 2. Check TCP"))
+        let recommendationSection = markdown.section(
+            from: "## \(L10n.string("ssh.diagnostic_report.recommendation"))",
+            to: "## \(L10n.string("ssh.diagnostic_report.checks"))"
+        )
+        XCTAssertTrue(recommendationSection.contains("- **\(L10n.string("ssh.diagnostic_report.recommendation.command")):**"))
+        XCTAssertTrue(recommendationSection.contains("```shell\nnc -vz -w 5 example.com 22\n```"))
         XCTAssertTrue(markdown.contains(L10n.string("ssh.diagnostic_recommendation.tcpFailure.action")))
         XCTAssertTrue(markdown.contains("```shell\nnc -vz -w 5 example.com 22\n```"))
         XCTAssertTrue(markdown.contains(L10n.string("ssh.diagnostic_report.sensitive_content_not_detected")))
@@ -1142,5 +1148,17 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertTrue(snippet.contains("ControlPersist 15m"))
         XCTAssertTrue(snippet.contains("ControlPath \"~/.ssh/museterm-cm-%C\""))
         XCTAssertFalse(snippet.contains("Library/Application Support/MuseTerm/SSH"))
+    }
+}
+
+private extension String {
+    func section(from startMarker: String, to endMarker: String) -> String {
+        guard
+            let start = range(of: startMarker),
+            let end = range(of: endMarker, range: start.upperBound..<endIndex)
+        else {
+            return ""
+        }
+        return String(self[start.lowerBound..<end.lowerBound])
     }
 }
