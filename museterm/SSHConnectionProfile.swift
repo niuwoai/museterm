@@ -2132,9 +2132,11 @@ enum SSHConfigMaterializer {
             let listen = listenSpec(host: forward.bindHost, port: forward.bindPort)
             switch forward.kind {
             case .local:
-                options.append("LocalForward \(listen) \(forward.destinationHost):\(forward.destinationPort)")
+                let destination = endpointSpec(host: forward.destinationHost, port: forward.destinationPort)
+                options.append("LocalForward \(listen) \(destination)")
             case .remote:
-                options.append("RemoteForward \(listen) \(forward.destinationHost):\(forward.destinationPort)")
+                let destination = endpointSpec(host: forward.destinationHost, port: forward.destinationPort)
+                options.append("RemoteForward \(listen) \(destination)")
             case .dynamic:
                 options.append("DynamicForward \(listen)")
             }
@@ -2143,7 +2145,17 @@ enum SSHConfigMaterializer {
     }
 
     private static func listenSpec(host: String, port: Int) -> String {
-        host.isEmpty ? "\(port)" : "\(host):\(port)"
+        host.isEmpty ? "\(port)" : endpointSpec(host: host, port: port)
+    }
+
+    private static func endpointSpec(host: String, port: Int) -> String {
+        let cleanHost = host.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanHost.contains(":")
+            && !cleanHost.hasPrefix("[")
+            && !cleanHost.hasSuffix("]") {
+            return "[\(cleanHost)]:\(port)"
+        }
+        return "\(cleanHost):\(port)"
     }
 
     private static func optionName(_ line: String) -> String? {

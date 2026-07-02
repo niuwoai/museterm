@@ -92,6 +92,35 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertTrue(config.contains("  DynamicForward 127.0.0.1:1080"))
     }
 
+    func testSSHConfigRendersIPv6PortForwardEndpointsWithBrackets() {
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            user: "deploy",
+            portForwards: [
+                SSHPortForward(
+                    kind: .local,
+                    bindHost: "::1",
+                    bindPort: 8443,
+                    destinationHost: "2001:db8::20",
+                    destinationPort: 443
+                ),
+                SSHPortForward(
+                    kind: .remote,
+                    bindHost: "",
+                    bindPort: 9443,
+                    destinationHost: "2001:db8::30",
+                    destinationPort: 9443
+                ),
+                SSHPortForward(kind: .dynamic, bindHost: "::", bindPort: 1080)
+            ]
+        )
+        let config = SSHConfigMaterializer.renderConfig(profile: profile)
+
+        XCTAssertTrue(config.contains("  LocalForward [::1]:8443 [2001:db8::20]:443"))
+        XCTAssertTrue(config.contains("  RemoteForward 9443 [2001:db8::30]:9443"))
+        XCTAssertTrue(config.contains("  DynamicForward [::]:1080"))
+    }
+
     func testSSHConfigPreviewDescribesGeneratedConfig() {
         let profile = SSHConnectionProfile(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,

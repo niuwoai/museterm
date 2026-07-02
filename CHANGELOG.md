@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.198.0] - 2026-07-02
+
+### Added
+- SSH 生成的 OpenSSH config 会把端口转发里的 IPv6 监听地址和目标地址写成 `[地址]:端口`，避免 LocalForward、RemoteForward 和 DynamicForward 参数出现 IPv6 冒号歧义。
+
 ## [1.197.0] - 2026-07-02
 
 ### Added
