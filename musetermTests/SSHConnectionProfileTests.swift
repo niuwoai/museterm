@@ -157,6 +157,23 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertEqual(tcpFailed?.kind, .tcpFailure)
         XCTAssertEqual(tcpFailed?.status, .failed)
         XCTAssertEqual(tcpFailed?.relatedStepIndex, 2)
+        guard let tcpFailed else {
+            XCTFail("Expected TCP failure recommendation")
+            return
+        }
+        let tcpDetail = SSHRouteDiagnosticRecommendationDetail(
+            recommendation: tcpFailed,
+            planSteps: steps,
+            results: [
+                0: SSHRouteDiagnosticStepResult(status: .passed, summary: "ok", evidence: nil),
+                1: SSHRouteDiagnosticStepResult(status: .failed, summary: "refused", evidence: "Connection refused")
+            ]
+        )
+        XCTAssertEqual(tcpDetail.oneBasedStepIndex, 2)
+        XCTAssertEqual(tcpDetail.stepTitle, steps[1].title)
+        XCTAssertTrue(tcpDetail.command?.contains("nc -vz -w 5") == true)
+        XCTAssertTrue(tcpDetail.command?.contains("'bastion.internal' 2200") == true)
+        XCTAssertEqual(tcpDetail.evidence, "Connection refused")
 
         let continueChecks = SSHRouteDiagnosticAdvisor.recommendation(
             planSteps: steps,
@@ -166,7 +183,8 @@ final class SSHConnectionProfileTests: XCTestCase {
         )
         XCTAssertEqual(continueChecks?.kind, .continueChecks)
         XCTAssertEqual(continueChecks?.status, .passed)
-        XCTAssertNil(continueChecks?.relatedStepIndex)
+        XCTAssertEqual(continueChecks?.relatedStepIndex, 2)
+        XCTAssertTrue(continueChecks?.summary.contains(steps[1].title) == true)
 
         let allPassed = SSHRouteDiagnosticAdvisor.recommendation(
             planSteps: steps,
@@ -856,6 +874,50 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertFalse(markdown.contains("### 1. Resolve target"))
         XCTAssertTrue(markdown.contains("### 2. Check TCP"))
         XCTAssertTrue(markdown.contains("- **\(L10n.string("ssh.diagnostic_report.recommendation.step")):** 2. Check TCP"))
+    }
+
+    func testSSHRouteDiagnosticReportAnchorsContinueRecommendationToNextUncheckedStep() {
+        let steps = [
+            SSHRouteDiagnosticPlanStep(
+                kind: .dnsLookup,
+                title: "Resolve target",
+                command: "dscacheutil -q host -a name example.com",
+                routeStepKind: .target,
+                host: "example.com",
+                port: nil,
+                alias: nil,
+                includeInFailureGuide: true
+            ),
+            SSHRouteDiagnosticPlanStep(
+                kind: .tcpPort,
+                title: "Check TCP",
+                command: "nc -vz -w 5 example.com 22",
+                routeStepKind: .target,
+                host: "example.com",
+                port: 22,
+                alias: nil,
+                includeInFailureGuide: true
+            )
+        ]
+
+        let report = SSHRouteDiagnosticReport(
+            profileName: "Production API",
+            routeSummary: "Mac -> example.com:22",
+            planSteps: steps,
+            results: [
+                0: SSHRouteDiagnosticStepResult(status: .passed, summary: "DNS resolved.", evidence: "name: example.com")
+            ],
+            generatedAtText: "2026-07-02T09:00:00Z"
+        )
+        let markdown = report.markdown
+        let recommendationSection = markdown.section(
+            from: "## \(L10n.string("ssh.diagnostic_report.recommendation"))",
+            to: "## \(L10n.string("ssh.diagnostic_report.checks"))"
+        )
+
+        XCTAssertTrue(recommendationSection.contains(L10n.string("ssh.diagnostic_recommendation.continueChecks.title")))
+        XCTAssertTrue(recommendationSection.contains("- **\(L10n.string("ssh.diagnostic_report.recommendation.step")):** 2. Check TCP"))
+        XCTAssertTrue(recommendationSection.contains("```shell\nnc -vz -w 5 example.com 22\n```"))
     }
 
     func testSSHRouteDiagnosticReportRedactsSensitiveEvidenceAndCommandsByDefault() {

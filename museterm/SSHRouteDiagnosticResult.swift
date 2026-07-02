@@ -80,6 +80,39 @@ struct SSHRouteDiagnosticRecommendation: Equatable {
     let action: String
 }
 
+struct SSHRouteDiagnosticRecommendationDetail: Equatable {
+    let oneBasedStepIndex: Int?
+    let stepTitle: String?
+    let command: String?
+    let evidence: String?
+
+    init(
+        recommendation: SSHRouteDiagnosticRecommendation,
+        planSteps: [SSHRouteDiagnosticPlanStep],
+        results: [Int: SSHRouteDiagnosticStepResult]
+    ) {
+        guard let oneBasedStepIndex = recommendation.relatedStepIndex else {
+            self.oneBasedStepIndex = nil
+            self.stepTitle = nil
+            self.command = nil
+            self.evidence = nil
+            return
+        }
+
+        let zeroBasedStepIndex = oneBasedStepIndex - 1
+        self.oneBasedStepIndex = oneBasedStepIndex
+        if planSteps.indices.contains(zeroBasedStepIndex) {
+            let step = planSteps[zeroBasedStepIndex]
+            self.stepTitle = step.title
+            self.command = step.command
+        } else {
+            self.stepTitle = nil
+            self.command = nil
+        }
+        self.evidence = results[zeroBasedStepIndex]?.evidence
+    }
+}
+
 enum SSHRouteDiagnosticAdvisor {
     static func recommendation(
         planSteps: [SSHRouteDiagnosticPlanStep],
@@ -100,7 +133,8 @@ enum SSHRouteDiagnosticAdvisor {
         if summary.parsedSteps == planSteps.count {
             return recommendation(kind: .allPassed, status: .passed, step: nil, index: nil)
         }
-        return recommendation(kind: .continueChecks, status: .passed, step: nil, index: nil)
+        let next = firstMissingResult(planSteps: planSteps, results: results)
+        return recommendation(kind: .continueChecks, status: .passed, step: next?.step, index: next?.index)
     }
 
     private static func firstResult(
@@ -109,6 +143,16 @@ enum SSHRouteDiagnosticAdvisor {
         results: [Int: SSHRouteDiagnosticStepResult]
     ) -> (index: Int, step: SSHRouteDiagnosticPlanStep)? {
         for index in planSteps.indices where results[index]?.status == status {
+            return (index, planSteps[index])
+        }
+        return nil
+    }
+
+    private static func firstMissingResult(
+        planSteps: [SSHRouteDiagnosticPlanStep],
+        results: [Int: SSHRouteDiagnosticStepResult]
+    ) -> (index: Int, step: SSHRouteDiagnosticPlanStep)? {
+        for index in planSteps.indices where results[index] == nil {
             return (index, planSteps[index])
         }
         return nil
@@ -269,11 +313,16 @@ struct SSHRouteDiagnosticReport: Equatable {
             "- **\(L10n.string("ssh.diagnostic_report.recommendation.title")):** \(reportText(recommendation.title))",
             "- **\(L10n.string("ssh.diagnostic_report.recommendation.status")):** \(recommendation.status.title)"
         ]
-        if let relatedStepIndex = recommendation.relatedStepIndex {
+        let detail = SSHRouteDiagnosticRecommendationDetail(
+            recommendation: recommendation,
+            planSteps: planSteps,
+            results: results
+        )
+        if let relatedStepIndex = detail.oneBasedStepIndex {
             lines.append(
-                "- **\(L10n.string("ssh.diagnostic_report.recommendation.step")):** \(recommendationStepText(for: relatedStepIndex))"
+                "- **\(L10n.string("ssh.diagnostic_report.recommendation.step")):** \(recommendationStepText(for: relatedStepIndex, title: detail.stepTitle))"
             )
-            if let command = recommendationCommandText(for: relatedStepIndex), !command.isEmpty {
+            if let command = detail.command.map(reportText), !command.isEmpty {
                 lines.append(contentsOf: [
                     "- **\(L10n.string("ssh.diagnostic_report.recommendation.command")):**",
                     commandFenceOpen(for: command),
@@ -281,7 +330,7 @@ struct SSHRouteDiagnosticReport: Equatable {
                     commandFenceClose(for: command)
                 ])
             }
-            if let evidence = recommendationEvidenceText(for: relatedStepIndex), !evidence.isEmpty {
+            if let evidence = detail.evidence.map(reportText), !evidence.isEmpty {
                 lines.append("- **\(L10n.string("ssh.diagnostic_report.recommendation.evidence")):** \(evidence)")
             }
         }
@@ -292,21 +341,9 @@ struct SSHRouteDiagnosticReport: Equatable {
         return lines
     }
 
-    private func recommendationStepText(for oneBasedIndex: Int) -> String {
-        let title = planSteps.indices.contains(oneBasedIndex - 1)
-            ? planSteps[oneBasedIndex - 1].title
-            : L10n.string("ssh.diagnostic_recommendation.step.none")
-        return reportText(L10n.format("ssh.diagnostic_report.recommendation.step_value", oneBasedIndex, title))
-    }
-
-    private func recommendationCommandText(for oneBasedIndex: Int) -> String? {
-        guard planSteps.indices.contains(oneBasedIndex - 1) else { return nil }
-        return reportText(planSteps[oneBasedIndex - 1].command)
-    }
-
-    private func recommendationEvidenceText(for oneBasedIndex: Int) -> String? {
-        guard let evidence = results[oneBasedIndex - 1]?.evidence else { return nil }
-        return reportText(evidence)
+    private func recommendationStepText(for oneBasedIndex: Int, title: String?) -> String {
+        let stepTitle = title ?? L10n.string("ssh.diagnostic_recommendation.step.none")
+        return reportText(L10n.format("ssh.diagnostic_report.recommendation.step_value", oneBasedIndex, stepTitle))
     }
 
     private var sensitiveContentText: String {

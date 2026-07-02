@@ -164,7 +164,9 @@
 "ssh.config_preview.parse_clipboard.parsed" = "已从剪贴板解析检查输出。";
 "ssh.config_preview.results_copied" = "已复制检查结果报告。";
 "ssh.config_preview.results_cleared" = "已清空检查结果。";
-"ssh.config_preview.recommendation.step" = "第 %d 项";
+"ssh.config_preview.recommendation.step" = "第 %d 项 · %@";
+"ssh.config_preview.recommendation.evidence" = "证据";
+"ssh.config_preview.recommendation.command" = "命令";
 "ssh.config_preview.copy" = "复制配置";
 "ssh.config_preview.copied" = "已复制生效 OpenSSH 配置。";
 "ssh.search.placeholder" = "搜索主机";
@@ -302,7 +304,7 @@
 "ssh.diagnostic_recommendation.allPassed.summary" = "%@ 已覆盖完毕，当前已解析的检查没有发现链路或配置异常。";
 "ssh.diagnostic_recommendation.allPassed.action" = "如果真实连接仍失败，重点查看远端 shell 启动脚本、权限策略或交互式认证要求。";
 "ssh.diagnostic_recommendation.continueChecks.title" = "继续完成剩余检查";
-"ssh.diagnostic_recommendation.continueChecks.summary" = "%@ 已通过，当前还没有发现明确失败点。";
+"ssh.diagnostic_recommendation.continueChecks.summary" = "%@ 是下一条未完成检查，当前还没有发现明确失败点。";
 "ssh.diagnostic_recommendation.continueChecks.action" = "继续执行并解析后续检查，优先拿到 ssh -G 和 ssh -vvv 的输出。";
 "ssh.diagnostic_recommendation.dnsFailure.title" = "主机名解析失败";
 "ssh.diagnostic_recommendation.dnsFailure.summary" = "%@ 指向的主机名无法从本机解析。";

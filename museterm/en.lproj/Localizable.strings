@@ -164,7 +164,9 @@
 "ssh.config_preview.parse_clipboard.parsed" = "Check output parsed from the clipboard.";
 "ssh.config_preview.results_copied" = "Check result report copied.";
 "ssh.config_preview.results_cleared" = "Check results cleared.";
-"ssh.config_preview.recommendation.step" = "Step %d";
+"ssh.config_preview.recommendation.step" = "Step %d · %@";
+"ssh.config_preview.recommendation.evidence" = "Evidence";
+"ssh.config_preview.recommendation.command" = "Command";
 "ssh.config_preview.copy" = "Copy config";
 "ssh.config_preview.copied" = "Effective OpenSSH config copied.";
 "ssh.search.placeholder" = "Search hosts";
@@ -302,7 +304,7 @@
 "ssh.diagnostic_recommendation.allPassed.summary" = "%@ completed, and the parsed checks did not find a route or config failure.";
 "ssh.diagnostic_recommendation.allPassed.action" = "If the real connection still fails, inspect remote shell startup, permissions, or interactive authentication requirements.";
 "ssh.diagnostic_recommendation.continueChecks.title" = "Continue the remaining checks";
-"ssh.diagnostic_recommendation.continueChecks.summary" = "%@ has passed and no clear failure point is visible yet.";
+"ssh.diagnostic_recommendation.continueChecks.summary" = "%@ is the next unchecked step, and no clear failure point is visible yet.";
 "ssh.diagnostic_recommendation.continueChecks.action" = "Run and parse the remaining checks, especially ssh -G and ssh -vvv output.";
 "ssh.diagnostic_recommendation.dnsFailure.title" = "Hostname resolution failed";
 "ssh.diagnostic_recommendation.dnsFailure.summary" = "%@ points to a hostname this Mac could not resolve.";

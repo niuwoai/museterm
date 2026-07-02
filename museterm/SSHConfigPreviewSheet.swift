@@ -195,14 +195,25 @@ struct SSHConfigPreviewSheet: View {
             planSteps: preview.commands.map(\.diagnosticStep),
             results: parsedResults
         ) {
+            let detail = SSHRouteDiagnosticRecommendationDetail(
+                recommendation: recommendation,
+                planSteps: preview.commands.map(\.diagnosticStep),
+                results: parsedResults
+            )
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 6) {
                     Image(systemName: resultSummaryIcon(recommendation.status))
                         .foregroundStyle(resultColor(recommendation.status))
                     Text(recommendation.title)
                         .font(.caption.weight(.semibold))
-                    if let relatedStepIndex = recommendation.relatedStepIndex {
-                        Text(L10n.format("ssh.config_preview.recommendation.step", relatedStepIndex))
+                    if let relatedStepIndex = detail.oneBasedStepIndex {
+                        Text(
+                            L10n.format(
+                                "ssh.config_preview.recommendation.step",
+                                relatedStepIndex,
+                                detail.stepTitle ?? L10n.string("ssh.diagnostic_recommendation.step.none")
+                            )
+                        )
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(.secondary)
                     }
@@ -215,11 +226,51 @@ struct SSHConfigPreviewSheet: View {
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(resultColor(recommendation.status))
                     .fixedSize(horizontal: false, vertical: true)
+                if let evidence = detail.evidence, !evidence.isEmpty {
+                    recommendationContextRow(
+                        title: L10n.string("ssh.config_preview.recommendation.evidence"),
+                        value: evidence,
+                        systemImage: "text.magnifyingglass"
+                    )
+                }
+                if let command = detail.command, !command.isEmpty {
+                    recommendationContextRow(
+                        title: L10n.string("ssh.config_preview.recommendation.command"),
+                        value: command,
+                        systemImage: "terminal",
+                        isMonospaced: true
+                    )
+                }
             }
             .padding(8)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(resultColor(recommendation.status).opacity(0.10))
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+    }
+
+    private func recommendationContextRow(
+        title: String,
+        value: String,
+        systemImage: String,
+        isMonospaced: Bool = false
+    ) -> some View {
+        Label {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.system(size: 10, design: isMonospaced ? .monospaced : .default))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+            }
+        } icon: {
+            Image(systemName: systemImage)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.secondary)
         }
     }
 
