@@ -83,6 +83,16 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private var sshLastStartUptime: TimeInterval = 0
     private var pendingSSHReconnectWorkItem: DispatchWorkItem?
     private var isTerminating = false
+    // 输出快照节流：fullHistoryText() 会全量扫终端历史 buffer（复杂度 ≈ 历史行数 × 列宽），
+    // 若每段输出都扫一遍，长历史下主线程会被打满。普通输出合并到至多每 250ms 一次，
+    // 只有命令边界（shell integration 事件）才立即取快照以保证命令输出切分准确。
+    private var pendingOutputSnapshotWorkItem: DispatchWorkItem?
+    private var lastOutputSnapshotUptime: TimeInterval = 0
+    private let outputSnapshotThrottleInterval: TimeInterval = 0.25
+    // 节流快照的缓存副本：给 tool bridge 等只读消费方复用，避免它们再各自全量扫 buffer。
+    // contentRevision 随每次快照刷新递增，供外部做“内容没变就跳过”的脏检查。
+    private var cachedHistoryText: String?
+    private(set) var contentRevision = 0
 
     init(session: TerminalSession) {
         self.session = session
@@ -161,6 +171,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         isTerminating = true
         pendingSSHReconnectWorkItem?.cancel()
         pendingSSHReconnectWorkItem = nil
+        pendingOutputSnapshotWorkItem?.cancel()
+        pendingOutputSnapshotWorkItem = nil
         terminalView.terminate()
     }
 
@@ -252,7 +264,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             columns: terminalView.terminal?.cols ?? 0,
             rows: terminalView.terminal?.rows ?? 0,
             screen: visibleScreenText(),
-            history: String(fullHistoryText().suffix(maxHistoryCharacters)),
+            history: String(latestHistoryText().suffix(maxHistoryCharacters)),
             commandDiagnostics: TerminalToolCommandDiagnosticsSnapshot(
                 diagnostics: CommandBlockDiagnostics(blocks: recentCommandBlocks)
             ),
@@ -395,7 +407,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         session?.finishActiveCommand(
             exitCode: exitCode,
             completionSource: .processExit,
-            historySnapshot: fullHistoryText()
+            historySnapshot: refreshHistoryTextCache()
         )
         if scheduleSSHReconnectIfNeeded(exitCode: exitCode) {
             return
@@ -462,6 +474,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 return true
             }
             self.session?.recordInputIfNeeded(data: data, echoEnabled: echoEnabled)
+            // historySnapshot 是 @autoclosure：仅在回车/Ctrl-C 需要切分命令时才全量扫历史。
             self.session?.observeProcessInput(
                 data: data,
                 echoEnabled: echoEnabled,
@@ -478,9 +491,11 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         }
         terminalView.onProcessOutputCommitted = { [weak self] in
             guard let self else { return }
-            let historySnapshot = self.fullHistoryText()
-            self.flushPendingShellIntegrationEvents(historySnapshot: historySnapshot)
-            self.session?.observeProcessOutput(historySnapshot: historySnapshot)
+            if self.pendingShellIntegrationEvents.isEmpty {
+                self.scheduleThrottledProcessOutputSnapshot()
+            } else {
+                self.commitProcessOutputSnapshot()
+            }
             self.flushPendingSSHDiagnosticMessage()
         }
         container.addSubview(terminalView)
@@ -568,6 +583,41 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private func handleProcessOutputForShellIntegration(_ data: ArraySlice<UInt8>) {
         guard activeZModemTransfer == nil, pendingZModemProbe == nil else { return }
         pendingShellIntegrationEvents.append(contentsOf: shellIntegrationParser.accept(data))
+    }
+
+    private func commitProcessOutputSnapshot() {
+        pendingOutputSnapshotWorkItem?.cancel()
+        pendingOutputSnapshotWorkItem = nil
+        lastOutputSnapshotUptime = ProcessInfo.processInfo.systemUptime
+        let historySnapshot = refreshHistoryTextCache()
+        flushPendingShellIntegrationEvents(historySnapshot: historySnapshot)
+        session?.observeProcessOutput(historySnapshot: historySnapshot)
+    }
+
+    func latestHistoryText() -> String {
+        if let cachedHistoryText { return cachedHistoryText }
+        return refreshHistoryTextCache()
+    }
+
+    @discardableResult
+    private func refreshHistoryTextCache() -> String {
+        let text = fullHistoryText()
+        cachedHistoryText = text
+        contentRevision += 1
+        return text
+    }
+
+    private func scheduleThrottledProcessOutputSnapshot() {
+        // 已有排队的快照任务时直接合并，保证输出停止后仍有一次“尾随”快照收口。
+        guard pendingOutputSnapshotWorkItem == nil else { return }
+        let elapsed = ProcessInfo.processInfo.systemUptime - lastOutputSnapshotUptime
+        let delay = max(0, outputSnapshotThrottleInterval - elapsed)
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self, !self.isTerminating else { return }
+            self.commitProcessOutputSnapshot()
+        }
+        pendingOutputSnapshotWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
     }
 
     private func flushPendingShellIntegrationEvents(historySnapshot: String) {

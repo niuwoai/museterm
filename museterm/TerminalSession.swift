@@ -425,13 +425,27 @@ final class TerminalSession: ObservableObject, Identifiable {
         recorder?.record(data: data, echoEnabled: echoEnabled)
     }
 
-    func observeProcessInput(data: [UInt8], echoEnabled: Bool, historySnapshot: String) {
+    // historySnapshot 用 @autoclosure 惰性求值：全量历史快照开销大（全 buffer 扫描），
+    // 普通按键不需要它，只有回车提交命令或 Ctrl-C 中断时才真正取一次。
+    func observeProcessInput(
+        data: [UInt8],
+        echoEnabled: Bool,
+        historySnapshot: @autoclosure () -> String
+    ) {
         guard echoEnabled, !data.isEmpty else { return }
+
+        var cachedSnapshot: String?
+        func snapshot() -> String {
+            if let cachedSnapshot { return cachedSnapshot }
+            let fresh = historySnapshot()
+            cachedSnapshot = fresh
+            return fresh
+        }
 
         for byte in data {
             switch byte {
             case 0x0D, 0x0A:
-                submitPendingCommand(historySnapshot: historySnapshot)
+                submitPendingCommand(historySnapshot: snapshot())
             case 0x7F, 0x08:
                 if !pendingCommandBytes.isEmpty {
                     pendingCommandBytes.removeLast()
@@ -440,7 +454,7 @@ final class TerminalSession: ObservableObject, Identifiable {
                 finishActiveCommand(
                     exitCode: 130,
                     completionSource: .userInterrupt,
-                    historySnapshot: historySnapshot
+                    historySnapshot: snapshot()
                 )
                 pendingCommandBytes.removeAll(keepingCapacity: true)
             default:

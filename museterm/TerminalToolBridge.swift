@@ -445,6 +445,13 @@ final class TerminalToolBridge {
     private let decoder = JSONDecoder()
     private let maxHistoryCharacters = 240_000
     private var snapshotSequence = 0
+    // 状态文件写盘的脏检查：内容签名没变就跳过整个“快照 + JSON 编码 + 写盘”，
+    // 空闲时 tick 只剩一次目录轮询。编码与写盘在串行后台队列执行，不占主线程。
+    private var lastWrittenSignature: Int?
+    private let stateWriteQueue = DispatchQueue(
+        label: "im.some.museterm.toolbridge.state-write",
+        qos: .utility
+    )
 
     private init() {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -475,38 +482,70 @@ final class TerminalToolBridge {
     }
 
     private func tick() {
-        processRequests()
+        let handledRequestCount = processRequests()
+        writeStateIfNeeded(force: handledRequestCount > 0)
+    }
+
+    private func writeStateIfNeeded(force: Bool) {
+        guard let workspace else { return }
+        let signature = stateSignature(workspace: workspace)
+        guard force || signature != lastWrittenSignature else { return }
+        lastWrittenSignature = signature
         writeState()
+    }
+
+    // 轻量内容签名：只 hash 元数据与 contentRevision，不触碰历史 buffer。
+    // 标题/目录/命令块变化都伴随终端输出，已被 contentRevision 覆盖，
+    // 单独并入是为了保险与可读性。
+    private func stateSignature(workspace: TerminalWorkspace) -> Int {
+        var hasher = Hasher()
+        hasher.combine(workspace.selectedTab?.id)
+        for tab in workspace.tabs {
+            hasher.combine(tab.id)
+            hasher.combine(tab.controller.contentRevision)
+            hasher.combine(tab.tabTitle)
+            hasher.combine(tab.toolStateText)
+            hasher.combine(tab.commandBlocks.count)
+        }
+        return hasher.finalize()
     }
 
     private func writeState() {
         guard let workspace else { return }
-        do {
-            snapshotSequence += 1
-            let state = TerminalToolState(
-                app: "MuseTerm",
-                version: AppVersion.value,
-                snapshotSequence: snapshotSequence,
-                updatedAt: Date(),
-                selectedTabID: workspace.selectedTab?.id.uuidString,
-                tabs: workspace.toolSnapshots(maxHistoryCharacters: maxHistoryCharacters)
-            )
-            let data = try encoder.encode(state)
-            try data.write(to: TerminalToolPaths.stateFile, options: .atomic)
-        } catch {
-            NSLog("MuseTerm tool bridge failed to write state: \(error.localizedDescription)")
+        snapshotSequence += 1
+        let state = TerminalToolState(
+            app: "MuseTerm",
+            version: AppVersion.value,
+            snapshotSequence: snapshotSequence,
+            updatedAt: Date(),
+            selectedTabID: workspace.selectedTab?.id.uuidString,
+            tabs: workspace.toolSnapshots(maxHistoryCharacters: maxHistoryCharacters)
+        )
+        stateWriteQueue.async {
+            // encoder 独立于主线程的共享实例，避免与响应写入的 encoder 跨线程共用。
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            encoder.dateEncodingStrategy = .iso8601
+            do {
+                let data = try encoder.encode(state)
+                try data.write(to: TerminalToolPaths.stateFile, options: .atomic)
+            } catch {
+                NSLog("MuseTerm tool bridge failed to write state: \(error.localizedDescription)")
+            }
         }
     }
 
-    private func processRequests() {
+    @discardableResult
+    private func processRequests() -> Int {
         let manager = FileManager.default
         guard
             let files = try? manager.contentsOfDirectory(
                 at: TerminalToolPaths.requestDirectory,
                 includingPropertiesForKeys: nil
             )
-        else { return }
+        else { return 0 }
 
+        var handledCount = 0
         for file in files where file.pathExtension == "json" {
             let response: TerminalToolResponse
             do {
@@ -525,7 +564,9 @@ final class TerminalToolBridge {
 
             write(response: response)
             try? manager.removeItem(at: file)
+            handledCount += 1
         }
+        return handledCount
     }
 
     private func perform(request: TerminalToolRequest) -> TerminalToolResponse {
