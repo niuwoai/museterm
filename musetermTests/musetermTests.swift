@@ -433,6 +433,22 @@ final class musetermTests: XCTestCase {
     }
 
     @MainActor
+    func testManualSSHReconnectIsAvailableOnlyAfterSSHExit() {
+        let sshSession = TerminalSession(
+            sequence: 1,
+            launchConfiguration: .ssh(SSHConnectionProfile(host: "example.com"))
+        )
+        XCTAssertFalse(sshSession.canManuallyReconnectSSH)
+
+        sshSession.state = .exited(255)
+        XCTAssertTrue(sshSession.canManuallyReconnectSSH)
+
+        let localSession = TerminalSession(sequence: 2)
+        localSession.state = .exited(0)
+        XCTAssertFalse(localSession.canManuallyReconnectSSH)
+    }
+
+    @MainActor
     func testSSHProfileBuildsRouteSummaryThroughJumpHosts() {
         let profile = SSHConnectionProfile(
             name: "prod-app",

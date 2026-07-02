@@ -351,6 +351,19 @@ final class TerminalSession: ObservableObject, Identifiable {
         controller.ensureProcessStarted()
     }
 
+    var canManuallyReconnectSSH: Bool {
+        guard case .ssh = launchConfiguration,
+              case .exited = state else {
+            return false
+        }
+        return !hasRunningProcess
+    }
+
+    func reconnectSSH() {
+        guard canManuallyReconnectSSH else { return }
+        controller.reconnectSSH()
+    }
+
     func markUnreadAttention() {
         guard !hasUnreadAttention else { return }
         hasUnreadAttention = true

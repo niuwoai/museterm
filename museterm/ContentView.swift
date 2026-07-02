@@ -343,7 +343,58 @@ private struct TerminalPaneView: View {
                     .accessibilityHidden(!isSelected)
                     .zIndex(isSelected ? 1 : 0)
             }
+            if let selectedTab = workspace.selectedTab, selectedTab.canManuallyReconnectSSH {
+                SSHReconnectOverlay(
+                    tab: selectedTab,
+                    skin: preferences.skin
+                )
+                .transition(.opacity)
+                .zIndex(2)
+            }
         }
+    }
+}
+
+private struct SSHReconnectOverlay: View {
+    @ObservedObject var tab: TerminalSession
+    let skin: TerminalVisualSkin
+
+    var body: some View {
+        VStack {
+            Spacer()
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.clockwise.circle.fill")
+                    .foregroundStyle(skin.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.string("ssh.reconnect.manual_title"))
+                        .font(.caption.weight(.semibold))
+                    Text(L10n.string("ssh.reconnect.manual_summary"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Button {
+                    tab.reconnectSSH()
+                } label: {
+                    Label(
+                        L10n.string("ssh.reconnect.manual_button"),
+                        systemImage: "arrow.clockwise"
+                    )
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(skin.hairline, lineWidth: 1)
+            )
+            .padding(.bottom, 18)
+        }
+        .padding(.horizontal, 20)
+        .allowsHitTesting(true)
     }
 }
 

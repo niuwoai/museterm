@@ -186,6 +186,10 @@
 "ssh.reconnect.scheduled" = "SSH 已断开。MuseTerm 将自动重连：第 %d/%d 次，%d 秒后开始。";
 "ssh.reconnect.attempting" = "正在重连 SSH 会话（第 %d 次）...";
 "ssh.reconnect.exhausted" = "SSH 自动重连已达到次数上限，已停止重试。";
+"ssh.reconnect.manual_title" = "SSH 会话已断开";
+"ssh.reconnect.manual_summary" = "在当前标签重新连接，并保留这里的终端历史。";
+"ssh.reconnect.manual_button" = "重新连接";
+"ssh.reconnect.manual_start" = "正在按你的请求重新连接 SSH 会话...";
 "ssh.security_warning.agentForwarding.title" = "已开启 Agent 转发";
 "ssh.security_warning.agentForwarding.summary" = "ForwardAgent 可能把本机 SSH agent 暴露给远端主机，只建议在可信机器上使用。";
 "ssh.security_warning.hostKeyCheckingDisabled.title" = "已关闭主机指纹校验";

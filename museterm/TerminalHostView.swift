@@ -174,6 +174,22 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         }
     }
 
+    func reconnectSSH() {
+        guard case .ssh = session?.launchConfiguration,
+              !terminalView.process.running else {
+            return
+        }
+        pendingSSHReconnectWorkItem?.cancel()
+        pendingSSHReconnectWorkItem = nil
+        sshReconnectAttemptCount = 0
+        session?.state = .running
+        terminalView.feed(text: "\n\(L10n.string("ssh.reconnect.manual_start"))\n")
+        didStart = false
+        pendingStart = true
+        resetSSHDiagnosticsForNewAttempt()
+        schedulePendingProcessStartIfReady()
+    }
+
     func focusTerminal() {
         terminalView.requestFocus()
     }

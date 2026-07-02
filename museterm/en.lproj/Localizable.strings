@@ -186,6 +186,10 @@
 "ssh.reconnect.scheduled" = "SSH disconnected. MuseTerm will reconnect: attempt %d/%d in %d seconds.";
 "ssh.reconnect.attempting" = "Reconnecting SSH session (%d)...";
 "ssh.reconnect.exhausted" = "SSH automatic reconnect stopped after reaching the retry limit.";
+"ssh.reconnect.manual_title" = "SSH session disconnected";
+"ssh.reconnect.manual_summary" = "Reconnect in this tab and keep the terminal history here.";
+"ssh.reconnect.manual_button" = "Reconnect";
+"ssh.reconnect.manual_start" = "Reconnecting SSH session by request...";
 "ssh.security_warning.agentForwarding.title" = "Agent forwarding is enabled";
 "ssh.security_warning.agentForwarding.summary" = "ForwardAgent can expose your local SSH agent to the remote host. Use it only with trusted machines.";
 "ssh.security_warning.hostKeyCheckingDisabled.title" = "Host key checking is disabled";
