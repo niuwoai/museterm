@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.205.0] - 2026-07-02
+
+### Added
+- SSH config 导入会把 `Host *` 中的全局默认配置应用到明确 Host Profile，例如默认用户、密钥、保活、连接复用和高级选项；具体 Host block 的同名标量配置会覆盖这些默认值，多值配置如 `IdentityFile` 会继续叠加。
+
 ## [1.204.0] - 2026-07-02
 
 ### Added

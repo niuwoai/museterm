@@ -960,8 +960,10 @@ enum OpenSSHConfigImporter {
 
     static func profiles(from text: String) -> [SSHConnectionProfile] {
         var importedProfiles: [SSHConnectionProfile] = []
-        for block in hostBlocks(from: text) {
-            importedProfiles.append(contentsOf: profiles(from: block))
+        let blocks = hostBlocks(from: text)
+        let defaultOptions = wildcardDefaultOptions(in: blocks)
+        for block in blocks {
+            importedProfiles.append(contentsOf: profiles(from: block, defaultOptions: defaultOptions))
         }
         return importedProfiles
     }
@@ -1003,12 +1005,16 @@ enum OpenSSHConfigImporter {
         return blocks
     }
 
-    private static func profiles(from block: HostBlock) -> [SSHConnectionProfile] {
+    private static func profiles(from block: HostBlock, defaultOptions: [ParsedLine]) -> [SSHConnectionProfile] {
         let aliases = uniqueImportableAliases(in: block.aliases)
-        return aliases.compactMap { profile(from: block, alias: $0) }
+        return aliases.compactMap { profile(from: block, alias: $0, defaultOptions: defaultOptions) }
     }
 
-    private static func profile(from block: HostBlock, alias: String) -> SSHConnectionProfile? {
+    private static func profile(
+        from block: HostBlock,
+        alias: String,
+        defaultOptions: [ParsedLine]
+    ) -> SSHConnectionProfile? {
         guard isImportableHostAlias(alias) else { return nil }
 
         var host = ""
@@ -1024,7 +1030,7 @@ enum OpenSSHConfigImporter {
         var connectionReuseEnabled = true
         var connectionReusePersistMinutes = 10
 
-        for option in block.options {
+        for option in mergedOptions(defaultOptions: defaultOptions, blockOptions: block.options) {
             let key = option.key.lowercased()
             switch key {
             case "hostname":
@@ -1091,6 +1097,39 @@ enum OpenSSHConfigImporter {
             connectionReuseEnabled: connectionReuseEnabled,
             connectionReusePersistMinutes: connectionReusePersistMinutes
         ).normalized
+    }
+
+    private nonisolated static func wildcardDefaultOptions(in blocks: [HostBlock]) -> [ParsedLine] {
+        blocks
+            .filter(isGlobalWildcardBlock)
+            .flatMap(\.options)
+    }
+
+    private nonisolated static func isGlobalWildcardBlock(_ block: HostBlock) -> Bool {
+        let aliases = block.aliases.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        return aliases == ["*"]
+    }
+
+    private nonisolated static func mergedOptions(defaultOptions: [ParsedLine], blockOptions: [ParsedLine]) -> [ParsedLine] {
+        let explicitSingletonKeys = Set(
+            blockOptions
+                .map { $0.key.lowercased() }
+                .filter { !isMultiValueOption($0) }
+        )
+        let filteredDefaults = defaultOptions.filter { option in
+            let key = option.key.lowercased()
+            return isMultiValueOption(key) || !explicitSingletonKeys.contains(key)
+        }
+        return filteredDefaults + blockOptions
+    }
+
+    private nonisolated static func isMultiValueOption(_ key: String) -> Bool {
+        switch key {
+        case "identityfile", "localforward", "remoteforward", "dynamicforward":
+            return true
+        default:
+            return false
+        }
     }
 
     private static func uniqueImportableAliases(in aliases: [String]) -> [String] {

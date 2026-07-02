@@ -168,6 +168,92 @@ final class SSHConfigImportTests: XCTestCase {
         XCTAssertEqual(profiles.map(\.user), ["deploy", "ops", "ops"])
     }
 
+    func testOpenSSHConfigImporterAppliesHostStarDefaultsToExplicitHosts() throws {
+        let config = """
+        Host *
+          User default-user
+          IdentityFile ~/.ssh/default
+          ServerAliveInterval 45
+          ServerAliveCountMax 4
+          ControlMaster auto
+          ControlPersist 20m
+
+        Host prod
+          HostName prod.example.com
+          Port 2222
+        """
+
+        let profile = try XCTUnwrap(OpenSSHConfigImporter.profiles(from: config).first)
+
+        XCTAssertEqual(profile.name, "prod")
+        XCTAssertEqual(profile.host, "prod.example.com")
+        XCTAssertEqual(profile.user, "default-user")
+        XCTAssertEqual(profile.port, 2222)
+        XCTAssertEqual(profile.identityFiles, ["~/.ssh/default"])
+        XCTAssertEqual(profile.keepAliveIntervalSeconds, 45)
+        XCTAssertEqual(profile.keepAliveCountMax, 4)
+        XCTAssertTrue(profile.connectionReuseEnabled)
+        XCTAssertEqual(profile.connectionReusePersistMinutes, 20)
+    }
+
+    func testOpenSSHConfigImporterLetsExplicitHostOverrideHostStarDefaults() throws {
+        let config = """
+        Host *
+          User default-user
+          Port 2222
+          ControlMaster auto
+          ControlPersist 30m
+
+        Host prod
+          HostName prod.example.com
+          User deploy
+          Port 2200
+          ControlPersist no
+        """
+
+        let profile = try XCTUnwrap(OpenSSHConfigImporter.profiles(from: config).first)
+
+        XCTAssertEqual(profile.user, "deploy")
+        XCTAssertEqual(profile.port, 2200)
+        XCTAssertFalse(profile.connectionReuseEnabled)
+        XCTAssertEqual(profile.connectionReusePersistMinutes, 10)
+    }
+
+    func testOpenSSHConfigImporterLetsExplicitAdvancedOptionsOverrideHostStarDefaults() throws {
+        let config = """
+        Host *
+          IdentityFile ~/.ssh/default
+          StrictHostKeyChecking no
+          UserKnownHostsFile /dev/null
+
+        Host prod
+          HostName prod.example.com
+          IdentityFile ~/.ssh/prod
+          StrictHostKeyChecking yes
+        """
+
+        let profile = try XCTUnwrap(OpenSSHConfigImporter.profiles(from: config).first)
+
+        XCTAssertEqual(profile.identityFiles, ["~/.ssh/default", "~/.ssh/prod"])
+        XCTAssertEqual(profile.extraOptions, ["UserKnownHostsFile /dev/null", "StrictHostKeyChecking yes"])
+    }
+
+    func testOpenSSHConfigImporterDoesNotApplyPatternHostsAsGlobalDefaults() throws {
+        let config = """
+        Host *.internal
+          User pattern-user
+
+        Host prod
+          HostName prod.example.com
+        """
+
+        let profile = try XCTUnwrap(OpenSSHConfigImporter.profiles(from: config).first)
+
+        XCTAssertEqual(profile.name, "prod")
+        XCTAssertEqual(profile.host, "prod.example.com")
+        XCTAssertEqual(profile.user, "")
+    }
+
     func testOpenSSHConfigImporterSkipsMalformedBracketedProxyJumpHost() throws {
         let config = """
         Host ipv6-bad
