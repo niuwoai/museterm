@@ -304,6 +304,7 @@ struct SSHProfilesSection: View {
 
     private func sshProfileRow(_ profile: SSHConnectionProfile) -> some View {
         let health = profile.healthSummary
+        let portForwardSummary = profile.portForwardSummaryText
         return HStack(spacing: 7) {
             Button {
                 workspace.openSSH(profile: profile)
@@ -328,6 +329,10 @@ struct SSHProfilesSection: View {
                     }
                     Spacer(minLength: 2)
                     SSHProfileHealthBadges(summary: health)
+                    SSHProfilePortForwardBadge(
+                        count: profile.usablePortForwards.count,
+                        summary: portForwardSummary
+                    )
                     EnvironmentBadge(environment: profile.environment)
                 }
                 // 整块名字区域都可点击直接连接，而非仅文字本身。
@@ -348,6 +353,13 @@ struct SSHProfilesSection: View {
                     Label(L10n.string("ssh.copy_config"), systemImage: "doc.on.doc")
                 }
                 .help(L10n.string("ssh.copy_config.help"))
+                Button {
+                    copyPortForwardSummary(for: profile)
+                } label: {
+                    Label(L10n.string("ssh.copy_port_forwards"), systemImage: "arrow.left.arrow.right")
+                }
+                .disabled(profile.usablePortForwards.isEmpty)
+                .help(L10n.string("ssh.copy_port_forwards.help"))
                 Button {
                     diagnosticProfile = profile
                 } label: {
@@ -377,8 +389,10 @@ struct SSHProfilesSection: View {
 
     private func rowHelp(for profile: SSHConnectionProfile, health: SSHProfileHealthSummary) -> String {
         let base = profile.jumpHosts.isEmpty ? profile.target : L10n.format("ssh.tooltip_route", profile.routeSummary)
-        guard health.hasAttentionItems else { return base }
-        return [base, health.tooltip].joined(separator: "\n")
+        let portForwards = profile.portForwardSummaryText
+        return [base, health.hasAttentionItems ? health.tooltip : nil, portForwards.isEmpty ? nil : portForwards]
+            .compactMap { $0 }
+            .joined(separator: "\n")
     }
 
     private func importDefaultOpenSSHConfig() {
@@ -396,6 +410,14 @@ struct SSHProfilesSection: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(SSHConfigMaterializer.exportSnippet(for: profile), forType: .string)
         importMessage = L10n.format("ssh.copy_config.copied", profile.displayName)
+    }
+
+    private func copyPortForwardSummary(for profile: SSHConnectionProfile) {
+        let summary = profile.portForwardSummaryText
+        guard !summary.isEmpty else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(summary, forType: .string)
+        importMessage = L10n.format("ssh.copy_port_forwards.copied", profile.displayName)
     }
 }
 
@@ -445,6 +467,30 @@ private struct SSHProfileHealthBadges: View {
         .background(color.opacity(0.13))
         .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
         .help(help)
+    }
+}
+
+private struct SSHProfilePortForwardBadge: View {
+    let count: Int
+    let summary: String
+
+    var body: some View {
+        if count > 0 {
+            Label {
+                Text("\(count)")
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+            } icon: {
+                Image(systemName: "arrow.left.arrow.right")
+                    .font(.system(size: 9, weight: .semibold))
+            }
+            .labelStyle(.titleAndIcon)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .foregroundStyle(Color.teal)
+            .background(Color.teal.opacity(0.13))
+            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+            .help(summary)
+        }
     }
 }
 

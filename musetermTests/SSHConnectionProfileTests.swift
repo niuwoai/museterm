@@ -92,6 +92,35 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertTrue(config.contains("  DynamicForward 127.0.0.1:1080"))
     }
 
+    func testSSHProfileBuildsReadablePortForwardSummaries() {
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            user: "deploy",
+            portForwards: [
+                SSHPortForward(
+                    kind: .local,
+                    bindHost: "",
+                    bindPort: 8080,
+                    destinationHost: "127.0.0.1",
+                    destinationPort: 80
+                ),
+                SSHPortForward(
+                    kind: .remote,
+                    bindHost: "0.0.0.0",
+                    bindPort: 9000,
+                    destinationHost: "127.0.0.1",
+                    destinationPort: 9000
+                ),
+                SSHPortForward(kind: .dynamic, bindHost: "127.0.0.1", bindPort: 1080)
+            ]
+        )
+
+        XCTAssertEqual(profile.usablePortForwards.count, 3)
+        XCTAssertTrue(profile.portForwardSummaryText.contains("localhost:8080"))
+        XCTAssertTrue(profile.portForwardSummaryText.contains("0.0.0.0:9000"))
+        XCTAssertTrue(profile.portForwardSummaryText.contains("127.0.0.1:1080"))
+    }
+
     func testSSHProfileSearchMatchesGroupTagsAndJumpHosts() {
         let profile = SSHConnectionProfile(
             name: "Production API",
@@ -522,6 +551,100 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertEqual(guide.commands.count, 3)
         XCTAssertTrue(guide.message.contains("ssh -G -F "))
         XCTAssertFalse(guide.message.contains("ssh -vvv -F "))
+    }
+
+    func testSSHRouteDiagnosticStepResultInterpretsDNSOutput() {
+        let step = SSHRouteDiagnosticPlanStep(
+            kind: .dnsLookup,
+            title: "Resolve host",
+            command: "dscacheutil -q host -a name example.com",
+            routeStepKind: .target,
+            host: "example.com",
+            port: nil,
+            alias: nil,
+            includeInFailureGuide: true
+        )
+
+        let passed = step.interpretResult(
+            exitCode: 0,
+            output: "name: example.com\nip_address: 93.184.216.34"
+        )
+        let failed = step.interpretResult(
+            exitCode: 1,
+            output: "** server can't find missing.internal: NXDOMAIN"
+        )
+
+        XCTAssertEqual(passed.status, .passed)
+        XCTAssertEqual(passed.evidence, "name: example.com")
+        XCTAssertEqual(failed.status, .failed)
+        XCTAssertTrue(failed.evidence?.contains("NXDOMAIN") ?? false)
+    }
+
+    func testSSHRouteDiagnosticStepResultInterpretsTCPOutput() {
+        let step = SSHRouteDiagnosticPlanStep(
+            kind: .tcpPort,
+            title: "Check TCP",
+            command: "nc -vz -w 5 example.com 22",
+            routeStepKind: .target,
+            host: "example.com",
+            port: 22,
+            alias: nil,
+            includeInFailureGuide: true
+        )
+
+        let open = step.interpretResult(exitCode: 0, output: "Connection to example.com port 22 [tcp/ssh] succeeded!")
+        let refused = step.interpretResult(exitCode: 1, output: "nc: connectx to example.com port 22: Connection refused")
+        let timedOut = step.interpretResult(exitCode: 1, output: "nc: connectx to example.com port 22: Operation timed out")
+
+        XCTAssertEqual(open.status, .passed)
+        XCTAssertEqual(refused.status, .failed)
+        XCTAssertTrue(refused.evidence?.lowercased().contains("connection refused") ?? false)
+        XCTAssertEqual(timedOut.status, .failed)
+        XCTAssertTrue(timedOut.evidence?.lowercased().contains("timed out") ?? false)
+    }
+
+    func testSSHRouteDiagnosticStepResultInterpretsConfigOutput() {
+        let step = SSHRouteDiagnosticPlanStep(
+            kind: .generatedConfig,
+            title: "Config",
+            command: "ssh -G -F /tmp/profile.conf alias",
+            routeStepKind: .target,
+            host: "example.com",
+            port: 22,
+            alias: "alias",
+            includeInFailureGuide: true
+        )
+
+        let passed = step.interpretResult(exitCode: 0, output: "hostname example.com\nuser deploy\nport 22")
+        let failed = step.interpretResult(exitCode: 255, output: "Bad configuration option: proxyjumpx")
+
+        XCTAssertEqual(passed.status, .passed)
+        XCTAssertEqual(passed.evidence, "hostname example.com")
+        XCTAssertEqual(failed.status, .failed)
+        XCTAssertTrue(failed.evidence?.lowercased().contains("bad configuration option") ?? false)
+    }
+
+    func testSSHRouteDiagnosticStepResultInterpretsVerboseSSHOutput() {
+        let step = SSHRouteDiagnosticPlanStep(
+            kind: .verboseRoute,
+            title: "Verbose",
+            command: "ssh -vvv -F /tmp/profile.conf alias true",
+            routeStepKind: .target,
+            host: "example.com",
+            port: 22,
+            alias: "alias",
+            includeInFailureGuide: true
+        )
+
+        let passed = step.interpretResult(exitCode: 0, output: "debug1: Authenticated to example.com.\ndebug1: Exit status 0")
+        let denied = step.interpretResult(exitCode: 255, output: "Permission denied (publickey).")
+        let unknown = step.interpretResult(exitCode: nil, output: "")
+
+        XCTAssertEqual(passed.status, .passed)
+        XCTAssertTrue(passed.evidence?.contains("Exit status 0") ?? false)
+        XCTAssertEqual(denied.status, .failed)
+        XCTAssertTrue(denied.summary.contains(SSHConnectionIssueKind.permissionDenied.title))
+        XCTAssertEqual(unknown.status, .unknown)
     }
 
     @MainActor

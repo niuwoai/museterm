@@ -181,6 +181,10 @@ struct SSHRouteDiagnosticPlanStep: Equatable {
     let port: Int?
     let alias: String?
     let includeInFailureGuide: Bool
+
+    func interpretResult(exitCode: Int32?, output: String) -> SSHRouteDiagnosticStepResult {
+        SSHRouteDiagnosticStepResultInterpreter.interpret(step: self, exitCode: exitCode, output: output)
+    }
 }
 
 struct SSHRouteDiagnosticPlan: Equatable {
@@ -1273,6 +1277,10 @@ enum SSHPortForwardKind: String, CaseIterable, Codable, Identifiable {
     case dynamic
 
     var id: String { rawValue }
+
+    var displayName: String {
+        L10n.string("ssh.port_forward.kind.\(rawValue)")
+    }
 }
 
 struct SSHPortForward: Codable, Equatable, Identifiable {
@@ -1315,6 +1323,38 @@ struct SSHPortForward: Codable, Equatable, Identifiable {
         guard clean.bindPort > 0 else { return false }
         if clean.kind == .dynamic { return true }
         return !clean.destinationHost.isEmpty && clean.destinationPort > 0
+    }
+
+    var listenEndpoint: String {
+        let clean = normalized
+        let host = clean.bindHost.isEmpty ? L10n.string("ssh.port_forward.localhost") : clean.bindHost
+        return "\(host):\(clean.bindPort)"
+    }
+
+    var destinationEndpoint: String? {
+        let clean = normalized
+        guard clean.kind != .dynamic else { return nil }
+        return "\(clean.destinationHost):\(clean.destinationPort)"
+    }
+
+    var summaryLine: String {
+        let clean = normalized
+        switch clean.kind {
+        case .local:
+            return L10n.format(
+                "ssh.port_forward.summary.local",
+                clean.listenEndpoint,
+                clean.destinationEndpoint ?? ""
+            )
+        case .remote:
+            return L10n.format(
+                "ssh.port_forward.summary.remote",
+                clean.listenEndpoint,
+                clean.destinationEndpoint ?? ""
+            )
+        case .dynamic:
+            return L10n.format("ssh.port_forward.summary.dynamic", clean.listenEndpoint)
+        }
     }
 }
 
@@ -1556,6 +1596,18 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
             preflightIssues: preflightIssues,
             securityWarnings: securityWarningKinds
         )
+    }
+
+    var usablePortForwards: [SSHPortForward] {
+        normalized.portForwards.map(\.normalized).filter(\.isUsable)
+    }
+
+    var portForwardSummaryLines: [String] {
+        usablePortForwards.map(\.summaryLine)
+    }
+
+    var portForwardSummaryText: String {
+        portForwardSummaryLines.joined(separator: "\n")
     }
 }
 
