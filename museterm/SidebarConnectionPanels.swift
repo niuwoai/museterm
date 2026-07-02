@@ -403,7 +403,7 @@ struct SSHProfilesSection: View {
 
     private func rowHelp(for profile: SSHConnectionProfile, health: SSHProfileHealthSummary) -> String {
         let base = profile.jumpHosts.isEmpty ? profile.target : L10n.format("ssh.tooltip_route", profile.routeSummary)
-        let portForwards = profile.portForwardSummaryText
+        let portForwards = profile.portForwardClipboardText
         return [base, health.hasAttentionItems ? health.tooltip : nil, portForwards.isEmpty ? nil : portForwards]
             .compactMap { $0 }
             .joined(separator: "\n")
@@ -427,7 +427,7 @@ struct SSHProfilesSection: View {
     }
 
     private func copyPortForwardSummary(for profile: SSHConnectionProfile) {
-        let summary = profile.portForwardSummaryText
+        let summary = profile.portForwardClipboardText
         guard !summary.isEmpty else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(summary, forType: .string)

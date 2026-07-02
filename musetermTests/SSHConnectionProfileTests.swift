@@ -216,14 +216,22 @@ final class SSHConnectionProfileTests: XCTestCase {
                     destinationHost: "127.0.0.1",
                     destinationPort: 9000
                 ),
-                SSHPortForward(kind: .dynamic, bindHost: "127.0.0.1", bindPort: 1080)
+                SSHPortForward(kind: .dynamic, bindHost: "127.0.0.1", bindPort: 1080),
+                SSHPortForward(kind: .dynamic, bindHost: "::", bindPort: 1081),
+                SSHPortForward(kind: .dynamic, bindHost: "2001:db8::1", bindPort: 1082)
             ]
         )
 
-        XCTAssertEqual(profile.usablePortForwards.count, 3)
+        XCTAssertEqual(profile.usablePortForwards.count, 5)
         XCTAssertTrue(profile.portForwardSummaryText.contains("localhost:8080"))
         XCTAssertTrue(profile.portForwardSummaryText.contains("0.0.0.0:9000"))
         XCTAssertTrue(profile.portForwardSummaryText.contains("127.0.0.1:1080"))
+        XCTAssertTrue(profile.portForwardAccessText.contains("http://localhost:8080"))
+        XCTAssertTrue(profile.portForwardAccessText.contains("socks5://127.0.0.1:1080"))
+        XCTAssertTrue(profile.portForwardAccessText.contains("socks5://localhost:1081"))
+        XCTAssertTrue(profile.portForwardAccessText.contains("socks5://[2001:db8::1]:1082"))
+        XCTAssertFalse(profile.portForwardAccessText.contains("0.0.0.0:9000"))
+        XCTAssertTrue(profile.portForwardClipboardText.contains(L10n.string("ssh.port_forward.access")))
     }
 
     func testSSHProfileSearchMatchesGroupTagsAndJumpHosts() {

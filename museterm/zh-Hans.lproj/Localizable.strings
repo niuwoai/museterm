@@ -224,6 +224,9 @@
 "ssh.port_forward.summary.local" = "本机 %@ -> %@";
 "ssh.port_forward.summary.remote" = "远端 %@ -> %@";
 "ssh.port_forward.summary.dynamic" = "SOCKS %@";
+"ssh.port_forward.access" = "本地入口：";
+"ssh.port_forward.access.local" = "打开 %@";
+"ssh.port_forward.access.dynamic" = "SOCKS 代理 %@";
 "ssh.options" = "SSH 选项";
 "ssh.options.help" = "每行一个 OpenSSH config 选项，例如 ServerAliveInterval 30。";
 "ssh.startup" = "启动命令";

@@ -1337,6 +1337,31 @@ struct SSHPortForward: Codable, Equatable, Identifiable {
         return "\(clean.destinationHost):\(clean.destinationPort)"
     }
 
+    var localAccessURLString: String? {
+        let clean = normalized
+        switch clean.kind {
+        case .local:
+            let scheme = clean.destinationPort == 443 || clean.bindPort == 443 ? "https" : "http"
+            return "\(scheme)://\(clean.browserHost):\(clean.bindPort)"
+        case .dynamic:
+            return "socks5://\(clean.browserHost):\(clean.bindPort)"
+        case .remote:
+            return nil
+        }
+    }
+
+    var accessLine: String? {
+        guard let localAccessURLString else { return nil }
+        switch normalized.kind {
+        case .local:
+            return L10n.format("ssh.port_forward.access.local", localAccessURLString)
+        case .dynamic:
+            return L10n.format("ssh.port_forward.access.dynamic", localAccessURLString)
+        case .remote:
+            return nil
+        }
+    }
+
     var summaryLine: String {
         let clean = normalized
         switch clean.kind {
@@ -1355,6 +1380,22 @@ struct SSHPortForward: Codable, Equatable, Identifiable {
         case .dynamic:
             return L10n.format("ssh.port_forward.summary.dynamic", clean.listenEndpoint)
         }
+    }
+
+    private var browserHost: String {
+        let cleanHost = bindHost.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanHost.isEmpty
+            || cleanHost == "*"
+            || cleanHost == "0.0.0.0"
+            || cleanHost == "::" {
+            return "localhost"
+        }
+        if cleanHost.contains(":")
+            && !cleanHost.hasPrefix("[")
+            && !cleanHost.hasSuffix("]") {
+            return "[\(cleanHost)]"
+        }
+        return cleanHost
     }
 }
 
@@ -1608,6 +1649,22 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
 
     var portForwardSummaryText: String {
         portForwardSummaryLines.joined(separator: "\n")
+    }
+
+    var portForwardAccessLines: [String] {
+        usablePortForwards.compactMap(\.accessLine)
+    }
+
+    var portForwardAccessText: String {
+        portForwardAccessLines.joined(separator: "\n")
+    }
+
+    var portForwardClipboardText: String {
+        let summary = portForwardSummaryText
+        let access = portForwardAccessText
+        guard !summary.isEmpty else { return access }
+        guard !access.isEmpty else { return summary }
+        return "\(summary)\n\n\(L10n.string("ssh.port_forward.access"))\n\(access)"
     }
 }
 

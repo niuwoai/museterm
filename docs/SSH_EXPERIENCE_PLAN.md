@@ -24,8 +24,9 @@ MuseTerm 的 SSH 管理不应只是替用户记住 `user@host -p 22`，而要把
 - 已落地：存在结构化端口转发时自动生成 `ExitOnForwardFailure yes`，避免端口冲突或转发失败悄悄被吞。
 - 已落地：编辑器会在连接前提示重复的本地或远端监听地址，避免多个转发争抢同一个端口。
 - 已落地：SSH 主机列表会显示端口转发数量徽标，hover 摘要列出 Local/Remote/Dynamic 的监听与目标端点；主机菜单可复制端口转发摘要。
+- 已落地：端口转发摘要会为 LocalForward 附上本地 HTTP/HTTPS 入口，为 DynamicForward 附上 SOCKS 代理 URL，复制摘要和侧栏 tooltip 都会展示这些入口。
 - 下一步：把文本格式升级为表格化编辑器，按“本地端口、远端目标、SOCKS 代理”分类展示。
-- 下一步：连接成功后展示可点击入口，例如 `localhost:8080` 或 SOCKS 代理地址。
+- 下一步：连接成功后把这些文本入口升级为可点击入口，例如 `localhost:8080` 或 SOCKS 代理地址。
 
 ## P1：跳板机可视化
 
