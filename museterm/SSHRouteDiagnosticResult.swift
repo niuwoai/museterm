@@ -60,6 +60,96 @@ struct SSHRouteDiagnosticResultSummary: Equatable {
     }
 }
 
+enum SSHRouteDiagnosticRecommendationKind: String, Equatable {
+    case allPassed
+    case continueChecks
+    case dnsFailure
+    case tcpFailure
+    case configFailure
+    case verboseFailure
+    case needsAttention
+    case unknown
+}
+
+struct SSHRouteDiagnosticRecommendation: Equatable {
+    let kind: SSHRouteDiagnosticRecommendationKind
+    let status: SSHRouteDiagnosticResultStatus
+    let relatedStepIndex: Int?
+    let title: String
+    let summary: String
+    let action: String
+}
+
+enum SSHRouteDiagnosticAdvisor {
+    static func recommendation(
+        planSteps: [SSHRouteDiagnosticPlanStep],
+        results: [Int: SSHRouteDiagnosticStepResult]
+    ) -> SSHRouteDiagnosticRecommendation? {
+        let summary = SSHRouteDiagnosticResultSummary(totalSteps: planSteps.count, results: results)
+        guard summary.hasResults else { return nil }
+
+        if let failed = firstResult(with: .failed, planSteps: planSteps, results: results) {
+            return recommendation(forFailedStep: failed.step, index: failed.index)
+        }
+        if let attention = firstResult(with: .needsAttention, planSteps: planSteps, results: results) {
+            return recommendation(kind: .needsAttention, status: .needsAttention, step: attention.step, index: attention.index)
+        }
+        if let unknown = firstResult(with: .unknown, planSteps: planSteps, results: results) {
+            return recommendation(kind: .unknown, status: .unknown, step: unknown.step, index: unknown.index)
+        }
+        if summary.parsedSteps == planSteps.count {
+            return recommendation(kind: .allPassed, status: .passed, step: nil, index: nil)
+        }
+        return recommendation(kind: .continueChecks, status: .passed, step: nil, index: nil)
+    }
+
+    private static func firstResult(
+        with status: SSHRouteDiagnosticResultStatus,
+        planSteps: [SSHRouteDiagnosticPlanStep],
+        results: [Int: SSHRouteDiagnosticStepResult]
+    ) -> (index: Int, step: SSHRouteDiagnosticPlanStep)? {
+        for index in planSteps.indices where results[index]?.status == status {
+            return (index, planSteps[index])
+        }
+        return nil
+    }
+
+    private static func recommendation(
+        forFailedStep step: SSHRouteDiagnosticPlanStep,
+        index: Int
+    ) -> SSHRouteDiagnosticRecommendation {
+        let kind: SSHRouteDiagnosticRecommendationKind
+        switch step.kind {
+        case .dnsLookup:
+            kind = .dnsFailure
+        case .tcpPort:
+            kind = .tcpFailure
+        case .generatedConfig:
+            kind = .configFailure
+        case .verboseRoute:
+            kind = .verboseFailure
+        }
+        return recommendation(kind: kind, status: .failed, step: step, index: index)
+    }
+
+    private static func recommendation(
+        kind: SSHRouteDiagnosticRecommendationKind,
+        status: SSHRouteDiagnosticResultStatus,
+        step: SSHRouteDiagnosticPlanStep?,
+        index: Int?
+    ) -> SSHRouteDiagnosticRecommendation {
+        let stepTitle = step?.title ?? L10n.string("ssh.diagnostic_recommendation.step.none")
+        return SSHRouteDiagnosticRecommendation(
+            kind: kind,
+            status: status,
+            relatedStepIndex: index.map { $0 + 1 },
+            title: L10n.string("ssh.diagnostic_recommendation.\(kind.rawValue).title"),
+            summary: L10n.format("ssh.diagnostic_recommendation.\(kind.rawValue).summary", stepTitle),
+            action: L10n.string("ssh.diagnostic_recommendation.\(kind.rawValue).action")
+        )
+    }
+}
+
 struct SSHRouteDiagnosticReport: Equatable {
     struct Step: Equatable {
         let index: Int
@@ -107,6 +197,7 @@ struct SSHRouteDiagnosticReport: Equatable {
             "- **\(L10n.string("ssh.diagnostic_report.generated_at")):** \(generatedAtText)",
             "- **\(L10n.string("ssh.diagnostic_report.summary")):** \(summaryText)",
             "- **\(L10n.string("runbook.redaction")):** \(redactionText)",
+            "- **\(L10n.string("ssh.diagnostic_report.sensitive_content")):** \(sensitiveContentText)",
             "",
             "## \(L10n.string("ssh.diagnostic_report.checks"))"
         ]
@@ -147,6 +238,34 @@ struct SSHRouteDiagnosticReport: Equatable {
 
     private var redactionText: String {
         L10n.string(redactsSensitiveData ? "runbook.redaction_on" : "runbook.redaction_off")
+    }
+
+    private var sensitiveContentText: String {
+        let key: String
+        switch (containsSensitiveContent, redactsSensitiveData) {
+        case (true, true):
+            key = "ssh.diagnostic_report.sensitive_content_redacted"
+        case (true, false):
+            key = "ssh.diagnostic_report.sensitive_content_detected_unredacted"
+        case (false, _):
+            key = "ssh.diagnostic_report.sensitive_content_not_detected"
+        }
+        return L10n.string(key)
+    }
+
+    private var containsSensitiveContent: Bool {
+        rawReportTexts.contains { RunbookSensitiveRedactor.containsSensitiveData($0) }
+    }
+
+    private var rawReportTexts: [String] {
+        [profileName, routeSummary] + steps.flatMap { step in
+            [
+                step.title,
+                step.command,
+                step.result.summary,
+                step.result.evidence ?? ""
+            ]
+        }
     }
 
     private func reportText(_ text: String) -> String {

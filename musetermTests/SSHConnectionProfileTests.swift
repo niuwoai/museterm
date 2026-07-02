@@ -134,6 +134,50 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertEqual(configResult.status, .passed)
     }
 
+    func testSSHRouteDiagnosticAdvisorRecommendsNextStepFromPreviewResults() {
+        let profile = SSHConnectionProfile(
+            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            name: "Production",
+            host: "prod.internal",
+            user: "deploy",
+            jumpHosts: [
+                SSHJumpHost(name: "Bastion", host: "bastion.internal", user: "jump", port: 2200)
+            ]
+        )
+        let preview = SSHConfigMaterializer.preview(for: profile)
+        let steps = preview.commands.map(\.diagnosticStep)
+
+        let tcpFailed = SSHRouteDiagnosticAdvisor.recommendation(
+            planSteps: steps,
+            results: [
+                0: SSHRouteDiagnosticStepResult(status: .passed, summary: "ok", evidence: nil),
+                1: SSHRouteDiagnosticStepResult(status: .failed, summary: "refused", evidence: "Connection refused")
+            ]
+        )
+        XCTAssertEqual(tcpFailed?.kind, .tcpFailure)
+        XCTAssertEqual(tcpFailed?.status, .failed)
+        XCTAssertEqual(tcpFailed?.relatedStepIndex, 2)
+
+        let continueChecks = SSHRouteDiagnosticAdvisor.recommendation(
+            planSteps: steps,
+            results: [
+                0: SSHRouteDiagnosticStepResult(status: .passed, summary: "ok", evidence: nil)
+            ]
+        )
+        XCTAssertEqual(continueChecks?.kind, .continueChecks)
+        XCTAssertEqual(continueChecks?.status, .passed)
+        XCTAssertNil(continueChecks?.relatedStepIndex)
+
+        let allPassed = SSHRouteDiagnosticAdvisor.recommendation(
+            planSteps: steps,
+            results: Dictionary(uniqueKeysWithValues: steps.indices.map {
+                ($0, SSHRouteDiagnosticStepResult(status: .passed, summary: "ok", evidence: nil))
+            })
+        )
+        XCTAssertEqual(allPassed?.kind, .allPassed)
+        XCTAssertEqual(allPassed?.status, .passed)
+    }
+
     func testSSHProfileBuildsReadablePortForwardSummaries() {
         let profile = SSHConnectionProfile(
             host: "example.com",
@@ -759,6 +803,7 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertTrue(markdown.contains("DNS resolved."))
         XCTAssertTrue(markdown.contains("Connection refused"))
         XCTAssertTrue(markdown.contains("```shell\nnc -vz -w 5 example.com 22\n```"))
+        XCTAssertTrue(markdown.contains(L10n.string("ssh.diagnostic_report.sensitive_content_not_detected")))
         XCTAssertFalse(markdown.contains("stale"))
     }
 
@@ -800,9 +845,11 @@ final class SSHConnectionProfileTests: XCTestCase {
         ).markdown
 
         XCTAssertTrue(redacted.contains("[REDACTED]"))
+        XCTAssertTrue(redacted.contains(L10n.string("ssh.diagnostic_report.sensitive_content_redacted")))
         XCTAssertFalse(redacted.contains("ghp_abcdefghijklmnopqrstuvwxyz123456"))
         XCTAssertFalse(redacted.contains("sk-abcdefghijklmnopqrstuvwxyz123456"))
         XCTAssertFalse(redacted.contains("super-secret-value"))
+        XCTAssertTrue(unredacted.contains(L10n.string("ssh.diagnostic_report.sensitive_content_detected_unredacted")))
         XCTAssertTrue(unredacted.contains("ghp_abcdefghijklmnopqrstuvwxyz123456"))
         XCTAssertTrue(unredacted.contains("sk-abcdefghijklmnopqrstuvwxyz123456"))
         XCTAssertTrue(unredacted.contains("super-secret-value"))

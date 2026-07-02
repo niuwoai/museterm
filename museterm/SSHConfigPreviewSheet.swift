@@ -146,6 +146,7 @@ struct SSHConfigPreviewSheet: View {
             }
 
             resultSummary
+            recommendationCard
 
             VStack(spacing: 6) {
                 ForEach(Array(preview.commands.enumerated()), id: \.offset) { index, command in
@@ -184,6 +185,40 @@ struct SSHConfigPreviewSheet: View {
             .padding(.vertical, 6)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(resultColor(summary.leadingStatus).opacity(0.10))
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+    }
+
+    @ViewBuilder
+    private var recommendationCard: some View {
+        if let recommendation = SSHRouteDiagnosticAdvisor.recommendation(
+            planSteps: preview.commands.map(\.diagnosticStep),
+            results: parsedResults
+        ) {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    Image(systemName: resultSummaryIcon(recommendation.status))
+                        .foregroundStyle(resultColor(recommendation.status))
+                    Text(recommendation.title)
+                        .font(.caption.weight(.semibold))
+                    if let relatedStepIndex = recommendation.relatedStepIndex {
+                        Text(L10n.format("ssh.config_preview.recommendation.step", relatedStepIndex))
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Text(recommendation.summary)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(recommendation.action)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(resultColor(recommendation.status))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(resultColor(recommendation.status).opacity(0.10))
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         }
     }
