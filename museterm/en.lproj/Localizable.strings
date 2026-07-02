@@ -204,6 +204,11 @@
 "ssh.route_diagnostic.unknown" = "Route step: OpenSSH did not name the failing host.";
 "ssh.route_diagnostic.route" = "Full route: %@.";
 "ssh.route_diagnostic.evidence" = "Evidence: %@";
+"ssh.route_probe.title" = "Suggested checks you can paste:";
+"ssh.route_probe.command" = "%d. %@\n%@";
+"ssh.route_probe.first_hop" = "Check the first reachable SSH port from this Mac";
+"ssh.route_probe.config" = "Inspect the generated OpenSSH config";
+"ssh.route_probe.verbose" = "Run a verbose route check with the generated config";
 "ssh.error.launch_failed" = "SSH launch failed: %@";
 "ssh.reconnect.scheduled" = "SSH disconnected. MuseTerm will reconnect: attempt %d/%d in %d seconds.";
 "ssh.reconnect.attempting" = "Reconnecting SSH session (%d)...";
@@ -224,6 +229,10 @@
 "ssh.preflight_issue.identityFileUnavailable.summary" = "MuseTerm cannot find %@. Check the path and file permissions before connecting.";
 "ssh.preflight_issue.jumpIdentityFileUnavailable.title" = "Jump host identity file is unavailable";
 "ssh.preflight_issue.jumpIdentityFileUnavailable.summary" = "MuseTerm cannot find %@, which may break authentication for that jump host.";
+"ssh.preflight_issue.identityFilePermissionsTooOpen.title" = "Identity file permissions are too open";
+"ssh.preflight_issue.identityFilePermissionsTooOpen.summary" = "%@. OpenSSH may ignore this private key until it is restricted.";
+"ssh.preflight_issue.jumpIdentityFilePermissionsTooOpen.title" = "Jump host identity file permissions are too open";
+"ssh.preflight_issue.jumpIdentityFilePermissionsTooOpen.summary" = "%@. OpenSSH may ignore this jump host private key until it is restricted.";
 "ssh.diagnostic.message" = "MuseTerm SSH check: %@\n%@\nNext: %@";
 "ssh.diagnostic.permissionDenied.title" = "Authentication was rejected";
 "ssh.diagnostic.permissionDenied.summary" = "The server refused the offered password, key, or agent identity.";

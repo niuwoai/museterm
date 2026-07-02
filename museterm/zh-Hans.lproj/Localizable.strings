@@ -204,6 +204,11 @@
 "ssh.route_diagnostic.unknown" = "失败位置：OpenSSH 输出里没有明确指出是哪台主机。";
 "ssh.route_diagnostic.route" = "完整链路：%@。";
 "ssh.route_diagnostic.evidence" = "证据：%@";
+"ssh.route_probe.title" = "可以粘贴执行的建议检查：";
+"ssh.route_probe.command" = "%d. %@\n%@";
+"ssh.route_probe.first_hop" = "从本机检查第一段可达 SSH 端口";
+"ssh.route_probe.config" = "查看 MuseTerm 生成的 OpenSSH 配置";
+"ssh.route_probe.verbose" = "用生成配置运行详细链路检查";
 "ssh.error.launch_failed" = "SSH 启动失败：%@";
 "ssh.reconnect.scheduled" = "SSH 已断开。MuseTerm 将自动重连：第 %d/%d 次，%d 秒后开始。";
 "ssh.reconnect.attempting" = "正在重连 SSH 会话（第 %d 次）...";
@@ -224,6 +229,10 @@
 "ssh.preflight_issue.identityFileUnavailable.summary" = "MuseTerm 找不到 %@，连接前请检查路径和文件权限。";
 "ssh.preflight_issue.jumpIdentityFileUnavailable.title" = "跳转机密钥不可用";
 "ssh.preflight_issue.jumpIdentityFileUnavailable.summary" = "MuseTerm 找不到 %@，这会影响对应跳转机认证。";
+"ssh.preflight_issue.identityFilePermissionsTooOpen.title" = "密钥文件权限过宽";
+"ssh.preflight_issue.identityFilePermissionsTooOpen.summary" = "%@。权限收紧前，OpenSSH 可能会忽略这个私钥。";
+"ssh.preflight_issue.jumpIdentityFilePermissionsTooOpen.title" = "跳转机密钥权限过宽";
+"ssh.preflight_issue.jumpIdentityFilePermissionsTooOpen.summary" = "%@。权限收紧前，OpenSSH 可能会忽略这个跳转机私钥。";
 "ssh.diagnostic.message" = "MuseTerm SSH 检查：%@\n%@\n下一步：%@";
 "ssh.diagnostic.permissionDenied.title" = "认证被拒绝";
 "ssh.diagnostic.permissionDenied.summary" = "服务器拒绝了当前密码、密钥或 agent 身份。";

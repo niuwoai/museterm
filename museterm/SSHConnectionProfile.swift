@@ -148,6 +148,75 @@ struct SSHRouteDiagnosticContext: Equatable {
     }
 }
 
+struct SSHRouteProbeCommand: Equatable {
+    let title: String
+    let command: String
+}
+
+struct SSHRouteProbeGuide: Equatable {
+    let commands: [SSHRouteProbeCommand]
+
+    var message: String {
+        guard !commands.isEmpty else { return "" }
+        let lines = commands.enumerated().map { index, command in
+            L10n.format("ssh.route_probe.command", index + 1, command.title, command.command)
+        }
+        return ([L10n.string("ssh.route_probe.title")] + lines).joined(separator: "\n")
+    }
+}
+
+enum SSHRouteProbeGuideBuilder {
+    static func guide(
+        for profile: SSHConnectionProfile,
+        issue: SSHConnectionIssueKind
+    ) -> SSHRouteProbeGuide? {
+        let clean = profile.normalized
+        guard !clean.host.isEmpty else { return nil }
+
+        var commands: [SSHRouteProbeCommand] = [
+            SSHRouteProbeCommand(
+                title: L10n.string("ssh.route_probe.first_hop"),
+                command: localPortProbeCommand(for: clean)
+            ),
+            SSHRouteProbeCommand(
+                title: L10n.string("ssh.route_probe.config"),
+                command: generatedConfigCommand(for: clean)
+            )
+        ]
+        if issue != .hostKeyVerificationFailed {
+            commands.append(
+                SSHRouteProbeCommand(
+                    title: L10n.string("ssh.route_probe.verbose"),
+                    command: verboseRouteCommand(for: clean)
+                )
+            )
+        }
+
+        return SSHRouteProbeGuide(commands: commands)
+    }
+
+    private static func localPortProbeCommand(for profile: SSHConnectionProfile) -> String {
+        let step = profile.jumpHosts.first.map { ($0.host, $0.port) } ?? (profile.host, profile.port)
+        return "nc -vz -w 5 \(shellArgument(step.0)) \(step.1)"
+    }
+
+    private static func generatedConfigCommand(for profile: SSHConnectionProfile) -> String {
+        let config = SSHConfigMaterializer.configFileURL(for: profile).path
+        let alias = SSHConfigMaterializer.targetAlias(for: profile)
+        return "ssh -G -F \(shellArgument(config)) \(shellArgument(alias))"
+    }
+
+    private static func verboseRouteCommand(for profile: SSHConnectionProfile) -> String {
+        let config = SSHConfigMaterializer.configFileURL(for: profile).path
+        let alias = SSHConfigMaterializer.targetAlias(for: profile)
+        return "ssh -vvv -F \(shellArgument(config)) \(shellArgument(alias)) true"
+    }
+
+    private static func shellArgument(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+}
+
 enum SSHRouteDiagnosticAnalyzer {
     private struct RouteStep {
         let kind: SSHRouteDiagnosticStepKind
@@ -443,6 +512,8 @@ enum SSHProfilePreflightIssueKind: String, Equatable {
     case duplicatePortForwardListener
     case identityFileUnavailable
     case jumpIdentityFileUnavailable
+    case identityFilePermissionsTooOpen
+    case jumpIdentityFilePermissionsTooOpen
 
     var title: String {
         L10n.string("ssh.preflight_issue.\(rawValue).title")
@@ -504,14 +575,28 @@ enum SSHProfilePreflightAnalyzer {
     ) -> [SSHProfilePreflightIssue] {
         var issues: [SSHProfilePreflightIssue] = []
 
-        for path in profile.identityFiles.cleanedPathList() where !identityFileExists(path, fileManager: fileManager) {
-            issues.append(SSHProfilePreflightIssue(kind: .identityFileUnavailable, detail: path))
+        for path in profile.identityFiles.cleanedPathList() {
+            guard identityFileExists(path, fileManager: fileManager) else {
+                issues.append(SSHProfilePreflightIssue(kind: .identityFileUnavailable, detail: path))
+                continue
+            }
+            if identityFilePermissionsAreTooOpen(path, fileManager: fileManager) {
+                issues.append(SSHProfilePreflightIssue(kind: .identityFilePermissionsTooOpen, detail: chmodDetail(for: path)))
+            }
         }
 
         for jump in profile.jumpHosts {
-            for path in jump.identityFiles.cleanedPathList() where !identityFileExists(path, fileManager: fileManager) {
-                let detail = "\(jumpDisplayName(jump)): \(path)"
-                issues.append(SSHProfilePreflightIssue(kind: .jumpIdentityFileUnavailable, detail: detail))
+            for path in jump.identityFiles.cleanedPathList() {
+                let label = jumpDisplayName(jump)
+                guard identityFileExists(path, fileManager: fileManager) else {
+                    let detail = "\(label): \(path)"
+                    issues.append(SSHProfilePreflightIssue(kind: .jumpIdentityFileUnavailable, detail: detail))
+                    continue
+                }
+                if identityFilePermissionsAreTooOpen(path, fileManager: fileManager) {
+                    let detail = "\(label): \(chmodDetail(for: path))"
+                    issues.append(SSHProfilePreflightIssue(kind: .jumpIdentityFilePermissionsTooOpen, detail: detail))
+                }
             }
         }
 
@@ -534,6 +619,23 @@ enum SSHProfilePreflightAnalyzer {
         var isDirectory: ObjCBool = false
         let exists = fileManager.fileExists(atPath: expanded, isDirectory: &isDirectory)
         return exists && !isDirectory.boolValue
+    }
+
+    private static func identityFilePermissionsAreTooOpen(_ path: String, fileManager: FileManager) -> Bool {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        guard !trimmed.contains("%") else { return false }
+        let expanded = (trimmed as NSString).expandingTildeInPath
+        guard let attributes = try? fileManager.attributesOfItem(atPath: expanded),
+              let permissions = attributes[.posixPermissions] as? NSNumber else {
+            return false
+        }
+        return permissions.intValue & 0o077 != 0
+    }
+
+    private static func chmodDetail(for path: String) -> String {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        return "\(trimmed) -> chmod 600 \(TerminalShellArgumentEscaper.shellArgument(trimmed))"
     }
 }
 
@@ -1297,8 +1399,8 @@ struct SSHLaunchDescriptor {
 enum SSHConfigMaterializer {
     static func descriptor(for profile: SSHConnectionProfile) throws -> SSHLaunchDescriptor {
         let clean = profile.normalized
-        let directory = try configDirectory()
-        let configURL = directory.appendingPathComponent("\(clean.id.uuidString).conf")
+        let directory = try ensureConfigDirectory()
+        let configURL = configFileURL(for: clean)
         let aliases = aliases(for: clean)
         let controlPathTemplate = directory.appendingPathComponent("cm-%C").path
         let config = renderConfig(profile: clean, aliases: aliases, controlPathTemplate: controlPathTemplate)
@@ -1322,6 +1424,14 @@ enum SSHConfigMaterializer {
 
     static func exportSnippet(for profile: SSHConnectionProfile) -> String {
         renderConfig(profile: profile)
+    }
+
+    static func configFileURL(for profile: SSHConnectionProfile) -> URL {
+        configDirectoryURL().appendingPathComponent("\(profile.normalized.id.uuidString).conf")
+    }
+
+    static func targetAlias(for profile: SSHConnectionProfile) -> String {
+        aliases(for: profile.normalized).target
     }
 
     private struct HostAliases {
@@ -1473,13 +1583,17 @@ enum SSHConfigMaterializer {
         return trimmed.split(whereSeparator: { $0 == " " || $0 == "\t" || $0 == "=" }).first?.lowercased()
     }
 
-    private static func configDirectory() throws -> URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
-        let directory = base.appendingPathComponent("MuseTerm", isDirectory: true)
-            .appendingPathComponent("SSH", isDirectory: true)
+    private static func ensureConfigDirectory() throws -> URL {
+        let directory = configDirectoryURL()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
+    }
+
+    private static func configDirectoryURL() -> URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
+        return base.appendingPathComponent("MuseTerm", isDirectory: true)
+            .appendingPathComponent("SSH", isDirectory: true)
     }
 
     private static func expandTilde(_ value: String) -> String {

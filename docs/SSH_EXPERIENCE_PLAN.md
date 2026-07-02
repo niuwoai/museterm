@@ -28,16 +28,17 @@ MuseTerm 的 SSH 管理不应只是替用户记住 `user@host -p 22`，而要把
 - 当前能力：Profile 已支持多跳 `ProxyJump`，并支持每一跳单独配置用户、端口和密钥。
 - 已落地：侧栏 tooltip 和编辑器会展示“本机 -> 跳板 1 -> 跳板 2 -> 目标机”的链路摘要。
 - 已落地：连接失败或主机解析失败时，诊断会结合 Profile 路径指出失败更像发生在目标机、第几跳跳板机或未知位置，并展示完整路径与证据行。
-- 下一步：增加主动逐跳测试，进一步区分 DNS、端口、认证还是 ProxyJump 失败。
+- 已落地：连接失败时会给出可粘贴的只读探测命令，覆盖第一跳端口检查、生成配置展开检查和详细 OpenSSH 链路检查。
+- 下一步：增加主动逐跳执行面板，进一步区分 DNS、端口、认证还是 ProxyJump 失败。
 
 ## P1：安全护栏
 
 - 当前能力：Profile 已区分开发、预发、生产环境，并可为生产环境强制高危操作确认。
 - 已落地：`ForwardAgent yes`、关闭 Host Key 校验、known_hosts 写入 `/dev/null` 等高风险高级选项会在编辑器中显示明显提示。
 - 已落地：编辑器会在连接前提示目标主机和跳转机的密钥文件路径不可用，减少保存后才发现认证失败的情况。
+- 已落地：编辑器会在目标机或跳转机私钥文件权限对 group/others 过宽时提示 `chmod 600` 修复命令，避免 OpenSSH 忽略私钥后才失败。
 - 已落地：Host Key 校验失败时，终端诊断会要求先核对服务器新指纹；确认可信后再展示 `ssh-keygen -R` 清理旧 known_hosts 记录的命令，并尽量带上 OpenSSH 报出的 known_hosts 文件位置。
 - 下一步：Host Key 首次连接时展示更细的指纹比对说明。
-- 下一步：私钥权限过宽时提示 `chmod 600` 修复命令。
 
 ## P2：配置导入与双向同步
 
@@ -51,6 +52,7 @@ MuseTerm 的 SSH 管理不应只是替用户记住 `user@host -p 22`，而要把
 - 已落地：终端输出旁路识别常见 SSH 失败，并追加 MuseTerm 提示，覆盖认证失败、Host Key 校验失败、连接超时、连接被拒绝、认证身份过多和端口转发失败。
 - 已落地：`Host key verification failed` 会给出 known_hosts 定位与保守清理命令，且不会自动执行。
 - 已落地：多跳 SSH 失败会追加链路定位摘要，尽量把 OpenSSH 输出里的 host/port 映射回目标主机或具体跳板机。
+- 已落地：失败提示会追加下一步探测命令；Host Key 风险场景下只展示配置和端口检查，不建议立即 `ssh -vvv` 重连。
 - 下一步：解析 SSH stderr 常见错误并给出面向行动的建议：
 - `Permission denied`：检查用户名、密钥、`IdentitiesOnly` 或 agent。
 - `Connection timed out`：建议检查端口、防火墙、VPN、跳板链路。

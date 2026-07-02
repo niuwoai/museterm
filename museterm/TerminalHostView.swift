@@ -514,12 +514,14 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         }
 
         latestSSHConnectionIssueKind = issue
+        let routeContext = SSHRouteDiagnosticAnalyzer.context(
+            for: profile,
+            diagnosticText: sshDiagnosticBuffer
+        )
         let suggestion = [
-            SSHRouteDiagnosticAnalyzer.context(
-                for: profile,
-                diagnosticText: sshDiagnosticBuffer
-            )?.message,
+            routeContext?.message,
             issue.suggestion,
+            SSHRouteProbeGuideBuilder.guide(for: profile, issue: issue)?.message,
             SSHConnectionIssueRepairGuide.message(
                 for: issue,
                 profile: profile,

@@ -385,6 +385,64 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertEqual(context?.routeSummary, profile.routeSummary)
     }
 
+    func testSSHRouteProbeGuideUsesFirstHopAndGeneratedConfig() throws {
+        let profile = SSHConnectionProfile(
+            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            name: "Prod",
+            host: "prod.internal",
+            user: "deploy",
+            port: 2200,
+            identityFiles: ["~/.ssh/prod"],
+            jumpHosts: [
+                SSHJumpHost(
+                    name: "bastion",
+                    host: "jump1.example.com",
+                    user: "ops",
+                    port: 2222,
+                    identityFiles: ["~/.ssh/jump1"]
+                )
+            ]
+        )
+
+        let guide = try XCTUnwrap(SSHRouteProbeGuideBuilder.guide(for: profile, issue: .connectionTimedOut))
+        let message = guide.message
+
+        XCTAssertEqual(guide.commands.count, 3)
+        XCTAssertTrue(message.contains("nc -vz -w 5 'jump1.example.com' 2222"))
+        XCTAssertTrue(message.contains("ssh -G -F "))
+        XCTAssertTrue(message.contains("11111111-1111-1111-1111-111111111111.conf"))
+        XCTAssertTrue(message.contains("'museterm-11111111-1111-1111-1111-111111111111-target'"))
+        XCTAssertTrue(message.contains("ssh -vvv -F "))
+        XCTAssertTrue(message.contains(" true"))
+    }
+
+    func testSSHRouteProbeGuideChecksTargetDirectlyWhenThereAreNoJumps() throws {
+        let profile = SSHConnectionProfile(
+            id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
+            host: "direct.example.com",
+            port: 2200
+        )
+
+        let guide = try XCTUnwrap(SSHRouteProbeGuideBuilder.guide(for: profile, issue: .connectionRefused))
+
+        XCTAssertTrue(guide.message.contains("nc -vz -w 5 'direct.example.com' 2200"))
+        XCTAssertTrue(guide.message.contains("'museterm-22222222-2222-2222-2222-222222222222-target'"))
+    }
+
+    func testSSHRouteProbeGuideDoesNotSuggestVerboseReconnectForHostKeyFailure() throws {
+        let profile = SSHConnectionProfile(
+            id: UUID(uuidString: "33333333-3333-3333-3333-333333333333")!,
+            host: "prod.internal",
+            user: "deploy"
+        )
+
+        let guide = try XCTUnwrap(SSHRouteProbeGuideBuilder.guide(for: profile, issue: .hostKeyVerificationFailed))
+
+        XCTAssertEqual(guide.commands.count, 2)
+        XCTAssertTrue(guide.message.contains("ssh -G -F "))
+        XCTAssertFalse(guide.message.contains("ssh -vvv -F "))
+    }
+
     @MainActor
     func testSSHProfileSecurityAnalyzerFlagsRiskyOptions() {
         let profile = SSHConnectionProfile(
@@ -463,6 +521,62 @@ final class SSHConnectionProfileTests: XCTestCase {
                 )
             ]
         )
+    }
+
+    @MainActor
+    func testSSHProfilePreflightFlagsOpenIdentityFilePermissions() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("museterm-key-permissions-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let targetKey = directory.appendingPathComponent("target-key")
+        let jumpKey = directory.appendingPathComponent("jump key")
+        try Data("target".utf8).write(to: targetKey)
+        try Data("jump".utf8).write(to: jumpKey)
+        try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: targetKey.path)
+        try FileManager.default.setAttributes([.posixPermissions: 0o664], ofItemAtPath: jumpKey.path)
+
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            identityFiles: [targetKey.path],
+            jumpHosts: [
+                SSHJumpHost(name: "edge", host: "edge.example.com", identityFiles: [jumpKey.path])
+            ]
+        )
+
+        let issues = profile.preflightIssues
+        XCTAssertTrue(
+            issues.contains {
+                $0.kind == .identityFilePermissionsTooOpen
+                    && $0.detail.contains(targetKey.path)
+                    && $0.detail.contains("chmod 600")
+            }
+        )
+        XCTAssertTrue(
+            issues.contains {
+                $0.kind == .jumpIdentityFilePermissionsTooOpen
+                    && $0.detail.contains("edge:")
+                    && $0.detail.contains("chmod 600")
+                    && $0.detail.contains("'")
+            }
+        )
+    }
+
+    @MainActor
+    func testSSHProfilePreflightAllowsRestrictedIdentityFilePermissions() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("museterm-key-permissions-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let targetKey = directory.appendingPathComponent("target-key")
+        try Data("target".utf8).write(to: targetKey)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: targetKey.path)
+
+        let profile = SSHConnectionProfile(host: "example.com", identityFiles: [targetKey.path])
+
+        XCTAssertFalse(profile.preflightIssues.contains { $0.kind == .identityFilePermissionsTooOpen })
     }
 
     @MainActor
