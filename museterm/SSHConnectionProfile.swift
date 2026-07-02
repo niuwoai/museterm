@@ -1666,6 +1666,69 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         guard !access.isEmpty else { return summary }
         return "\(summary)\n\n\(L10n.string("ssh.port_forward.access"))\n\(access)"
     }
+
+    var connectionCapabilityLines: [String] {
+        let clean = normalized
+        let manualOptions = Set(clean.extraOptions.compactMap(Self.sshOptionName))
+        var lines: [String] = []
+
+        if manualOptions.contains("serveraliveinterval") || manualOptions.contains("serveralivecountmax") {
+            lines.append(L10n.string("ssh.capability.keep_alive.manual"))
+        } else if clean.keepAliveEnabled {
+            lines.append(L10n.format(
+                "ssh.capability.keep_alive.enabled",
+                clean.keepAliveIntervalSeconds,
+                clean.keepAliveCountMax
+            ))
+        } else {
+            lines.append(L10n.string("ssh.capability.keep_alive.disabled"))
+        }
+
+        if manualOptions.contains("controlmaster")
+            || manualOptions.contains("controlpersist")
+            || manualOptions.contains("controlpath") {
+            lines.append(L10n.string("ssh.capability.reuse.manual"))
+        } else if clean.connectionReuseEnabled {
+            lines.append(L10n.format(
+                "ssh.capability.reuse.enabled",
+                clean.connectionReusePersistMinutes
+            ))
+        } else {
+            lines.append(L10n.string("ssh.capability.reuse.disabled"))
+        }
+
+        if clean.automaticReconnectEnabled && clean.automaticReconnectAttempts > 0 {
+            lines.append(L10n.format(
+                "ssh.capability.reconnect.enabled",
+                clean.automaticReconnectAttempts,
+                clean.automaticReconnectDelaySeconds
+            ))
+        } else {
+            lines.append(L10n.string("ssh.capability.reconnect.disabled"))
+        }
+
+        if !clean.usablePortForwards.isEmpty {
+            if manualOptions.contains("exitonforwardfailure") {
+                lines.append(L10n.string("ssh.capability.forward_failure.manual"))
+            } else {
+                lines.append(L10n.string("ssh.capability.forward_failure.enabled"))
+            }
+        }
+
+        return lines
+    }
+
+    var connectionCapabilityText: String {
+        let lines = connectionCapabilityLines
+        guard !lines.isEmpty else { return "" }
+        return ([L10n.string("ssh.capability.summary")] + lines).joined(separator: "\n")
+    }
+
+    private nonisolated static func sshOptionName(_ line: String) -> String? {
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !trimmed.hasPrefix("#") else { return nil }
+        return trimmed.split(whereSeparator: { $0 == " " || $0 == "\t" || $0 == "=" }).first?.lowercased()
+    }
 }
 
 final class SSHConnectionStore: ObservableObject {

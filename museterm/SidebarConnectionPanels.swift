@@ -403,8 +403,14 @@ struct SSHProfilesSection: View {
 
     private func rowHelp(for profile: SSHConnectionProfile, health: SSHProfileHealthSummary) -> String {
         let base = profile.jumpHosts.isEmpty ? profile.target : L10n.format("ssh.tooltip_route", profile.routeSummary)
+        let capabilities = profile.connectionCapabilityText
         let portForwards = profile.portForwardClipboardText
-        return [base, health.hasAttentionItems ? health.tooltip : nil, portForwards.isEmpty ? nil : portForwards]
+        return [
+            base,
+            capabilities.isEmpty ? nil : capabilities,
+            health.hasAttentionItems ? health.tooltip : nil,
+            portForwards.isEmpty ? nil : portForwards
+        ]
             .compactMap { $0 }
             .joined(separator: "\n")
     }

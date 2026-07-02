@@ -234,6 +234,86 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertTrue(profile.portForwardClipboardText.contains(L10n.string("ssh.port_forward.access")))
     }
 
+    func testSSHProfileBuildsConnectionCapabilitySummary() {
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            user: "deploy",
+            portForwards: [
+                SSHPortForward(kind: .local, bindHost: "", bindPort: 8080, destinationHost: "127.0.0.1", destinationPort: 80)
+            ]
+        )
+
+        let summary = profile.connectionCapabilityText
+
+        XCTAssertTrue(summary.contains(L10n.string("ssh.capability.summary")))
+        XCTAssertTrue(summary.contains("ServerAliveInterval 30"))
+        XCTAssertTrue(summary.contains("ServerAliveCountMax 6"))
+        XCTAssertTrue(summary.contains("ControlMaster auto"))
+        XCTAssertTrue(summary.contains("ControlPersist 10"))
+        XCTAssertTrue(summary.contains(L10n.format("ssh.capability.reconnect.enabled", 3, 3)))
+        XCTAssertTrue(summary.contains(L10n.string("ssh.capability.forward_failure.enabled")))
+    }
+
+    func testSSHProfileCapabilitySummaryRespectsManualAdvancedOptions() {
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            user: "deploy",
+            portForwards: [
+                SSHPortForward(kind: .dynamic, bindHost: "127.0.0.1", bindPort: 1080)
+            ],
+            extraOptions: [
+                "ServerAliveInterval 15",
+                "ControlMaster no",
+                "ExitOnForwardFailure no"
+            ]
+        )
+
+        let summary = profile.connectionCapabilityText
+
+        XCTAssertTrue(summary.contains(L10n.string("ssh.capability.keep_alive.manual")))
+        XCTAssertTrue(summary.contains(L10n.string("ssh.capability.reuse.manual")))
+        XCTAssertTrue(summary.contains(L10n.string("ssh.capability.forward_failure.manual")))
+        XCTAssertFalse(summary.contains("ServerAliveInterval 30"))
+        XCTAssertFalse(summary.contains("ControlMaster auto"))
+    }
+
+    func testSSHProfileCapabilitySummaryShowsManualOptionsEvenWhenFeatureTogglesAreOff() {
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            user: "deploy",
+            extraOptions: [
+                "ServerAliveInterval 15",
+                "ControlPersist=30m"
+            ],
+            keepAliveEnabled: false,
+            connectionReuseEnabled: false
+        )
+
+        let summary = profile.connectionCapabilityText
+
+        XCTAssertTrue(summary.contains(L10n.string("ssh.capability.keep_alive.manual")))
+        XCTAssertTrue(summary.contains(L10n.string("ssh.capability.reuse.manual")))
+        XCTAssertFalse(summary.contains(L10n.string("ssh.capability.keep_alive.disabled")))
+        XCTAssertFalse(summary.contains(L10n.string("ssh.capability.reuse.disabled")))
+    }
+
+    func testSSHProfileCapabilitySummaryShowsDisabledBehaviors() {
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            user: "deploy",
+            keepAliveEnabled: false,
+            connectionReuseEnabled: false,
+            automaticReconnectEnabled: false
+        )
+
+        let summary = profile.connectionCapabilityText
+
+        XCTAssertTrue(summary.contains(L10n.string("ssh.capability.keep_alive.disabled")))
+        XCTAssertTrue(summary.contains(L10n.string("ssh.capability.reuse.disabled")))
+        XCTAssertTrue(summary.contains(L10n.string("ssh.capability.reconnect.disabled")))
+        XCTAssertFalse(summary.contains(L10n.string("ssh.capability.forward_failure.enabled")))
+    }
+
     func testSSHProfileSearchMatchesGroupTagsAndJumpHosts() {
         let profile = SSHConnectionProfile(
             name: "Production API",

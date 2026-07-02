@@ -382,6 +382,17 @@
 "ssh.health.summary.preflight" = "%d 个 SSH 配置问题需要处理。";
 "ssh.health.summary.security" = "%d 个 SSH 安全提醒需要关注。";
 "ssh.health.summary.mixed" = "%d 个 SSH 配置问题和 %d 个安全提醒需要关注。";
+"ssh.capability.summary" = "连接行为：";
+"ssh.capability.keep_alive.enabled" = "保活：ServerAliveInterval %d，ServerAliveCountMax %d。";
+"ssh.capability.keep_alive.manual" = "保活：使用高级 SSH 选项中的手动配置。";
+"ssh.capability.keep_alive.disabled" = "保活：已关闭。";
+"ssh.capability.reuse.enabled" = "连接复用：ControlMaster auto，ControlPersist %d 分钟。";
+"ssh.capability.reuse.manual" = "连接复用：使用高级 SSH 选项中的手动配置。";
+"ssh.capability.reuse.disabled" = "连接复用：已关闭。";
+"ssh.capability.reconnect.enabled" = "自动重连：最多 %d 次，每次间隔 %d 秒。";
+"ssh.capability.reconnect.disabled" = "自动重连：已关闭。";
+"ssh.capability.forward_failure.enabled" = "端口转发：绑定失败时中止 SSH 会话。";
+"ssh.capability.forward_failure.manual" = "端口转发：转发失败行为由高级 SSH 选项控制。";
 "ssh.diagnostic.message" = "MuseTerm SSH 检查：%@\n%@\n下一步：%@";
 "ssh.diagnostic.permissionDenied.title" = "认证被拒绝";
 "ssh.diagnostic.permissionDenied.summary" = "服务器拒绝了当前密码、密钥或 agent 身份。";

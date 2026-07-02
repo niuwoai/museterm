@@ -382,6 +382,17 @@
 "ssh.health.summary.preflight" = "%d SSH configuration issue(s) need attention.";
 "ssh.health.summary.security" = "%d SSH security warning(s) need attention.";
 "ssh.health.summary.mixed" = "%d SSH configuration issue(s) and %d security warning(s) need attention.";
+"ssh.capability.summary" = "Connection behavior:";
+"ssh.capability.keep_alive.enabled" = "Keep-alive: ServerAliveInterval %d, ServerAliveCountMax %d.";
+"ssh.capability.keep_alive.manual" = "Keep-alive: using advanced SSH options.";
+"ssh.capability.keep_alive.disabled" = "Keep-alive: off.";
+"ssh.capability.reuse.enabled" = "Connection reuse: ControlMaster auto, ControlPersist %dm.";
+"ssh.capability.reuse.manual" = "Connection reuse: using advanced SSH options.";
+"ssh.capability.reuse.disabled" = "Connection reuse: off.";
+"ssh.capability.reconnect.enabled" = "Auto reconnect: up to %d attempt(s), %d seconds apart.";
+"ssh.capability.reconnect.disabled" = "Auto reconnect: off.";
+"ssh.capability.forward_failure.enabled" = "Port forwards: fail the SSH session if binding fails.";
+"ssh.capability.forward_failure.manual" = "Port forwards: forwarding failure behavior is controlled by advanced SSH options.";
 "ssh.diagnostic.message" = "MuseTerm SSH check: %@\n%@\nNext: %@";
 "ssh.diagnostic.permissionDenied.title" = "Authentication was rejected";
 "ssh.diagnostic.permissionDenied.summary" = "The server refused the offered password, key, or agent identity.";
