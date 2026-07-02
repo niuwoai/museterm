@@ -20,6 +20,20 @@ final class musetermTests: XCTestCase {
         }
     }
 
+    private final class ReentrantTabCloseConfirmer: TerminalTabCloseConfirming {
+        var reenter: (() -> Void)?
+        private(set) var requestedTabTitles: [String] = []
+        private var didReenter = false
+
+        func shouldClose(tab: TerminalSession) -> Bool {
+            requestedTabTitles.append(tab.tabTitle)
+            guard !didReenter else { return true }
+            didReenter = true
+            reenter?()
+            return true
+        }
+    }
+
     func testDefaultPreferencesUseSeaSaltSkin() throws {
         let suiteName = "museterm.tests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -1527,6 +1541,52 @@ final class musetermTests: XCTestCase {
 
         XCTAssertEqual(workspace.tabs.count, 1)
         XCTAssertEqual(confirmer.requestedTabTitles.count, 2)
+    }
+
+    func testShortcutCloseTabIgnoresReentrantCloseDuringConfirmation() throws {
+        let confirmer = ReentrantTabCloseConfirmer()
+        let workspace = TerminalWorkspace(
+            automaticallyStartProcesses: false,
+            tabCloseConfirmer: confirmer
+        )
+        confirmer.reenter = { [weak workspace] in
+            _ = workspace?.closeSelectedTabFromShortcut(eventTimestamp: 301)
+        }
+        let firstTab = try XCTUnwrap(workspace.selectedTab)
+        workspace.newTab()
+        let secondTab = try XCTUnwrap(workspace.selectedTab)
+        workspace.newTab()
+        let thirdTab = try XCTUnwrap(workspace.selectedTab)
+        workspace.select(secondTab)
+
+        workspace.closeSelectedTabFromShortcut(eventTimestamp: 300)
+
+        XCTAssertEqual(workspace.tabs.map(\.id), [firstTab.id, thirdTab.id])
+        XCTAssertEqual(workspace.selectedID, thirdTab.id)
+        XCTAssertEqual(confirmer.requestedTabTitles, [secondTab.tabTitle])
+    }
+
+    func testCloseSelectedTabIgnoresDirectReentrantCloseDuringConfirmation() throws {
+        let confirmer = ReentrantTabCloseConfirmer()
+        let workspace = TerminalWorkspace(
+            automaticallyStartProcesses: false,
+            tabCloseConfirmer: confirmer
+        )
+        confirmer.reenter = { [weak workspace] in
+            _ = workspace?.closeSelectedTab()
+        }
+        let firstTab = try XCTUnwrap(workspace.selectedTab)
+        workspace.newTab()
+        let secondTab = try XCTUnwrap(workspace.selectedTab)
+        workspace.newTab()
+        let thirdTab = try XCTUnwrap(workspace.selectedTab)
+        workspace.select(secondTab)
+
+        workspace.closeSelectedTab()
+
+        XCTAssertEqual(workspace.tabs.map(\.id), [firstTab.id, thirdTab.id])
+        XCTAssertEqual(workspace.selectedID, thirdTab.id)
+        XCTAssertEqual(confirmer.requestedTabTitles, [secondTab.tabTitle])
     }
 
     func testCloseSelectedTabRemovesOnlyCurrentTab() throws {
