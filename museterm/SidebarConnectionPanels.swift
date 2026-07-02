@@ -511,6 +511,14 @@ struct SSHProfilesSection: View {
                         ? L10n.string("ssh.favorite.remove.help")
                         : L10n.string("ssh.favorite.add.help")
                 )
+                if profile.normalized.lastConnectedAt != nil {
+                    Button {
+                        store.clearRecentConnection(profile)
+                    } label: {
+                        Label(L10n.string("ssh.recent.clear"), systemImage: "xmark.circle")
+                    }
+                    .help(L10n.string("ssh.recent.clear.help"))
+                }
                 Button {
                     editingProfile = profile
                 } label: {
@@ -595,6 +603,7 @@ struct SSHProfilesSection: View {
         let portForwards = profile.portForwardClipboardText
         return [
             base,
+            profile.recentConnectionSummary,
             capabilities.isEmpty ? nil : capabilities,
             health.hasAttentionItems ? health.tooltip : nil,
             portForwards.isEmpty ? nil : portForwards

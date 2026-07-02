@@ -44,6 +44,19 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertTrue(profile.matchesSearch("recent"))
     }
 
+    func testSSHProfileBuildsRecentConnectionSummary() throws {
+        let profile = SSHConnectionProfile(
+            name: "Production",
+            host: "prod.example.com",
+            lastConnectedAt: Date(timeIntervalSince1970: 100),
+            connectionOpenCount: 3
+        )
+
+        let summary = try XCTUnwrap(profile.recentConnectionSummary)
+
+        XCTAssertTrue(summary.contains("3"))
+    }
+
     func testSSHConnectionStorePersistsFavoriteToggle() throws {
         let suiteName = "museterm.favorite.tests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -79,6 +92,29 @@ final class SSHConnectionProfileTests: XCTestCase {
         let reloadedStore = SSHConnectionStore(defaults: defaults)
         XCTAssertEqual(reloadedStore.profiles.first?.lastConnectedAt, secondDate)
         XCTAssertEqual(reloadedStore.profiles.first?.connectionOpenCount, 2)
+    }
+
+    func testSSHConnectionStoreClearsRecentConnection() throws {
+        let suiteName = "museterm.recent-clear.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = SSHConnectionStore(defaults: defaults)
+        let profile = SSHConnectionProfile(
+            name: "Production",
+            host: "prod.example.com",
+            lastConnectedAt: Date(timeIntervalSince1970: 100),
+            connectionOpenCount: 2
+        )
+
+        store.upsert(profile)
+        let storedProfile = try XCTUnwrap(store.profiles.first)
+        store.clearRecentConnection(storedProfile)
+
+        XCTAssertNil(store.profiles.first?.lastConnectedAt)
+        XCTAssertEqual(store.profiles.first?.connectionOpenCount, 0)
+        let reloadedStore = SSHConnectionStore(defaults: defaults)
+        XCTAssertNil(reloadedStore.profiles.first?.lastConnectedAt)
+        XCTAssertEqual(reloadedStore.profiles.first?.connectionOpenCount, 0)
     }
 
     func testSSHConfigAddsDefaultKeepAliveOptions() {

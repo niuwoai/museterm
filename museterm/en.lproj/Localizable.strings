@@ -190,6 +190,9 @@
 "ssh.favorite.remove.help" = "Remove this SSH host from the favorites group.";
 "ssh.favorite.status" = "Favorited";
 "ssh.recent.status" = "Recently connected";
+"ssh.recent.summary" = "Last connected: %@, opened %d times.";
+"ssh.recent.clear" = "Clear recent record";
+"ssh.recent.clear.help" = "Clear this SSH host's last connection time and open count.";
 "ssh.edit" = "Edit";
 "ssh.delete" = "Delete";
 "ssh.name" = "Name";

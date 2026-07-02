@@ -2099,6 +2099,13 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
             + clean.jumpHosts.flatMap { [$0.displayName, $0.host, $0.user, $0.name] }
     }
 
+    var recentConnectionSummary: String? {
+        let clean = normalized
+        guard let lastConnectedAt = clean.lastConnectedAt else { return nil }
+        let formattedDate = Self.recentConnectionDateString(lastConnectedAt)
+        return L10n.format("ssh.recent.summary", formattedDate, clean.connectionOpenCount)
+    }
+
     var routeSummary: String {
         let clean = normalized
         let nodes = [L10n.string("ssh.route.local")]
@@ -2218,6 +2225,13 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         return ([L10n.string("ssh.capability.summary")] + lines).joined(separator: "\n")
     }
 
+    private static func recentConnectionDateString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
     private nonisolated static func sshOptionName(_ line: String) -> String? {
         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !trimmed.hasPrefix("#") else { return nil }
@@ -2307,6 +2321,15 @@ final class SSHConnectionStore: ObservableObject {
         profiles[index] = clean.normalized
         persist()
         return profiles[index]
+    }
+
+    func clearRecentConnection(_ profile: SSHConnectionProfile) {
+        guard let index = profiles.firstIndex(where: { $0.id == profile.id }) else { return }
+        var clean = profiles[index].normalized
+        clean.lastConnectedAt = nil
+        clean.connectionOpenCount = 0
+        profiles[index] = clean.normalized
+        persist()
     }
 
     private func persist() {

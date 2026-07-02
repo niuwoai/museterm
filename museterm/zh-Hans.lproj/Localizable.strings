@@ -190,6 +190,9 @@
 "ssh.favorite.remove.help" = "从收藏分组移除这个 SSH 主机。";
 "ssh.favorite.status" = "已收藏";
 "ssh.recent.status" = "最近连接过";
+"ssh.recent.summary" = "最近连接：%@，已打开 %d 次。";
+"ssh.recent.clear" = "清除最近记录";
+"ssh.recent.clear.help" = "清除这个 SSH 主机的最近连接时间和打开次数。";
 "ssh.edit" = "编辑";
 "ssh.delete" = "删除";
 "ssh.name" = "名称";
