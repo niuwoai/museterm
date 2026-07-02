@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.207.0] - 2026-07-02
+
+### Added
+- SSH 主机支持收藏：可从主机菜单收藏或取消收藏，收藏主机会固定到 SSH 列表顶部的收藏分组，并用星标显示；旧 Profile 数据会默认保持未收藏。
+- SSH config 导入会展开 `HostName` 中的 `%h`、`%n` 和 `%%` token，让 `Host *` 默认块里的 `HostName %h.example.com` 这类配置导入后得到真实主机名。
+
 ## [1.206.0] - 2026-07-02
 
 ### Added

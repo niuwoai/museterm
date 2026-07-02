@@ -59,6 +59,36 @@ final class SSHConfigImportTests: XCTestCase {
         XCTAssertEqual(profile.identityFiles, ["~/.ssh/prod key"])
     }
 
+    func testOpenSSHConfigImporterExpandsHostNameTokensFromDefaults() throws {
+        let config = """
+        Host *
+          HostName %h.example.com
+
+        Host dev
+          User deploy
+        """
+
+        let profile = try XCTUnwrap(OpenSSHConfigImporter.profiles(from: config).first)
+
+        XCTAssertEqual(profile.name, "dev")
+        XCTAssertEqual(profile.host, "dev.example.com")
+        XCTAssertEqual(profile.user, "deploy")
+    }
+
+    func testOpenSSHConfigImporterExpandsExplicitHostNameTokens() throws {
+        let config = """
+        Host prod
+          HostName %n.internal
+
+        Host percent
+          HostName literal%%host.example.com
+        """
+
+        let profiles = OpenSSHConfigImporter.profiles(from: config)
+
+        XCTAssertEqual(profiles.map(\.host), ["prod.internal", "literal%host.example.com"])
+    }
+
     func testOpenSSHConfigImporterExpandsRelativeIncludeGlobFiles() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("museterm-ssh-include-\(UUID().uuidString)", isDirectory: true)

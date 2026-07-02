@@ -3,6 +3,50 @@ import XCTest
 
 @MainActor
 final class SSHConnectionProfileTests: XCTestCase {
+    func testSSHProfileDecodesLegacyJSONWithoutFavoriteFlag() throws {
+        let data = try XCTUnwrap("""
+        {
+          "id": "11111111-1111-1111-1111-111111111111",
+          "name": "Legacy",
+          "host": "legacy.example.com",
+          "user": "deploy",
+          "port": 22
+        }
+        """.data(using: .utf8))
+
+        let profile = try JSONDecoder().decode(SSHConnectionProfile.self, from: data)
+
+        XCTAssertFalse(profile.isFavorite)
+        XCTAssertFalse(profile.normalized.isFavorite)
+    }
+
+    func testSSHProfileSearchMatchesFavoriteState() {
+        let profile = SSHConnectionProfile(
+            name: "Production",
+            host: "prod.example.com",
+            isFavorite: true
+        )
+
+        XCTAssertTrue(profile.matchesSearch("favorite"))
+        XCTAssertTrue(profile.matchesSearch("star"))
+    }
+
+    func testSSHConnectionStorePersistsFavoriteToggle() throws {
+        let suiteName = "museterm.favorite.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = SSHConnectionStore(defaults: defaults)
+        let profile = SSHConnectionProfile(name: "Production", host: "prod.example.com")
+
+        store.upsert(profile)
+        let storedProfile = try XCTUnwrap(store.profiles.first)
+        store.toggleFavorite(storedProfile)
+
+        XCTAssertTrue(store.profiles.first?.isFavorite == true)
+        let reloadedStore = SSHConnectionStore(defaults: defaults)
+        XCTAssertTrue(reloadedStore.profiles.first?.isFavorite == true)
+    }
+
     func testSSHConfigAddsDefaultKeepAliveOptions() {
         let profile = SSHConnectionProfile(host: "example.com", user: "deploy")
         let config = SSHConfigMaterializer.renderConfig(profile: profile)

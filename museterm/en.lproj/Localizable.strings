@@ -175,6 +175,7 @@
 "ssh.search.help" = "Search by name, host, user, group, tag, environment, or jump host.";
 "ssh.search.empty" = "No SSH hosts match the current search.";
 "ssh.tags.all" = "All";
+"ssh.group.favorites" = "Favorites";
 "ssh.group.ungrouped" = "Ungrouped";
 "ssh.groups.expand_all" = "Expand all SSH groups";
 "ssh.groups.collapse_all" = "Collapse all SSH groups";
@@ -182,6 +183,11 @@
 "ssh.group.collapse.help" = "Collapse %@.";
 "ssh.empty" = "Save SSH hosts here. Profiles can use jump hosts and different keys per hop.";
 "ssh.connect" = "Connect";
+"ssh.favorite.add" = "Favorite host";
+"ssh.favorite.add.help" = "Pin this SSH host to the favorites group at the top.";
+"ssh.favorite.remove" = "Remove favorite";
+"ssh.favorite.remove.help" = "Remove this SSH host from the favorites group.";
+"ssh.favorite.status" = "Favorited";
 "ssh.edit" = "Edit";
 "ssh.delete" = "Delete";
 "ssh.name" = "Name";

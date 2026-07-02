@@ -319,16 +319,41 @@ struct SSHProfilesSection: View {
     }
 
     private var groupedProfiles: [SSHProfileListGroup] {
-        let groups = Dictionary(grouping: filteredProfiles) { profile in
+        let favoriteProfiles = sortedProfiles(filteredProfiles.filter { $0.normalized.isFavorite })
+        let regularProfiles = filteredProfiles.filter { !$0.normalized.isFavorite }
+        let groups = Dictionary(grouping: regularProfiles) { profile in
             profile.normalized.groupDisplayName
         }
-        return groups
+
+        var result: [SSHProfileListGroup] = []
+        if !favoriteProfiles.isEmpty {
+            result.append(
+                SSHProfileListGroup(
+                    id: "__favorites",
+                    name: L10n.string("ssh.group.favorites"),
+                    profiles: favoriteProfiles
+                )
+            )
+        }
+
+        result += groups
             .map { SSHProfileListGroup(name: $0.key, profiles: $0.value) }
             .sorted { lhs, rhs in
                 if lhs.name == L10n.string("ssh.group.ungrouped") { return false }
                 if rhs.name == L10n.string("ssh.group.ungrouped") { return true }
                 return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
             }
+        return result
+    }
+
+    private func sortedProfiles(_ profiles: [SSHConnectionProfile]) -> [SSHConnectionProfile] {
+        profiles.sorted { lhs, rhs in
+            let nameOrder = lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName)
+            if nameOrder != .orderedSame { return nameOrder == .orderedAscending }
+            let targetOrder = lhs.target.localizedCaseInsensitiveCompare(rhs.target)
+            if targetOrder != .orderedSame { return targetOrder == .orderedAscending }
+            return lhs.id.uuidString < rhs.id.uuidString
+        }
     }
 
     private func profileGroupHeader(_ group: SSHProfileListGroup) -> some View {
@@ -392,6 +417,12 @@ struct SSHProfilesSection: View {
                 HStack(spacing: 7) {
                     Image(systemName: profile.jumpHosts.isEmpty ? "network" : "point.3.connected.trianglepath.dotted")
                         .frame(width: 20)
+                    if profile.normalized.isFavorite {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.yellow)
+                            .help(L10n.string("ssh.favorite.status"))
+                    }
                     VStack(alignment: .leading, spacing: 1) {
                         Text(profile.displayName)
                             .font(.caption2.weight(.semibold))
@@ -422,6 +453,21 @@ struct SSHProfilesSection: View {
             .help(L10n.string("ssh.connect"))
 
             Menu {
+                Button {
+                    store.toggleFavorite(profile)
+                } label: {
+                    Label(
+                        profile.normalized.isFavorite
+                            ? L10n.string("ssh.favorite.remove")
+                            : L10n.string("ssh.favorite.add"),
+                        systemImage: profile.normalized.isFavorite ? "star.slash" : "star"
+                    )
+                }
+                .help(
+                    profile.normalized.isFavorite
+                        ? L10n.string("ssh.favorite.remove.help")
+                        : L10n.string("ssh.favorite.add.help")
+                )
                 Button {
                     editingProfile = profile
                 } label: {
@@ -555,10 +601,21 @@ struct SSHProfilesSection: View {
 }
 
 private struct SSHProfileListGroup: Identifiable {
+    let id: String
     let name: String
     let profiles: [SSHConnectionProfile]
 
-    var id: String { name }
+    init(id: String? = nil, name: String, profiles: [SSHConnectionProfile]) {
+        self.id = id ?? "group:\(name)"
+        self.name = name
+        self.profiles = profiles.sorted { lhs, rhs in
+            let nameOrder = lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName)
+            if nameOrder != .orderedSame { return nameOrder == .orderedAscending }
+            let targetOrder = lhs.target.localizedCaseInsensitiveCompare(rhs.target)
+            if targetOrder != .orderedSame { return targetOrder == .orderedAscending }
+            return lhs.id.uuidString < rhs.id.uuidString
+        }
+    }
 }
 
 private struct SSHProfileHealthBadges: View {
