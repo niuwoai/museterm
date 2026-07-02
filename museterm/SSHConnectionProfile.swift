@@ -2403,6 +2403,20 @@ enum SSHConfigMaterializer {
         renderConfig(profile: profile)
     }
 
+    static func copyableConnectionCommand(for profile: SSHConnectionProfile) throws -> String {
+        let descriptor = try descriptor(for: profile)
+        return commandLine(executable: descriptor.executable, args: descriptor.args)
+    }
+
+    static func previewConnectionCommand(for profile: SSHConnectionProfile) -> String {
+        let clean = profile.normalized
+        let aliases = aliases(for: clean)
+        return commandLine(
+            executable: "/usr/bin/ssh",
+            args: ["-tt", "-F", configFileURL(for: clean).path, aliases.target]
+        )
+    }
+
     static func preview(for profile: SSHConnectionProfile) -> SSHConfigPreview {
         let clean = profile.normalized
         let aliases = aliases(for: clean)
@@ -2678,6 +2692,29 @@ enum SSHConfigMaterializer {
             return "[\(cleanHost)]:\(port)"
         }
         return "\(cleanHost):\(port)"
+    }
+
+    private static func commandLine(executable: String, args: [String]) -> String {
+        ([executable] + args).map(shellCommandWord).joined(separator: " ")
+    }
+
+    private static func shellCommandWord(_ value: String) -> String {
+        guard !value.isEmpty,
+              value.unicodeScalars.allSatisfy(isSafeShellCommandScalar) else {
+            return shellArgument(value)
+        }
+        return value
+    }
+
+    private static func isSafeShellCommandScalar(_ scalar: UnicodeScalar) -> Bool {
+        switch scalar.value {
+        case 48...57, 65...90, 97...122:
+            return true
+        case 45, 46, 47, 58, 61, 64, 95, 43, 44, 37, 126:
+            return true
+        default:
+            return false
+        }
     }
 
     private static func optionName(_ line: String) -> String? {

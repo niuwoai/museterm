@@ -531,6 +531,12 @@ struct SSHProfilesSection: View {
                 }
                 .help(L10n.string("ssh.copy_config.help"))
                 Button {
+                    copySSHConnectionCommand(for: profile)
+                } label: {
+                    Label(L10n.string("ssh.copy_command"), systemImage: "terminal")
+                }
+                .help(L10n.string("ssh.copy_command.help"))
+                Button {
                     configPreviewProfile = profile
                 } label: {
                     Label(L10n.string("ssh.config_preview.open"), systemImage: "doc.plaintext")
@@ -627,6 +633,17 @@ struct SSHProfilesSection: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(SSHConfigMaterializer.exportSnippet(for: profile), forType: .string)
         importMessage = L10n.format("ssh.copy_config.copied", profile.displayName)
+    }
+
+    private func copySSHConnectionCommand(for profile: SSHConnectionProfile) {
+        do {
+            let command = try SSHConfigMaterializer.copyableConnectionCommand(for: profile)
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(command, forType: .string)
+            importMessage = L10n.format("ssh.copy_command.copied", profile.displayName)
+        } catch {
+            importMessage = L10n.format("ssh.copy_command.failed", error.localizedDescription)
+        }
     }
 
     private func copyPortForwardSummary(for profile: SSHConnectionProfile) {

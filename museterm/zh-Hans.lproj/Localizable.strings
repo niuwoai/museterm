@@ -144,6 +144,10 @@
 "ssh.copy_config" = "复制 OpenSSH 配置";
 "ssh.copy_config.help" = "复制该 Profile 的 OpenSSH config 片段，不会改写 ~/.ssh/config。";
 "ssh.copy_config.copied" = "已复制 %@ 的 OpenSSH 配置。";
+"ssh.copy_command" = "复制 SSH 命令";
+"ssh.copy_command.help" = "写入当前生成配置，并复制可在系统终端执行的 SSH 命令。";
+"ssh.copy_command.copied" = "已复制 %@ 的 SSH 连接命令。";
+"ssh.copy_command.failed" = "复制 SSH 命令失败：%@";
 "ssh.config_preview.open" = "预览生效配置";
 "ssh.config_preview.open.help" = "查看 MuseTerm 将为这个 Profile 生成的 OpenSSH 配置。";
 "ssh.config_preview.title" = "生效 OpenSSH 配置";

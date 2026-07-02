@@ -144,6 +144,10 @@
 "ssh.copy_config" = "Copy OpenSSH Config";
 "ssh.copy_config.help" = "Copy this profile as an OpenSSH config snippet without changing ~/.ssh/config.";
 "ssh.copy_config.copied" = "Copied OpenSSH config for %@.";
+"ssh.copy_command" = "Copy SSH command";
+"ssh.copy_command.help" = "Write the current generated config and copy an SSH command that can run in the system terminal.";
+"ssh.copy_command.copied" = "Copied SSH connection command for %@.";
+"ssh.copy_command.failed" = "Failed to copy SSH command: %@";
 "ssh.config_preview.open" = "Preview effective config";
 "ssh.config_preview.open.help" = "Show the OpenSSH config MuseTerm will generate for this profile.";
 "ssh.config_preview.title" = "Effective OpenSSH config";
