@@ -558,6 +558,10 @@ enum SSHDisconnectReasonKind: String, Equatable {
             return false
         }
     }
+
+    var title: String {
+        L10n.string("ssh.disconnect_reason.\(rawValue)")
+    }
 }
 
 enum SSHDisconnectReasonClassifier {
@@ -709,6 +713,61 @@ struct SSHProfilePreflightIssue: Identifiable, Equatable {
 
     var id: String {
         "\(kind.rawValue)-\(detail)"
+    }
+}
+
+struct SSHProfileHealthSummary: Equatable {
+    let preflightIssues: [SSHProfilePreflightIssue]
+    let securityWarnings: [SSHProfileSecurityWarningKind]
+
+    var preflightIssueCount: Int {
+        preflightIssues.count
+    }
+
+    var securityWarningCount: Int {
+        securityWarnings.count
+    }
+
+    var hasAttentionItems: Bool {
+        preflightIssueCount > 0 || securityWarningCount > 0
+    }
+
+    var tooltip: String {
+        let sections = [
+            summaryLine,
+            preflightLine,
+            securityLine
+        ].compactMap { $0 }
+        return sections.joined(separator: "\n")
+    }
+
+    private var summaryLine: String {
+        if preflightIssueCount > 0, securityWarningCount > 0 {
+            return L10n.format("ssh.health.summary.mixed", preflightIssueCount, securityWarningCount)
+        }
+        if preflightIssueCount > 0 {
+            return L10n.format("ssh.health.summary.preflight", preflightIssueCount)
+        }
+        if securityWarningCount > 0 {
+            return L10n.format("ssh.health.summary.security", securityWarningCount)
+        }
+        return L10n.string("ssh.health.summary.clean")
+    }
+
+    private var preflightLine: String? {
+        guard !preflightIssues.isEmpty else { return nil }
+        return preflightIssues
+            .prefix(3)
+            .map { $0.kind.summary(detail: $0.detail) }
+            .joined(separator: "\n")
+    }
+
+    private var securityLine: String? {
+        guard !securityWarnings.isEmpty else { return nil }
+        return securityWarnings
+            .prefix(3)
+            .map(\.summary)
+            .joined(separator: "\n")
     }
 }
 
@@ -1490,6 +1549,13 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
 
     var preflightIssues: [SSHProfilePreflightIssue] {
         SSHProfilePreflightAnalyzer.issues(for: self)
+    }
+
+    var healthSummary: SSHProfileHealthSummary {
+        SSHProfileHealthSummary(
+            preflightIssues: preflightIssues,
+            securityWarnings: securityWarningKinds
+        )
     }
 }
 

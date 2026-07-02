@@ -827,27 +827,33 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             sshReconnectAttemptCount = 0
         }
 
+        let disconnectReason = SSHDisconnectReasonClassifier.classify(
+            issue: latestSSHConnectionIssueKind,
+            exitCode: exitCode,
+            diagnosticText: sshDiagnosticBuffer
+        )
         switch SSHReconnectPolicy.decision(
             profile: profile,
             issue: latestSSHConnectionIssueKind,
             exitCode: exitCode,
             completedAttempts: sshReconnectAttemptCount,
-            disconnectReason: SSHDisconnectReasonClassifier.classify(
-                issue: latestSSHConnectionIssueKind,
-                exitCode: exitCode,
-                diagnosticText: sshDiagnosticBuffer
-            )
+            disconnectReason: disconnectReason
         ) {
         case .suppress:
+            if shouldExplainSuppressedSSHReconnect(profile: profile, exitCode: exitCode, reason: disconnectReason) {
+                terminalView.feed(text: "\n\(L10n.format("ssh.reconnect.stopped_with_reason", disconnectReason.title))\n")
+            }
             return false
         case .exhausted:
-            terminalView.feed(text: "\n\(L10n.string("ssh.reconnect.exhausted"))\n")
+            terminalView.feed(text: "\n\(L10n.format("ssh.reconnect.exhausted_with_reason", disconnectReason.title))\n")
             return false
         case .reconnect(let delaySeconds):
             sshReconnectAttemptCount += 1
             let attempt = sshReconnectAttemptCount
             let maxAttempts = profile.normalized.automaticReconnectAttempts
-            terminalView.feed(text: "\n\(L10n.format("ssh.reconnect.scheduled", attempt, maxAttempts, delaySeconds))\n")
+            terminalView.feed(
+                text: "\n\(L10n.format("ssh.reconnect.scheduled_with_reason", disconnectReason.title, attempt, maxAttempts, delaySeconds))\n"
+            )
             session?.state = .running
             pendingSSHReconnectWorkItem?.cancel()
             let workItem = DispatchWorkItem { [weak self] in
@@ -867,6 +873,17 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(delaySeconds), execute: workItem)
             return true
         }
+    }
+
+    private func shouldExplainSuppressedSSHReconnect(
+        profile: SSHConnectionProfile,
+        exitCode: Int32?,
+        reason: SSHDisconnectReasonKind
+    ) -> Bool {
+        let clean = profile.normalized
+        guard clean.automaticReconnectEnabled, clean.automaticReconnectAttempts > 0 else { return false }
+        guard exitCode != 0 else { return false }
+        return !reason.allowsAutomaticReconnect
     }
 
     private func drainStartupCommands(_ commands: [String]) {

@@ -128,6 +128,7 @@ struct SSHProfilesSection: View {
     @ObservedObject var store: SSHConnectionStore
     let skin: TerminalVisualSkin
     @State private var editingProfile: SSHConnectionProfile?
+    @State private var diagnosticProfile: SSHConnectionProfile?
     @State private var importMessage = ""
     @State private var searchText = ""
     @State private var selectedTag: String?
@@ -204,6 +205,14 @@ struct SSHProfilesSection: View {
                     store.upsert(edited)
                     editingProfile = nil
                 }
+            )
+        }
+        .sheet(item: $diagnosticProfile) { profile in
+            SSHRouteDiagnosticPlanSheet(
+                profile: profile,
+                workspace: workspace,
+                skin: skin,
+                onClose: { diagnosticProfile = nil }
             )
         }
     }
@@ -294,7 +303,8 @@ struct SSHProfilesSection: View {
     }
 
     private func sshProfileRow(_ profile: SSHConnectionProfile) -> some View {
-        HStack(spacing: 7) {
+        let health = profile.healthSummary
+        return HStack(spacing: 7) {
             Button {
                 workspace.openSSH(profile: profile)
             } label: {
@@ -317,6 +327,7 @@ struct SSHProfilesSection: View {
                         }
                     }
                     Spacer(minLength: 2)
+                    SSHProfileHealthBadges(summary: health)
                     EnvironmentBadge(environment: profile.environment)
                 }
                 // 整块名字区域都可点击直接连接，而非仅文字本身。
@@ -337,6 +348,12 @@ struct SSHProfilesSection: View {
                     Label(L10n.string("ssh.copy_config"), systemImage: "doc.on.doc")
                 }
                 .help(L10n.string("ssh.copy_config.help"))
+                Button {
+                    diagnosticProfile = profile
+                } label: {
+                    Label(L10n.string("ssh.diagnostic_plan.open"), systemImage: "checklist")
+                }
+                .help(L10n.string("ssh.diagnostic_plan.open.help"))
                 Divider()
                 Button(role: .destructive) {
                     store.delete(profile)
@@ -355,7 +372,13 @@ struct SSHProfilesSection: View {
         .padding(.vertical, 6)
         .background(skin.controlFill)
         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-        .help(profile.jumpHosts.isEmpty ? profile.target : L10n.format("ssh.tooltip_route", profile.routeSummary))
+        .help(rowHelp(for: profile, health: health))
+    }
+
+    private func rowHelp(for profile: SSHConnectionProfile, health: SSHProfileHealthSummary) -> String {
+        let base = profile.jumpHosts.isEmpty ? profile.target : L10n.format("ssh.tooltip_route", profile.routeSummary)
+        guard health.hasAttentionItems else { return base }
+        return [base, health.tooltip].joined(separator: "\n")
     }
 
     private func importDefaultOpenSSHConfig() {
@@ -381,6 +404,48 @@ private struct SSHProfileListGroup: Identifiable {
     let profiles: [SSHConnectionProfile]
 
     var id: String { name }
+}
+
+private struct SSHProfileHealthBadges: View {
+    let summary: SSHProfileHealthSummary
+
+    var body: some View {
+        HStack(spacing: 4) {
+            if summary.preflightIssueCount > 0 {
+                badge(
+                    count: summary.preflightIssueCount,
+                    systemImage: "checklist.unchecked",
+                    color: .blue,
+                    help: summary.tooltip
+                )
+            }
+            if summary.securityWarningCount > 0 {
+                badge(
+                    count: summary.securityWarningCount,
+                    systemImage: "exclamationmark.triangle.fill",
+                    color: .orange,
+                    help: summary.tooltip
+                )
+            }
+        }
+    }
+
+    private func badge(count: Int, systemImage: String, color: Color, help: String) -> some View {
+        Label {
+            Text("\(count)")
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+        } icon: {
+            Image(systemName: systemImage)
+                .font(.system(size: 9, weight: .semibold))
+        }
+        .labelStyle(.titleAndIcon)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 2)
+        .foregroundStyle(color)
+        .background(color.opacity(0.13))
+        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+        .help(help)
+    }
 }
 
 struct FileTransferSection: View {

@@ -541,6 +541,35 @@ final class SSHConnectionProfileTests: XCTestCase {
         )
     }
 
+    func testSSHProfileHealthSummaryCombinesPreflightAndSecurityWarnings() {
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            portForwards: [
+                SSHPortForward(
+                    kind: .local,
+                    bindHost: "127.0.0.1",
+                    bindPort: 8080,
+                    destinationHost: "127.0.0.1",
+                    destinationPort: 80
+                ),
+                SSHPortForward(
+                    kind: .dynamic,
+                    bindHost: "127.0.0.1",
+                    bindPort: 8080
+                )
+            ],
+            extraOptions: ["ForwardAgent yes"]
+        )
+
+        let health = profile.healthSummary
+
+        XCTAssertTrue(health.hasAttentionItems)
+        XCTAssertEqual(health.preflightIssueCount, 1)
+        XCTAssertEqual(health.securityWarningCount, 1)
+        XCTAssertTrue(health.tooltip.contains("127.0.0.1:8080"))
+        XCTAssertTrue(health.tooltip.contains(SSHProfileSecurityWarningKind.agentForwarding.summary))
+    }
+
     @MainActor
     func testSSHProfilePreflightFlagsDuplicatePortForwardListeners() {
         let profile = SSHConnectionProfile(
