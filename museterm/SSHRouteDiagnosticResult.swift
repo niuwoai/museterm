@@ -60,6 +60,101 @@ struct SSHRouteDiagnosticResultSummary: Equatable {
     }
 }
 
+struct SSHRouteDiagnosticReport: Equatable {
+    struct Step: Equatable {
+        let index: Int
+        let title: String
+        let command: String
+        let result: SSHRouteDiagnosticStepResult
+    }
+
+    let profileName: String
+    let routeSummary: String
+    let generatedAtText: String
+    let resultSummary: SSHRouteDiagnosticResultSummary
+    let steps: [Step]
+
+    init(
+        profileName: String,
+        routeSummary: String,
+        planSteps: [SSHRouteDiagnosticPlanStep],
+        results: [Int: SSHRouteDiagnosticStepResult],
+        generatedAtText: String = Self.defaultGeneratedAtText()
+    ) {
+        self.profileName = profileName
+        self.routeSummary = routeSummary
+        self.generatedAtText = generatedAtText
+        self.resultSummary = SSHRouteDiagnosticResultSummary(totalSteps: planSteps.count, results: results)
+        self.steps = planSteps.enumerated().compactMap { index, step in
+            guard let result = results[index] else { return nil }
+            return Step(index: index + 1, title: step.title, command: step.command, result: result)
+        }
+    }
+
+    var hasResults: Bool {
+        !steps.isEmpty
+    }
+
+    var markdown: String {
+        var lines: [String] = [
+            "# \(L10n.string("ssh.diagnostic_report.title"))",
+            "",
+            "- **\(L10n.string("ssh.diagnostic_report.profile")):** \(profileName)",
+            "- **\(L10n.string("ssh.diagnostic_report.route")):** \(routeSummary)",
+            "- **\(L10n.string("ssh.diagnostic_report.generated_at")):** \(generatedAtText)",
+            "- **\(L10n.string("ssh.diagnostic_report.summary")):** \(summaryText)",
+            "",
+            "## \(L10n.string("ssh.diagnostic_report.checks"))"
+        ]
+
+        for step in steps {
+            lines.append(contentsOf: [
+                "",
+                "### \(step.index). \(step.title)",
+                "- **\(L10n.string("ssh.diagnostic_report.status")):** \(step.result.status.title)",
+                "- **\(L10n.string("ssh.diagnostic_report.result")):** \(step.result.summary)"
+            ])
+            if let evidence = step.result.evidence, !evidence.isEmpty {
+                lines.append("- **\(L10n.string("ssh.diagnostic_report.evidence")):** \(evidence)")
+            }
+            lines.append(contentsOf: [
+                "- **\(L10n.string("ssh.diagnostic_report.command")):**",
+                commandFenceOpen(for: step.command),
+                step.command,
+                commandFenceClose(for: step.command)
+            ])
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private var summaryText: String {
+        L10n.format(
+            "ssh.diagnostic_plan.result_summary",
+            resultSummary.parsedSteps,
+            resultSummary.totalSteps,
+            resultSummary.passed,
+            resultSummary.failed,
+            resultSummary.needsAttention,
+            resultSummary.unknown
+        )
+    }
+
+    private func commandFenceOpen(for command: String) -> String {
+        command.contains("```") ? "````shell" : "```shell"
+    }
+
+    private func commandFenceClose(for command: String) -> String {
+        command.contains("```") ? "````" : "```"
+    }
+
+    private static func defaultGeneratedAtText() -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: Date())
+    }
+}
+
 enum SSHRouteDiagnosticStepResultInterpreter {
     private struct Match {
         let summaryKey: String

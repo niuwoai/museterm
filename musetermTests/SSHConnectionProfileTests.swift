@@ -92,6 +92,27 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertTrue(config.contains("  DynamicForward 127.0.0.1:1080"))
     }
 
+    func testSSHConfigPreviewDescribesGeneratedConfig() {
+        let profile = SSHConnectionProfile(
+            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            name: "Production",
+            host: "prod.internal",
+            user: "deploy",
+            jumpHosts: [
+                SSHJumpHost(name: "Bastion", host: "bastion.internal", user: "jump", port: 2200)
+            ]
+        )
+
+        let preview = SSHConfigMaterializer.preview(for: profile)
+
+        XCTAssertEqual(preview.targetAlias, "museterm-11111111-1111-1111-1111-111111111111-target")
+        XCTAssertEqual(preview.hostBlockCount, 2)
+        XCTAssertEqual(preview.lineCount, preview.config.split(whereSeparator: \.isNewline).count)
+        XCTAssertTrue(preview.config.contains("Host museterm-11111111-1111-1111-1111-111111111111-jump-1"))
+        XCTAssertTrue(preview.config.contains("HostName prod.internal"))
+        XCTAssertTrue(preview.config.contains("ProxyJump museterm-11111111-1111-1111-1111-111111111111-jump-1"))
+    }
+
     func testSSHProfileBuildsReadablePortForwardSummaries() {
         let profile = SSHConnectionProfile(
             host: "example.com",
@@ -665,6 +686,58 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertEqual(summary.needsAttention, 1)
         XCTAssertEqual(summary.unknown, 0)
         XCTAssertEqual(summary.leadingStatus, .failed)
+    }
+
+    func testSSHRouteDiagnosticReportBuildsRunbookReadyMarkdown() {
+        let steps = [
+            SSHRouteDiagnosticPlanStep(
+                kind: .dnsLookup,
+                title: "Resolve target",
+                command: "dscacheutil -q host -a name example.com",
+                routeStepKind: .target,
+                host: "example.com",
+                port: nil,
+                alias: nil,
+                includeInFailureGuide: true
+            ),
+            SSHRouteDiagnosticPlanStep(
+                kind: .tcpPort,
+                title: "Check TCP",
+                command: "nc -vz -w 5 example.com 22",
+                routeStepKind: .target,
+                host: "example.com",
+                port: 22,
+                alias: nil,
+                includeInFailureGuide: true
+            )
+        ]
+        let results: [Int: SSHRouteDiagnosticStepResult] = [
+            0: SSHRouteDiagnosticStepResult(status: .passed, summary: "DNS resolved.", evidence: "name: example.com"),
+            1: SSHRouteDiagnosticStepResult(status: .failed, summary: "TCP refused.", evidence: "Connection refused"),
+            9: SSHRouteDiagnosticStepResult(status: .unknown, summary: "stale", evidence: "old")
+        ]
+
+        let report = SSHRouteDiagnosticReport(
+            profileName: "Production API",
+            routeSummary: "Mac -> example.com:22",
+            planSteps: steps,
+            results: results,
+            generatedAtText: "2026-07-02T09:00:00Z"
+        )
+        let markdown = report.markdown
+
+        XCTAssertTrue(report.hasResults)
+        XCTAssertEqual(report.resultSummary.parsedSteps, 2)
+        XCTAssertTrue(markdown.hasPrefix("# "))
+        XCTAssertTrue(markdown.contains("Production API"))
+        XCTAssertTrue(markdown.contains("Mac -> example.com:22"))
+        XCTAssertTrue(markdown.contains("2026-07-02T09:00:00Z"))
+        XCTAssertTrue(markdown.contains("### 1. Resolve target"))
+        XCTAssertTrue(markdown.contains("### 2. Check TCP"))
+        XCTAssertTrue(markdown.contains("DNS resolved."))
+        XCTAssertTrue(markdown.contains("Connection refused"))
+        XCTAssertTrue(markdown.contains("```shell\nnc -vz -w 5 example.com 22\n```"))
+        XCTAssertFalse(markdown.contains("stale"))
     }
 
     @MainActor

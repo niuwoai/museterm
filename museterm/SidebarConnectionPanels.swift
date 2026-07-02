@@ -129,6 +129,7 @@ struct SSHProfilesSection: View {
     let skin: TerminalVisualSkin
     @State private var editingProfile: SSHConnectionProfile?
     @State private var diagnosticProfile: SSHConnectionProfile?
+    @State private var configPreviewProfile: SSHConnectionProfile?
     @State private var importMessage = ""
     @State private var searchText = ""
     @State private var selectedTag: String?
@@ -213,6 +214,13 @@ struct SSHProfilesSection: View {
                 workspace: workspace,
                 skin: skin,
                 onClose: { diagnosticProfile = nil }
+            )
+        }
+        .sheet(item: $configPreviewProfile) { profile in
+            SSHConfigPreviewSheet(
+                profile: profile,
+                skin: skin,
+                onClose: { configPreviewProfile = nil }
             )
         }
     }
@@ -353,6 +361,12 @@ struct SSHProfilesSection: View {
                     Label(L10n.string("ssh.copy_config"), systemImage: "doc.on.doc")
                 }
                 .help(L10n.string("ssh.copy_config.help"))
+                Button {
+                    configPreviewProfile = profile
+                } label: {
+                    Label(L10n.string("ssh.config_preview.open"), systemImage: "doc.plaintext")
+                }
+                .help(L10n.string("ssh.config_preview.open.help"))
                 Button {
                     copyPortForwardSummary(for: profile)
                 } label: {

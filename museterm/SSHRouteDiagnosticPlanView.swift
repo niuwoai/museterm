@@ -201,29 +201,17 @@ struct SSHRouteDiagnosticPlanSheet: View {
     }
 
     private func copyResultSummary(for steps: [SSHRouteDiagnosticPlanStep]) {
-        let lines = diagnosticResultLines(for: steps)
-        guard !lines.isEmpty else {
+        let report = SSHRouteDiagnosticReport(
+            profileName: profile.displayName,
+            routeSummary: profile.routeSummary,
+            planSteps: steps,
+            results: parsedResults
+        )
+        guard report.hasResults else {
             message = L10n.string("ssh.diagnostic_plan.no_results")
             return
         }
-        copy(lines.joined(separator: "\n"), messageKey: "ssh.diagnostic_plan.results_copied")
-    }
-
-    private func diagnosticResultLines(for steps: [SSHRouteDiagnosticPlanStep]) -> [String] {
-        steps.enumerated().compactMap { index, step in
-            guard let result = parsedResults[index] else { return nil }
-            var line = L10n.format(
-                "ssh.diagnostic_plan.result_line",
-                index + 1,
-                step.title,
-                result.status.title,
-                result.summary
-            )
-            if let evidence = result.evidence, !evidence.isEmpty {
-                line += "\n  " + L10n.format("ssh.diagnostic_plan.result_evidence", evidence)
-            }
-            return line
-        }
+        copy(report.markdown, messageKey: "ssh.diagnostic_plan.results_copied")
     }
 
     private func stage(_ command: String) {

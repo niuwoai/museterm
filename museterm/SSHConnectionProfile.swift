@@ -1693,6 +1693,13 @@ struct SSHLaunchDescriptor {
     let startupCommands: [String]
 }
 
+struct SSHConfigPreview: Equatable {
+    let config: String
+    let targetAlias: String
+    let hostBlockCount: Int
+    let lineCount: Int
+}
+
 enum SSHConfigMaterializer {
     static func descriptor(for profile: SSHConnectionProfile) throws -> SSHLaunchDescriptor {
         let clean = profile.normalized
@@ -1721,6 +1728,17 @@ enum SSHConfigMaterializer {
 
     static func exportSnippet(for profile: SSHConnectionProfile) -> String {
         renderConfig(profile: profile)
+    }
+
+    static func preview(for profile: SSHConnectionProfile) -> SSHConfigPreview {
+        let clean = profile.normalized
+        let config = renderConfig(profile: clean)
+        return SSHConfigPreview(
+            config: config,
+            targetAlias: targetAlias(for: clean),
+            hostBlockCount: clean.jumpHosts.count + 1,
+            lineCount: config.split(whereSeparator: \.isNewline).count
+        )
     }
 
     static func configFileURL(for profile: SSHConnectionProfile) -> URL {
