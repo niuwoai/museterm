@@ -285,6 +285,50 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertTrue(profile.portForwardAccessText.contains("https://[::1]:8443"))
     }
 
+    func testSSHPortForwardEditorLineRoundTripsIPv6Endpoints() {
+        let forward = SSHPortForward(
+            kind: .local,
+            bindHost: "::1",
+            bindPort: 8443,
+            destinationHost: "2001:db8::20",
+            destinationPort: 443
+        )
+
+        XCTAssertEqual(forward.editorLineText, "local|[::1]:8443|[2001:db8::20]:443")
+
+        let parsed = SSHPortForward.parseEditorLine(forward.editorLineText)?.normalized
+        XCTAssertEqual(parsed?.kind, .local)
+        XCTAssertEqual(parsed?.bindHost, "::1")
+        XCTAssertEqual(parsed?.bindPort, 8443)
+        XCTAssertEqual(parsed?.destinationHost, "2001:db8::20")
+        XCTAssertEqual(parsed?.destinationPort, 443)
+    }
+
+    func testSSHPortForwardPreviewTextDescribesTargetAndAccess() {
+        let local = SSHPortForward(
+            kind: .local,
+            bindHost: "",
+            bindPort: 8443,
+            destinationHost: "2001:db8::20",
+            destinationPort: 443
+        ).normalized
+        let remote = SSHPortForward(
+            kind: .remote,
+            bindHost: "",
+            bindPort: 9000,
+            destinationHost: "127.0.0.1",
+            destinationPort: 9000
+        ).normalized
+        let dynamic = SSHPortForward(kind: .dynamic, bindHost: "::", bindPort: 1080).normalized
+
+        XCTAssertEqual(local.previewTargetText, "[2001:db8::20]:443")
+        XCTAssertEqual(local.previewAccessText, "https://localhost:8443")
+        XCTAssertEqual(remote.previewTargetText, "127.0.0.1:9000")
+        XCTAssertEqual(remote.previewAccessText, L10n.string("ssh.port_forward.preview.no_local_entry"))
+        XCTAssertEqual(dynamic.previewTargetText, L10n.string("ssh.port_forward.preview.socks"))
+        XCTAssertEqual(dynamic.previewAccessText, "socks5://localhost:1080")
+    }
+
     func testSSHProfileDeduplicatesRepeatedPortForwardAccessEntries() {
         let profile = SSHConnectionProfile(
             host: "example.com",

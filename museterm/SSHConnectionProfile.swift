@@ -1291,7 +1291,7 @@ struct SSHPortForward: Codable, Equatable, Identifiable {
     var destinationHost: String
     var destinationPort: Int
 
-    init(
+    nonisolated init(
         id: UUID = UUID(),
         kind: SSHPortForwardKind = .local,
         bindHost: String = "",
@@ -1382,6 +1382,59 @@ struct SSHPortForward: Codable, Equatable, Identifiable {
         }
     }
 
+    var previewTargetText: String {
+        let clean = normalized
+        switch clean.kind {
+        case .local, .remote:
+            return clean.destinationEndpoint ?? ""
+        case .dynamic:
+            return L10n.string("ssh.port_forward.preview.socks")
+        }
+    }
+
+    var previewAccessText: String {
+        localAccessURLString ?? L10n.string("ssh.port_forward.preview.no_local_entry")
+    }
+
+    var editorLineText: String {
+        let clean = normalized
+        let listen = clean.bindHost.isEmpty ? "\(clean.bindPort)" : Self.displayEndpoint(host: clean.bindHost, port: clean.bindPort)
+        switch clean.kind {
+        case .local:
+            return "local|\(listen)|\(Self.displayEndpoint(host: clean.destinationHost, port: clean.destinationPort))"
+        case .remote:
+            return "remote|\(listen)|\(Self.displayEndpoint(host: clean.destinationHost, port: clean.destinationPort))"
+        case .dynamic:
+            return "dynamic|\(listen)"
+        }
+    }
+
+    nonisolated static func parseEditorLine(_ line: String) -> SSHPortForward? {
+        let parts = line.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
+        guard let rawKind = parts.first?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+              let kind = SSHPortForwardKind(rawValue: rawKind),
+              parts.count >= 2 else {
+            return nil
+        }
+
+        let listen = parseEndpoint(parts[1])
+        guard listen.port > 0 else { return nil }
+        if kind == .dynamic {
+            return SSHPortForward(kind: kind, bindHost: listen.host, bindPort: listen.port)
+        }
+
+        guard parts.count >= 3 else { return nil }
+        let destination = parseEndpoint(parts[2])
+        guard !destination.host.isEmpty, destination.port > 0 else { return nil }
+        return SSHPortForward(
+            kind: kind,
+            bindHost: listen.host,
+            bindPort: listen.port,
+            destinationHost: destination.host,
+            destinationPort: destination.port
+        )
+    }
+
     private var browserHost: String {
         let cleanHost = bindHost.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleanHost.isEmpty
@@ -1406,6 +1459,24 @@ struct SSHPortForward: Codable, Equatable, Identifiable {
             return "[\(cleanHost)]:\(port)"
         }
         return "\(cleanHost):\(port)"
+    }
+
+    private nonisolated static func parseEndpoint(_ value: String) -> (host: String, port: Int) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return ("", 0) }
+        if trimmed.hasPrefix("["),
+           let closing = trimmed.firstIndex(of: "]") {
+            let host = String(trimmed[trimmed.index(after: trimmed.startIndex)..<closing])
+            let remainder = String(trimmed[trimmed.index(after: closing)...])
+            guard remainder.hasPrefix(":") else { return ("", 0) }
+            return (host, Int(remainder.dropFirst()) ?? 0)
+        }
+        guard let separator = trimmed.lastIndex(of: ":") else {
+            return ("", Int(trimmed) ?? 0)
+        }
+        let host = String(trimmed[..<separator])
+        let port = String(trimmed[trimmed.index(after: separator)...])
+        return (host, Int(port) ?? 0)
     }
 }
 

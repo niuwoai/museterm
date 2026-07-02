@@ -876,6 +876,7 @@ private struct SSHProfileEditorSheet: View {
             labeledEditor("ssh.jumps", help: "ssh.jumps.help", text: $jumpText, height: 86)
             routeSummaryView
             labeledEditor("ssh.port_forwards", help: "ssh.port_forwards.help", text: $portForwardText, height: 86)
+            portForwardPreviewView
             preflightIssuesView
             labeledEditor("ssh.options", help: "ssh.options.help", text: $optionText, height: 62)
             securityWarningsView
@@ -1144,6 +1145,75 @@ private struct SSHProfileEditorSheet: View {
         }
     }
 
+    @ViewBuilder
+    private var portForwardPreviewView: some View {
+        let forwards = profile.usablePortForwards
+        let hasInput = !portForwardText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if !forwards.isEmpty {
+            VStack(alignment: .leading, spacing: 7) {
+                Label(L10n.format("ssh.port_forward.preview.title", forwards.count), systemImage: "tablecells")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 5) {
+                    GridRow {
+                        previewHeader("ssh.port_forward.preview.kind")
+                        previewHeader("ssh.port_forward.preview.listen")
+                        previewHeader("ssh.port_forward.preview.target")
+                        previewHeader("ssh.port_forward.preview.access")
+                    }
+                    ForEach(forwards) { forward in
+                        let clean = forward.normalized
+                        GridRow {
+                            Text(clean.kind.displayName)
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(portForwardColor(for: clean.kind))
+                            Text(clean.listenEndpoint)
+                                .font(.caption2.monospaced())
+                                .lineLimit(1)
+                            Text(clean.previewTargetText)
+                                .font(.caption2.monospaced())
+                                .lineLimit(1)
+                            Text(clean.previewAccessText)
+                                .font(.caption2.monospaced())
+                                .foregroundStyle(clean.localAccessURLString == nil ? .secondary : .primary)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+            .background(Color.teal.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        } else if hasInput {
+            Label(L10n.string("ssh.port_forward.preview.empty"), systemImage: "exclamationmark.circle")
+                .font(.caption2)
+                .foregroundStyle(Color.orange)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 7)
+                .background(Color.orange.opacity(0.10))
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        }
+    }
+
+    private func previewHeader(_ key: String) -> some View {
+        Text(L10n.string(key))
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(.secondary)
+    }
+
+    private func portForwardColor(for kind: SSHPortForwardKind) -> Color {
+        switch kind {
+        case .local:
+            return .teal
+        case .remote:
+            return .purple
+        case .dynamic:
+            return .blue
+        }
+    }
+
     private func textRow(_ key: String, text: Binding<String>) -> some View {
         GridRow {
             Text(L10n.string(key))
@@ -1183,18 +1253,7 @@ private struct SSHProfileEditorSheet: View {
     }
 
     private static func portForwardText(from forwards: [SSHPortForward]) -> String {
-        forwards.map { forward in
-            let clean = forward.normalized
-            let listen = clean.bindHost.isEmpty ? "\(clean.bindPort)" : "\(clean.bindHost):\(clean.bindPort)"
-            switch clean.kind {
-            case .local:
-                return "local|\(listen)|\(clean.destinationHost):\(clean.destinationPort)"
-            case .remote:
-                return "remote|\(listen)|\(clean.destinationHost):\(clean.destinationPort)"
-            case .dynamic:
-                return "dynamic|\(listen)"
-            }
-        }
+        forwards.map(\.editorLineText)
         .joined(separator: "\n")
     }
 
@@ -1226,52 +1285,12 @@ private struct SSHProfileEditorSheet: View {
     }
 
     private static func parsePortForwards(_ text: String) -> [SSHPortForward] {
-        text.lines.compactMap { line in
-            let parts = line.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
-            guard let rawKind = parts.first?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
-                  let kind = SSHPortForwardKind(rawValue: rawKind),
-                  parts.count >= 2 else {
-                return nil
-            }
-
-            let listen = parseListen(parts[1])
-            guard listen.port > 0 else { return nil }
-            if kind == .dynamic {
-                return SSHPortForward(kind: kind, bindHost: listen.host, bindPort: listen.port)
-            }
-
-            guard parts.count >= 3 else { return nil }
-            let destination = parseDestination(parts[2])
-            guard !destination.host.isEmpty, destination.port > 0 else { return nil }
-            return SSHPortForward(
-                kind: kind,
-                bindHost: listen.host,
-                bindPort: listen.port,
-                destinationHost: destination.host,
-                destinationPort: destination.port
-            )
-        }
+        text.lines.compactMap(SSHPortForward.parseEditorLine)
     }
 
     private static func parseTags(_ text: String) -> [String] {
         text.components(separatedBy: CharacterSet(charactersIn: ",， \n\t"))
             .cleanedTagList()
-    }
-
-    private static func parseListen(_ value: String) -> (host: String, port: Int) {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        let parts = trimmed.split(separator: ":", maxSplits: 1).map(String.init)
-        if parts.count == 2 {
-            return (parts[0], Int(parts[1]) ?? 0)
-        }
-        return ("", Int(trimmed) ?? 0)
-    }
-
-    private static func parseDestination(_ value: String) -> (host: String, port: Int) {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        let parts = trimmed.split(separator: ":", maxSplits: 1).map(String.init)
-        guard parts.count == 2 else { return ("", 0) }
-        return (parts[0], Int(parts[1]) ?? 0)
     }
 
     private static func parseTarget(_ value: String) -> (user: String, host: String, port: Int) {

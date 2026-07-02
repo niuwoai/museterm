@@ -227,6 +227,14 @@
 "ssh.port_forward.access" = "本地入口：";
 "ssh.port_forward.access.local" = "打开 %@";
 "ssh.port_forward.access.dynamic" = "SOCKS 代理 %@";
+"ssh.port_forward.preview.title" = "已解析 %d 条转发";
+"ssh.port_forward.preview.kind" = "类型";
+"ssh.port_forward.preview.listen" = "监听";
+"ssh.port_forward.preview.target" = "目标";
+"ssh.port_forward.preview.access" = "本地入口";
+"ssh.port_forward.preview.socks" = "SOCKS 代理";
+"ssh.port_forward.preview.no_local_entry" = "仅远端";
+"ssh.port_forward.preview.empty" = "还没有解析出有效的端口转发行。";
 "ssh.options" = "SSH 选项";
 "ssh.options.help" = "每行一个 OpenSSH config 选项，例如 ServerAliveInterval 30。";
 "ssh.startup" = "启动命令";

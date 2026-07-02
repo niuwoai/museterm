@@ -227,6 +227,14 @@
 "ssh.port_forward.access" = "Local entry points:";
 "ssh.port_forward.access.local" = "Open %@";
 "ssh.port_forward.access.dynamic" = "SOCKS proxy %@";
+"ssh.port_forward.preview.title" = "%d parsed forward(s)";
+"ssh.port_forward.preview.kind" = "Type";
+"ssh.port_forward.preview.listen" = "Listen";
+"ssh.port_forward.preview.target" = "Target";
+"ssh.port_forward.preview.access" = "Local entry";
+"ssh.port_forward.preview.socks" = "SOCKS proxy";
+"ssh.port_forward.preview.no_local_entry" = "Remote only";
+"ssh.port_forward.preview.empty" = "No valid port forward lines could be parsed yet.";
 "ssh.options" = "SSH options";
 "ssh.options.help" = "One OpenSSH config option per line, for example ServerAliveInterval 30.";
 "ssh.startup" = "Startup commands";
