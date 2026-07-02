@@ -29,6 +29,75 @@ final class TerminalSafetyInputAnalyzerTests: XCTestCase {
         XCTAssertNil(SafetyInputAnalyzer.dangerousRule(for: "deploy staging", customRulesText: customRules))
     }
 
+    func testPendingCommandCandidateWaitsForNewline() {
+        XCTAssertNil(
+            SafetyInputAnalyzer.pendingCommandCandidate(
+                existingBytes: Array("sudo ".utf8),
+                appending: Array("rm -rf /tmp/build".utf8)
+            )
+        )
+    }
+
+    func testPendingCommandCandidateCombinesExistingInputUntilNewline() {
+        let command = SafetyInputAnalyzer.pendingCommandCandidate(
+            existingBytes: Array("sudo rm -".utf8),
+            appending: Array("rf /tmp/build\rignored".utf8)
+        )
+
+        XCTAssertEqual(command, "sudo rm -rf /tmp/build")
+    }
+
+    func testUpdatedPendingInputBytesHandlesBackspace() {
+        let bytes = SafetyInputAnalyzer.updatedPendingInputBytes(
+            existingBytes: Array("git statuz".utf8),
+            appending: [0x7F] + Array("s".utf8),
+            echoEnabled: true,
+            maxBytes: 256
+        )
+
+        XCTAssertEqual(String(bytes: bytes, encoding: .utf8), "git status")
+    }
+
+    func testUpdatedPendingInputBytesClearsOnControlCAndNewline() {
+        let interrupted = SafetyInputAnalyzer.updatedPendingInputBytes(
+            existingBytes: Array("rm -rf /tmp".utf8),
+            appending: [0x03],
+            echoEnabled: true,
+            maxBytes: 256
+        )
+        let submitted = SafetyInputAnalyzer.updatedPendingInputBytes(
+            existingBytes: Array("git status".utf8),
+            appending: [0x0D],
+            echoEnabled: true,
+            maxBytes: 256
+        )
+
+        XCTAssertTrue(interrupted.isEmpty)
+        XCTAssertTrue(submitted.isEmpty)
+    }
+
+    func testUpdatedPendingInputBytesClearsWhenEchoIsDisabled() {
+        let bytes = SafetyInputAnalyzer.updatedPendingInputBytes(
+            existingBytes: Array("secret".utf8),
+            appending: Array("more".utf8),
+            echoEnabled: false,
+            maxBytes: 256
+        )
+
+        XCTAssertTrue(bytes.isEmpty)
+    }
+
+    func testUpdatedPendingInputBytesKeepsMostRecentBytesWithinLimit() {
+        let bytes = SafetyInputAnalyzer.updatedPendingInputBytes(
+            existingBytes: Array("abcdef".utf8),
+            appending: Array("ghi".utf8),
+            echoEnabled: true,
+            maxBytes: 5
+        )
+
+        XCTAssertEqual(String(bytes: bytes, encoding: .utf8), "efghi")
+    }
+
     func testPreviewTruncatesLongText() {
         let text = String(repeating: "x", count: 4_010)
         let preview = SafetyInputAnalyzer.preview(text)

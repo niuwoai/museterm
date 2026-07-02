@@ -612,41 +612,19 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     private func pendingCommandCandidate(afterAppending data: [UInt8]) -> String? {
-        guard data.contains(where: { $0 == 0x0D || $0 == 0x0A }) else { return nil }
-        var bytes = pendingSafetyInputBytes
-        for byte in data {
-            if byte == 0x0D || byte == 0x0A {
-                break
-            }
-            bytes.append(byte)
-        }
-        return String(bytes: bytes, encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        SafetyInputAnalyzer.pendingCommandCandidate(
+            existingBytes: pendingSafetyInputBytes,
+            appending: data
+        )
     }
 
     private func updatePendingSafetyInput(data: [UInt8], echoEnabled: Bool) {
-        guard echoEnabled else {
-            pendingSafetyInputBytes.removeAll(keepingCapacity: true)
-            return
-        }
-
-        for byte in data {
-            switch byte {
-            case 0x0D, 0x0A, 0x03:
-                pendingSafetyInputBytes.removeAll(keepingCapacity: true)
-            case 0x7F, 0x08:
-                if !pendingSafetyInputBytes.isEmpty {
-                    pendingSafetyInputBytes.removeLast()
-                }
-            default:
-                if byte == 0x09 || byte >= 0x20 {
-                    pendingSafetyInputBytes.append(byte)
-                    if pendingSafetyInputBytes.count > maxPendingSafetyInputBytes {
-                        pendingSafetyInputBytes.removeFirst(pendingSafetyInputBytes.count - maxPendingSafetyInputBytes)
-                    }
-                }
-            }
-        }
+        pendingSafetyInputBytes = SafetyInputAnalyzer.updatedPendingInputBytes(
+            existingBytes: pendingSafetyInputBytes,
+            appending: data,
+            echoEnabled: echoEnabled,
+            maxBytes: maxPendingSafetyInputBytes
+        )
     }
 
     private func confirmMultilinePaste(_ text: String) -> Bool {

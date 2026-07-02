@@ -83,6 +83,49 @@ enum SafetyInputAnalyzer {
             ?? customDangerousRules(from: customRulesText).first { $0.matches(command) }
     }
 
+    static func pendingCommandCandidate(existingBytes: [UInt8], appending data: [UInt8]) -> String? {
+        guard data.contains(where: { $0 == 0x0D || $0 == 0x0A }) else { return nil }
+        var bytes = existingBytes
+        for byte in data {
+            if byte == 0x0D || byte == 0x0A {
+                break
+            }
+            bytes.append(byte)
+        }
+        return String(bytes: bytes, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    static func updatedPendingInputBytes(
+        existingBytes: [UInt8],
+        appending data: [UInt8],
+        echoEnabled: Bool,
+        maxBytes: Int
+    ) -> [UInt8] {
+        guard echoEnabled, maxBytes > 0 else { return [] }
+        var bytes = existingBytes
+
+        for byte in data {
+            switch byte {
+            case 0x0D, 0x0A, 0x03:
+                bytes.removeAll(keepingCapacity: true)
+            case 0x7F, 0x08:
+                if !bytes.isEmpty {
+                    bytes.removeLast()
+                }
+            default:
+                if byte == 0x09 || byte >= 0x20 {
+                    bytes.append(byte)
+                    if bytes.count > maxBytes {
+                        bytes.removeFirst(bytes.count - maxBytes)
+                    }
+                }
+            }
+        }
+
+        return bytes
+    }
+
     static func preview(_ text: String) -> String {
         let limit = 4_000
         guard text.count > limit else { return text }
