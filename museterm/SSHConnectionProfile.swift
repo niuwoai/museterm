@@ -1328,13 +1328,13 @@ struct SSHPortForward: Codable, Equatable, Identifiable {
     var listenEndpoint: String {
         let clean = normalized
         let host = clean.bindHost.isEmpty ? L10n.string("ssh.port_forward.localhost") : clean.bindHost
-        return "\(host):\(clean.bindPort)"
+        return Self.displayEndpoint(host: host, port: clean.bindPort)
     }
 
     var destinationEndpoint: String? {
         let clean = normalized
         guard clean.kind != .dynamic else { return nil }
-        return "\(clean.destinationHost):\(clean.destinationPort)"
+        return Self.displayEndpoint(host: clean.destinationHost, port: clean.destinationPort)
     }
 
     var localAccessURLString: String? {
@@ -1396,6 +1396,16 @@ struct SSHPortForward: Codable, Equatable, Identifiable {
             return "[\(cleanHost)]"
         }
         return cleanHost
+    }
+
+    private static func displayEndpoint(host: String, port: Int) -> String {
+        let cleanHost = host.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanHost.contains(":")
+            && !cleanHost.hasPrefix("[")
+            && !cleanHost.hasSuffix("]") {
+            return "[\(cleanHost)]:\(port)"
+        }
+        return "\(cleanHost):\(port)"
     }
 }
 

@@ -226,12 +226,34 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertTrue(profile.portForwardSummaryText.contains("localhost:8080"))
         XCTAssertTrue(profile.portForwardSummaryText.contains("0.0.0.0:9000"))
         XCTAssertTrue(profile.portForwardSummaryText.contains("127.0.0.1:1080"))
+        XCTAssertTrue(profile.portForwardSummaryText.contains("[::]:1081"))
+        XCTAssertTrue(profile.portForwardSummaryText.contains("[2001:db8::1]:1082"))
         XCTAssertTrue(profile.portForwardAccessText.contains("http://localhost:8080"))
         XCTAssertTrue(profile.portForwardAccessText.contains("socks5://127.0.0.1:1080"))
         XCTAssertTrue(profile.portForwardAccessText.contains("socks5://localhost:1081"))
         XCTAssertTrue(profile.portForwardAccessText.contains("socks5://[2001:db8::1]:1082"))
         XCTAssertFalse(profile.portForwardAccessText.contains("0.0.0.0:9000"))
         XCTAssertTrue(profile.portForwardClipboardText.contains(L10n.string("ssh.port_forward.access")))
+    }
+
+    func testSSHProfileFormatsIPv6PortForwardSummaryEndpoints() {
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            user: "deploy",
+            portForwards: [
+                SSHPortForward(
+                    kind: .local,
+                    bindHost: "::1",
+                    bindPort: 8443,
+                    destinationHost: "2001:db8::20",
+                    destinationPort: 443
+                )
+            ]
+        )
+
+        XCTAssertTrue(profile.portForwardSummaryText.contains("[::1]:8443"))
+        XCTAssertTrue(profile.portForwardSummaryText.contains("[2001:db8::20]:443"))
+        XCTAssertTrue(profile.portForwardAccessText.contains("https://[::1]:8443"))
     }
 
     func testSSHProfileDeduplicatesRepeatedPortForwardAccessEntries() {
@@ -262,7 +284,7 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertEqual(profile.portForwardSummaryText.occurrences(of: "localhost:8080"), 1)
         XCTAssertEqual(profile.portForwardSummaryText.occurrences(of: "0.0.0.0:8080"), 1)
         XCTAssertEqual(profile.portForwardSummaryText.occurrences(of: "*:1080"), 1)
-        XCTAssertEqual(profile.portForwardSummaryText.occurrences(of: ":::1080"), 1)
+        XCTAssertEqual(profile.portForwardSummaryText.occurrences(of: "[::]:1080"), 1)
         XCTAssertEqual(profile.portForwardAccessText.occurrences(of: "http://localhost:8080"), 1)
         XCTAssertEqual(profile.portForwardAccessText.occurrences(of: "socks5://localhost:1080"), 1)
     }
