@@ -239,6 +239,72 @@ final class SSHConnectionProfileTests: XCTestCase {
     }
 
     @MainActor
+    func testSSHDisconnectReasonClassifierDistinguishesRemoteCloseAndNetworkInterruption() {
+        XCTAssertEqual(
+            SSHDisconnectReasonClassifier.classify(
+                issue: nil,
+                exitCode: 255,
+                diagnosticText: "Connection to prod.internal closed by remote host."
+            ),
+            .remoteClosedConnection
+        )
+        XCTAssertEqual(
+            SSHDisconnectReasonClassifier.classify(
+                issue: nil,
+                exitCode: 255,
+                diagnosticText: "client_loop: send disconnect: Broken pipe"
+            ),
+            .networkInterrupted
+        )
+        XCTAssertEqual(
+            SSHDisconnectReasonClassifier.classify(
+                issue: .permissionDenied,
+                exitCode: 255,
+                diagnosticText: "Permission denied (publickey)."
+            ),
+            .authenticationOrSecurityStopped
+        )
+        XCTAssertEqual(
+            SSHDisconnectReasonClassifier.classify(
+                issue: nil,
+                exitCode: 0,
+                diagnosticText: "logout"
+            ),
+            .cleanExit
+        )
+    }
+
+    @MainActor
+    func testSSHReconnectPolicySuppressesRemoteClosedConnectionButRetriesNetworkInterruption() {
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            automaticReconnectAttempts: 3,
+            automaticReconnectDelaySeconds: 4
+        )
+
+        XCTAssertEqual(
+            SSHReconnectPolicy.decision(
+                profile: profile,
+                issue: nil,
+                exitCode: 255,
+                completedAttempts: 0,
+                disconnectReason: .remoteClosedConnection
+            ),
+            .suppress
+        )
+        XCTAssertEqual(
+            SSHReconnectPolicy.decision(
+                profile: profile,
+                issue: nil,
+                exitCode: 255,
+                completedAttempts: 0,
+                disconnectReason: .networkInterrupted
+            ),
+            .reconnect(delaySeconds: 4)
+        )
+    }
+
+    @MainActor
     func testSSHReconnectPolicySuppressesCleanAndSecuritySensitiveExits() {
         let profile = SSHConnectionProfile(host: "example.com")
 
@@ -404,15 +470,24 @@ final class SSHConnectionProfileTests: XCTestCase {
             ]
         )
 
-        let guide = try XCTUnwrap(SSHRouteProbeGuideBuilder.guide(for: profile, issue: .connectionTimedOut))
+        let plan = try XCTUnwrap(SSHRouteProbeGuideBuilder.plan(for: profile, issue: .connectionTimedOut))
+        let guide = plan.failureGuide
         let message = guide.message
 
-        XCTAssertEqual(guide.commands.count, 3)
+        XCTAssertEqual(plan.routeSummary, profile.routeSummary)
+        XCTAssertEqual(plan.steps.map(\.kind), [.dnsLookup, .tcpPort, .generatedConfig, .verboseRoute, .verboseRoute])
+        XCTAssertEqual(plan.steps[0].routeStepKind, .jump(index: 1))
+        XCTAssertEqual(plan.steps[0].host, "jump1.example.com")
+        XCTAssertEqual(plan.steps[1].port, 2222)
+        XCTAssertEqual(plan.steps[3].alias, "museterm-11111111-1111-1111-1111-111111111111-jump-1")
+        XCTAssertEqual(plan.steps[4].routeStepKind, .target)
+        XCTAssertEqual(guide.commands.count, 5)
+        XCTAssertTrue(message.contains("dscacheutil -q host -a name 'jump1.example.com'"))
         XCTAssertTrue(message.contains("nc -vz -w 5 'jump1.example.com' 2222"))
         XCTAssertTrue(message.contains("ssh -G -F "))
         XCTAssertTrue(message.contains("11111111-1111-1111-1111-111111111111.conf"))
         XCTAssertTrue(message.contains("'museterm-11111111-1111-1111-1111-111111111111-target'"))
-        XCTAssertTrue(message.contains("ssh -vvv -F "))
+        XCTAssertTrue(message.contains("'museterm-11111111-1111-1111-1111-111111111111-jump-1'"))
         XCTAssertTrue(message.contains(" true"))
     }
 
@@ -423,8 +498,12 @@ final class SSHConnectionProfileTests: XCTestCase {
             port: 2200
         )
 
-        let guide = try XCTUnwrap(SSHRouteProbeGuideBuilder.guide(for: profile, issue: .connectionRefused))
+        let plan = try XCTUnwrap(SSHRouteProbeGuideBuilder.plan(for: profile, issue: .connectionRefused))
+        let guide = plan.failureGuide
 
+        XCTAssertEqual(plan.steps.map(\.kind), [.dnsLookup, .tcpPort, .generatedConfig, .verboseRoute])
+        XCTAssertEqual(plan.steps[0].routeStepKind, .target)
+        XCTAssertTrue(guide.message.contains("dscacheutil -q host -a name 'direct.example.com'"))
         XCTAssertTrue(guide.message.contains("nc -vz -w 5 'direct.example.com' 2200"))
         XCTAssertTrue(guide.message.contains("'museterm-22222222-2222-2222-2222-222222222222-target'"))
     }
@@ -436,9 +515,11 @@ final class SSHConnectionProfileTests: XCTestCase {
             user: "deploy"
         )
 
-        let guide = try XCTUnwrap(SSHRouteProbeGuideBuilder.guide(for: profile, issue: .hostKeyVerificationFailed))
+        let plan = try XCTUnwrap(SSHRouteProbeGuideBuilder.plan(for: profile, issue: .hostKeyVerificationFailed))
+        let guide = plan.failureGuide
 
-        XCTAssertEqual(guide.commands.count, 2)
+        XCTAssertEqual(plan.steps.map(\.kind), [.dnsLookup, .tcpPort, .generatedConfig])
+        XCTAssertEqual(guide.commands.count, 3)
         XCTAssertTrue(guide.message.contains("ssh -G -F "))
         XCTAssertFalse(guide.message.contains("ssh -vvv -F "))
     }

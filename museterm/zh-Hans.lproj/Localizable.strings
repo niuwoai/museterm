@@ -206,9 +206,12 @@
 "ssh.route_diagnostic.evidence" = "证据：%@";
 "ssh.route_probe.title" = "可以粘贴执行的建议检查：";
 "ssh.route_probe.command" = "%d. %@\n%@";
-"ssh.route_probe.first_hop" = "从本机检查第一段可达 SSH 端口";
+"ssh.route_probe.dns" = "从本机解析 %@";
+"ssh.route_probe.port" = "从本机检查 TCP %@:%d";
 "ssh.route_probe.config" = "查看 MuseTerm 生成的 OpenSSH 配置";
 "ssh.route_probe.verbose" = "用生成配置运行详细链路检查";
+"ssh.route_probe.verbose_jump" = "通过 OpenSSH 检查第 %d 跳 %@";
+"ssh.route_probe.verbose_target" = "通过 OpenSSH 检查目标 %@";
 "ssh.error.launch_failed" = "SSH 启动失败：%@";
 "ssh.reconnect.scheduled" = "SSH 已断开。MuseTerm 将自动重连：第 %d/%d 次，%d 秒后开始。";
 "ssh.reconnect.attempting" = "正在重连 SSH 会话（第 %d 次）...";

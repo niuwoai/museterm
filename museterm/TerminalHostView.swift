@@ -831,7 +831,12 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             profile: profile,
             issue: latestSSHConnectionIssueKind,
             exitCode: exitCode,
-            completedAttempts: sshReconnectAttemptCount
+            completedAttempts: sshReconnectAttemptCount,
+            disconnectReason: SSHDisconnectReasonClassifier.classify(
+                issue: latestSSHConnectionIssueKind,
+                exitCode: exitCode,
+                diagnosticText: sshDiagnosticBuffer
+            )
         ) {
         case .suppress:
             return false

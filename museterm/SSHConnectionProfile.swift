@@ -165,39 +165,140 @@ struct SSHRouteProbeGuide: Equatable {
     }
 }
 
+enum SSHRouteDiagnosticProbeKind: String, Equatable {
+    case dnsLookup
+    case tcpPort
+    case generatedConfig
+    case verboseRoute
+}
+
+struct SSHRouteDiagnosticPlanStep: Equatable {
+    let kind: SSHRouteDiagnosticProbeKind
+    let title: String
+    let command: String
+    let routeStepKind: SSHRouteDiagnosticStepKind?
+    let host: String?
+    let port: Int?
+    let alias: String?
+    let includeInFailureGuide: Bool
+}
+
+struct SSHRouteDiagnosticPlan: Equatable {
+    let routeSummary: String
+    let steps: [SSHRouteDiagnosticPlanStep]
+
+    var failureGuide: SSHRouteProbeGuide {
+        SSHRouteProbeGuide(
+            commands: steps
+                .filter(\.includeInFailureGuide)
+                .map { SSHRouteProbeCommand(title: $0.title, command: $0.command) }
+        )
+    }
+}
+
 enum SSHRouteProbeGuideBuilder {
+    private struct RouteStep {
+        let kind: SSHRouteDiagnosticStepKind
+        let displayName: String
+        let host: String
+        let port: Int
+        let alias: String
+    }
+
     static func guide(
         for profile: SSHConnectionProfile,
         issue: SSHConnectionIssueKind
     ) -> SSHRouteProbeGuide? {
-        let clean = profile.normalized
-        guard !clean.host.isEmpty else { return nil }
-
-        var commands: [SSHRouteProbeCommand] = [
-            SSHRouteProbeCommand(
-                title: L10n.string("ssh.route_probe.first_hop"),
-                command: localPortProbeCommand(for: clean)
-            ),
-            SSHRouteProbeCommand(
-                title: L10n.string("ssh.route_probe.config"),
-                command: generatedConfigCommand(for: clean)
-            )
-        ]
-        if issue != .hostKeyVerificationFailed {
-            commands.append(
-                SSHRouteProbeCommand(
-                    title: L10n.string("ssh.route_probe.verbose"),
-                    command: verboseRouteCommand(for: clean)
-                )
-            )
-        }
-
-        return SSHRouteProbeGuide(commands: commands)
+        plan(for: profile, issue: issue)?.failureGuide
     }
 
-    private static func localPortProbeCommand(for profile: SSHConnectionProfile) -> String {
-        let step = profile.jumpHosts.first.map { ($0.host, $0.port) } ?? (profile.host, profile.port)
-        return "nc -vz -w 5 \(shellArgument(step.0)) \(step.1)"
+    static func plan(
+        for profile: SSHConnectionProfile,
+        issue: SSHConnectionIssueKind
+    ) -> SSHRouteDiagnosticPlan? {
+        let clean = profile.normalized
+        guard !clean.host.isEmpty else { return nil }
+        let routeSteps = routeSteps(for: clean)
+        guard let firstStep = routeSteps.first else { return nil }
+
+        var steps: [SSHRouteDiagnosticPlanStep] = [
+            SSHRouteDiagnosticPlanStep(
+                kind: .dnsLookup,
+                title: L10n.format("ssh.route_probe.dns", firstStep.host),
+                command: dnsLookupCommand(host: firstStep.host),
+                routeStepKind: firstStep.kind,
+                host: firstStep.host,
+                port: nil,
+                alias: firstStep.alias,
+                includeInFailureGuide: true
+            ),
+            SSHRouteDiagnosticPlanStep(
+                kind: .tcpPort,
+                title: L10n.format("ssh.route_probe.port", firstStep.host, firstStep.port),
+                command: localPortProbeCommand(host: firstStep.host, port: firstStep.port),
+                routeStepKind: firstStep.kind,
+                host: firstStep.host,
+                port: firstStep.port,
+                alias: firstStep.alias,
+                includeInFailureGuide: true
+            ),
+            SSHRouteDiagnosticPlanStep(
+                kind: .generatedConfig,
+                title: L10n.string("ssh.route_probe.config"),
+                command: generatedConfigCommand(for: clean),
+                routeStepKind: .target,
+                host: clean.host,
+                port: clean.port,
+                alias: SSHConfigMaterializer.targetAlias(for: clean),
+                includeInFailureGuide: true
+            )
+        ]
+
+        if issue != .hostKeyVerificationFailed {
+            steps.append(contentsOf: routeSteps.map { step in
+                SSHRouteDiagnosticPlanStep(
+                    kind: .verboseRoute,
+                    title: verboseTitle(for: step),
+                    command: verboseRouteCommand(for: clean, alias: step.alias),
+                    routeStepKind: step.kind,
+                    host: step.host,
+                    port: step.port,
+                    alias: step.alias,
+                    includeInFailureGuide: true
+                )
+            })
+        }
+
+        return SSHRouteDiagnosticPlan(routeSummary: clean.routeSummary, steps: steps)
+    }
+
+    private static func routeSteps(for profile: SSHConnectionProfile) -> [RouteStep] {
+        let base = "museterm-\(profile.id.uuidString.lowercased())"
+        let jumps = profile.jumpHosts.enumerated().map { index, jump in
+            RouteStep(
+                kind: .jump(index: index + 1),
+                displayName: jump.displayName,
+                host: jump.host,
+                port: jump.port,
+                alias: "\(base)-jump-\(index + 1)"
+            )
+        }
+        let target = RouteStep(
+            kind: .target,
+            displayName: profile.displayName,
+            host: profile.host,
+            port: profile.port,
+            alias: "\(base)-target"
+        )
+        return jumps + [target]
+    }
+
+    private static func dnsLookupCommand(host: String) -> String {
+        "dscacheutil -q host -a name \(shellArgument(host)) || nslookup \(shellArgument(host))"
+    }
+
+    private static func localPortProbeCommand(host: String, port: Int) -> String {
+        "nc -vz -w 5 \(shellArgument(host)) \(port)"
     }
 
     private static func generatedConfigCommand(for profile: SSHConnectionProfile) -> String {
@@ -206,10 +307,20 @@ enum SSHRouteProbeGuideBuilder {
         return "ssh -G -F \(shellArgument(config)) \(shellArgument(alias))"
     }
 
-    private static func verboseRouteCommand(for profile: SSHConnectionProfile) -> String {
+    private static func verboseRouteCommand(for profile: SSHConnectionProfile, alias: String) -> String {
         let config = SSHConfigMaterializer.configFileURL(for: profile).path
-        let alias = SSHConfigMaterializer.targetAlias(for: profile)
         return "ssh -vvv -F \(shellArgument(config)) \(shellArgument(alias)) true"
+    }
+
+    private static func verboseTitle(for step: RouteStep) -> String {
+        switch step.kind {
+        case .jump(let index):
+            return L10n.format("ssh.route_probe.verbose_jump", index, step.displayName)
+        case .target:
+            return L10n.format("ssh.route_probe.verbose_target", step.displayName)
+        case .unknown:
+            return L10n.string("ssh.route_probe.verbose")
+        }
     }
 
     private static func shellArgument(_ value: String) -> String {
@@ -432,12 +543,77 @@ enum SSHAutomaticReconnectDecision: Equatable {
     case exhausted
 }
 
+enum SSHDisconnectReasonKind: String, Equatable {
+    case cleanExit
+    case authenticationOrSecurityStopped
+    case remoteClosedConnection
+    case networkInterrupted
+    case unknownFailure
+
+    var allowsAutomaticReconnect: Bool {
+        switch self {
+        case .networkInterrupted, .unknownFailure:
+            return true
+        case .cleanExit, .authenticationOrSecurityStopped, .remoteClosedConnection:
+            return false
+        }
+    }
+}
+
+enum SSHDisconnectReasonClassifier {
+    static func classify(
+        issue: SSHConnectionIssueKind?,
+        exitCode: Int32?,
+        diagnosticText: String
+    ) -> SSHDisconnectReasonKind {
+        if exitCode == 0 {
+            return .cleanExit
+        }
+        if issue?.allowsAutomaticReconnect == false {
+            return .authenticationOrSecurityStopped
+        }
+        let normalized = diagnosticText.lowercased()
+        if containsAny(
+            normalized,
+            [
+                "broken pipe",
+                "connection reset by peer",
+                "operation timed out",
+                "connection timed out",
+                "network is unreachable",
+                "no route to host",
+                "connection refused"
+            ]
+        ) || issue?.allowsAutomaticReconnect == true {
+            return .networkInterrupted
+        }
+        if containsAny(
+            normalized,
+            [
+                "connection closed by remote host",
+                "closed by remote host",
+                "kex_exchange_identification: connection closed",
+                "connection to ",
+                "received disconnect"
+            ]
+        ) {
+            return .remoteClosedConnection
+        }
+        return .unknownFailure
+    }
+
+    private static func containsAny(_ text: String, _ needles: [String]) -> Bool {
+        needles.contains { text.contains($0) }
+    }
+}
+
 enum SSHReconnectPolicy {
     static func decision(
         profile: SSHConnectionProfile,
         issue: SSHConnectionIssueKind?,
         exitCode: Int32?,
-        completedAttempts: Int
+        completedAttempts: Int,
+        disconnectReason: SSHDisconnectReasonKind? = nil
     ) -> SSHAutomaticReconnectDecision {
         let clean = profile.normalized
         guard clean.automaticReconnectEnabled,
@@ -448,6 +624,9 @@ enum SSHReconnectPolicy {
             return .suppress
         }
         if issue?.allowsAutomaticReconnect == false {
+            return .suppress
+        }
+        if let disconnectReason, !disconnectReason.allowsAutomaticReconnect {
             return .suppress
         }
         guard completedAttempts < clean.automaticReconnectAttempts else {

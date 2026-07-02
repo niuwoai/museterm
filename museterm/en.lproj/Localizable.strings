@@ -206,9 +206,12 @@
 "ssh.route_diagnostic.evidence" = "Evidence: %@";
 "ssh.route_probe.title" = "Suggested checks you can paste:";
 "ssh.route_probe.command" = "%d. %@\n%@";
-"ssh.route_probe.first_hop" = "Check the first reachable SSH port from this Mac";
+"ssh.route_probe.dns" = "Resolve %@ from this Mac";
+"ssh.route_probe.port" = "Check TCP %@:%d from this Mac";
 "ssh.route_probe.config" = "Inspect the generated OpenSSH config";
 "ssh.route_probe.verbose" = "Run a verbose route check with the generated config";
+"ssh.route_probe.verbose_jump" = "Check jump %d %@ through OpenSSH";
+"ssh.route_probe.verbose_target" = "Check target %@ through OpenSSH";
 "ssh.error.launch_failed" = "SSH launch failed: %@";
 "ssh.reconnect.scheduled" = "SSH disconnected. MuseTerm will reconnect: attempt %d/%d in %d seconds.";
 "ssh.reconnect.attempting" = "Reconnecting SSH session (%d)...";
