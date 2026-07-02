@@ -29,4 +29,4 @@ defaults delete im.some.museterm terminal.skipRunningTabCloseConfirmation
 
 ## 版本
 
-当前版本：`v1.203.0`
+当前版本：`v1.204.0`

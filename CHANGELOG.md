@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.204.0] - 2026-07-02
+
+### Added
+- SSH config 导入会把同一个 `Host prod prod-short` block 中的多个明确 alias 展开为多个 MuseTerm Profile，同时继续跳过通配符、否定 alias 并去重，避免导入后少掉用户常用短别名。
+- SSH Host Key 修复向导在 OpenSSH 输出包含具体 known_hosts 路径时，会生成带 `-f` 的 `ssh-keygen` 清理命令，并正确引用带空格的文件路径。
+
 ## [1.203.0] - 2026-07-02
 
 ### Added

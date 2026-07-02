@@ -1385,9 +1385,9 @@ final class SSHConnectionProfileTests: XCTestCase {
         )
 
         XCTAssertEqual(guide?.knownHostsTarget, "[example.com]:2222")
-        XCTAssertEqual(guide?.removalCommand, "ssh-keygen -R '[example.com]:2222'")
+        XCTAssertEqual(guide?.removalCommand, "ssh-keygen -f '/Users/rocky/.ssh/known_hosts' -R '[example.com]:2222'")
         XCTAssertEqual(guide?.offendingLocation, "/Users/rocky/.ssh/known_hosts:42")
-        XCTAssertTrue(guide?.message.contains("ssh-keygen -R '[example.com]:2222'") ?? false)
+        XCTAssertTrue(guide?.message.contains("ssh-keygen -f '/Users/rocky/.ssh/known_hosts' -R '[example.com]:2222'") ?? false)
     }
 
     @MainActor
@@ -1401,6 +1401,22 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertEqual(guide?.knownHostsTarget, "example.com")
         XCTAssertEqual(guide?.removalCommand, "ssh-keygen -R 'example.com'")
         XCTAssertNil(guide?.offendingLocation)
+    }
+
+    @MainActor
+    func testSSHHostKeyRepairGuideQuotesKnownHostsFilePath() {
+        let profile = SSHConnectionProfile(host: "example.com", port: 22)
+        let guide = SSHConnectionIssueRepairGuide.hostKeyGuide(
+            for: profile,
+            diagnosticText: "Offending ED25519 key in /Users/rocky/Library/Application Support/ssh/known hosts:7"
+        )
+
+        XCTAssertEqual(guide?.knownHostsTarget, "example.com")
+        XCTAssertEqual(
+            guide?.removalCommand,
+            "ssh-keygen -f '/Users/rocky/Library/Application Support/ssh/known hosts' -R 'example.com'"
+        )
+        XCTAssertEqual(guide?.offendingLocation, "/Users/rocky/Library/Application Support/ssh/known hosts:7")
     }
 
     @MainActor

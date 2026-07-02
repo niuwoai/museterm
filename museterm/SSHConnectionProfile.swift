@@ -327,7 +327,7 @@ enum SSHRouteProbeGuideBuilder {
         }
     }
 
-    private static func shellArgument(_ value: String) -> String {
+    private nonisolated static func shellArgument(_ value: String) -> String {
         "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 }
@@ -511,11 +511,22 @@ enum SSHConnectionIssueRepairGuide {
         let clean = profile.normalized
         guard !clean.host.isEmpty else { return nil }
         let target = knownHostsTarget(host: clean.host, port: clean.port)
+        let offendingLocation = offendingKnownHostsLocation(in: diagnosticText)
         return SSHConnectionHostKeyRepairGuide(
             knownHostsTarget: target,
-            removalCommand: "ssh-keygen -R \(shellArgument(target))",
-            offendingLocation: offendingKnownHostsLocation(in: diagnosticText)
+            removalCommand: hostKeyRemovalCommand(
+                target: target,
+                knownHostsFile: offendingLocation.flatMap(knownHostsFilePath)
+            ),
+            offendingLocation: offendingLocation
         )
+    }
+
+    private nonisolated static func hostKeyRemovalCommand(target: String, knownHostsFile: String?) -> String {
+        if let knownHostsFile, !knownHostsFile.isEmpty {
+            return "ssh-keygen -f \(shellArgument(knownHostsFile)) -R \(shellArgument(target))"
+        }
+        return "ssh-keygen -R \(shellArgument(target))"
     }
 
     private static func knownHostsTarget(host: String, port: Int) -> String {
@@ -532,7 +543,7 @@ enum SSHConnectionIssueRepairGuide {
         return trimmed
     }
 
-    private static func shellArgument(_ value: String) -> String {
+    private nonisolated static func shellArgument(_ value: String) -> String {
         "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
@@ -548,6 +559,17 @@ enum SSHConnectionIssueRepairGuide {
             }
         }
         return nil
+    }
+
+    private nonisolated static func knownHostsFilePath(from offendingLocation: String) -> String? {
+        let trimmed = offendingLocation.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        guard let lineSeparator = trimmed.lastIndex(of: ":"),
+              trimmed[trimmed.index(after: lineSeparator)...].allSatisfy(\.isNumber) else {
+            return trimmed
+        }
+        let path = String(trimmed[..<lineSeparator]).trimmingCharacters(in: .whitespacesAndNewlines)
+        return path.isEmpty ? nil : path
     }
 }
 
@@ -937,13 +959,11 @@ enum OpenSSHConfigImporter {
     }
 
     static func profiles(from text: String) -> [SSHConnectionProfile] {
-        var profiles: [SSHConnectionProfile] = []
+        var importedProfiles: [SSHConnectionProfile] = []
         for block in hostBlocks(from: text) {
-            if let profile = profile(from: block) {
-                profiles.append(profile)
-            }
+            importedProfiles.append(contentsOf: profiles(from: block))
         }
-        return profiles
+        return importedProfiles
     }
 
     private static func hostBlocks(from text: String) -> [HostBlock] {
@@ -983,13 +1003,13 @@ enum OpenSSHConfigImporter {
         return blocks
     }
 
-    private static func profile(from block: HostBlock) -> SSHConnectionProfile? {
-        var alias = ""
-        for candidate in block.aliases where isImportableHostAlias(candidate) {
-            alias = candidate
-            break
-        }
-        guard !alias.isEmpty else { return nil }
+    private static func profiles(from block: HostBlock) -> [SSHConnectionProfile] {
+        let aliases = uniqueImportableAliases(in: block.aliases)
+        return aliases.compactMap { profile(from: block, alias: $0) }
+    }
+
+    private static func profile(from block: HostBlock, alias: String) -> SSHConnectionProfile? {
+        guard isImportableHostAlias(alias) else { return nil }
 
         var host = ""
         var user = ""
@@ -1071,6 +1091,17 @@ enum OpenSSHConfigImporter {
             connectionReuseEnabled: connectionReuseEnabled,
             connectionReusePersistMinutes: connectionReusePersistMinutes
         ).normalized
+    }
+
+    private static func uniqueImportableAliases(in aliases: [String]) -> [String] {
+        var seen: Set<String> = []
+        var result: [String] = []
+        for alias in aliases {
+            let trimmed = alias.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard isImportableHostAlias(trimmed), seen.insert(trimmed).inserted else { continue }
+            result.append(trimmed)
+        }
+        return result
     }
 
     private static func parseLine(_ rawLine: String) -> ParsedLine? {
@@ -2364,7 +2395,7 @@ enum SSHConfigMaterializer {
         "\"\(value.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))\""
     }
 
-    private static func shellArgument(_ value: String) -> String {
+    private nonisolated static func shellArgument(_ value: String) -> String {
         "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 }

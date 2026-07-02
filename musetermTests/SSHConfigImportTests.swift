@@ -134,6 +134,40 @@ final class SSHConfigImportTests: XCTestCase {
         XCTAssertEqual(profile.jumpHosts[0].port, 22)
     }
 
+    func testOpenSSHConfigImporterExpandsMultipleExplicitAliasesInHostBlock() throws {
+        let config = """
+        Host prod prod-short
+          HostName prod.example.com
+          User deploy
+          Port 2222
+          IdentityFile ~/.ssh/prod
+        """
+
+        let profiles = OpenSSHConfigImporter.profiles(from: config)
+
+        XCTAssertEqual(profiles.map(\.name), ["prod", "prod-short"])
+        XCTAssertEqual(profiles.map(\.host), ["prod.example.com", "prod.example.com"])
+        XCTAssertEqual(profiles.map(\.user), ["deploy", "deploy"])
+        XCTAssertEqual(profiles.map(\.port), [2222, 2222])
+        XCTAssertEqual(profiles.map(\.identityFiles), [["~/.ssh/prod"], ["~/.ssh/prod"]])
+    }
+
+    func testOpenSSHConfigImporterDeduplicatesAliasesAndSkipsPatterns() throws {
+        let config = """
+        Host dev dev *.internal !blocked dev
+          User deploy
+
+        Host raw raw-alt
+          User ops
+        """
+
+        let profiles = OpenSSHConfigImporter.profiles(from: config)
+
+        XCTAssertEqual(profiles.map(\.name), ["dev", "raw", "raw-alt"])
+        XCTAssertEqual(profiles.map(\.host), ["dev", "raw", "raw-alt"])
+        XCTAssertEqual(profiles.map(\.user), ["deploy", "ops", "ops"])
+    }
+
     func testOpenSSHConfigImporterSkipsMalformedBracketedProxyJumpHost() throws {
         let config = """
         Host ipv6-bad

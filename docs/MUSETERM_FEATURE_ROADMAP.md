@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-02
-> 当前版本基线：v1.203.0
+> 当前版本基线：v1.204.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -29,6 +29,11 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 | P3 | 成就、统计与轻娱乐系统 | v4 | 高 | 增加记忆点，但不能干扰主流程 |
 
 ## 当前落地状态
+
+v1.204.0 已完成二百零八条纵向切片：
+
+- SSH config 多 alias 导入：导入 `Host prod prod-short` 这类 OpenSSH 配置块时，会为每个明确 alias 生成一个 MuseTerm Profile，并继续跳过通配符、否定 alias 与重复 alias，让用户常用短别名不会在导入后消失。
+- SSH Host Key 指定文件修复命令：当 OpenSSH 输出里包含具体 known_hosts 位置时，修复向导会生成 `ssh-keygen -f 文件 -R 目标`，并对带空格路径做 shell 引用，减少用户手动改命令的机会。
 
 v1.203.0 已完成二百零六条纵向切片：
 
