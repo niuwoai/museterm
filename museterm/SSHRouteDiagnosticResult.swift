@@ -270,13 +270,22 @@ struct SSHRouteDiagnosticReport: Equatable {
             "- **\(L10n.string("ssh.diagnostic_report.recommendation.status")):** \(recommendation.status.title)"
         ]
         if let relatedStepIndex = recommendation.relatedStepIndex {
-            lines.append("- **\(L10n.string("ssh.diagnostic_report.recommendation.step")):** \(relatedStepIndex)")
+            lines.append(
+                "- **\(L10n.string("ssh.diagnostic_report.recommendation.step")):** \(recommendationStepText(for: relatedStepIndex))"
+            )
         }
         lines.append(contentsOf: [
             "- **\(L10n.string("ssh.diagnostic_report.recommendation.summary")):** \(reportText(recommendation.summary))",
             "- **\(L10n.string("ssh.diagnostic_report.recommendation.action")):** \(reportText(recommendation.action))"
         ])
         return lines
+    }
+
+    private func recommendationStepText(for oneBasedIndex: Int) -> String {
+        let title = planSteps.indices.contains(oneBasedIndex - 1)
+            ? planSteps[oneBasedIndex - 1].title
+            : L10n.string("ssh.diagnostic_recommendation.step.none")
+        return reportText(L10n.format("ssh.diagnostic_report.recommendation.step_value", oneBasedIndex, title))
     }
 
     private var sensitiveContentText: String {

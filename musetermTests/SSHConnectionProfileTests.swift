@@ -804,7 +804,7 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertTrue(markdown.contains("Connection refused"))
         XCTAssertTrue(markdown.contains("## \(L10n.string("ssh.diagnostic_report.recommendation"))"))
         XCTAssertTrue(markdown.contains(L10n.string("ssh.diagnostic_recommendation.tcpFailure.title")))
-        XCTAssertTrue(markdown.contains("- **\(L10n.string("ssh.diagnostic_report.recommendation.step")):** 2"))
+        XCTAssertTrue(markdown.contains("- **\(L10n.string("ssh.diagnostic_report.recommendation.step")):** 2. Check TCP"))
         XCTAssertTrue(markdown.contains(L10n.string("ssh.diagnostic_recommendation.tcpFailure.action")))
         XCTAssertTrue(markdown.contains("```shell\nnc -vz -w 5 example.com 22\n```"))
         XCTAssertTrue(markdown.contains(L10n.string("ssh.diagnostic_report.sensitive_content_not_detected")))
@@ -848,7 +848,7 @@ final class SSHConnectionProfileTests: XCTestCase {
 
         XCTAssertFalse(markdown.contains("### 1. Resolve target"))
         XCTAssertTrue(markdown.contains("### 2. Check TCP"))
-        XCTAssertTrue(markdown.contains("- **\(L10n.string("ssh.diagnostic_report.recommendation.step")):** 2"))
+        XCTAssertTrue(markdown.contains("- **\(L10n.string("ssh.diagnostic_report.recommendation.step")):** 2. Check TCP"))
     }
 
     func testSSHRouteDiagnosticReportRedactsSensitiveEvidenceAndCommandsByDefault() {
