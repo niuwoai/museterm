@@ -1221,12 +1221,37 @@ enum OpenSSHConfigImporter {
 
         var host = hostAndPort
         var port = 22
-        if let separator = hostAndPort.lastIndex(of: ":"),
-           let parsedPort = Int(hostAndPort[hostAndPort.index(after: separator)...]) {
+        if hostAndPort.hasPrefix("[") {
+            guard let bracketed = parseBracketedHostPort(hostAndPort) else {
+                return (user, "", port)
+            }
+            host = bracketed.host
+            port = bracketed.port
+        } else if hostAndPort.filter({ $0 == ":" }).count == 1,
+                  let separator = hostAndPort.lastIndex(of: ":"),
+                  let parsedPort = Int(hostAndPort[hostAndPort.index(after: separator)...]) {
             host = String(hostAndPort[..<separator])
             port = parsedPort
         }
         return (user, host, port)
+    }
+
+    private static func parseBracketedHostPort(_ rawValue: String) -> (host: String, port: Int)? {
+        guard rawValue.hasPrefix("["),
+              let closingBracket = rawValue.firstIndex(of: "]") else {
+            return nil
+        }
+        let host = String(rawValue[rawValue.index(after: rawValue.startIndex)..<closingBracket])
+        guard !host.isEmpty else { return nil }
+        let remainder = String(rawValue[rawValue.index(after: closingBracket)...])
+        if remainder.isEmpty {
+            return (host, 22)
+        }
+        guard remainder.hasPrefix(":"),
+              let port = Int(remainder.dropFirst()) else {
+            return nil
+        }
+        return (host, port)
     }
 
     private static func parseDurationMinutes(_ rawValue: String) -> Int? {

@@ -97,6 +97,55 @@ final class SSHConfigImportTests: XCTestCase {
         )
     }
 
+    func testOpenSSHConfigImporterNormalizesBracketedIPv6ProxyJumpHosts() throws {
+        let config = """
+        Host ipv6-prod
+          HostName prod.example.com
+          ProxyJump ops@[2001:db8::10]:2200,[2001:db8::11]
+        """
+
+        let profile = try XCTUnwrap(OpenSSHConfigImporter.profiles(from: config).first)
+
+        XCTAssertEqual(profile.jumpHosts.count, 2)
+        XCTAssertEqual(profile.jumpHosts[0].user, "ops")
+        XCTAssertEqual(profile.jumpHosts[0].host, "2001:db8::10")
+        XCTAssertEqual(profile.jumpHosts[0].port, 2200)
+        XCTAssertEqual(profile.jumpHosts[1].user, "")
+        XCTAssertEqual(profile.jumpHosts[1].host, "2001:db8::11")
+        XCTAssertEqual(profile.jumpHosts[1].port, 22)
+        XCTAssertFalse(profile.routeSummary.contains("[2001:db8::10]"))
+        XCTAssertEqual(profile.jumpHosts.map(\.displayName), ["ops@2001:db8::10", "2001:db8::11"])
+        let preview = SSHConfigMaterializer.preview(for: profile)
+        XCTAssertTrue(preview.config.contains("HostName 2001:db8::10"))
+        XCTAssertTrue(preview.config.contains("ProxyJump museterm-"))
+    }
+
+    func testOpenSSHConfigImporterKeepsBareIPv6ProxyJumpHostIntact() throws {
+        let config = """
+        Host ipv6-dev
+          HostName dev.example.com
+          ProxyJump 2001:db8::11
+        """
+
+        let profile = try XCTUnwrap(OpenSSHConfigImporter.profiles(from: config).first)
+
+        XCTAssertEqual(profile.jumpHosts.count, 1)
+        XCTAssertEqual(profile.jumpHosts[0].host, "2001:db8::11")
+        XCTAssertEqual(profile.jumpHosts[0].port, 22)
+    }
+
+    func testOpenSSHConfigImporterSkipsMalformedBracketedProxyJumpHost() throws {
+        let config = """
+        Host ipv6-bad
+          HostName bad.example.com
+          ProxyJump [2001:db8::11
+        """
+
+        let profile = try XCTUnwrap(OpenSSHConfigImporter.profiles(from: config).first)
+
+        XCTAssertTrue(profile.jumpHosts.isEmpty)
+    }
+
     @MainActor
     func testSSHConnectionStoreImportsExplicitHostsAndReplacesByName() throws {
         let suiteName = "museterm.tests.\(UUID().uuidString)"
