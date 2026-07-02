@@ -958,14 +958,59 @@ enum OpenSSHConfigImporter {
         var options: [ParsedLine]
     }
 
+    static func profiles(fromFileAt url: URL, fileManager: FileManager = .default) throws -> [SSHConnectionProfile] {
+        let text = try expandedConfigText(from: url, fileManager: fileManager)
+        return profiles(from: text)
+    }
+
     static func profiles(from text: String) -> [SSHConnectionProfile] {
         var importedProfiles: [SSHConnectionProfile] = []
         let blocks = hostBlocks(from: text)
-        let defaultOptions = wildcardDefaultOptions(in: blocks)
         for block in blocks {
-            importedProfiles.append(contentsOf: profiles(from: block, defaultOptions: defaultOptions))
+            importedProfiles.append(contentsOf: profiles(from: block, allBlocks: blocks))
         }
         return importedProfiles
+    }
+
+    private static func expandedConfigText(
+        from url: URL,
+        fileManager: FileManager,
+        visitedPaths: Set<String> = []
+    ) throws -> String {
+        let standardizedPath = (url.path as NSString).standardizingPath
+        guard !visitedPaths.contains(standardizedPath) else { return "" }
+        let nextVisited = visitedPaths.union([standardizedPath])
+        let text = try String(contentsOfFile: standardizedPath, encoding: .utf8)
+        let baseURL = URL(fileURLWithPath: standardizedPath).deletingLastPathComponent()
+        var lines: [String] = []
+
+        for rawLine in text.components(separatedBy: .newlines) {
+            guard let parsed = parseLine(rawLine),
+                  parsed.key.caseInsensitiveCompare("include") == .orderedSame else {
+                lines.append(rawLine)
+                continue
+            }
+
+            for pattern in parsed.args {
+                let matches = includeURLs(
+                    matching: pattern,
+                    relativeTo: baseURL,
+                    fileManager: fileManager
+                )
+                for includeURL in matches {
+                    let includedText = try expandedConfigText(
+                        from: includeURL,
+                        fileManager: fileManager,
+                        visitedPaths: nextVisited
+                    )
+                    if !includedText.isEmpty {
+                        lines.append(includedText)
+                    }
+                }
+            }
+        }
+
+        return lines.joined(separator: "\n")
     }
 
     private static func hostBlocks(from text: String) -> [HostBlock] {
@@ -1005,9 +1050,15 @@ enum OpenSSHConfigImporter {
         return blocks
     }
 
-    private static func profiles(from block: HostBlock, defaultOptions: [ParsedLine]) -> [SSHConnectionProfile] {
+    private static func profiles(from block: HostBlock, allBlocks: [HostBlock]) -> [SSHConnectionProfile] {
         let aliases = uniqueImportableAliases(in: block.aliases)
-        return aliases.compactMap { profile(from: block, alias: $0, defaultOptions: defaultOptions) }
+        return aliases.compactMap { alias in
+            profile(
+                from: block,
+                alias: alias,
+                defaultOptions: defaultOptions(for: alias, in: allBlocks)
+            )
+        }
     }
 
     private static func profile(
@@ -1099,15 +1150,40 @@ enum OpenSSHConfigImporter {
         ).normalized
     }
 
-    private nonisolated static func wildcardDefaultOptions(in blocks: [HostBlock]) -> [ParsedLine] {
+    private static func defaultOptions(for alias: String, in blocks: [HostBlock]) -> [ParsedLine] {
         blocks
-            .filter(isGlobalWildcardBlock)
+            .filter { isPatternDefaultBlock($0, matching: alias) }
             .flatMap(\.options)
     }
 
-    private nonisolated static func isGlobalWildcardBlock(_ block: HostBlock) -> Bool {
+    private static func isPatternDefaultBlock(_ block: HostBlock, matching alias: String) -> Bool {
         let aliases = block.aliases.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-        return aliases == ["*"]
+        guard !aliases.isEmpty, uniqueImportableAliases(in: aliases).isEmpty else { return false }
+        var hasPositiveMatch = false
+        for pattern in aliases {
+            if pattern.hasPrefix("!") {
+                let negated = String(pattern.dropFirst())
+                if hostPatternMatches(negated, alias) {
+                    return false
+                }
+                continue
+            }
+            if hostPatternMatches(pattern, alias) {
+                hasPositiveMatch = true
+            }
+        }
+        return hasPositiveMatch
+    }
+
+    private nonisolated static func hostPatternMatches(_ pattern: String, _ host: String) -> Bool {
+        let cleanPattern = pattern.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanHost = host.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !cleanPattern.isEmpty, !cleanHost.isEmpty else { return false }
+        let escaped = NSRegularExpression.escapedPattern(for: cleanPattern)
+        let regexPattern = "^" + escaped
+            .replacingOccurrences(of: "\\*", with: ".*")
+            .replacingOccurrences(of: "\\?", with: ".") + "$"
+        return cleanHost.range(of: regexPattern, options: .regularExpression) != nil
     }
 
     private nonisolated static func mergedOptions(defaultOptions: [ParsedLine], blockOptions: [ParsedLine]) -> [ParsedLine] {
@@ -1228,6 +1304,92 @@ enum OpenSSHConfigImporter {
             tokens.append(current)
         }
         return tokens
+    }
+
+    private static func includeURLs(
+        matching pattern: String,
+        relativeTo baseURL: URL,
+        fileManager: FileManager
+    ) -> [URL] {
+        let expanded = pattern.expandingTildePath()
+        let absolutePath: String
+        if expanded.hasPrefix("/") {
+            absolutePath = expanded
+        } else {
+            absolutePath = baseURL.appendingPathComponent(expanded).path
+        }
+        let standardizedPath = (absolutePath as NSString).standardizingPath
+        let matches = wildcardPaths(matching: standardizedPath, fileManager: fileManager)
+        return matches
+            .filter { path in
+                var isDirectory: ObjCBool = false
+                return fileManager.fileExists(atPath: path, isDirectory: &isDirectory)
+                    && !isDirectory.boolValue
+            }
+            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+            .map { URL(fileURLWithPath: $0) }
+    }
+
+    private static func wildcardPaths(matching pattern: String, fileManager: FileManager) -> [String] {
+        guard pattern.contains("*") || pattern.contains("?") else { return [pattern] }
+        let components = (pattern as NSString).pathComponents
+        guard let first = components.first else { return [] }
+        let initialURL = URL(fileURLWithPath: first)
+        let remainingComponents = Array(components.dropFirst())
+        return wildcardPaths(
+            baseURLs: [initialURL],
+            remainingComponents: remainingComponents,
+            fileManager: fileManager
+        )
+    }
+
+    private static func wildcardPaths(
+        baseURLs: [URL],
+        remainingComponents: [String],
+        fileManager: FileManager
+    ) -> [String] {
+        guard let component = remainingComponents.first else {
+            return baseURLs.map(\.path)
+        }
+
+        let nextComponents = Array(remainingComponents.dropFirst())
+        let nextBaseURLs: [URL]
+        if component.contains("*") || component.contains("?") {
+            nextBaseURLs = baseURLs.flatMap { baseURL in
+                guard let contents = try? fileManager.contentsOfDirectory(
+                    at: baseURL,
+                    includingPropertiesForKeys: [.isDirectoryKey],
+                    options: [.skipsPackageDescendants]
+                ) else {
+                    return [URL]()
+                }
+                return contents.filter { wildcard(component, matches: $0.lastPathComponent) }
+            }
+        } else {
+            nextBaseURLs = baseURLs.map { $0.appendingPathComponent(component) }
+        }
+
+        return wildcardPaths(
+            baseURLs: nextBaseURLs,
+            remainingComponents: nextComponents,
+            fileManager: fileManager
+        )
+    }
+
+    private static func wildcard(_ pattern: String, matches value: String) -> Bool {
+        var regex = "^"
+        for character in pattern {
+            switch character {
+            case "*":
+                regex += ".*"
+            case "?":
+                regex += "."
+            default:
+                regex += NSRegularExpression.escapedPattern(for: String(character))
+            }
+        }
+        regex += "$"
+        return value.range(of: regex, options: .regularExpression) != nil
     }
 
     private static func isImportableHostAlias(_ alias: String) -> Bool {
@@ -2048,8 +2210,7 @@ final class SSHConnectionStore: ObservableObject {
         guard FileManager.default.fileExists(atPath: configURL.path) else {
             throw SSHConfigImportError.missingDefaultConfig
         }
-        let configText = try String(contentsOf: configURL, encoding: .utf8)
-        return importProfiles(OpenSSHConfigImporter.profiles(from: configText))
+        return importProfiles(try OpenSSHConfigImporter.profiles(fromFileAt: configURL))
     }
 
     func delete(_ profile: SSHConnectionProfile) {
@@ -2436,6 +2597,14 @@ enum SSHConfigMaterializer {
 
     private nonisolated static func shellArgument(_ value: String) -> String {
         "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+}
+
+private extension String {
+    func expandingTildePath() -> String {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("~") else { return trimmed }
+        return (trimmed as NSString).expandingTildeInPath
     }
 }
 

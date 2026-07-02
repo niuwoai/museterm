@@ -59,6 +59,68 @@ final class SSHConfigImportTests: XCTestCase {
         XCTAssertEqual(profile.identityFiles, ["~/.ssh/prod key"])
     }
 
+    func testOpenSSHConfigImporterExpandsRelativeIncludeGlobFiles() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("museterm-ssh-include-\(UUID().uuidString)", isDirectory: true)
+        let includeDirectory = directory.appendingPathComponent("conf.d", isDirectory: true)
+        try FileManager.default.createDirectory(at: includeDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let configURL = directory.appendingPathComponent("config")
+        try """
+        Host *
+          User default-user
+
+        Include conf.d/*.conf
+
+        Host main
+          HostName main.example.com
+        """.write(to: configURL, atomically: true, encoding: .utf8)
+        try """
+        Host beta
+          HostName beta.example.com
+        """.write(to: includeDirectory.appendingPathComponent("20-beta.conf"), atomically: true, encoding: .utf8)
+        try """
+        Host alpha
+          HostName alpha.example.com
+          Port 2200
+        """.write(to: includeDirectory.appendingPathComponent("10-alpha.conf"), atomically: true, encoding: .utf8)
+
+        let profiles = try OpenSSHConfigImporter.profiles(fromFileAt: configURL)
+
+        XCTAssertEqual(profiles.map(\.name), ["alpha", "beta", "main"])
+        XCTAssertEqual(profiles.map(\.host), ["alpha.example.com", "beta.example.com", "main.example.com"])
+        XCTAssertEqual(profiles.map(\.user), ["default-user", "default-user", "default-user"])
+        XCTAssertEqual(profiles.first?.port, 2200)
+    }
+
+    func testOpenSSHConfigImporterIgnoresRecursiveIncludes() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("museterm-ssh-include-loop-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let configURL = directory.appendingPathComponent("config")
+        let loopURL = directory.appendingPathComponent("loop.conf")
+        try """
+        Include loop.conf
+
+        Host root
+          HostName root.example.com
+        """.write(to: configURL, atomically: true, encoding: .utf8)
+        try """
+        Host loop
+          HostName loop.example.com
+
+        Include config
+        """.write(to: loopURL, atomically: true, encoding: .utf8)
+
+        let profiles = try OpenSSHConfigImporter.profiles(fromFileAt: configURL)
+
+        XCTAssertEqual(profiles.map(\.name), ["loop", "root"])
+        XCTAssertEqual(profiles.map(\.host), ["loop.example.com", "root.example.com"])
+    }
+
     func testOpenSSHConfigImporterNormalizesBracketedIPv6PortForwards() throws {
         let config = """
         Host ipv6-tunnel
@@ -252,6 +314,59 @@ final class SSHConfigImportTests: XCTestCase {
         XCTAssertEqual(profile.name, "prod")
         XCTAssertEqual(profile.host, "prod.example.com")
         XCTAssertEqual(profile.user, "")
+    }
+
+    func testOpenSSHConfigImporterAppliesMatchingPatternDefaults() throws {
+        let config = """
+        Host *.internal
+          User deploy
+          IdentityFile ~/.ssh/internal
+          ServerAliveInterval 60
+
+        Host prod.internal
+          HostName 10.0.0.5
+        """
+
+        let profile = try XCTUnwrap(OpenSSHConfigImporter.profiles(from: config).first)
+
+        XCTAssertEqual(profile.name, "prod.internal")
+        XCTAssertEqual(profile.host, "10.0.0.5")
+        XCTAssertEqual(profile.user, "deploy")
+        XCTAssertEqual(profile.identityFiles, ["~/.ssh/internal"])
+        XCTAssertEqual(profile.keepAliveIntervalSeconds, 60)
+    }
+
+    func testOpenSSHConfigImporterHonorsNegatedPatternDefaults() throws {
+        let config = """
+        Host *.internal !banned.internal
+          User deploy
+
+        Host prod.internal
+          HostName 10.0.0.5
+
+        Host banned.internal
+          HostName 10.0.0.6
+        """
+
+        let profiles = OpenSSHConfigImporter.profiles(from: config)
+
+        XCTAssertEqual(profiles.map(\.name), ["prod.internal", "banned.internal"])
+        XCTAssertEqual(profiles.map(\.user), ["deploy", ""])
+    }
+
+    func testOpenSSHConfigImporterDoesNotUseMixedAliasPatternBlockAsDefaults() throws {
+        let config = """
+        Host prod *.internal
+          User mixed
+
+        Host prod.internal
+          HostName 10.0.0.5
+        """
+
+        let profiles = OpenSSHConfigImporter.profiles(from: config)
+
+        XCTAssertEqual(profiles.map(\.name), ["prod", "prod.internal"])
+        XCTAssertEqual(profiles.map(\.user), ["mixed", ""])
     }
 
     func testOpenSSHConfigImporterSkipsMalformedBracketedProxyJumpHost() throws {

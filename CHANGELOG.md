@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.206.0] - 2026-07-02
+
+### Added
+- SSH config 导入会把 `Host *.internal` 这类只包含模式的 Host block 作为匹配 alias 的默认配置，并支持 `!host` 否定模式；含明确 alias 的混合 block 仍只按明确 alias 导入，不会被误当默认配置。
+- SSH config 默认导入入口会展开 `Include` 指令，支持相对路径与 glob 文件匹配，并跳过递归 include，减少拆分配置文件时漏导 Profile 的情况。
+
 ## [1.205.0] - 2026-07-02
 
 ### Added

@@ -56,7 +56,7 @@ MuseTerm 的 SSH 管理不应只是替用户记住 `user@host -p 22`，而要把
 
 ## P2：配置导入与双向同步
 
-- 已落地：从 `~/.ssh/config` 导入明确 Host，保留原始别名、用户、端口、密钥、跳板、常见转发规则、保活和连接复用设置；`Host *` 里的默认用户、密钥、保活、连接复用和高级选项会应用到明确 Host Profile，具体 Host block 的同名标量配置会覆盖这些默认值，多值配置如 `IdentityFile` 会继续叠加；同一个 `Host` block 里的多个明确 alias 会展开成多个 Profile，并跳过通配符、否定 alias 和重复 alias。
+- 已落地：从 `~/.ssh/config` 导入明确 Host，保留原始别名、用户、端口、密钥、跳板、常见转发规则、保活和连接复用设置；默认导入入口会展开 `Include` 指令，支持相对路径与 glob 文件匹配，并跳过递归 include；`Host *` 与 `Host *.internal` 这类只包含模式的默认块会按 alias 匹配后应用到明确 Host Profile，并支持 `!host` 否定模式；具体 Host block 的同名标量配置会覆盖这些默认值，多值配置如 `IdentityFile` 会继续叠加；同一个 `Host` block 里的多个明确 alias 会展开成多个 Profile，并跳过通配符、否定 alias 和重复 alias。
 - 已落地：MuseTerm 编辑后的 Profile 可复制为 OpenSSH config 片段，默认只进入剪贴板，不覆盖用户原文件。
 - 已落地：Profile 编辑器可维护分组与标签，例如个人服务器、公司内网、云主机、临时机器；侧栏支持按名称、主机、用户、环境、分组、标签与跳转机信息搜索 Profile，并可按标签筛选、按分组展示。
 - 已落地：SSH 主机列表支持分组折叠，并提供展开全部与收起全部入口，减少大量 Profile 下的纵向滚动。
