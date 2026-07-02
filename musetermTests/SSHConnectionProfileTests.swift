@@ -234,6 +234,39 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertTrue(profile.portForwardClipboardText.contains(L10n.string("ssh.port_forward.access")))
     }
 
+    func testSSHProfileDeduplicatesRepeatedPortForwardAccessEntries() {
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            user: "deploy",
+            portForwards: [
+                SSHPortForward(
+                    kind: .local,
+                    bindHost: "",
+                    bindPort: 8080,
+                    destinationHost: "127.0.0.1",
+                    destinationPort: 80
+                ),
+                SSHPortForward(
+                    kind: .local,
+                    bindHost: "0.0.0.0",
+                    bindPort: 8080,
+                    destinationHost: "app.internal",
+                    destinationPort: 80
+                ),
+                SSHPortForward(kind: .dynamic, bindHost: "*", bindPort: 1080),
+                SSHPortForward(kind: .dynamic, bindHost: "::", bindPort: 1080)
+            ]
+        )
+
+        XCTAssertEqual(profile.usablePortForwards.count, 4)
+        XCTAssertEqual(profile.portForwardSummaryText.occurrences(of: "localhost:8080"), 1)
+        XCTAssertEqual(profile.portForwardSummaryText.occurrences(of: "0.0.0.0:8080"), 1)
+        XCTAssertEqual(profile.portForwardSummaryText.occurrences(of: "*:1080"), 1)
+        XCTAssertEqual(profile.portForwardSummaryText.occurrences(of: ":::1080"), 1)
+        XCTAssertEqual(profile.portForwardAccessText.occurrences(of: "http://localhost:8080"), 1)
+        XCTAssertEqual(profile.portForwardAccessText.occurrences(of: "socks5://localhost:1080"), 1)
+    }
+
     func testSSHProfileBuildsConnectionCapabilitySummary() {
         let profile = SSHConnectionProfile(
             host: "example.com",
@@ -1304,6 +1337,10 @@ final class SSHConnectionProfileTests: XCTestCase {
 }
 
 private extension String {
+    func occurrences(of needle: String) -> Int {
+        components(separatedBy: needle).count - 1
+    }
+
     func section(from startMarker: String, to endMarker: String) -> String {
         guard
             let start = range(of: startMarker),

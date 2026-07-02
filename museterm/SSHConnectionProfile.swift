@@ -1652,7 +1652,16 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
     }
 
     var portForwardAccessLines: [String] {
-        usablePortForwards.compactMap(\.accessLine)
+        var seenAccessURLs: Set<String> = []
+        return usablePortForwards.compactMap { forward in
+            guard
+                let localAccessURLString = forward.localAccessURLString,
+                seenAccessURLs.insert(localAccessURLString).inserted
+            else {
+                return nil
+            }
+            return forward.accessLine
+        }
     }
 
     var portForwardAccessText: String {
