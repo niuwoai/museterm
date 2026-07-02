@@ -294,6 +294,7 @@
 "ssh.diagnostic_report.recommendation.step" = "关联步骤";
 "ssh.diagnostic_report.recommendation.step_value" = "%d. %@";
 "ssh.diagnostic_report.recommendation.command" = "关联命令";
+"ssh.diagnostic_report.recommendation.evidence" = "关联证据";
 "ssh.diagnostic_report.recommendation.summary" = "原因";
 "ssh.diagnostic_report.recommendation.action" = "下一步";
 "ssh.diagnostic_recommendation.step.none" = "当前检查";

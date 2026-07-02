@@ -281,6 +281,9 @@ struct SSHRouteDiagnosticReport: Equatable {
                     commandFenceClose(for: command)
                 ])
             }
+            if let evidence = recommendationEvidenceText(for: relatedStepIndex), !evidence.isEmpty {
+                lines.append("- **\(L10n.string("ssh.diagnostic_report.recommendation.evidence")):** \(evidence)")
+            }
         }
         lines.append(contentsOf: [
             "- **\(L10n.string("ssh.diagnostic_report.recommendation.summary")):** \(reportText(recommendation.summary))",
@@ -299,6 +302,11 @@ struct SSHRouteDiagnosticReport: Equatable {
     private func recommendationCommandText(for oneBasedIndex: Int) -> String? {
         guard planSteps.indices.contains(oneBasedIndex - 1) else { return nil }
         return reportText(planSteps[oneBasedIndex - 1].command)
+    }
+
+    private func recommendationEvidenceText(for oneBasedIndex: Int) -> String? {
+        guard let evidence = results[oneBasedIndex - 1]?.evidence else { return nil }
+        return reportText(evidence)
     }
 
     private var sensitiveContentText: String {

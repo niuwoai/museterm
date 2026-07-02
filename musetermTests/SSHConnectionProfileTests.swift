@@ -811,6 +811,7 @@ final class SSHConnectionProfileTests: XCTestCase {
         )
         XCTAssertTrue(recommendationSection.contains("- **\(L10n.string("ssh.diagnostic_report.recommendation.command")):**"))
         XCTAssertTrue(recommendationSection.contains("```shell\nnc -vz -w 5 example.com 22\n```"))
+        XCTAssertTrue(recommendationSection.contains("- **\(L10n.string("ssh.diagnostic_report.recommendation.evidence")):** Connection refused"))
         XCTAssertTrue(markdown.contains(L10n.string("ssh.diagnostic_recommendation.tcpFailure.action")))
         XCTAssertTrue(markdown.contains("```shell\nnc -vz -w 5 example.com 22\n```"))
         XCTAssertTrue(markdown.contains(L10n.string("ssh.diagnostic_report.sensitive_content_not_detected")))

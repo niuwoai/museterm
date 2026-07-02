@@ -294,6 +294,7 @@
 "ssh.diagnostic_report.recommendation.step" = "Related step";
 "ssh.diagnostic_report.recommendation.step_value" = "%d. %@";
 "ssh.diagnostic_report.recommendation.command" = "Related command";
+"ssh.diagnostic_report.recommendation.evidence" = "Related evidence";
 "ssh.diagnostic_report.recommendation.summary" = "Why";
 "ssh.diagnostic_report.recommendation.action" = "Next action";
 "ssh.diagnostic_recommendation.step.none" = "Current checks";
