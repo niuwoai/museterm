@@ -95,6 +95,11 @@ private struct SidebarView: View {
     @ObservedObject var sshStore: SSHConnectionStore
     @ObservedObject var preferences: TerminalPreferences
 
+    private enum Layout {
+        static let expandedWidth: CGFloat = 220
+        static let collapsedWidth: CGFloat = 88
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -133,6 +138,27 @@ private struct SidebarView: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 8)
                 }
+            } else {
+                // 收起态保留一个窄版标签列表：只显示状态点 + 截断标题，
+                // 点击切换、右键关闭，悬停提示完整标题与 ⌘ 快捷键。
+                ScrollView {
+                    LazyVStack(spacing: 4) {
+                        ForEach(Array(workspace.tabs.enumerated()), id: \.element.id) { index, tab in
+                            CompactTabRowView(
+                                tab: tab,
+                                isSelected: workspace.selectedID == tab.id,
+                                shortcutNumber: index < 9 ? index + 1 : nil,
+                                skin: preferences.skin,
+                                closeAction: { workspace.close(tab) }
+                            )
+                            .onTapGesture {
+                                workspace.select(tab)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                }
             }
 
             Spacer(minLength: 8)
@@ -153,7 +179,7 @@ private struct SidebarView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
         }
-        .frame(width: preferences.showsTabList ? 220 : 56)
+        .frame(width: preferences.showsTabList ? Layout.expandedWidth : Layout.collapsedWidth)
         .background(preferences.skin.sidebarBackground)
     }
 
@@ -162,8 +188,6 @@ private struct SidebarView: View {
         if preferences.showsTabList {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
-                    Image(systemName: "terminal")
-                        .foregroundStyle(preferences.skin.accent)
                     Text(L10n.string("app.name"))
                         .font(.headline)
                         .lineLimit(1)
@@ -200,9 +224,6 @@ private struct SidebarView: View {
             }
         } else {
             VStack(spacing: 10) {
-                Image(systemName: "terminal")
-                    .foregroundStyle(preferences.skin.accent)
-                    .frame(width: 28, height: 28)
                 IconButton(systemName: "sidebar.right", title: L10n.string("action.show_tab_list")) {
                     preferences.showsTabList = true
                 }
@@ -300,6 +321,66 @@ private struct TabRowView: View {
         .onHover { hovering in
             isHovering = hovering
         }
+    }
+
+    private var statusColor: Color {
+        switch tab.state {
+        case .running: return skin.accent
+        case .exited: return .secondary.opacity(0.55)
+        }
+    }
+}
+
+private struct CompactTabRowView: View {
+    @ObservedObject var tab: TerminalSession
+    let isSelected: Bool
+    let shortcutNumber: Int?
+    let skin: TerminalVisualSkin
+    let closeAction: () -> Void
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(statusColor)
+                .frame(width: 6, height: 6)
+                .overlay(alignment: .topTrailing) {
+                    if tab.hasUnreadAttention && !isSelected {
+                        Circle()
+                            .fill(Color.red)
+                            .frame(width: 4, height: 4)
+                            .offset(x: 2, y: -2)
+                            .accessibilityLabel(L10n.string("tab.notification_unread"))
+                    }
+                }
+
+            Text(tab.tabTitle)
+                .font(.caption2.weight(.semibold))
+                .lineLimit(1)
+                .truncationMode(.tail)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 5)
+        .frame(maxWidth: .infinity)
+        .background(isSelected ? skin.selectionFill : Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .strokeBorder(isSelected ? skin.hairline : Color.clear, lineWidth: 1)
+        )
+        .contentShape(Rectangle())
+        .help(helpText)
+        .contextMenu {
+            Button(role: .destructive, action: closeAction) {
+                Label(L10n.string("action.close_tab"), systemImage: "xmark")
+            }
+        }
+    }
+
+    private var helpText: String {
+        guard let shortcutNumber else { return tab.tabTitle }
+        return "\(tab.tabTitle) ⌘\(shortcutNumber)"
     }
 
     private var statusColor: Color {
