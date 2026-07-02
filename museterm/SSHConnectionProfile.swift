@@ -1695,9 +1695,21 @@ struct SSHLaunchDescriptor {
 
 struct SSHConfigPreview: Equatable {
     let config: String
+    let configURL: URL
     let targetAlias: String
     let hostBlockCount: Int
     let lineCount: Int
+    let commands: [SSHConfigPreviewCommand]
+}
+
+struct SSHConfigPreviewCommand: Equatable, Identifiable {
+    let title: String
+    let command: String
+    let diagnosticStep: SSHRouteDiagnosticPlanStep
+
+    var id: String {
+        "\(title)-\(command)"
+    }
 }
 
 enum SSHConfigMaterializer {
@@ -1732,13 +1744,26 @@ enum SSHConfigMaterializer {
 
     static func preview(for profile: SSHConnectionProfile) -> SSHConfigPreview {
         let clean = profile.normalized
-        let config = renderConfig(profile: clean)
+        let aliases = aliases(for: clean)
+        let configURL = configFileURL(for: clean)
+        let controlPathTemplate = configDirectoryURL().appendingPathComponent("cm-%C").path
+        let config = renderConfig(profile: clean, aliases: aliases, controlPathTemplate: controlPathTemplate)
         return SSHConfigPreview(
             config: config,
-            targetAlias: targetAlias(for: clean),
+            configURL: configURL,
+            targetAlias: aliases.target,
             hostBlockCount: clean.jumpHosts.count + 1,
-            lineCount: config.split(whereSeparator: \.isNewline).count
+            lineCount: config.split(whereSeparator: \.isNewline).count,
+            commands: previewCommands(for: clean, aliases: aliases, configURL: configURL)
         )
+    }
+
+    @discardableResult
+    static func writePreviewConfig(for profile: SSHConnectionProfile) throws -> SSHConfigPreview {
+        let preview = preview(for: profile)
+        _ = try ensureConfigDirectory()
+        try Data(preview.config.utf8).write(to: preview.configURL, options: .atomic)
+        return preview
     }
 
     static func configFileURL(for profile: SSHConnectionProfile) -> URL {
@@ -1759,6 +1784,96 @@ enum SSHConfigMaterializer {
         return HostAliases(
             target: "\(base)-target",
             jumps: profile.jumpHosts.indices.map { "\(base)-jump-\($0 + 1)" }
+        )
+    }
+
+    private struct PreviewRouteStep {
+        let kind: SSHRouteDiagnosticStepKind
+        let host: String
+        let port: Int
+        let alias: String
+    }
+
+    private static func previewCommands(
+        for profile: SSHConnectionProfile,
+        aliases: HostAliases,
+        configURL: URL
+    ) -> [SSHConfigPreviewCommand] {
+        guard let firstStep = firstPreviewRouteStep(for: profile) else { return [] }
+        let configPath = shellArgument(configURL.path)
+        let targetAlias = shellArgument(aliases.target)
+        return [
+            previewCommand(
+                kind: .dnsLookup,
+                title: L10n.format("ssh.route_probe.dns", firstStep.host),
+                command: "dscacheutil -q host -a name \(shellArgument(firstStep.host)) || nslookup \(shellArgument(firstStep.host))",
+                routeStepKind: firstStep.kind,
+                host: firstStep.host,
+                port: nil,
+                alias: firstStep.alias
+            ),
+            previewCommand(
+                kind: .tcpPort,
+                title: L10n.format("ssh.route_probe.port", firstStep.host, firstStep.port),
+                command: "nc -vz -w 5 \(shellArgument(firstStep.host)) \(firstStep.port)",
+                routeStepKind: firstStep.kind,
+                host: firstStep.host,
+                port: firstStep.port,
+                alias: firstStep.alias
+            ),
+            previewCommand(
+                kind: .generatedConfig,
+                title: L10n.string("ssh.route_probe.config"),
+                command: "ssh -G -F \(configPath) \(targetAlias)",
+                routeStepKind: .target,
+                host: profile.host,
+                port: profile.port,
+                alias: aliases.target
+            ),
+            previewCommand(
+                kind: .verboseRoute,
+                title: L10n.format("ssh.route_probe.verbose_target", profile.displayName),
+                command: "ssh -vvv -F \(configPath) \(targetAlias) true",
+                routeStepKind: .target,
+                host: profile.host,
+                port: profile.port,
+                alias: aliases.target
+            )
+        ]
+    }
+
+    private static func firstPreviewRouteStep(for profile: SSHConnectionProfile) -> PreviewRouteStep? {
+        let aliases = aliases(for: profile)
+        if let jump = profile.jumpHosts.first {
+            return PreviewRouteStep(kind: .jump(index: 1), host: jump.host, port: jump.port, alias: aliases.jumps[0])
+        }
+        guard !profile.host.isEmpty else { return nil }
+        return PreviewRouteStep(kind: .target, host: profile.host, port: profile.port, alias: aliases.target)
+    }
+
+    private static func previewCommand(
+        kind: SSHRouteDiagnosticProbeKind,
+        title: String,
+        command: String,
+        routeStepKind: SSHRouteDiagnosticStepKind?,
+        host: String?,
+        port: Int?,
+        alias: String?
+    ) -> SSHConfigPreviewCommand {
+        let diagnosticStep = SSHRouteDiagnosticPlanStep(
+            kind: kind,
+            title: title,
+            command: command,
+            routeStepKind: routeStepKind,
+            host: host,
+            port: port,
+            alias: alias,
+            includeInFailureGuide: true
+        )
+        return SSHConfigPreviewCommand(
+            title: title,
+            command: command,
+            diagnosticStep: diagnosticStep
         )
     }
 
@@ -1919,6 +2034,10 @@ enum SSHConfigMaterializer {
 
     private static func quote(_ value: String) -> String {
         "\"\(value.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))\""
+    }
+
+    private static func shellArgument(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 }
 

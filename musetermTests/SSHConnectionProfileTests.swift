@@ -108,9 +108,30 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertEqual(preview.targetAlias, "museterm-11111111-1111-1111-1111-111111111111-target")
         XCTAssertEqual(preview.hostBlockCount, 2)
         XCTAssertEqual(preview.lineCount, preview.config.split(whereSeparator: \.isNewline).count)
+        XCTAssertEqual(preview.commands.count, 4)
+        XCTAssertTrue(preview.configURL.path.hasSuffix("11111111-1111-1111-1111-111111111111.conf"))
         XCTAssertTrue(preview.config.contains("Host museterm-11111111-1111-1111-1111-111111111111-jump-1"))
         XCTAssertTrue(preview.config.contains("HostName prod.internal"))
         XCTAssertTrue(preview.config.contains("ProxyJump museterm-11111111-1111-1111-1111-111111111111-jump-1"))
+        XCTAssertTrue(preview.config.contains("ControlPath"))
+        XCTAssertTrue(preview.config.contains("MuseTerm/SSH/cm-%C"))
+        XCTAssertTrue(preview.commands.contains { $0.command.contains("dscacheutil -q host -a name 'bastion.internal'") })
+        XCTAssertTrue(preview.commands.contains { $0.command.contains("nc -vz -w 5 'bastion.internal' 2200") })
+        XCTAssertTrue(preview.commands.contains { $0.command.contains("ssh -G -F") && $0.command.contains(preview.targetAlias) })
+        XCTAssertTrue(preview.commands.contains { $0.command.contains("ssh -vvv -F") && $0.command.contains(preview.targetAlias) })
+
+        XCTAssertEqual(preview.commands[0].diagnosticStep.kind, .dnsLookup)
+        XCTAssertEqual(preview.commands[0].diagnosticStep.routeStepKind, .jump(index: 1))
+        XCTAssertEqual(preview.commands[0].diagnosticStep.host, "bastion.internal")
+        XCTAssertEqual(preview.commands[0].diagnosticStep.alias, "museterm-11111111-1111-1111-1111-111111111111-jump-1")
+        XCTAssertEqual(preview.commands[2].diagnosticStep.kind, .generatedConfig)
+        XCTAssertEqual(preview.commands[2].diagnosticStep.alias, preview.targetAlias)
+
+        let configResult = preview.commands[2].diagnosticStep.interpretResult(
+            exitCode: nil,
+            output: "hostname prod.internal\nuser deploy\nport 22\n"
+        )
+        XCTAssertEqual(configResult.status, .passed)
     }
 
     func testSSHProfileBuildsReadablePortForwardSummaries() {
@@ -722,7 +743,8 @@ final class SSHConnectionProfileTests: XCTestCase {
             routeSummary: "Mac -> example.com:22",
             planSteps: steps,
             results: results,
-            generatedAtText: "2026-07-02T09:00:00Z"
+            generatedAtText: "2026-07-02T09:00:00Z",
+            redactsSensitiveData: false
         )
         let markdown = report.markdown
 
@@ -738,6 +760,52 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertTrue(markdown.contains("Connection refused"))
         XCTAssertTrue(markdown.contains("```shell\nnc -vz -w 5 example.com 22\n```"))
         XCTAssertFalse(markdown.contains("stale"))
+    }
+
+    func testSSHRouteDiagnosticReportRedactsSensitiveEvidenceAndCommandsByDefault() {
+        let steps = [
+            SSHRouteDiagnosticPlanStep(
+                kind: .verboseRoute,
+                title: "Verbose SSH",
+                command: "ssh -vvv example.com --token ghp_abcdefghijklmnopqrstuvwxyz123456",
+                routeStepKind: .target,
+                host: "example.com",
+                port: 22,
+                alias: "example",
+                includeInFailureGuide: true
+            )
+        ]
+        let results: [Int: SSHRouteDiagnosticStepResult] = [
+            0: SSHRouteDiagnosticStepResult(
+                status: .failed,
+                summary: "Authorization: Bearer sk-abcdefghijklmnopqrstuvwxyz123456",
+                evidence: "password=super-secret-value"
+            )
+        ]
+
+        let redacted = SSHRouteDiagnosticReport(
+            profileName: "Production API",
+            routeSummary: "Mac -> example.com:22",
+            planSteps: steps,
+            results: results,
+            generatedAtText: "2026-07-02T09:00:00Z"
+        ).markdown
+        let unredacted = SSHRouteDiagnosticReport(
+            profileName: "Production API",
+            routeSummary: "Mac -> example.com:22",
+            planSteps: steps,
+            results: results,
+            generatedAtText: "2026-07-02T09:00:00Z",
+            redactsSensitiveData: false
+        ).markdown
+
+        XCTAssertTrue(redacted.contains("[REDACTED]"))
+        XCTAssertFalse(redacted.contains("ghp_abcdefghijklmnopqrstuvwxyz123456"))
+        XCTAssertFalse(redacted.contains("sk-abcdefghijklmnopqrstuvwxyz123456"))
+        XCTAssertFalse(redacted.contains("super-secret-value"))
+        XCTAssertTrue(unredacted.contains("ghp_abcdefghijklmnopqrstuvwxyz123456"))
+        XCTAssertTrue(unredacted.contains("sk-abcdefghijklmnopqrstuvwxyz123456"))
+        XCTAssertTrue(unredacted.contains("super-secret-value"))
     }
 
     @MainActor

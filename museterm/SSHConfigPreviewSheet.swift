@@ -6,6 +6,7 @@ struct SSHConfigPreviewSheet: View {
     let skin: TerminalVisualSkin
     let onClose: () -> Void
     @State private var message = ""
+    @State private var parsedResults: [Int: SSHRouteDiagnosticStepResult] = [:]
 
     private var preview: SSHConfigPreview {
         SSHConfigMaterializer.preview(for: profile)
@@ -15,11 +16,12 @@ struct SSHConfigPreviewSheet: View {
         VStack(alignment: .leading, spacing: 14) {
             header
             summary
+            commandSection
             configBody
             footer
         }
         .padding(18)
-        .frame(width: 720, height: 560)
+        .frame(width: 760, height: 640)
     }
 
     private var header: some View {
@@ -104,6 +106,162 @@ struct SSHConfigPreviewSheet: View {
         )
     }
 
+    private var commandSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.string("ssh.config_preview.commands"))
+                        .font(.subheadline.weight(.semibold))
+                    Text(L10n.string("ssh.config_preview.commands.help"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                HStack(spacing: 7) {
+                    Button {
+                        copyCommands(preview.commands)
+                    } label: {
+                        Label(L10n.string("ssh.config_preview.copy_commands"), systemImage: "terminal")
+                    }
+                    .disabled(preview.commands.isEmpty)
+
+                    Button {
+                        copyPreviewResultSummary()
+                    } label: {
+                        Label(L10n.string("ssh.config_preview.copy_results"), systemImage: "checklist.checked")
+                    }
+                    .disabled(parsedResults.isEmpty)
+
+                    Button {
+                        parsedResults.removeAll()
+                        message = L10n.string("ssh.config_preview.results_cleared")
+                    } label: {
+                        Image(systemName: "xmark.circle")
+                    }
+                    .disabled(parsedResults.isEmpty)
+                    .help(L10n.string("ssh.config_preview.clear_results"))
+                }
+                .buttonStyle(.bordered)
+            }
+
+            resultSummary
+
+            VStack(spacing: 6) {
+                ForEach(Array(preview.commands.enumerated()), id: \.offset) { index, command in
+                    commandRow(command, index: index, result: parsedResults[index])
+                }
+            }
+        }
+        .padding(10)
+        .background(skin.controlFill)
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var resultSummary: some View {
+        let summary = SSHRouteDiagnosticResultSummary(totalSteps: preview.commands.count, results: parsedResults)
+        if summary.hasResults {
+            Label {
+                Text(
+                    L10n.format(
+                        "ssh.diagnostic_plan.result_summary",
+                        summary.parsedSteps,
+                        summary.totalSteps,
+                        summary.passed,
+                        summary.failed,
+                        summary.needsAttention,
+                        summary.unknown
+                    )
+                )
+                .font(.caption)
+                .lineLimit(2)
+            } icon: {
+                Image(systemName: resultSummaryIcon(summary.leadingStatus))
+            }
+            .foregroundStyle(resultColor(summary.leadingStatus))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(resultColor(summary.leadingStatus).opacity(0.10))
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+    }
+
+    private func commandRow(
+        _ command: SSHConfigPreviewCommand,
+        index: Int,
+        result: SSHRouteDiagnosticStepResult?
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(command.title)
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                    Text(command.command)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .textSelection(.enabled)
+                }
+                Spacer(minLength: 8)
+                Button {
+                    copyCommands([command])
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                        .frame(width: 24, height: 22)
+                }
+                .buttonStyle(.plain)
+                .help(L10n.string("ssh.diagnostic_plan.copy_step"))
+
+                Button {
+                    parseClipboardResult(for: command, at: index)
+                } label: {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .frame(width: 24, height: 22)
+                }
+                .buttonStyle(.plain)
+                .help(L10n.string("ssh.config_preview.parse_clipboard"))
+            }
+
+            if let result {
+                resultView(result)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 7)
+        .background(Color.primary.opacity(0.04))
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+    }
+
+    private func resultView(_ result: SSHRouteDiagnosticStepResult) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(result.status.title)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(resultColor(result.status))
+                Text(result.summary)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let evidence = result.evidence, !evidence.isEmpty {
+                Text(evidence)
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+            }
+        }
+        .padding(7)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(resultColor(result.status).opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+    }
+
     private var footer: some View {
         HStack {
             if !message.isEmpty {
@@ -124,5 +282,76 @@ struct SSHConfigPreviewSheet: View {
                 .keyboardShortcut(.cancelAction)
         }
         .buttonStyle(.bordered)
+    }
+
+    private func copyCommands(_ commands: [SSHConfigPreviewCommand]) {
+        guard !commands.isEmpty else { return }
+        do {
+            let materializedPreview = try SSHConfigMaterializer.writePreviewConfig(for: profile)
+            let commandText = commands
+                .map(\.command)
+                .joined(separator: "\n")
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(commandText, forType: .string)
+            message = commands.count == materializedPreview.commands.count
+                ? L10n.string("ssh.config_preview.commands_copied")
+                : L10n.string("ssh.config_preview.command_copied")
+        } catch {
+            message = L10n.format("ssh.config_preview.write_failed", error.localizedDescription)
+        }
+    }
+
+    private func parseClipboardResult(for command: SSHConfigPreviewCommand, at index: Int) {
+        guard let output = NSPasteboard.general.string(forType: .string),
+              !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            message = L10n.string("ssh.config_preview.parse_clipboard.empty")
+            return
+        }
+        parsedResults[index] = command.diagnosticStep.interpretResult(exitCode: nil, output: output)
+        message = L10n.string("ssh.config_preview.parse_clipboard.parsed")
+    }
+
+    private func copyPreviewResultSummary() {
+        let report = SSHRouteDiagnosticReport(
+            profileName: profile.displayName,
+            routeSummary: profile.routeSummary,
+            planSteps: preview.commands.map(\.diagnosticStep),
+            results: parsedResults
+        )
+        guard report.hasResults else {
+            message = L10n.string("ssh.diagnostic_plan.no_results")
+            return
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(report.markdown, forType: .string)
+        message = L10n.string("ssh.config_preview.results_copied")
+    }
+
+    private func resultSummaryIcon(_ status: SSHRouteDiagnosticResultStatus?) -> String {
+        switch status {
+        case .passed:
+            return "checkmark.seal"
+        case .failed:
+            return "xmark.octagon"
+        case .needsAttention:
+            return "exclamationmark.triangle"
+        case .unknown:
+            return "questionmark.circle"
+        case nil:
+            return "checklist"
+        }
+    }
+
+    private func resultColor(_ status: SSHRouteDiagnosticResultStatus?) -> Color {
+        switch status {
+        case .passed:
+            return .green
+        case .failed:
+            return .red
+        case .needsAttention:
+            return .orange
+        case .unknown, nil:
+            return .secondary
+        }
     }
 }

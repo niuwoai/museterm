@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.186.0] - 2026-07-02
+
+### Added
+- SSH 生效配置预览窗口新增检查结果承接能力，可从剪贴板解析 DNS、TCP、`ssh -G` 和 `ssh -vvv` 输出，在命令行内展示通过、失败、需关注或未知状态、证据行与汇总，并可复制 Markdown 检查结果报告。
+
+## [1.185.0] - 2026-07-02
+
+### Added
+- SSH 生效配置预览窗口新增本机检查命令区，可一键写入当前生成配置并复制 DNS、TCP、`ssh -G` 和 `ssh -vvv` 检查命令，减少排查跳板链路时手动拼 `-F` 与 alias 的步骤。
+- SSH 诊断 Markdown 报告默认复用 Runbook 敏感信息脱敏规则，复制前会遮蔽常见 token、password、Authorization Bearer、私钥块和 URL 凭据，并在报告头部标明脱敏状态。
+
 ## [1.183.0] - 2026-07-02
 
 ### Added
