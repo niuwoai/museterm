@@ -287,6 +287,13 @@
 "ssh.diagnostic_report.sensitive_content_redacted" = "已检测并脱敏";
 "ssh.diagnostic_report.sensitive_content_detected_unredacted" = "已检测，脱敏未开启";
 "ssh.diagnostic_report.sensitive_content_not_detected" = "未检测到";
+"ssh.diagnostic_report.recommendation" = "下一步建议";
+"ssh.diagnostic_report.recommendation.none" = "还没有可用的已解析诊断结果。";
+"ssh.diagnostic_report.recommendation.title" = "标题";
+"ssh.diagnostic_report.recommendation.status" = "状态";
+"ssh.diagnostic_report.recommendation.step" = "关联步骤";
+"ssh.diagnostic_report.recommendation.summary" = "原因";
+"ssh.diagnostic_report.recommendation.action" = "下一步";
 "ssh.diagnostic_recommendation.step.none" = "当前检查";
 "ssh.diagnostic_recommendation.allPassed.title" = "检查结果看起来正常";
 "ssh.diagnostic_recommendation.allPassed.summary" = "%@ 已覆盖完毕，当前已解析的检查没有发现链路或配置异常。";

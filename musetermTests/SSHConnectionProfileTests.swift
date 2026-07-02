@@ -802,9 +802,53 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertTrue(markdown.contains("### 2. Check TCP"))
         XCTAssertTrue(markdown.contains("DNS resolved."))
         XCTAssertTrue(markdown.contains("Connection refused"))
+        XCTAssertTrue(markdown.contains("## \(L10n.string("ssh.diagnostic_report.recommendation"))"))
+        XCTAssertTrue(markdown.contains(L10n.string("ssh.diagnostic_recommendation.tcpFailure.title")))
+        XCTAssertTrue(markdown.contains("- **\(L10n.string("ssh.diagnostic_report.recommendation.step")):** 2"))
+        XCTAssertTrue(markdown.contains(L10n.string("ssh.diagnostic_recommendation.tcpFailure.action")))
         XCTAssertTrue(markdown.contains("```shell\nnc -vz -w 5 example.com 22\n```"))
         XCTAssertTrue(markdown.contains(L10n.string("ssh.diagnostic_report.sensitive_content_not_detected")))
         XCTAssertFalse(markdown.contains("stale"))
+    }
+
+    func testSSHRouteDiagnosticReportKeepsRecommendationStepIndexWhenEarlierResultsAreMissing() {
+        let steps = [
+            SSHRouteDiagnosticPlanStep(
+                kind: .dnsLookup,
+                title: "Resolve target",
+                command: "dscacheutil -q host -a name example.com",
+                routeStepKind: .target,
+                host: "example.com",
+                port: nil,
+                alias: nil,
+                includeInFailureGuide: true
+            ),
+            SSHRouteDiagnosticPlanStep(
+                kind: .tcpPort,
+                title: "Check TCP",
+                command: "nc -vz -w 5 example.com 22",
+                routeStepKind: .target,
+                host: "example.com",
+                port: 22,
+                alias: nil,
+                includeInFailureGuide: true
+            )
+        ]
+
+        let report = SSHRouteDiagnosticReport(
+            profileName: "Production API",
+            routeSummary: "Mac -> example.com:22",
+            planSteps: steps,
+            results: [
+                1: SSHRouteDiagnosticStepResult(status: .failed, summary: "TCP refused.", evidence: "Connection refused")
+            ],
+            generatedAtText: "2026-07-02T09:00:00Z"
+        )
+        let markdown = report.markdown
+
+        XCTAssertFalse(markdown.contains("### 1. Resolve target"))
+        XCTAssertTrue(markdown.contains("### 2. Check TCP"))
+        XCTAssertTrue(markdown.contains("- **\(L10n.string("ssh.diagnostic_report.recommendation.step")):** 2"))
     }
 
     func testSSHRouteDiagnosticReportRedactsSensitiveEvidenceAndCommandsByDefault() {

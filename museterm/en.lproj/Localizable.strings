@@ -287,6 +287,13 @@
 "ssh.diagnostic_report.sensitive_content_redacted" = "Detected and redacted";
 "ssh.diagnostic_report.sensitive_content_detected_unredacted" = "Detected, redaction disabled";
 "ssh.diagnostic_report.sensitive_content_not_detected" = "Not detected";
+"ssh.diagnostic_report.recommendation" = "Recommendation";
+"ssh.diagnostic_report.recommendation.none" = "No parsed diagnostic result is available yet.";
+"ssh.diagnostic_report.recommendation.title" = "Title";
+"ssh.diagnostic_report.recommendation.status" = "Status";
+"ssh.diagnostic_report.recommendation.step" = "Related step";
+"ssh.diagnostic_report.recommendation.summary" = "Why";
+"ssh.diagnostic_report.recommendation.action" = "Next action";
 "ssh.diagnostic_recommendation.step.none" = "Current checks";
 "ssh.diagnostic_recommendation.allPassed.title" = "Checks look healthy";
 "ssh.diagnostic_recommendation.allPassed.summary" = "%@ completed, and the parsed checks did not find a route or config failure.";

@@ -155,6 +155,7 @@ struct SSHRouteDiagnosticReport: Equatable {
         let index: Int
         let title: String
         let command: String
+        let diagnosticStep: SSHRouteDiagnosticPlanStep
         let result: SSHRouteDiagnosticStepResult
     }
 
@@ -164,6 +165,8 @@ struct SSHRouteDiagnosticReport: Equatable {
     let redactsSensitiveData: Bool
     let resultSummary: SSHRouteDiagnosticResultSummary
     let steps: [Step]
+    private let planSteps: [SSHRouteDiagnosticPlanStep]
+    private let results: [Int: SSHRouteDiagnosticStepResult]
 
     init(
         profileName: String,
@@ -177,10 +180,18 @@ struct SSHRouteDiagnosticReport: Equatable {
         self.routeSummary = routeSummary
         self.generatedAtText = generatedAtText
         self.redactsSensitiveData = redactsSensitiveData
+        self.planSteps = planSteps
+        self.results = results
         self.resultSummary = SSHRouteDiagnosticResultSummary(totalSteps: planSteps.count, results: results)
         self.steps = planSteps.enumerated().compactMap { index, step in
             guard let result = results[index] else { return nil }
-            return Step(index: index + 1, title: step.title, command: step.command, result: result)
+            return Step(
+                index: index + 1,
+                title: step.title,
+                command: step.command,
+                diagnosticStep: step,
+                result: result
+            )
         }
     }
 
@@ -199,8 +210,14 @@ struct SSHRouteDiagnosticReport: Equatable {
             "- **\(L10n.string("runbook.redaction")):** \(redactionText)",
             "- **\(L10n.string("ssh.diagnostic_report.sensitive_content")):** \(sensitiveContentText)",
             "",
-            "## \(L10n.string("ssh.diagnostic_report.checks"))"
+            "## \(L10n.string("ssh.diagnostic_report.recommendation"))"
         ]
+
+        lines.append(contentsOf: recommendationLines)
+        lines.append(contentsOf: [
+            "",
+            "## \(L10n.string("ssh.diagnostic_report.checks"))"
+        ])
 
         for step in steps {
             let command = reportText(step.command)
@@ -238,6 +255,28 @@ struct SSHRouteDiagnosticReport: Equatable {
 
     private var redactionText: String {
         L10n.string(redactsSensitiveData ? "runbook.redaction_on" : "runbook.redaction_off")
+    }
+
+    private var recommendationLines: [String] {
+        guard let recommendation = SSHRouteDiagnosticAdvisor.recommendation(
+            planSteps: planSteps,
+            results: results
+        ) else {
+            return ["- \(L10n.string("ssh.diagnostic_report.recommendation.none"))"]
+        }
+
+        var lines = [
+            "- **\(L10n.string("ssh.diagnostic_report.recommendation.title")):** \(reportText(recommendation.title))",
+            "- **\(L10n.string("ssh.diagnostic_report.recommendation.status")):** \(recommendation.status.title)"
+        ]
+        if let relatedStepIndex = recommendation.relatedStepIndex {
+            lines.append("- **\(L10n.string("ssh.diagnostic_report.recommendation.step")):** \(relatedStepIndex)")
+        }
+        lines.append(contentsOf: [
+            "- **\(L10n.string("ssh.diagnostic_report.recommendation.summary")):** \(reportText(recommendation.summary))",
+            "- **\(L10n.string("ssh.diagnostic_report.recommendation.action")):** \(reportText(recommendation.action))"
+        ])
+        return lines
     }
 
     private var sensitiveContentText: String {
