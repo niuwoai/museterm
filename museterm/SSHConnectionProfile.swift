@@ -680,28 +680,50 @@ enum SSHProfileSecurityAnalyzer {
         let disabledKnownHostsValues: Set<String> = ["/dev/null", "none"]
         let knownHostsOptions: Set<String> = ["userknownhostsfile", "globalknownhostsfile"]
 
-        if options.contains(where: { $0.name == "forwardagent" && truthyValues.contains($0.value) }) {
+        if options.contains(where: { option in
+            option.name == "forwardagent"
+                && option.valueTokens.first.map(truthyValues.contains) == true
+        }) {
             warnings.append(.agentForwarding)
         }
-        if options.contains(where: { $0.name == "stricthostkeychecking" && disabledHostKeyValues.contains($0.value) }) {
+        if options.contains(where: { option in
+            option.name == "stricthostkeychecking"
+                && option.valueTokens.first.map(disabledHostKeyValues.contains) == true
+        }) {
             warnings.append(.hostKeyCheckingDisabled)
         }
-        if options.contains(where: { knownHostsOptions.contains($0.name) && disabledKnownHostsValues.contains($0.value) }) {
+        if options.contains(where: { option in
+            knownHostsOptions.contains(option.name)
+                && option.valueTokens.contains(where: { disabledKnownHostsValues.contains($0) })
+        }) {
             warnings.append(.knownHostsDisabled)
         }
 
         return warnings
     }
 
-    private nonisolated static func option(_ line: String) -> (name: String, value: String)? {
+    private nonisolated static func option(_ line: String) -> (name: String, value: String, valueTokens: [String])? {
         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !trimmed.hasPrefix("#") else { return nil }
         let parts = trimmed.split(maxSplits: 1, whereSeparator: { $0 == " " || $0 == "\t" || $0 == "=" })
         guard parts.count == 2 else { return nil }
+        let value = normalizedOptionValue(String(parts[1]))
         return (
             String(parts[0]).lowercased(),
-            String(parts[1]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            value,
+            value.split(whereSeparator: { $0 == " " || $0 == "\t" }).map(String.init)
         )
+    }
+
+    private nonisolated static func normalizedOptionValue(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(whereSeparator: { $0 == " " || $0 == "\t" })
+            .map { rawToken in
+                String(rawToken)
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                    .lowercased()
+            }
+            .joined(separator: " ")
     }
 }
 

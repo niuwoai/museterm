@@ -47,7 +47,7 @@ MuseTerm 的 SSH 管理不应只是替用户记住 `user@host -p 22`，而要把
 ## P1：安全护栏
 
 - 当前能力：Profile 已区分开发、预发、生产环境，并可为生产环境强制高危操作确认。
-- 已落地：`ForwardAgent yes`、关闭 Host Key 校验、known_hosts 写入 `/dev/null` 等高风险高级选项会在编辑器中显示明显提示。
+- 已落地：`ForwardAgent yes`、关闭 Host Key 校验、known_hosts 写入 `/dev/null` 等高风险高级选项会在编辑器中显示明显提示；分析器会规范化带引号的值，并检查 known_hosts 多值列表里的 `/dev/null` 或 `none`。
 - 已落地：SSH 主机列表会用健康徽标前置展示连接前预检问题和高风险 SSH 选项，hover 摘要列出配置问题或安全提醒。
 - 已落地：编辑器会在连接前提示目标主机和跳转机的密钥文件路径不可用，减少保存后才发现认证失败的情况。
 - 已落地：编辑器会在目标机或跳转机私钥文件权限对 group/others 过宽时提示 `chmod 600` 修复命令，避免 OpenSSH 忽略私钥后才失败。

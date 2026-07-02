@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
 > 最后更新：2026-07-02
-> 当前版本基线：v1.202.0
+> 当前版本基线：v1.203.0
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -29,6 +29,10 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 | P3 | 成就、统计与轻娱乐系统 | v4 | 高 | 增加记忆点，但不能干扰主流程 |
 
 ## 当前落地状态
+
+v1.203.0 已完成二百零六条纵向切片：
+
+- SSH 高风险选项引号与多值识别：安全分析器会规范化带引号的高级选项值，并检查 `UserKnownHostsFile` / `GlobalKnownHostsFile` 的多值列表，避免 `StrictHostKeyChecking "no"` 或 `UserKnownHostsFile "/dev/null" ~/.ssh/known_hosts` 这类常见写法绕过提醒。
 
 v1.202.0 已完成二百零五条纵向切片：
 

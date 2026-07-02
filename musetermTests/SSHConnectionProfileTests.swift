@@ -1211,6 +1211,23 @@ final class SSHConnectionProfileTests: XCTestCase {
         )
     }
 
+    @MainActor
+    func testSSHProfileSecurityAnalyzerNormalizesQuotedRiskyOptions() {
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            extraOptions: [
+                "ForwardAgent \"yes\" # jump host agent",
+                "StrictHostKeyChecking 'off' # lab host",
+                "UserKnownHostsFile \"/dev/null\" ~/.ssh/known_hosts"
+            ]
+        )
+
+        XCTAssertEqual(
+            profile.securityWarningKinds,
+            [.agentForwarding, .hostKeyCheckingDisabled, .knownHostsDisabled]
+        )
+    }
+
     func testSSHProfileHealthSummaryCombinesPreflightAndSecurityWarnings() {
         let profile = SSHConnectionProfile(
             host: "example.com",

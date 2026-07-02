@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.203.0] - 2026-07-02
+
+### Added
+- SSH 高风险选项分析会规范化带引号的值，并检查 `UserKnownHostsFile` / `GlobalKnownHostsFile` 的多值列表，避免 `StrictHostKeyChecking "no"` 或 `UserKnownHostsFile "/dev/null" ~/.ssh/known_hosts` 这类写法漏掉安全提醒。
+
 ## [1.202.0] - 2026-07-02
 
 ### Added
