@@ -62,6 +62,11 @@ struct ContentView: View {
         .onAppear {
             TerminalToolBridge.shared.attach(workspace: workspace)
             notificationCoordinator.attach(workspace: workspace, preferences: preferences)
+            MuseTermScriptingRegistry.attach(
+                workspace: workspace,
+                preferences: preferences,
+                sshStore: sshStore
+            )
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleCommandInspector)) { _ in
             toggleRightPanel(.commandInspector)
@@ -498,6 +503,10 @@ private struct CommandInspectorView: View {
     @State private var aiExplanation = ""
     @State private var aiExplainError = ""
     @State private var aiContextScope: AIExplainContextScope = .currentBlock
+    private let commandInspectorToggleColumns = [
+        GridItem(.flexible(minimum: 124), spacing: 8, alignment: .leading),
+        GridItem(.flexible(minimum: 124), spacing: 8, alignment: .leading)
+    ]
 
     private var blocks: [TerminalCommandBlock] {
         guard let tab = workspace.selectedTab else { return [] }
@@ -566,27 +575,16 @@ private struct CommandInspectorView: View {
             .help(L10n.string("action.close"))
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.vertical, 8)
     }
 
     private var controls: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 5) {
             TextField(L10n.string("command_inspector.search_placeholder"), text: $query)
                 .textFieldStyle(.roundedBorder)
-            Toggle(L10n.string("command_inspector.failures_only"), isOn: $failuresOnly)
-                .font(.caption)
-            Toggle(L10n.string("runbook.redact_sensitive"), isOn: $redactSensitiveData)
-                .font(.caption)
-            Toggle(L10n.string("runbook.include_replay_script"), isOn: $includeReplayScript)
-                .font(.caption)
-            if includeReplayScript {
-                Toggle(L10n.string("runbook.parameterize_paths"), isOn: $parameterizeReplayScript)
-                    .font(.caption)
-                Toggle(L10n.string("runbook.confirm_each_step"), isOn: $confirmReplaySteps)
-                    .font(.caption)
-                if parameterizeReplayScript {
-                    runbookVariableEditor
-                }
+            optionToggles
+            if includeReplayScript, parameterizeReplayScript {
+                runbookVariableEditor
             }
             Picker(L10n.string("ai_explain.context_scope"), selection: $aiContextScope) {
                 ForEach(AIExplainContextScope.allCases) { scope in
@@ -599,7 +597,7 @@ private struct CommandInspectorView: View {
             TextField(L10n.string("runbook.note_placeholder"), text: $runbookNote, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
                 .font(.caption)
-                .lineLimit(2...4)
+                .lineLimit(1...2)
             HStack(spacing: 8) {
                 Button {
                     exportRunbookToClipboard()
@@ -609,7 +607,7 @@ private struct CommandInspectorView: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 8)
-                .padding(.vertical, 5)
+                .padding(.vertical, 4)
                 .background(preferences.skin.controlFill)
                 .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                 .disabled(runbookExportBlocks.isEmpty)
@@ -622,7 +620,7 @@ private struct CommandInspectorView: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 8)
-                .padding(.vertical, 5)
+                .padding(.vertical, 4)
                 .background(preferences.skin.controlFill)
                 .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                 .disabled(runbookExportBlocks.isEmpty)
@@ -635,7 +633,7 @@ private struct CommandInspectorView: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 8)
-                .padding(.vertical, 5)
+                .padding(.vertical, 4)
                 .background(preferences.skin.controlFill)
                 .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                 .disabled(runbookExportBlocks.isEmpty)
@@ -649,7 +647,32 @@ private struct CommandInspectorView: View {
             sensitiveOutputPanel
             aiExplainPanel
         }
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+    }
+
+    private var optionToggles: some View {
+        LazyVGrid(columns: commandInspectorToggleColumns, alignment: .leading, spacing: 4) {
+            compactToggle("command_inspector.failures_only", isOn: $failuresOnly)
+            compactToggle("runbook.redact_sensitive", isOn: $redactSensitiveData)
+            compactToggle("runbook.include_replay_script", isOn: $includeReplayScript)
+            if includeReplayScript {
+                compactToggle("runbook.parameterize_paths", isOn: $parameterizeReplayScript)
+                compactToggle("runbook.confirm_each_step", isOn: $confirmReplaySteps)
+            }
+        }
+    }
+
+    private func compactToggle(_ titleKey: String, isOn: Binding<Bool>) -> some View {
+        Toggle(isOn: isOn) {
+            Text(L10n.string(titleKey))
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+        .toggleStyle(.checkbox)
+        .font(.caption2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .help(L10n.string(titleKey))
     }
 
     @ViewBuilder
@@ -831,17 +854,32 @@ private struct CommandInspectorView: View {
     }
 
     private var runbookVariableEditor: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(L10n.string("runbook.variables"))
-                .font(.caption2.weight(.semibold))
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(L10n.string("runbook.variables"))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    runbookHomePath = ""
+                    runbookWorkingDirectory = ""
+                } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                        .frame(width: 16, height: 16)
+                }
+                .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
+                .help(L10n.string("runbook.reset_variables"))
+            }
 
-            TextField(L10n.string("runbook.home_path"), text: $runbookHomePath)
-                .textFieldStyle(.roundedBorder)
-                .font(.caption)
-            TextField(L10n.string("runbook.workdir_path"), text: $runbookWorkingDirectory)
-                .textFieldStyle(.roundedBorder)
-                .font(.caption)
+            HStack(spacing: 6) {
+                TextField(L10n.string("runbook.home_path"), text: $runbookHomePath)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.caption)
+                TextField(L10n.string("runbook.workdir_path"), text: $runbookWorkingDirectory)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.caption)
+            }
 
             Text(
                 L10n.format(
@@ -852,19 +890,9 @@ private struct CommandInspectorView: View {
             )
             .font(.caption2)
             .foregroundStyle(.secondary)
-            .lineLimit(2)
-
-            Button {
-                runbookHomePath = ""
-                runbookWorkingDirectory = ""
-            } label: {
-                Label(L10n.string("runbook.reset_variables"), systemImage: "arrow.counterclockwise")
-                    .font(.caption2.weight(.medium))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
+            .lineLimit(1)
         }
-        .padding(8)
+        .padding(6)
         .background(preferences.skin.controlFill.opacity(0.72))
         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
     }
@@ -1261,7 +1289,7 @@ private struct CommandBlockCard: View {
                         .frame(width: 24, height: 22)
                 }
                 .buttonStyle(.plain)
-                .help(L10n.string("command_inspector.copy_command"))
+                .help(L10n.string("command_inspector.tooltip.copy_command"))
 
                 Button(action: copyOutput) {
                     Image(systemName: "text.page")
@@ -1269,14 +1297,14 @@ private struct CommandBlockCard: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(block.outputTail.isEmpty)
-                .help(L10n.string("command_inspector.copy_output"))
+                .help(L10n.string("command_inspector.tooltip.copy_output"))
 
                 Button(action: copyAIContext) {
                     Image(systemName: "sparkles")
                         .frame(width: 24, height: 22)
                 }
                 .buttonStyle(.plain)
-                .help(L10n.string("command_inspector.copy_ai_context"))
+                .help(L10n.string("command_inspector.tooltip.copy_ai_context"))
 
                 Button(action: copyOutputSummary) {
                     Image(systemName: "text.badge.checkmark")
@@ -1284,14 +1312,14 @@ private struct CommandBlockCard: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(displaySummary.isEmpty)
-                .help(L10n.string("command_inspector.copy_output_summary"))
+                .help(L10n.string("command_inspector.tooltip.copy_output_summary"))
 
                 Button(action: stageCommand) {
                     Image(systemName: "arrow.turn.down.right")
                         .frame(width: 24, height: 22)
                 }
                 .buttonStyle(.plain)
-                .help(L10n.string("runbook.stage_command"))
+                .help(L10n.string("command_inspector.tooltip.stage_command"))
 
                 Button(action: explainCommand) {
                     if isExplaining {
@@ -1305,7 +1333,7 @@ private struct CommandBlockCard: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(isExplaining)
-                .help(L10n.string("ai_explain.button"))
+                .help(L10n.string("command_inspector.tooltip.explain_command"))
 
                 Spacer()
             }

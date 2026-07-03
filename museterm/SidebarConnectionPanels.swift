@@ -2,6 +2,8 @@ import AppKit
 import SwiftUI
 
 struct TerminalShortcutSection: View {
+    private static let recordAccent = Color(red: 0.78, green: 0.34, blue: 0.20)
+
     @ObservedObject var workspace: TerminalWorkspace
     let skin: TerminalVisualSkin
     @State private var renameDraft: TerminalShortcutRenameDraft?
@@ -23,8 +25,8 @@ struct TerminalShortcutSection: View {
                     )
                     .labelStyle(.iconOnly)
                     .frame(width: 28, height: 26)
-                    .foregroundStyle(workspace.isRecording ? Color.white : Color.red)
-                    .background(workspace.isRecording ? Color.red : Color.red.opacity(0.12))
+                    .foregroundStyle(workspace.isRecording ? Color.white : Self.recordAccent)
+                    .background(workspace.isRecording ? Self.recordAccent : Self.recordAccent.opacity(0.10))
                     .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                 }
                 .buttonStyle(.plain)
@@ -917,6 +919,9 @@ private struct SidebarSection<Content: View>: View {
 }
 
 struct EnvironmentBadge: View {
+    private static let productionBackground = Color(red: 0.99, green: 0.84, blue: 0.68).opacity(0.72)
+    private static let productionForeground = Color(red: 0.68, green: 0.30, blue: 0.12)
+
     let environment: TerminalEnvironmentKind
 
     var body: some View {
@@ -939,7 +944,7 @@ struct EnvironmentBadge: View {
         case .staging:
             return Color.orange.opacity(0.20)
         case .production:
-            return Color.red.opacity(0.22)
+            return Self.productionBackground
         }
     }
 
@@ -952,7 +957,7 @@ struct EnvironmentBadge: View {
         case .staging:
             return .orange
         case .production:
-            return .red
+            return Self.productionForeground
         }
     }
 }

@@ -1,3 +1,4 @@
+import Darwin
 import XCTest
 @testable import museterm
 
@@ -257,7 +258,8 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertTrue(preview.config.contains("HostName prod.internal"))
         XCTAssertTrue(preview.config.contains("ProxyJump museterm-11111111-1111-1111-1111-111111111111-jump-1"))
         XCTAssertTrue(preview.config.contains("ControlPath"))
-        XCTAssertTrue(preview.config.contains("MuseTerm/SSH/cm-%C"))
+        XCTAssertTrue(preview.config.contains("/tmp/mtssh-\(getuid())/cm-%C"))
+        XCTAssertFalse(preview.config.contains("Application Support/MuseTerm/SSH/cm-%C"))
         XCTAssertTrue(preview.commands.contains { $0.command.contains("dscacheutil -q host -a name 'bastion.internal'") })
         XCTAssertTrue(preview.commands.contains { $0.command.contains("nc -vz -w 5 'bastion.internal' 2200") })
         XCTAssertTrue(preview.commands.contains { $0.command.contains("ssh -G -F") && $0.command.contains(preview.targetAlias) })
@@ -275,6 +277,43 @@ final class SSHConnectionProfileTests: XCTestCase {
             output: "hostname prod.internal\nuser deploy\nport 22\n"
         )
         XCTAssertEqual(configResult.status, .passed)
+    }
+
+    func testRuntimeSSHConfigUsesShortControlPathForUnixSocketLimit() {
+        let profile = SSHConnectionProfile(host: "example.com", user: "deploy")
+
+        let preview = SSHConfigMaterializer.preview(for: profile)
+        let expectedControlPath = "/tmp/mtssh-\(getuid())/cm-%C"
+
+        XCTAssertTrue(preview.config.contains("  ControlPath \"\(expectedControlPath)\""))
+        XCTAssertLessThan(expectedControlPath.count + 40, 104)
+        XCTAssertFalse(preview.config.contains("Library/Application Support/MuseTerm/SSH/cm-%C"))
+    }
+
+    func testRuntimeSSHConfigIgnoresLegacyGeneratedControlPathExtraOption() {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
+        let staleControlPath = appSupport
+            .appendingPathComponent("MuseTerm", isDirectory: true)
+            .appendingPathComponent("SSH", isDirectory: true)
+            .appendingPathComponent("cm-%C")
+            .path
+        let profile = SSHConnectionProfile(
+            host: "example.com",
+            user: "deploy",
+            extraOptions: [
+                "ControlPath = \"\(staleControlPath)\"",
+                "Compression yes"
+            ],
+            connectionReuseEnabled: true
+        )
+
+        let preview = SSHConfigMaterializer.preview(for: profile)
+        let expectedControlPath = "/tmp/mtssh-\(getuid())/cm-%C"
+
+        XCTAssertTrue(preview.config.contains("  ControlPath \"\(expectedControlPath)\""))
+        XCTAssertFalse(preview.config.contains(staleControlPath))
+        XCTAssertTrue(preview.config.contains("  Compression yes"))
     }
 
     func testSSHRouteDiagnosticAdvisorRecommendsNextStepFromPreviewResults() {

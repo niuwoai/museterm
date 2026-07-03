@@ -21,7 +21,7 @@ struct AIExplainClient {
             guard !baseURL.isEmpty else {
                 throw AIExplainError.missingBaseURL
             }
-            if provider != .ollama, apiKey.isEmpty {
+            if !provider.isLocalProvider, apiKey.isEmpty {
                 throw AIExplainError.missingAPIKey(providerName)
             }
         }
@@ -41,7 +41,7 @@ struct AIExplainClient {
             return try await googleStream(prompt: prompt, onChunk: onChunk)
         case .azureOpenAI:
             return try await openAICompatibleStream(prompt: prompt, azure: true, onChunk: onChunk)
-        case .openAI, .openRouter, .ollama, .custom:
+        case .openAI, .openRouter, .ollama, .llamaServer, .custom:
             return try await openAICompatibleStream(prompt: prompt, azure: false, onChunk: onChunk)
         }
     }
@@ -284,6 +284,146 @@ struct AIExplainClient {
     }
 }
 
+struct AIModelDiscovery {
+    let provider: AIProviderKind
+    let baseURL: String
+    let apiKey: String
+
+    func fetch() async throws -> [String] {
+        let trimmedBaseURL = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedBaseURL.isEmpty else {
+            throw AIExplainError.missingBaseURL
+        }
+        if !provider.isLocalProvider, apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            throw AIExplainError.missingAPIKey(provider.name)
+        }
+
+        switch provider {
+        case .google:
+            return try await googleModels()
+        case .anthropic:
+            return try await anthropicModels()
+        case .azureOpenAI:
+            return []
+        case .openAI, .openRouter, .ollama, .llamaServer, .custom:
+            do {
+                return try await openAICompatibleModels()
+            } catch {
+                guard provider == .ollama else { throw error }
+                return try await ollamaNativeModels()
+            }
+        }
+    }
+
+    private func openAICompatibleModels() async throws -> [String] {
+        var request = URLRequest(url: try endpoint(path: "/models"))
+        request.httpMethod = "GET"
+        if !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
+        let response: OpenAIModelsResponse = try await send(request)
+        return uniqueSorted(response.data.map(\.id))
+    }
+
+    private func anthropicModels() async throws -> [String] {
+        var request = URLRequest(url: try endpoint(path: "/v1/models"))
+        request.httpMethod = "GET"
+        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        let response: OpenAIModelsResponse = try await send(request)
+        return uniqueSorted(response.data.map(\.id))
+    }
+
+    private func googleModels() async throws -> [String] {
+        var components = URLComponents(
+            url: try endpoint(path: "/models"),
+            resolvingAgainstBaseURL: false
+        )
+        components?.queryItems = [URLQueryItem(name: "key", value: apiKey)]
+        guard let url = components?.url else {
+            throw AIExplainError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        let response: GoogleModelsResponse = try await send(request)
+        return uniqueSorted(
+            response.models
+                .filter { model in
+                    let methods = model.supportedGenerationMethods ?? []
+                    return methods.isEmpty || methods.contains("generateContent") || methods.contains("streamGenerateContent")
+                }
+                .map { model in
+                    model.name.replacingOccurrences(of: "models/", with: "")
+                }
+        )
+    }
+
+    private func ollamaNativeModels() async throws -> [String] {
+        let trimmedBase = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let nativeBase = trimmedBase.hasSuffix("/v1")
+            ? String(trimmedBase.dropLast(3))
+            : trimmedBase
+        let discovery = AIModelDiscovery(provider: provider, baseURL: nativeBase, apiKey: apiKey)
+        var request = URLRequest(url: try discovery.endpoint(path: "/api/tags"))
+        request.httpMethod = "GET"
+        let response: OllamaTagsResponse = try await send(request)
+        return uniqueSorted(response.models.map(\.name))
+    }
+
+    private func send<T: Decodable>(_ request: URLRequest) async throws -> T {
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AIExplainError.invalidResponse
+        }
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            throw AIExplainError.requestFailed(httpResponse.statusCode, apiErrorMessage(from: data))
+        }
+        do {
+            return try JSONDecoder().decode(T.self, from: data)
+        } catch {
+            throw AIExplainError.decodeFailed
+        }
+    }
+
+    private func endpoint(path: String) throws -> URL {
+        let trimmedBase = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedBase.isEmpty else {
+            throw AIExplainError.missingBaseURL
+        }
+        guard var components = URLComponents(string: trimmedBase) else {
+            throw AIExplainError.invalidURL
+        }
+        let lowerBase = components.path.lowercased()
+        let lowerPath = path.lowercased()
+        if !lowerBase.hasSuffix(lowerPath) {
+            components.path = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + path
+            if !components.path.hasPrefix("/") {
+                components.path = "/" + components.path
+            }
+        }
+        guard let url = components.url else {
+            throw AIExplainError.invalidURL
+        }
+        return url
+    }
+
+    private func uniqueSorted(_ values: [String]) -> [String] {
+        Array(Set(values.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty })).sorted()
+    }
+
+    private func apiErrorMessage(from data: Data) -> String {
+        guard
+            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let error = object["error"] as? [String: Any],
+            let message = error["message"] as? String
+        else {
+            return ""
+        }
+        return String(message.prefix(500))
+    }
+}
+
 enum AIExplainError: LocalizedError {
     case missingModel
     case missingBaseURL
@@ -341,6 +481,31 @@ private struct OpenAIChatStreamChunk: Decodable {
     }
 
     let choices: [Choice]
+}
+
+private struct OpenAIModelsResponse: Decodable {
+    struct Model: Decodable {
+        let id: String
+    }
+
+    let data: [Model]
+}
+
+private struct GoogleModelsResponse: Decodable {
+    struct Model: Decodable {
+        let name: String
+        let supportedGenerationMethods: [String]?
+    }
+
+    let models: [Model]
+}
+
+private struct OllamaTagsResponse: Decodable {
+    struct Model: Decodable {
+        let name: String
+    }
+
+    let models: [Model]
 }
 
 private struct AnthropicMessageResponse: Decodable {

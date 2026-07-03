@@ -45,6 +45,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable {
     case azureOpenAI
     case openRouter
     case ollama
+    case llamaServer
     case custom
 
     var id: String { rawValue }
@@ -65,6 +66,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable {
         case .azureOpenAI: return ""
         case .openRouter: return "openai/gpt-4.1"
         case .ollama: return "llama3.1"
+        case .llamaServer: return ""
         case .custom: return ""
         }
     }
@@ -77,8 +79,24 @@ enum AIProviderKind: String, CaseIterable, Identifiable {
         case .azureOpenAI: return ""
         case .openRouter: return "https://openrouter.ai/api/v1"
         case .ollama: return "http://127.0.0.1:11434/v1"
+        case .llamaServer: return "http://127.0.0.1:8080/v1"
         case .custom: return ""
         }
+    }
+
+    var isLocalProvider: Bool {
+        switch self {
+        case .ollama, .llamaServer: return true
+        default: return false
+        }
+    }
+
+    static var builtInDefaultBaseURLs: Set<String> {
+        Set(allCases.map(\.defaultBaseURL).filter { !$0.isEmpty })
+    }
+
+    static var builtInDefaultModels: Set<String> {
+        Set(allCases.map(\.defaultModel).filter { !$0.isEmpty })
     }
 }
 
@@ -114,6 +132,7 @@ final class TerminalPreferences: ObservableObject {
         static let failureNotificationMinimumDurationSeconds = "notifications.failureMinimumDurationSeconds"
         static let notificationCooldownSeconds = "notifications.cooldownSeconds"
         static let includeCommandInNotifications = "notifications.includeCommand"
+        static let appleScriptInputEnabled = "applescript.inputEnabled"
         static let appIcon = "app.icon"
         static let aiProvider = "ai.provider"
         static let aiModel = "ai.model"
@@ -153,13 +172,17 @@ final class TerminalPreferences: ObservableObject {
     @Published var failureNotificationMinimumDurationSeconds: Double { didSet { defaults.set(failureNotificationMinimumDurationSeconds, forKey: Keys.failureNotificationMinimumDurationSeconds) } }
     @Published var notificationCooldownSeconds: Double { didSet { defaults.set(notificationCooldownSeconds, forKey: Keys.notificationCooldownSeconds) } }
     @Published var includeCommandInNotifications: Bool { didSet { defaults.set(includeCommandInNotifications, forKey: Keys.includeCommandInNotifications) } }
+    @Published var appleScriptInputEnabled: Bool { didSet { defaults.set(appleScriptInputEnabled, forKey: Keys.appleScriptInputEnabled) } }
     @Published var aiProvider: AIProviderKind {
         didSet {
+            let previousProvider = oldValue
+            let previousBaseURL = aiBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            let previousModel = aiModel.trimmingCharacters(in: .whitespacesAndNewlines)
             defaults.set(aiProvider.rawValue, forKey: Keys.aiProvider)
-            if aiModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if previousModel.isEmpty || previousModel == previousProvider.defaultModel || AIProviderKind.builtInDefaultModels.contains(previousModel) {
                 aiModel = aiProvider.defaultModel
             }
-            if aiBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if previousBaseURL.isEmpty || previousBaseURL == previousProvider.defaultBaseURL || AIProviderKind.builtInDefaultBaseURLs.contains(previousBaseURL) {
                 aiBaseURL = aiProvider.defaultBaseURL
             }
         }
@@ -206,12 +229,14 @@ final class TerminalPreferences: ObservableObject {
         failureNotificationMinimumDurationSeconds = defaults.object(forKey: Keys.failureNotificationMinimumDurationSeconds) as? Double ?? 5
         notificationCooldownSeconds = defaults.object(forKey: Keys.notificationCooldownSeconds) as? Double ?? 10
         includeCommandInNotifications = defaults.object(forKey: Keys.includeCommandInNotifications) as? Bool ?? false
+        appleScriptInputEnabled = defaults.object(forKey: Keys.appleScriptInputEnabled) as? Bool ?? true
         let storedAIProvider = AIProviderKind(rawValue: defaults.string(forKey: Keys.aiProvider) ?? "") ?? .openAI
         aiProvider = storedAIProvider
         aiModel = defaults.string(forKey: Keys.aiModel) ?? storedAIProvider.defaultModel
         aiBaseURL = defaults.string(forKey: Keys.aiBaseURL) ?? storedAIProvider.defaultBaseURL
         aiCustomProviderName = defaults.string(forKey: Keys.aiCustomProviderName) ?? ""
         appIcon = AppIconChoice(rawValue: defaults.string(forKey: Keys.appIcon) ?? "") ?? .defaultTerminal
+        normalizeBuiltInAIProviderDefaults()
         AppIconManager.apply(appIcon)
     }
 
@@ -251,6 +276,18 @@ final class TerminalPreferences: ObservableObject {
 
     private var aiAPIKeyAccount: String {
         "ai-provider/\(aiProvider.rawValue)/api-key"
+    }
+
+    private func normalizeBuiltInAIProviderDefaults() {
+        guard aiProvider != .custom else { return }
+        let trimmedBaseURL = aiBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if AIProviderKind.builtInDefaultBaseURLs.contains(trimmedBaseURL), trimmedBaseURL != aiProvider.defaultBaseURL {
+            aiBaseURL = aiProvider.defaultBaseURL
+        }
+        let trimmedModel = aiModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        if AIProviderKind.builtInDefaultModels.contains(trimmedModel), trimmedModel != aiProvider.defaultModel {
+            aiModel = aiProvider.defaultModel
+        }
     }
 }
 

@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
+<dictionary title="MuseTerm Terminology" xmlns:xi="http://www.w3.org/2001/XInclude">
+
+  <!-- 标准套件提供 get / set / count / exists / close 等基础动词。 -->
+  <xi:include href="file:///System/Library/ScriptingDefinitions/CocoaStandard.sdef" xpointer="xpointer(/dictionary/suite)"/>
+
+  <suite name="MuseTerm Suite" code="MTrm" description="Control MuseTerm terminal tabs.">
+
+    <command name="select" code="miscslct" description="Bring a tab to the front.">
+      <direct-parameter type="tab" description="The tab to select."/>
+    </command>
+
+    <command name="create tab" code="MTrmCrtb" description="Create a new local terminal tab.">
+      <cocoa class="MuseTermCreateTabScriptCommand"/>
+      <parameter name="in directory" code="Cdir" type="text" optional="yes" description="Working directory for the new tab.">
+        <cocoa key="directory"/>
+      </parameter>
+      <result type="tab" description="The newly created tab."/>
+    </command>
+
+    <command name="open ssh profile" code="MTrmOssh" description="Open a saved SSH profile in a new tab.">
+      <cocoa class="MuseTermOpenSSHProfileScriptCommand"/>
+      <direct-parameter type="text" description="Display name of the saved SSH profile."/>
+      <result type="tab" description="The newly created SSH tab."/>
+    </command>
+
+    <command name="write text" code="MTrmWrtx" description="Type text into a terminal tab.">
+      <cocoa class="MuseTermWriteTextScriptCommand"/>
+      <direct-parameter type="text" description="The text to type."/>
+      <parameter name="to" code="Wtab" type="tab" optional="yes" description="Target tab; defaults to the selected tab.">
+        <cocoa key="targetTab"/>
+      </parameter>
+      <parameter name="newline" code="Wnln" type="boolean" optional="yes" description="Append a carriage return after the text (default: true).">
+        <cocoa key="newline"/>
+      </parameter>
+    </command>
+
+    <command name="send key" code="MTrmSkey" description="Send a control key to a terminal tab.">
+      <cocoa class="MuseTermSendKeyScriptCommand"/>
+      <direct-parameter type="text" description="Key name, e.g. enter, tab, escape, backspace, ctrl-c, ctrl-d, ctrl-z, ctrl-l, up, down, left, right."/>
+      <parameter name="to" code="Ktab" type="tab" optional="yes" description="Target tab; defaults to the selected tab.">
+        <cocoa key="targetTab"/>
+      </parameter>
+    </command>
+
+    <command name="execute" code="MTrmExec" description="Run a shell command and wait for it to finish (requires shell integration).">
+      <cocoa class="MuseTermExecuteScriptCommand"/>
+      <direct-parameter type="text" description="The shell command to run."/>
+      <parameter name="in" code="Xtab" type="tab" optional="yes" description="Target tab; defaults to the selected tab.">
+        <cocoa key="targetTab"/>
+      </parameter>
+      <parameter name="timeout" code="Xtim" type="integer" optional="yes" description="Seconds to wait before failing (default 120, max 3600).">
+        <cocoa key="timeout"/>
+      </parameter>
+      <result type="execution result" description="Exit code, output tail and duration of the command."/>
+    </command>
+
+    <command name="play shortcut" code="MTrmPsct" description="Replay a recorded shortcut. Shortcuts containing protected (echo-off) input are refused.">
+      <cocoa class="MuseTermPlayShortcutScriptCommand"/>
+      <direct-parameter type="text" description="Title of the recorded shortcut."/>
+      <parameter name="in" code="Ptab" type="tab" optional="yes" description="Target tab; defaults to the selected tab.">
+        <cocoa key="targetTab"/>
+      </parameter>
+    </command>
+
+    <record-type name="execution result" code="MTxr" description="Result of an execute command.">
+      <property name="succeeded" code="XSok" type="boolean" description="Whether the command exited with code 0.">
+        <cocoa key="succeeded"/>
+      </property>
+      <!-- 与 command record 类的同名属性共用 code：AppleScript 术语表同名必须同码。 -->
+      <property name="exit code" code="Rexc" type="integer" description="Exit code of the command (-1 if unknown).">
+        <cocoa key="exitCode"/>
+      </property>
+      <property name="output" code="Rout" type="text" description="Tail of the command output.">
+        <cocoa key="commandOutput"/>
+      </property>
+      <property name="duration" code="Rdur" type="real" description="Command duration in seconds.">
+        <cocoa key="durationSeconds"/>
+      </property>
+    </record-type>
+
+    <class-extension extends="application" description="The MuseTerm application.">
+      <element type="tab" access="r">
+        <cocoa key="scriptTabs"/>
+      </element>
+      <property name="selected tab" code="Asel" type="tab" access="rw" description="The frontmost terminal tab.">
+        <cocoa key="scriptSelectedTab"/>
+      </property>
+      <property name="scripted input allowed" code="Asia" type="boolean" access="r" description="Whether AppleScript is allowed to type into terminals (Settings › Tools).">
+        <cocoa key="scriptInputAllowed"/>
+      </property>
+    </class-extension>
+
+    <class name="tab" code="Mtab" plural="tabs" description="A terminal tab.">
+      <cocoa class="MuseTermScriptTab"/>
+      <property name="id" code="ID  " type="text" access="r" description="Unique identifier of the tab.">
+        <cocoa key="uniqueID"/>
+      </property>
+      <property name="index" code="pidx" type="integer" access="r" description="1-based position of the tab.">
+        <cocoa key="orderedIndex"/>
+      </property>
+      <property name="title" code="pnam" type="text" access="r" description="Tab title.">
+        <cocoa key="title"/>
+      </property>
+      <property name="current directory" code="Tcwd" type="text" access="r" description="Current working directory, if known.">
+        <cocoa key="currentDirectory"/>
+      </property>
+      <property name="shell" code="Tshl" type="text" access="r" description="Shell name, if known.">
+        <cocoa key="shellName"/>
+      </property>
+      <property name="busy" code="Tbsy" type="boolean" access="r" description="Whether a process is running in the tab.">
+        <cocoa key="busy"/>
+      </property>
+      <property name="state" code="Tsta" type="text" access="r" description="running or exited(code).">
+        <cocoa key="stateText"/>
+      </property>
+      <property name="selected" code="Tsel" type="boolean" access="rw" description="Whether the tab is the selected tab.">
+        <cocoa key="selected"/>
+      </property>
+      <property name="contents" code="Tscr" type="text" access="r" description="Text currently visible on screen.">
+        <cocoa key="screenContents"/>
+      </property>
+      <property name="history" code="Thst" type="text" access="r" description="Tail of the scrollback history.">
+        <cocoa key="historyContents"/>
+      </property>
+      <property name="columns" code="Tcol" type="integer" access="r" description="Number of columns.">
+        <cocoa key="columns"/>
+      </property>
+      <property name="rows" code="Trow" type="integer" access="r" description="Number of rows.">
+        <cocoa key="rows"/>
+      </property>
+      <element type="command record" access="r">
+        <cocoa key="scriptCommandRecords"/>
+      </element>
+      <responds-to command="close">
+        <cocoa method="handleCloseScriptCommand:"/>
+      </responds-to>
+      <responds-to command="select">
+        <cocoa method="handleSelectScriptCommand:"/>
+      </responds-to>
+    </class>
+
+    <class name="command record" code="Mcmd" plural="command records" description="A structured record of a command run in a tab (shell integration).">
+      <cocoa class="MuseTermScriptCommandRecord"/>
+      <property name="id" code="ID  " type="text" access="r" description="Unique identifier of the command record.">
+        <cocoa key="uniqueID"/>
+      </property>
+      <property name="command" code="Rcmd" type="text" access="r" description="The command line.">
+        <cocoa key="commandText"/>
+      </property>
+      <property name="exit code" code="Rexc" type="integer" access="r" description="Exit code (-1 while running or unknown).">
+        <cocoa key="exitCodeNumber"/>
+      </property>
+      <property name="running" code="Rrun" type="boolean" access="r" description="Whether the command is still running.">
+        <cocoa key="running"/>
+      </property>
+      <property name="output" code="Rout" type="text" access="r" description="Tail of the command output.">
+        <cocoa key="outputTail"/>
+      </property>
+      <property name="duration" code="Rdur" type="real" access="r" description="Duration in seconds (-1 while running).">
+        <cocoa key="durationSeconds"/>
+      </property>
+      <property name="working directory" code="Rcwd" type="text" access="r" description="Working directory the command started in.">
+        <cocoa key="workingDirectory"/>
+      </property>
+      <property name="started at" code="Rstd" type="date" access="r" description="When the command started.">
+        <cocoa key="startedAt"/>
+      </property>
+      <property name="ended at" code="Rend" type="date" access="r" description="When the command finished (missing value while running).">
+        <cocoa key="endedAt"/>
+      </property>
+    </class>
+
+  </suite>
+</dictionary>

@@ -390,6 +390,20 @@ struct SettingsView: View {
                 .font(.subheadline.weight(.semibold))
                 .padding(.top, 4)
             SettingsCodeBlock(text: L10n.string("settings.tools.mcp_config"))
+
+            Divider()
+                .padding(.vertical, 4)
+
+            Toggle(L10n.string("settings.tools.applescript_input"), isOn: $preferences.appleScriptInputEnabled)
+            Text(L10n.string("settings.tools.applescript_input_desc"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(L10n.string("settings.tools.applescript"))
+                .font(.subheadline.weight(.semibold))
+                .padding(.top, 4)
+            SettingsCodeBlock(text: L10n.string("settings.tools.applescript_examples"))
         }
     }
 
@@ -506,6 +520,7 @@ private struct AIProviderChoiceView: View {
         case .azureOpenAI: return "cloud"
         case .openRouter: return "arrow.triangle.branch"
         case .ollama: return "desktopcomputer"
+        case .llamaServer: return "server.rack"
         case .custom: return "slider.horizontal.3"
         }
     }
@@ -548,6 +563,9 @@ private struct AIProviderSettingsSection: View {
     @ObservedObject var preferences: TerminalPreferences
     @Binding var apiKeyDraft: String
     @Binding var statusMessage: String
+    @State private var modelCandidates: [String] = []
+    @State private var modelDiscoveryMessage = ""
+    @State private var isLoadingModels = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -561,6 +579,7 @@ private struct AIProviderSettingsSection: View {
             providerGrid
             customNameField
             connectionFields
+            modelDiscoveryPanel
             apiKeyControls
             statusText
 
@@ -577,6 +596,7 @@ private struct AIProviderSettingsSection: View {
                 Button {
                     preferences.aiProvider = provider
                     statusMessage = ""
+                    refreshModelCandidates(clearExisting: true)
                 } label: {
                     AIProviderChoiceView(
                         provider: provider,
@@ -586,6 +606,15 @@ private struct AIProviderSettingsSection: View {
                 }
                 .buttonStyle(.plain)
             }
+        }
+        .onAppear {
+            refreshModelCandidates(clearExisting: false)
+        }
+        .onChange(of: preferences.aiProvider) { _ in
+            refreshModelCandidates(clearExisting: true)
+        }
+        .onChange(of: preferences.aiBaseURL) { _ in
+            refreshModelCandidates(clearExisting: true)
         }
     }
 
@@ -616,6 +645,78 @@ private struct AIProviderSettingsSection: View {
         }
     }
 
+    @ViewBuilder
+    private var modelDiscoveryPanel: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 8) {
+                Label(L10n.string("settings.ai.models"), systemImage: "list.bullet.rectangle")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    refreshModelCandidates(clearExisting: true, force: true)
+                } label: {
+                    Label(
+                        isLoadingModels ? L10n.string("settings.ai.models.loading") : L10n.string("settings.ai.models.refresh"),
+                        systemImage: "arrow.clockwise"
+                    )
+                    .font(.caption2.weight(.medium))
+                }
+                .buttonStyle(.plain)
+                .disabled(isLoadingModels || preferences.aiProvider == .azureOpenAI)
+            }
+
+            if isLoadingModels {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.65)
+                    Text(L10n.string("settings.ai.models.loading"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            } else if !modelCandidates.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(modelCandidates, id: \.self) { model in
+                            Button {
+                                preferences.aiModel = model
+                                statusMessage = L10n.format("settings.ai.models.selected", model)
+                            } label: {
+                                Text(model)
+                                    .font(.caption2.weight(.medium))
+                                    .lineLimit(1)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(
+                                        preferences.aiModel == model
+                                            ? preferences.skin.selectionFill
+                                            : preferences.skin.controlFill
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                            .strokeBorder(
+                                                preferences.aiModel == model
+                                                    ? preferences.skin.accent.opacity(0.5)
+                                                    : preferences.skin.hairline,
+                                                lineWidth: 1
+                                            )
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 1)
+                }
+            } else if !modelDiscoveryMessage.isEmpty {
+                Text(modelDiscoveryMessage)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
     private var apiKeyControls: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -631,6 +732,7 @@ private struct AIProviderSettingsSection: View {
                     preferences.saveAIAPIKey(apiKeyDraft)
                     apiKeyDraft = ""
                     statusMessage = L10n.string("settings.ai.api_key.save_success")
+                    refreshModelCandidates(clearExisting: true, force: true)
                 } label: {
                     Label(L10n.string("settings.ai.api_key.save"), systemImage: "key.fill")
                 }
@@ -640,6 +742,8 @@ private struct AIProviderSettingsSection: View {
                     preferences.clearAIAPIKey()
                     apiKeyDraft = ""
                     statusMessage = L10n.string("settings.ai.api_key.clear_success")
+                    modelCandidates = []
+                    modelDiscoveryMessage = ""
                 } label: {
                     Label(L10n.string("settings.ai.api_key.clear"), systemImage: "trash")
                 }
@@ -664,6 +768,62 @@ private struct AIProviderSettingsSection: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func refreshModelCandidates(clearExisting: Bool, force: Bool = false) {
+        if clearExisting {
+            modelCandidates = []
+            modelDiscoveryMessage = ""
+        }
+        guard preferences.aiProvider != .azureOpenAI else {
+            modelDiscoveryMessage = L10n.string("settings.ai.models.azure_unavailable")
+            return
+        }
+        let key = apiKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? preferences.loadAIAPIKey()
+            : apiKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !preferences.aiProvider.isLocalProvider, key.isEmpty {
+            if force {
+                modelDiscoveryMessage = L10n.string("settings.ai.models.needs_key")
+            }
+            return
+        }
+        guard !preferences.aiBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            if force {
+                modelDiscoveryMessage = L10n.string("settings.ai.models.needs_base_url")
+            }
+            return
+        }
+        isLoadingModels = true
+        let provider = preferences.aiProvider
+        let baseURL = preferences.aiBaseURL
+        Task {
+            do {
+                let models = try await AIModelDiscovery(
+                    provider: provider,
+                    baseURL: baseURL,
+                    apiKey: key
+                ).fetch()
+                await MainActor.run {
+                    guard provider == preferences.aiProvider, baseURL == preferences.aiBaseURL else { return }
+                    isLoadingModels = false
+                    modelCandidates = models
+                    modelDiscoveryMessage = models.isEmpty
+                        ? L10n.string("settings.ai.models.empty")
+                        : ""
+                }
+            } catch {
+                await MainActor.run {
+                    guard provider == preferences.aiProvider, baseURL == preferences.aiBaseURL else { return }
+                    isLoadingModels = false
+                    modelCandidates = []
+                    modelDiscoveryMessage = L10n.format(
+                        "settings.ai.models.failed",
+                        error.localizedDescription
+                    )
+                }
+            }
         }
     }
 }
@@ -885,15 +1045,57 @@ private struct SettingsTextFieldRow: View {
 
 private struct SettingsCodeBlock: View {
     let text: String
+    @State private var copied = false
+    @State private var copyResetToken = UUID()
 
     var body: some View {
-        Text(text)
-            .font(.caption.monospaced())
-            .textSelection(.enabled)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10)
-            .background(.quaternary.opacity(0.45))
-            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        ZStack(alignment: .topTrailing) {
+            Text(text)
+                .font(.caption.monospaced())
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
+                .padding(.trailing, 64)
+
+            Button {
+                copyToPasteboard()
+            } label: {
+                HStack(spacing: 3) {
+                    Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                    if copied {
+                        Text(L10n.string("action.copied"))
+                    }
+                }
+                .font(.caption2)
+                .foregroundStyle(copied ? AnyShapeStyle(.green) : AnyShapeStyle(.secondary))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(L10n.string("action.copy"))
+            .accessibilityLabel(L10n.string("action.copy"))
+            .padding(4)
+        }
+        .background(.quaternary.opacity(0.45))
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+    }
+
+    private func copyToPasteboard() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+
+        let token = UUID()
+        copyResetToken = token
+        withAnimation(.easeOut(duration: 0.15)) {
+            copied = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+            guard copyResetToken == token else { return }
+            withAnimation(.easeIn(duration: 0.2)) {
+                copied = false
+            }
+        }
     }
 }
 

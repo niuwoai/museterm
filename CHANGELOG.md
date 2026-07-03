@@ -1,5 +1,56 @@
 # Changelog
 
+## [1.212.1-rc3] - 2026-07-03
+
+### Changed
+- 柔化左侧栏生产环境 `PROD` 标签与录制按钮的红色配色，保留提醒感但降低警报感。
+
+## [1.212.1-rc2] - 2026-07-03
+
+### Fixed
+- SSH 运行时连接复用的 `ControlPath` 改用短本机临时目录，避免 macOS Unix domain socket 路径过长导致 SSH 反复断开重连。
+- 过滤 Profile 高级选项里残留的 MuseTerm 旧生成 `ControlPath`，让已有长路径缓存不会阻止新的短路径生效，同时保留用户自定义 `ControlPath`。
+
+## [1.212.0] - 2026-07-03
+
+### Added
+- 命令块底部图标新增更详细的中英文 tooltip，说明复制命令、复制输出、复制 AI 上下文、复制摘要、填入终端和 AI Explain 的具体作用。
+
+## [1.211.0] - 2026-07-03
+
+### Added
+- AI Provider 设置新增 llama-server 选项，默认使用本机 `http://127.0.0.1:8080/v1` OpenAI 兼容端点。
+- AI Provider 设置可从当前端点自动读取模型候选，支持 OpenAI 兼容 `/models`、Gemini `/models`、Anthropic `/v1/models`，以及 Ollama `/v1/models` 失败后的 `/api/tags` 兜底；点击候选模型会直接填入模型字段。
+
+### Changed
+- 切换 AI Provider 时，如果 Base URL 或模型仍是内置默认值，会自动替换成新 Provider 的默认值，避免从 Gemini 切到 Ollama 后继续保留 Google API URL。
+
+## [1.210.1-rc2] - 2026-07-03
+
+### Changed
+- 命令搜索面板顶部区域继续微调压缩，收紧 header、选项网格、Runbook 变量卡片和操作按钮的垂直间距。
+
+## [1.210.1-rc1] - 2026-07-03
+
+### Changed
+- 命令搜索面板顶部选项改为两列紧凑排布，压缩 Runbook 回放变量区和备注输入框高度，让下方命令块列表获得更多可浏览空间。
+- 精简命令搜索面板相关中英文文案，减少窄侧栏内换行挤占。
+
+## [1.210.0] - 2026-07-03
+
+### Added
+- AppleScript 支持（词典 + Cocoa Scripting 实现，`tell application "museterm"` 即可驱动）：
+  - 对象模型：`tabs`（id/index/title/current directory/shell/busy/state/selected/contents/history/columns/rows）与 `command records`（shell integration 的结构化命令块：command/exit code/running/output/duration/working directory/started at/ended at，最近 50 条）；`selected tab` 可读写。
+  - 动词：`create tab`（可带 `in directory`，返回 tab）、`close` / `select`、`write text ... to`（`newline false` 可关回车）、`send key`（键名与 CLI 一致）、`execute ... in ... timeout N` 同步执行——挂起 Apple 事件直到命令块结束，返回 `{succeeded, exit code, output, duration}` 记录、`open ssh profile`、`play shortcut`。
+  - 安全：设置 › 工具 新增「允许 AppleScript 写入终端」总开关（默认开；关闭后 write text / send key / execute / play shortcut 拒绝，读取不受影响）；含受保护输入（echo-off 密码段）的快捷方式禁止脚本回放；自定义错误码 -31000 起，双语错误消息。
+  - 设置页新增 AppleScript 示例代码块（带复制按钮）；`contents` / `history` / `output` 会清理终端空单元产生的 NUL 字符。
+  - 需求文档见 `docs/APPLESCRIPT_SUPPORT.md`；新增 Ruby 冒烟测试 `scripts/applescript_smoke_test.rb`（JSON + Markdown 双报告）。
+
+## [1.209.0-rc6] - 2026-07-02
+
+### Added
+- 设置页「工具」中的「CLI 示例」和「MCP 配置」代码块新增复制按钮：点击右上角图标一键复制全部内容，成功后按钮短暂变为绿色对勾并显示「已复制」反馈。
+
 ## [1.209.0-rc5] - 2026-07-02
 
 ### Added

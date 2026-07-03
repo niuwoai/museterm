@@ -1156,13 +1156,21 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         }
     }
 
-    private func visibleScreenText() -> String {
+    func visibleScreenText() -> String {
         guard let terminal = terminalView.terminal else { return "" }
         return (0..<terminal.rows)
             .compactMap { row in
                 terminal.getLine(row: row)?.translateToString(trimRight: true)
             }
             .joined(separator: "\n")
+    }
+
+    var terminalColumns: Int {
+        terminalView.terminal?.cols ?? 0
+    }
+
+    var terminalRows: Int {
+        terminalView.terminal?.rows ?? 0
     }
 
     private func fullHistoryText() -> String {
