@@ -282,6 +282,7 @@ final class TerminalNotificationCoordinator: NSObject, ObservableObject, Termina
             return
         }
         lastDeliveryDates[key] = now
+        pruneExpiredDeliveryDates(now: now, cooldownSeconds: preferences.notificationCooldownSeconds)
 
         let content = UNMutableNotificationContent()
         content.title = payload.title
@@ -295,6 +296,14 @@ final class TerminalNotificationCoordinator: NSObject, ObservableObject, Termina
             trigger: nil
         )
         UNUserNotificationCenter.current().add(request)
+    }
+
+    // 冷却窗口外的时间戳不再拦截任何通知，长时间运行多标签时定期清掉，避免字典无界增长。
+    private func pruneExpiredDeliveryDates(now: Date, cooldownSeconds: Double) {
+        guard lastDeliveryDates.count > 64 else { return }
+        lastDeliveryDates = lastDeliveryDates.filter {
+            now.timeIntervalSince($0.value) < cooldownSeconds
+        }
     }
 
     private var isAuthorizedForSystemNotifications: Bool {

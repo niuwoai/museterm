@@ -8,8 +8,14 @@ struct SSHConfigPreviewSheet: View {
     @State private var message = ""
     @State private var parsedResults: [Int: SSHRouteDiagnosticStepResult] = [:]
 
-    private var preview: SSHConfigPreview {
-        SSHConfigMaterializer.preview(for: profile)
+    // profile 在 sheet 生命周期内不变，预览只生成一次，body 内多处引用不再重复物化配置。
+    private let preview: SSHConfigPreview
+
+    init(profile: SSHConnectionProfile, skin: TerminalVisualSkin, onClose: @escaping () -> Void) {
+        self.profile = profile
+        self.skin = skin
+        self.onClose = onClose
+        self.preview = SSHConfigMaterializer.preview(for: profile)
     }
 
     var body: some View {

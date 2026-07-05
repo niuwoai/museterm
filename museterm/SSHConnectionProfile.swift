@@ -2334,8 +2334,13 @@ final class SSHConnectionStore: ObservableObject {
     }
 
     private func persist() {
-        guard let data = try? JSONEncoder().encode(profiles.map(\.normalized)) else { return }
-        defaults.set(data, forKey: Self.key)
+        do {
+            let data = try JSONEncoder().encode(profiles.map(\.normalized))
+            defaults.set(data, forKey: Self.key)
+        } catch {
+            // 编码失败意味着本次改动不会落盘，至少留下线索，不能无声丢数据。
+            NSLog("MuseTerm: failed to persist SSH profiles: %@", String(describing: error))
+        }
     }
 
     private static func load(defaults: UserDefaults) -> [SSHConnectionProfile] {

@@ -180,20 +180,38 @@ final class TerminalWorkspaceTests: XCTestCase {
         XCTAssertEqual(confirmer.requestedTabTitles.count, 1)
     }
 
-    func testClosingLastTabKeepsReplacementTab() throws {
+    func testClosingLastTabEmptiesWorkspaceAndNotifiesHost() throws {
         let confirmer = RecordingTabCloseConfirmer()
         let workspace = TerminalWorkspace(
             automaticallyStartProcesses: false,
             tabCloseConfirmer: confirmer
         )
-        let originalTab = try XCTUnwrap(workspace.selectedTab)
+        var allTabsClosedCount = 0
+        workspace.onAllTabsClosed = { allTabsClosedCount += 1 }
+        XCTAssertNotNil(workspace.selectedTab)
 
-        workspace.closeSelectedTab()
+        XCTAssertTrue(workspace.closeSelectedTab())
 
-        let replacementTab = try XCTUnwrap(workspace.selectedTab)
+        XCTAssertTrue(workspace.tabs.isEmpty)
+        XCTAssertNil(workspace.selectedTab)
+        XCTAssertNil(workspace.selectedID)
+        XCTAssertEqual(allTabsClosedCount, 1)
+    }
+
+    func testCancelledLastTabCloseDoesNotNotifyHost() throws {
+        let confirmer = RecordingTabCloseConfirmer()
+        confirmer.shouldAllowClose = false
+        let workspace = TerminalWorkspace(
+            automaticallyStartProcesses: false,
+            tabCloseConfirmer: confirmer
+        )
+        var allTabsClosedCount = 0
+        workspace.onAllTabsClosed = { allTabsClosedCount += 1 }
+
+        XCTAssertFalse(workspace.closeSelectedTab())
+
         XCTAssertEqual(workspace.tabs.count, 1)
-        XCTAssertNotEqual(replacementTab.id, originalTab.id)
-        XCTAssertEqual(workspace.selectedID, replacementTab.id)
+        XCTAssertEqual(allTabsClosedCount, 0)
     }
 
     func testWorkspaceCyclesTabsWithKeyboardActions() throws {
@@ -252,5 +270,82 @@ final class TerminalWorkspaceTests: XCTestCase {
         XCTAssertTrue(shortcut.hasProtectedInput)
         XCTAssertEqual(shortcut.events[1].bytes, [])
         XCTAssertEqual(shortcut.events[1].transientProtectedBytes, Array("secret\n".utf8))
+    }
+
+    func testTerminalShortcutRecorderCoalescesInputUntilNewline() throws {
+        let started = Date(timeIntervalSince1970: 200)
+        let recorder = TerminalShortcutRecorder(startedAt: started)
+
+        recorder.record(data: Array("g".utf8), echoEnabled: true, now: started.addingTimeInterval(0.1))
+        recorder.record(data: Array("it ".utf8), echoEnabled: true, now: started.addingTimeInterval(0.2))
+        recorder.record(data: Array("status\npwd\n".utf8), echoEnabled: true, now: started.addingTimeInterval(0.3))
+
+        let shortcut = try XCTUnwrap(recorder.finish(title: "Shell", finishedAt: started.addingTimeInterval(1)))
+        XCTAssertEqual(shortcut.events.count, 2)
+        XCTAssertEqual(shortcut.events.map(\.requiresEchoOff), [false, false])
+        XCTAssertEqual(String(bytes: shortcut.events[0].bytes, encoding: .utf8), "git status\n")
+        XCTAssertEqual(String(bytes: shortcut.events[1].bytes, encoding: .utf8), "pwd\n")
+    }
+
+    func testTerminalShortcutJSONUsesEscapedTextAndStringBytes() throws {
+        let event = TerminalShortcutEvent(delayMilliseconds: 25, bytes: Array("ls -la\n".utf8))
+        let data = try JSONEncoder().encode(event)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        XCTAssertEqual(object["text"] as? String, "ls -la\\n")
+        XCTAssertEqual(object["bytes"] as? String, "ls -la\\n")
+
+        let decoded = try JSONDecoder().decode(TerminalShortcutEvent.self, from: data)
+        XCTAssertEqual(decoded.bytes, Array("ls -la\n".utf8))
+    }
+
+    func testTerminalShortcutDecodesLegacyNumericBytes() throws {
+        let id = UUID()
+        let json = """
+        {
+          "id": "\(id.uuidString)",
+          "delayMilliseconds": 0,
+          "bytes": [108, 115, 10],
+          "requiresEchoOff": false
+        }
+        """
+
+        let decoded = try JSONDecoder().decode(TerminalShortcutEvent.self, from: Data(json.utf8))
+        XCTAssertEqual(decoded.bytes, Array("ls\n".utf8))
+    }
+
+    func testTerminalShortcutStorePersistsProtectedInputInVault() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("museterm-shortcut-test-\(UUID().uuidString)", isDirectory: true)
+        let previous = TerminalShortcutStore._setTestDirectoryOverride(directory)
+        defer {
+            _ = TerminalShortcutStore._setTestDirectoryOverride(previous)
+            try? FileManager.default.removeItem(at: directory)
+        }
+
+        let shortcut = TerminalShortcut(
+            id: UUID(),
+            title: "Password",
+            createdAt: Date(timeIntervalSince1970: 1),
+            updatedAt: Date(timeIntervalSince1970: 2),
+            durationMilliseconds: 100,
+            events: [
+                TerminalShortcutEvent(
+                    delayMilliseconds: 0,
+                    bytes: [],
+                    requiresEchoOff: true,
+                    transientProtectedBytes: Array("secret\n".utf8)
+                )
+            ],
+            hasProtectedInput: true
+        )
+
+        TerminalShortcutStore.save([shortcut])
+        let loaded = try XCTUnwrap(TerminalShortcutStore.load().first)
+        var cache: [String: [UInt8]] = [:]
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appendingPathComponent("protected-vault.key").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appendingPathComponent("protected-vault.json").path))
+        XCTAssertEqual(loaded.events.first?.resolvedBytes(cache: &cache), Array("secret\n".utf8))
     }
 }

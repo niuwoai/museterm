@@ -325,6 +325,7 @@ final class TerminalSession: ObservableObject, Identifiable {
     private var activeCommandOutputStartIndex = 0
     private let maxCommandBlocks = 200
     private let maxCommandOutputTailCharacters = 12_000
+    private let maxOutputSummaryScanCharacters = 65_536
     private let maxHistorySearchCharacters = 240_000
     weak var attentionReporter: TerminalAttentionReporting?
 
@@ -486,7 +487,11 @@ final class TerminalSession: ObservableObject, Identifiable {
         let output = historySuffix(from: activeCommandOutputStartIndex, in: historySnapshot)
         commandBlocks[index].outputCharacterCount = output.count
         commandBlocks[index].outputTail = String(output.suffix(maxCommandOutputTailCharacters))
-        commandBlocks[index].outputSummary = TerminalOutputInsightAnalyzer.outputSummary(in: output)
+        // 摘要只扫输出尾部窗口：诊断信号几乎都在结尾，避免长输出命令每个输出块都全量重扫。
+        let summarySource = output.count > maxOutputSummaryScanCharacters
+            ? String(output.suffix(maxOutputSummaryScanCharacters))
+            : output
+        commandBlocks[index].outputSummary = TerminalOutputInsightAnalyzer.outputSummary(in: summarySource)
     }
 
     func updateShellName(_ rawShellName: String?) {
@@ -855,6 +860,8 @@ final class TerminalWorkspace: ObservableObject {
             preparedTab?.attentionReporter = attentionReporter
         }
     }
+    // 最后一个标签被关闭后触发；宿主窗口据此关闭自身，未绑定时工作区保持空标签状态。
+    var onAllTabsClosed: (() -> Void)?
 
     private let automaticallyStartProcesses: Bool
     private let tabCloseConfirmer: TerminalTabCloseConfirming
@@ -1041,7 +1048,8 @@ final class TerminalWorkspace: ObservableObject {
         tabs.remove(at: index)
 
         guard !tabs.isEmpty else {
-            newTab()
+            selectedID = nil
+            onAllTabsClosed?()
             return true
         }
 

@@ -96,6 +96,8 @@
 "shortcut.play" = "Replay";
 "shortcut.rename" = "Rename";
 "shortcut.delete" = "Delete";
+"shortcut.delete_confirm.title" = "Delete Recording?";
+"shortcut.delete_confirm.message" = "\"%@\" and its protected input will be removed. This cannot be undone.";
 "shortcut.rename_title" = "Rename recording";
 "shortcut.name" = "Recording name";
 "shortcut.tooltip" = "%d inputs · %d seconds";

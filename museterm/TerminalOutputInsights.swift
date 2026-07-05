@@ -99,6 +99,26 @@ struct TerminalOutputSummary: Codable, Equatable {
 enum TerminalOutputInsightAnalyzer {
     nonisolated private static let maxInsightsPerKind = 3
 
+    // 这些正则在每个输出块、每一行上反复使用，必须只编译一次。
+    nonisolated private static let urlRegex = compiledRegex(#"https?://[^\s<>"']+"#)
+    nonisolated private static let absolutePathRegex = compiledRegex(#"(?<![\w.-])(?:/[\w .@%+=:,~_-]+)+(?::\d+(?::\d+)?)?"#)
+    nonisolated private static let relativePathRegex = compiledRegex(#"\b[\w.-]+(?:/[\w .@%+=:,~_-]+)+\.(?:swift|go|js|jsx|ts|tsx|rb|py|rs|java|kt|m|mm|c|cc|cpp|h|hpp|json|yaml|yml|toml|md)(?::\d+(?::\d+)?)?"#)
+    nonisolated private static let commitHashRegex = compiledRegex(#"\b[0-9a-f]{7,40}\b"#)
+    nonisolated private static let commitContextRegex = compiledRegex(#"(?i)\b(commit|hash|sha|revision|rev)\b"#)
+    nonisolated private static let stackFrameRegex = compiledRegex(#"^\s*at\s+\S+"#)
+    nonisolated private static let yamlKeyValueRegex = compiledRegex(#"^[A-Za-z0-9_.-]+\s*:\s*.+"#)
+    nonisolated private static let yamlListItemRegex = compiledRegex(#"^-\s+[A-Za-z0-9_.-]+\s*:\s*.+"#)
+
+    nonisolated private static func compiledRegex(_ pattern: String) -> NSRegularExpression? {
+        try? NSRegularExpression(pattern: pattern)
+    }
+
+    nonisolated private static func hasMatch(_ regex: NSRegularExpression?, in text: String) -> Bool {
+        guard let regex else { return false }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        return regex.firstMatch(in: text, range: range) != nil
+    }
+
     nonisolated static func insights(in text: String) -> [TerminalOutputInsight] {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
@@ -140,21 +160,23 @@ enum TerminalOutputInsightAnalyzer {
             }
             if lowercased.contains("traceback")
                 || lowercased.contains("stack trace")
-                || lowercased.range(of: #"^\s*at\s+\S+"#, options: .regularExpression) != nil {
+                || hasMatch(stackFrameRegex, in: lowercased) {
                 append(.stackTrace, value: keyPhrase(from: line), line: line)
             }
 
-            for url in matches(in: line, pattern: #"https?://[^\s<>"']+"#) {
+            for url in matches(in: line, regex: urlRegex) {
                 append(.url, value: url, line: line)
             }
-            for path in matches(in: line, pattern: #"(?<![\w.-])(?:/[\w .@%+=:,~_-]+)+(?::\d+(?::\d+)?)?"#) {
+            for path in matches(in: line, regex: absolutePathRegex) {
                 append(.filePath, value: path, line: line)
             }
-            for relativePath in matches(in: line, pattern: #"\b[\w.-]+(?:/[\w .@%+=:,~_-]+)+\.(?:swift|go|js|jsx|ts|tsx|rb|py|rs|java|kt|m|mm|c|cc|cpp|h|hpp|json|yaml|yml|toml|md)(?::\d+(?::\d+)?)?"#) {
+            for relativePath in matches(in: line, regex: relativePathRegex) {
                 append(.filePath, value: relativePath, line: line)
             }
-            for hash in matches(in: line, pattern: #"\b[0-9a-f]{7,40}\b"#) where line.range(of: #"(?i)\b(commit|hash|sha|revision|rev)\b"#, options: .regularExpression) != nil {
-                append(.commitHash, value: hash, line: line)
+            if hasMatch(commitContextRegex, in: line) {
+                for hash in matches(in: line, regex: commitHashRegex) {
+                    append(.commitHash, value: hash, line: line)
+                }
             }
         }
 
@@ -231,8 +253,7 @@ enum TerminalOutputInsightAnalyzer {
             .filter { !$0.isEmpty && !$0.hasPrefix("#") }
         guard lines.count >= 2 else { return false }
         let yamlLikeCount = lines.prefix(12).filter { line in
-            line.range(of: #"^[A-Za-z0-9_.-]+\s*:\s*.+"#, options: .regularExpression) != nil
-                || line.range(of: #"^-\s+[A-Za-z0-9_.-]+\s*:\s*.+"#, options: .regularExpression) != nil
+            hasMatch(yamlKeyValueRegex, in: line) || hasMatch(yamlListItemRegex, in: line)
         }.count
         return yamlLikeCount >= 2
     }
@@ -260,8 +281,8 @@ enum TerminalOutputInsightAnalyzer {
         insights.first { $0.kind == kind }?.line
     }
 
-    nonisolated private static func matches(in text: String, pattern: String) -> [String] {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+    nonisolated private static func matches(in text: String, regex: NSRegularExpression?) -> [String] {
+        guard let regex else { return [] }
         let range = NSRange(text.startIndex..<text.endIndex, in: text)
         return regex.matches(in: text, range: range).compactMap { match in
             guard let matchRange = Range(match.range, in: text) else { return nil }

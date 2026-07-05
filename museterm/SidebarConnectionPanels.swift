@@ -8,6 +8,7 @@ struct TerminalShortcutSection: View {
     let skin: TerminalVisualSkin
     @State private var renameDraft: TerminalShortcutRenameDraft?
     @State private var isEditingJSON = false
+    @State private var deletionCandidate: TerminalShortcut?
 
     var body: some View {
         SidebarSection(title: L10n.string("shortcut.section"), systemImage: "record.circle", skin: skin) {
@@ -75,6 +76,24 @@ struct TerminalShortcutSection: View {
                 }
             )
         }
+        .alert(
+            L10n.string("shortcut.delete_confirm.title"),
+            isPresented: Binding(
+                get: { deletionCandidate != nil },
+                set: { if !$0 { deletionCandidate = nil } }
+            ),
+            presenting: deletionCandidate
+        ) { shortcut in
+            Button(L10n.string("shortcut.delete"), role: .destructive) {
+                workspace.deleteShortcut(id: shortcut.id)
+                deletionCandidate = nil
+            }
+            Button(L10n.string("action.cancel"), role: .cancel) {
+                deletionCandidate = nil
+            }
+        } message: { shortcut in
+            Text(L10n.format("shortcut.delete_confirm.message", shortcut.title))
+        }
     }
 
     private func shortcutMenu(_ shortcut: TerminalShortcut) -> some View {
@@ -95,7 +114,7 @@ struct TerminalShortcutSection: View {
             Divider()
 
             Button(role: .destructive) {
-                workspace.deleteShortcut(id: shortcut.id)
+                deletionCandidate = shortcut
             } label: {
                 Label(L10n.string("shortcut.delete"), systemImage: "trash")
             }
@@ -1112,33 +1131,44 @@ private struct SSHProfileEditorSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 0) {
             Text(L10n.string("ssh.editor.title"))
                 .font(.headline)
-            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
-                textRow("ssh.name", text: $name)
-                textRow("ssh.group", text: $groupName)
-                textRow("ssh.tags", text: $tagsText)
-                textRow("ssh.host", text: $host)
-                textRow("ssh.user", text: $user)
-                textRow("ssh.port", text: $portText)
-                environmentRow
-                safetyPolicyRow
-                keepAliveRow
-                connectionReuseRow
-                automaticReconnectRow
-                remoteShellIntegrationRow
+                .padding(.bottom, 12)
+
+            Divider()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
+                        textRow("ssh.name", text: $name)
+                        textRow("ssh.group", text: $groupName)
+                        textRow("ssh.tags", text: $tagsText)
+                        textRow("ssh.host", text: $host)
+                        textRow("ssh.user", text: $user)
+                        textRow("ssh.port", text: $portText)
+                        environmentRow
+                        safetyPolicyRow
+                        keepAliveRow
+                        connectionReuseRow
+                        automaticReconnectRow
+                        remoteShellIntegrationRow
+                    }
+
+                    labeledEditor("ssh.identities", help: "ssh.identities.help", text: $identityText, height: 58)
+                    labeledEditor("ssh.jumps", help: "ssh.jumps.help", text: $jumpText, height: 86)
+                    routeSummaryView
+                    labeledEditor("ssh.port_forwards", help: "ssh.port_forwards.help", text: $portForwardText, height: 86)
+                    portForwardPreviewView
+                    preflightIssuesView
+                    labeledEditor("ssh.options", help: "ssh.options.help", text: $optionText, height: 62)
+                    securityWarningsView
+                    labeledEditor("ssh.startup", help: "ssh.startup.help", text: $startupText, height: 62)
+                }
+                .padding(.vertical, 12)
             }
 
-            labeledEditor("ssh.identities", help: "ssh.identities.help", text: $identityText, height: 58)
-            labeledEditor("ssh.jumps", help: "ssh.jumps.help", text: $jumpText, height: 86)
-            routeSummaryView
-            labeledEditor("ssh.port_forwards", help: "ssh.port_forwards.help", text: $portForwardText, height: 86)
-            portForwardPreviewView
-            preflightIssuesView
-            labeledEditor("ssh.options", help: "ssh.options.help", text: $optionText, height: 62)
-            securityWarningsView
-            labeledEditor("ssh.startup", help: "ssh.startup.help", text: $startupText, height: 62)
+            Divider()
 
             HStack {
                 Spacer()
@@ -1149,9 +1179,15 @@ private struct SSHProfileEditorSheet: View {
                 .keyboardShortcut(.defaultAction)
                 .disabled(host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
+            .padding(.top, 12)
         }
         .padding(18)
-        .frame(width: 560)
+        .frame(width: 560, height: sheetHeight)
+    }
+
+    private var sheetHeight: CGFloat {
+        let visibleHeight = NSScreen.main?.visibleFrame.height ?? 760
+        return min(680, max(520, visibleHeight - 160))
     }
 
     private var profile: SSHConnectionProfile {

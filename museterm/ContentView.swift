@@ -498,6 +498,7 @@ private struct CommandInspectorView: View {
     @State private var runbookWorkingDirectory = ""
     @State private var runbookNote = ""
     @State private var copiedMessage = ""
+    @State private var copiedMessageGeneration = 0
     @State private var explainingBlockID: UUID?
     @State private var explainedCommand = ""
     @State private var aiExplanation = ""
@@ -846,7 +847,19 @@ private struct CommandInspectorView: View {
         guard !text.isEmpty else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
-        copiedMessage = L10n.string(messageKey)
+        showInspectorMessage(L10n.string(messageKey))
+    }
+
+    // 成功类反馈几秒后自动消失，错误提示保持常驻直到被下一条消息覆盖。
+    private func showInspectorMessage(_ text: String, autoClears: Bool = true) {
+        copiedMessage = text
+        copiedMessageGeneration += 1
+        guard autoClears else { return }
+        let generation = copiedMessageGeneration
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            guard copiedMessageGeneration == generation else { return }
+            copiedMessage = ""
+        }
     }
 
     private var runbookExportBlocks: [TerminalCommandBlock] {
@@ -952,9 +965,9 @@ private struct CommandInspectorView: View {
 
         do {
             try markdown.write(to: url, atomically: true, encoding: .utf8)
-            copiedMessage = L10n.string("runbook.saved")
+            showInspectorMessage(L10n.string("runbook.saved"))
         } catch {
-            copiedMessage = L10n.format("runbook.save_failed", error.localizedDescription)
+            showInspectorMessage(L10n.format("runbook.save_failed", error.localizedDescription), autoClears: false)
         }
     }
 
@@ -1051,7 +1064,7 @@ private struct CommandInspectorView: View {
     private func stageCommand(_ command: String) {
         guard let tab = workspace.selectedTab else { return }
         tab.controller.sendProcessInput(bytes: Array(command.utf8))
-        copiedMessage = L10n.string("runbook.command_staged")
+        showInspectorMessage(L10n.string("runbook.command_staged"))
     }
 
     @MainActor

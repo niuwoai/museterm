@@ -96,6 +96,8 @@
 "shortcut.play" = "回放";
 "shortcut.rename" = "改名";
 "shortcut.delete" = "删除";
+"shortcut.delete_confirm.title" = "删除录制捷径？";
+"shortcut.delete_confirm.message" = "将删除“%@”及其受保护输入，此操作无法撤销。";
 "shortcut.rename_title" = "改名录制捷径";
 "shortcut.name" = "捷径名称";
 "shortcut.tooltip" = "%d 段输入 · %d 秒";

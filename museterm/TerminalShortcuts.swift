@@ -1,5 +1,121 @@
 import Foundation
+import CryptoKit
 import Security
+
+enum TerminalShortcutTextCodec {
+    static func escapedText(from bytes: [UInt8]) -> String {
+        var result = ""
+        var plainBytes: [UInt8] = []
+
+        func flushPlainBytes() {
+            guard !plainBytes.isEmpty else { return }
+            result += String(decoding: plainBytes, as: UTF8.self)
+            plainBytes.removeAll(keepingCapacity: true)
+        }
+
+        for byte in bytes {
+            switch byte {
+            case 0x5C:
+                flushPlainBytes()
+                result += "\\\\"
+            case 0x0A:
+                flushPlainBytes()
+                result += "\\n"
+            case 0x0D:
+                flushPlainBytes()
+                result += "\\r"
+            case 0x09:
+                flushPlainBytes()
+                result += "\\t"
+            case 0x1B:
+                flushPlainBytes()
+                result += "\\e"
+            case 0x7F:
+                flushPlainBytes()
+                result += "\\b"
+            case 0x00...0x1F:
+                flushPlainBytes()
+                result += String(format: "\\x%02X", byte)
+            default:
+                plainBytes.append(byte)
+            }
+        }
+        flushPlainBytes()
+        return result
+    }
+
+    static func bytes(fromEscapedText text: String) -> [UInt8] {
+        var result: [UInt8] = []
+        var index = text.startIndex
+
+        while index < text.endIndex {
+            let character = text[index]
+            if character == "\u{0008}" {
+                result.append(0x7F)
+                index = text.index(after: index)
+                continue
+            }
+            guard character == "\\" else {
+                result.append(contentsOf: String(character).utf8)
+                index = text.index(after: index)
+                continue
+            }
+
+            let escapeStart = index
+            index = text.index(after: index)
+            guard index < text.endIndex else {
+                result.append(0x5C)
+                break
+            }
+
+            let escaped = text[index]
+            switch escaped {
+            case "\\":
+                result.append(0x5C)
+                index = text.index(after: index)
+            case "n":
+                result.append(0x0A)
+                index = text.index(after: index)
+            case "r":
+                result.append(0x0D)
+                index = text.index(after: index)
+            case "t":
+                result.append(0x09)
+                index = text.index(after: index)
+            case "e", "E":
+                result.append(0x1B)
+                index = text.index(after: index)
+            case "b":
+                result.append(0x7F)
+                index = text.index(after: index)
+            case "x":
+                if let byte = hexByte(in: text, after: index) {
+                    result.append(byte.value)
+                    index = byte.nextIndex
+                } else {
+                    result.append(contentsOf: String(text[escapeStart...index]).utf8)
+                    index = text.index(after: index)
+                }
+            default:
+                result.append(0x5C)
+                result.append(contentsOf: String(escaped).utf8)
+                index = text.index(after: index)
+            }
+        }
+
+        return result
+    }
+
+    private static func hexByte(in text: String, after escapeIndex: String.Index) -> (value: UInt8, nextIndex: String.Index)? {
+        let firstIndex = text.index(after: escapeIndex)
+        guard firstIndex < text.endIndex else { return nil }
+        let secondIndex = text.index(after: firstIndex)
+        guard secondIndex < text.endIndex else { return nil }
+        let hex = String(text[firstIndex...secondIndex])
+        guard let value = UInt8(hex, radix: 16) else { return nil }
+        return (value, text.index(after: secondIndex))
+    }
+}
 
 struct TerminalShortcutEvent: Codable, Equatable, Identifiable {
     var id: UUID
@@ -28,17 +144,45 @@ struct TerminalShortcutEvent: Codable, Equatable, Identifiable {
     enum CodingKeys: String, CodingKey {
         case id
         case delayMilliseconds
+        case text
         case bytes
         case requiresEchoOff
         case protectedBytesReference
+    }
+
+    private enum FlexibleBytes: Decodable {
+        case string(String)
+        case array([UInt8])
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if let text = try? container.decode(String.self) {
+                self = .string(text)
+                return
+            }
+            self = .array(try container.decode([UInt8].self))
+        }
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
         delayMilliseconds = try container.decode(Int.self, forKey: .delayMilliseconds)
-        bytes = try container.decodeIfPresent([UInt8].self, forKey: .bytes) ?? []
         requiresEchoOff = try container.decodeIfPresent(Bool.self, forKey: .requiresEchoOff) ?? false
+        if requiresEchoOff {
+            bytes = []
+        } else if let text = try container.decodeIfPresent(String.self, forKey: .text) {
+            bytes = TerminalShortcutTextCodec.bytes(fromEscapedText: text)
+        } else if let flexibleBytes = try container.decodeIfPresent(FlexibleBytes.self, forKey: .bytes) {
+            switch flexibleBytes {
+            case .string(let text):
+                bytes = TerminalShortcutTextCodec.bytes(fromEscapedText: text)
+            case .array(let rawBytes):
+                bytes = rawBytes
+            }
+        } else {
+            bytes = []
+        }
         protectedBytesReference = try container.decodeIfPresent(String.self, forKey: .protectedBytesReference)
         transientProtectedBytes = []
     }
@@ -47,8 +191,14 @@ struct TerminalShortcutEvent: Codable, Equatable, Identifiable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encode(delayMilliseconds, forKey: .delayMilliseconds)
-        try container.encode(requiresEchoOff ? [] : bytes, forKey: .bytes)
         try container.encode(requiresEchoOff, forKey: .requiresEchoOff)
+        if requiresEchoOff {
+            try container.encode([UInt8](), forKey: .bytes)
+        } else {
+            let text = TerminalShortcutTextCodec.escapedText(from: bytes)
+            try container.encode(text, forKey: .text)
+            try container.encode(text, forKey: .bytes)
+        }
         try container.encodeIfPresent(protectedBytesReference, forKey: .protectedBytesReference)
     }
 
@@ -64,9 +214,14 @@ struct TerminalShortcutEvent: Codable, Equatable, Identifiable {
         if !transientProtectedBytes.isEmpty { return transientProtectedBytes }
         guard let protectedBytesReference, !protectedBytesReference.isEmpty else { return [] }
         if let cached = cache[protectedBytesReference] { return cached }
+        if let bytes = TerminalShortcutProtectedVault.load(account: protectedBytesReference) {
+            cache[protectedBytesReference] = bytes
+            return bytes
+        }
         let encoded = MuseTermKeychain.load(account: protectedBytesReference)
         guard let data = Data(base64Encoded: encoded) else { return [] }
         let bytes = Array(data)
+        TerminalShortcutProtectedVault.save(bytes, account: protectedBytesReference)
         cache[protectedBytesReference] = bytes
         return bytes
     }
@@ -101,6 +256,9 @@ final class TerminalShortcutRecorder {
     private(set) var events: [TerminalShortcutEvent] = []
     private(set) var hasProtectedInput = false
     private var totalRecordedBytes = 0
+    private var pendingBytes: [UInt8] = []
+    private var pendingEchoEnabled: Bool?
+    private var pendingStartedAt: Date?
 
     private let maxEvents = 4_000
     private let maxRecordedBytes = 64 * 1024
@@ -112,16 +270,48 @@ final class TerminalShortcutRecorder {
 
     func record(data: [UInt8], echoEnabled: Bool, now: Date = Date()) {
         guard !data.isEmpty else { return }
+        if let pendingEchoEnabled, pendingEchoEnabled != echoEnabled {
+            flushPendingInput(now: now)
+        }
+
+        for byte in data {
+            guard totalRecordedBytes + pendingBytes.count < maxRecordedBytes else { break }
+            if pendingBytes.isEmpty {
+                pendingStartedAt = now
+                pendingEchoEnabled = echoEnabled
+            }
+            pendingBytes.append(byte)
+            if byte == 0x0D || byte == 0x0A {
+                flushPendingInput(now: now)
+            }
+        }
+    }
+
+    private func flushPendingInput(now: Date) {
+        defer {
+            pendingBytes.removeAll(keepingCapacity: true)
+            pendingEchoEnabled = nil
+            pendingStartedAt = nil
+        }
+        guard !pendingBytes.isEmpty else { return }
+        appendEvent(
+            bytes: pendingBytes,
+            echoEnabled: pendingEchoEnabled ?? true,
+            now: pendingStartedAt ?? now,
+            anchor: now
+        )
+    }
+
+    private func appendEvent(bytes rawBytes: [UInt8], echoEnabled: Bool, now: Date, anchor: Date? = nil) {
+        guard !rawBytes.isEmpty else { return }
         guard events.count < maxEvents, totalRecordedBytes < maxRecordedBytes else { return }
 
         let remainingBytes = maxRecordedBytes - totalRecordedBytes
-        let safeBytes = Array(data.prefix(remainingBytes))
+        let safeBytes = Array(rawBytes.prefix(remainingBytes))
         guard !safeBytes.isEmpty else { return }
 
         let delay = max(0, Int(now.timeIntervalSince(lastRecordedInputAt) * 1000))
-        if !echoEnabled {
-            hasProtectedInput = true
-        }
+        hasProtectedInput = hasProtectedInput || !echoEnabled
         events.append(
             TerminalShortcutEvent(
                 delayMilliseconds: min(delay, 300_000),
@@ -131,10 +321,11 @@ final class TerminalShortcutRecorder {
             )
         )
         totalRecordedBytes += safeBytes.count
-        lastRecordedInputAt = now
+        lastRecordedInputAt = anchor ?? now
     }
 
     func finish(title: String, id: UUID = UUID(), finishedAt: Date = Date()) -> TerminalShortcut? {
+        flushPendingInput(now: finishedAt)
         guard !events.isEmpty else { return nil }
         return TerminalShortcut(
             id: id,
@@ -155,14 +346,29 @@ enum TerminalShortcutStore {
 
     static var directory: URL {
         if let directoryOverride { return directoryOverride }
+        return sharedDirectory
+    }
+
+    private static var legacyDirectory: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
         return base.appendingPathComponent("MuseTerm", isDirectory: true)
             .appendingPathComponent("TerminalShortcuts", isDirectory: true)
     }
 
+    private static var sharedDirectory: URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
+        return base.appendingPathComponent("WillDeep", isDirectory: true)
+            .appendingPathComponent("terminal-shortcuts", isDirectory: true)
+    }
+
     static var fileURL: URL {
         directory.appendingPathComponent(fileName)
+    }
+
+    private static var legacyFileURL: URL {
+        legacyDirectory.appendingPathComponent(fileName)
     }
 
     private static let encoder: JSONEncoder = {
@@ -179,14 +385,14 @@ enum TerminalShortcutStore {
     }()
 
     static func load() -> [TerminalShortcut] {
-        guard FileManager.default.fileExists(atPath: fileURL.path) else { return [] }
-        do {
-            let data = try Data(contentsOf: fileURL)
-            return normalized(try decoder.decode([TerminalShortcut].self, from: data))
-        } catch {
-            NSLog("MuseTerm shortcut load failed: \(error.localizedDescription)")
-            return []
+        if let shortcuts = load(from: fileURL) {
+            return normalized(shortcuts)
         }
+        guard directoryOverride == nil,
+              let legacyShortcuts = load(from: legacyFileURL),
+              !legacyShortcuts.isEmpty else { return [] }
+        save(legacyShortcuts)
+        return normalized(legacyShortcuts)
     }
 
     static func save(_ shortcuts: [TerminalShortcut]) {
@@ -214,9 +420,12 @@ enum TerminalShortcutStore {
     nonisolated static func deleteProtectedInputs(for shortcut: TerminalShortcut) {
         for event in shortcut.events {
             if let account = event.protectedBytesReference, !account.isEmpty {
+                TerminalShortcutProtectedVault.delete(account: account)
                 MuseTermKeychain.delete(account: account)
             } else if event.requiresEchoOff {
-                MuseTermKeychain.delete(account: protectedInputAccount(shortcutID: shortcut.id, eventID: event.id))
+                let account = protectedInputAccount(shortcutID: shortcut.id, eventID: event.id)
+                TerminalShortcutProtectedVault.delete(account: account)
+                MuseTermKeychain.delete(account: account)
             }
         }
     }
@@ -238,7 +447,7 @@ enum TerminalShortcutStore {
             var prepared = event
             let account = event.protectedBytesReference ?? protectedInputAccount(shortcutID: shortcut.id, eventID: event.id)
             if !event.transientProtectedBytes.isEmpty {
-                MuseTermKeychain.save(Data(event.transientProtectedBytes).base64EncodedString(), account: account)
+                TerminalShortcutProtectedVault.save(event.transientProtectedBytes, account: account)
             }
             prepared.protectedBytesReference = account
             prepared.transientProtectedBytes = []
@@ -256,11 +465,136 @@ enum TerminalShortcutStore {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     }
 
+    private static func load(from url: URL) -> [TerminalShortcut]? {
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        do {
+            let data = try Data(contentsOf: url)
+            return try decoder.decode([TerminalShortcut].self, from: data)
+        } catch {
+            NSLog("MuseTerm shortcut load failed at \(url.path): \(error.localizedDescription)")
+            return nil
+        }
+    }
+
     @discardableResult
     static func _setTestDirectoryOverride(_ directory: URL?) -> URL? {
         let previous = directoryOverride
         directoryOverride = directory
+        TerminalShortcutProtectedVault.resetInMemoryKeyForTests()
         return previous
+    }
+}
+
+enum TerminalShortcutProtectedVault {
+    private static let keyFileName = "protected-vault.key"
+    private static let dataFileName = "protected-vault.json"
+    private static var cachedKeyData: Data?
+
+    private struct Payload: Codable {
+        var version: Int
+        var entries: [String: String]
+    }
+
+    private static var keyURL: URL {
+        TerminalShortcutStore.directory.appendingPathComponent(keyFileName)
+    }
+
+    private static var dataURL: URL {
+        TerminalShortcutStore.directory.appendingPathComponent(dataFileName)
+    }
+
+    static func save(_ bytes: [UInt8], account: String) {
+        guard !bytes.isEmpty, !account.isEmpty else {
+            delete(account: account)
+            return
+        }
+        do {
+            var payload = try loadPayload()
+            let sealed = try AES.GCM.seal(Data(bytes), using: key())
+            guard let combined = sealed.combined else { return }
+            payload.entries[account] = combined.base64EncodedString()
+            try savePayload(payload)
+        } catch {
+            NSLog("MuseTerm protected shortcut save failed: \(error.localizedDescription)")
+        }
+    }
+
+    static func load(account: String) -> [UInt8]? {
+        guard !account.isEmpty else { return nil }
+        do {
+            let payload = try loadPayload()
+            guard let encoded = payload.entries[account],
+                  let combined = Data(base64Encoded: encoded) else { return nil }
+            let sealed = try AES.GCM.SealedBox(combined: combined)
+            return Array(try AES.GCM.open(sealed, using: key()))
+        } catch {
+            NSLog("MuseTerm protected shortcut load failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    static func delete(account: String) {
+        guard !account.isEmpty else { return }
+        do {
+            var payload = try loadPayload()
+            payload.entries.removeValue(forKey: account)
+            try savePayload(payload)
+        } catch {
+            NSLog("MuseTerm protected shortcut delete failed: \(error.localizedDescription)")
+        }
+    }
+
+    private static func key() throws -> SymmetricKey {
+        if let cachedKeyData, cachedKeyData.count == 32 {
+            return SymmetricKey(data: cachedKeyData)
+        }
+        if let existing = try? Data(contentsOf: keyURL), existing.count == 32 {
+            cachedKeyData = existing
+            return SymmetricKey(data: existing)
+        }
+        try ensureDirectory()
+        var generated = Data(count: 32)
+        let status = generated.withUnsafeMutableBytes { buffer in
+            SecRandomCopyBytes(kSecRandomDefault, 32, buffer.baseAddress!)
+        }
+        guard status == errSecSuccess else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        try generated.write(to: keyURL, options: .atomic)
+        try setOwnerOnlyPermissions(at: keyURL, mode: 0o600)
+        cachedKeyData = generated
+        return SymmetricKey(data: generated)
+    }
+
+    private static func loadPayload() throws -> Payload {
+        guard FileManager.default.fileExists(atPath: dataURL.path) else {
+            return Payload(version: 1, entries: [:])
+        }
+        let data = try Data(contentsOf: dataURL)
+        return try JSONDecoder().decode(Payload.self, from: data)
+    }
+
+    private static func savePayload(_ payload: Payload) throws {
+        try ensureDirectory()
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(payload)
+        try data.write(to: dataURL, options: .atomic)
+        try setOwnerOnlyPermissions(at: dataURL, mode: 0o600)
+    }
+
+    private static func ensureDirectory() throws {
+        let directory = TerminalShortcutStore.directory
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try setOwnerOnlyPermissions(at: directory, mode: 0o700)
+    }
+
+    private static func setOwnerOnlyPermissions(at url: URL, mode: Int) throws {
+        try FileManager.default.setAttributes([.posixPermissions: mode], ofItemAtPath: url.path)
+    }
+
+    static func resetInMemoryKeyForTests() {
+        cachedKeyData = nil
     }
 }
 

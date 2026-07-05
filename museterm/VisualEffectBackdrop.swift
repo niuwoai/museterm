@@ -31,6 +31,22 @@ final class TerminalWindowCloseCoordinator: NSObject, NSWindowDelegate {
 
     func bind(workspace: TerminalWorkspace) {
         self.workspace = workspace
+        workspace.onAllTabsClosed = { [weak self] in
+            self?.closeWindowAfterLastTabClosed()
+        }
+    }
+
+    // 最后一个标签关闭后关掉宿主窗口；App 配置了 last-window-closed 即退出，
+    // 因此关闭最后一个窗口等价于退出 App，多窗口时只影响当前窗口。
+    private func closeWindowAfterLastTabClosed() {
+        guard let window = configuredWindow else {
+            NSApp.terminate(nil)
+            return
+        }
+        // 关闭请求可能来自 windowShouldClose 委托内部，异步执行避免重入。
+        DispatchQueue.main.async {
+            window.close()
+        }
     }
 
     func configure(window: NSWindow?) {
@@ -58,7 +74,7 @@ final class TerminalWindowCloseCoordinator: NSObject, NSWindowDelegate {
     @discardableResult
     func handleWindowCloseRequest(eventTimestamp: TimeInterval? = nil) -> Bool {
         guard !TerminalWindowCloseState.isAppTerminating else { return true }
-        guard let workspace else { return true }
+        guard let workspace, !workspace.tabs.isEmpty else { return true }
 
         _ = workspace.closeSelectedTabFromShortcut(eventTimestamp: eventTimestamp)
         return false
