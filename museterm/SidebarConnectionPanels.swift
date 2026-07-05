@@ -330,10 +330,13 @@ struct SSHProfilesSection: View {
         store.profiles.filter { $0.matchesSearch(searchText, selectedTag: selectedTag) }
     }
 
+    // store.profiles 的所有写入路径都存 normalized 值，且 isFavorite/lastConnectedAt/
+    // connectionOpenCount/tags 在 normalized 里本就是透传字段，这里直接读原值，
+    // 避免每次渲染/键入对整个列表做 normalized 深拷贝。
     private var availableTags: [String] {
         var seen: Set<String> = []
         var tags: [String] = []
-        for tag in store.profiles.flatMap({ $0.normalized.tags }) {
+        for tag in store.profiles.flatMap(\.tags) {
             let key = tag.lowercased()
             guard seen.insert(key).inserted else { continue }
             tags.append(tag)
@@ -342,12 +345,12 @@ struct SSHProfilesSection: View {
     }
 
     private var groupedProfiles: [SSHProfileListGroup] {
-        let favoriteProfiles = sortedProfiles(filteredProfiles.filter { $0.normalized.isFavorite })
+        let favoriteProfiles = sortedProfiles(filteredProfiles.filter(\.isFavorite))
         let favoriteIDs = Set(favoriteProfiles.map(\.id))
         let recentProfiles = Array(
             sortedRecentProfiles(
                 filteredProfiles.filter {
-                    !$0.normalized.isFavorite && $0.normalized.lastConnectedAt != nil
+                    !$0.isFavorite && $0.lastConnectedAt != nil
                 }
             )
             .prefix(Self.maxRecentProfileCount)
@@ -357,7 +360,7 @@ struct SSHProfilesSection: View {
             !favoriteIDs.contains(profile.id) && !recentIDs.contains(profile.id)
         }
         let groups = Dictionary(grouping: regularProfiles) { profile in
-            profile.normalized.groupDisplayName
+            profile.groupDisplayName
         }
 
         var result: [SSHProfileListGroup] = []
@@ -403,12 +406,12 @@ struct SSHProfilesSection: View {
 
     private func sortedRecentProfiles(_ profiles: [SSHConnectionProfile]) -> [SSHConnectionProfile] {
         profiles.sorted { lhs, rhs in
-            let lhsDate = lhs.normalized.lastConnectedAt ?? .distantPast
-            let rhsDate = rhs.normalized.lastConnectedAt ?? .distantPast
+            let lhsDate = lhs.lastConnectedAt ?? .distantPast
+            let rhsDate = rhs.lastConnectedAt ?? .distantPast
             if lhsDate != rhsDate { return lhsDate > rhsDate }
-            let lhsCount = lhs.normalized.connectionOpenCount
-            let rhsCount = rhs.normalized.connectionOpenCount
-            if lhsCount != rhsCount { return lhsCount > rhsCount }
+            if lhs.connectionOpenCount != rhs.connectionOpenCount {
+                return lhs.connectionOpenCount > rhs.connectionOpenCount
+            }
             return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
         }
     }

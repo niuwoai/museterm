@@ -1,6 +1,6 @@
 # Product Overview
 
-> 最后更新：2026-07-05 | 当前版本：v1.212.1-rc7
+> 最后更新：2026-07-05 | 当前版本：v1.212.1-rc8
 
 ## 项目简介
 
@@ -62,6 +62,7 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 - 诊断契约：`CommandDiagnosticAction.swift` 独立承载结构化建议排查动作和稳定 action code，`LocalServiceScanner.swift` 独立负责本机监听端口扫描、`lsof` 字段解析、服务名识别和端口搜索匹配模型，`TaskPortPanel.swift` 保留面板、统计与诊断生成逻辑。
 - 统计持久化：`PersistentCommandStatsStore.swift` 独立负责每日命令统计的本地 JSON 读写，让任务与端口面板文件保持在 2000 行以下。
 - 通知契约：`TerminalNotifications.swift` 将通知触发策略、系统通知 payload 构建、冷却 key 和命令隐私开关拆成可测试的纯逻辑，避免提醒文案、脱敏命令内容与冷却策略在后续迭代中互相漂移。
+- SSH Profile 存储不变量：`SSHConnectionStore.profiles` 的所有写入路径（load/upsert/import/favorite/recent）都保存 `normalized` 值；侧栏列表、搜索与排序热路径依赖该不变量直接读取字段，不再逐次做全量归一化深拷贝，新增写入路径必须继续维持该不变量。
 
 ## 运行
 

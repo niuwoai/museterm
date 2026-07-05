@@ -717,6 +717,10 @@
 "ai_explain.error.request_failed_with_message" = "AI request failed with HTTP status %d. %@";
 "ai_explain.error.empty_response" = "The AI service did not return a displayable explanation.";
 "ai_explain.error.decode_failed" = "Failed to decode the AI response.";
+"ai_explain.error.hint.auth" = "Check that the API Key in AI settings is valid and has access to this model.";
+"ai_explain.error.hint.not_found" = "Check the model name and Base URL in AI settings.";
+"ai_explain.error.hint.rate_limited" = "The provider is rate limiting requests. Wait a moment and try again.";
+"ai_explain.error.hint.server" = "The AI provider had a server error. Try again later.";
 
 "runbook.copy" = "Copy Runbook";
 "runbook.save" = "Save MD";

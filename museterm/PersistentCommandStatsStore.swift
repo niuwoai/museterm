@@ -40,7 +40,9 @@ final class PersistentCommandStatsStore: ObservableObject {
     }
 
     func record(blocks: [TerminalCommandBlock]) {
-        var snapshot = loadToday()
+        // 内存快照仍是当天时直接复用，定时刷新不再每次读盘解码；跨天时才回读磁盘。
+        let currentKey = PersistentCommandStatsSnapshot.currentDateKey()
+        var snapshot = today.dateKey == currentKey ? today : loadToday()
         var didChange = false
 
         for block in blocks where block.endedAt != nil {

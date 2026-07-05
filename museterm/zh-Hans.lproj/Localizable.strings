@@ -717,6 +717,10 @@
 "ai_explain.error.request_failed_with_message" = "AI 请求失败，HTTP 状态码：%d。%@";
 "ai_explain.error.empty_response" = "AI 服务没有返回可显示的解释。";
 "ai_explain.error.decode_failed" = "AI 响应解析失败。";
+"ai_explain.error.hint.auth" = "请检查 AI 设置中的 API Key 是否有效、是否有权访问该模型。";
+"ai_explain.error.hint.not_found" = "请检查 AI 设置中的模型名称和 Base URL 是否正确。";
+"ai_explain.error.hint.rate_limited" = "请求被服务方限流，请稍候重试。";
+"ai_explain.error.hint.server" = "AI 服务端出错，请稍后重试。";
 
 "runbook.copy" = "复制 Runbook";
 "runbook.save" = "存 Markdown";

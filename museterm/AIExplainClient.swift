@@ -447,14 +447,31 @@ enum AIExplainError: LocalizedError {
         case .invalidResponse:
             return L10n.string("ai_explain.error.invalid_response")
         case .requestFailed(let statusCode, let message):
-            if message.isEmpty {
-                return L10n.format("ai_explain.error.request_failed", statusCode)
-            }
-            return L10n.format("ai_explain.error.request_failed_with_message", statusCode, message)
+            let base = message.isEmpty
+                ? L10n.format("ai_explain.error.request_failed", statusCode)
+                : L10n.format("ai_explain.error.request_failed_with_message", statusCode, message)
+            guard let hint = Self.hint(forStatusCode: statusCode) else { return base }
+            return "\(base)\n\(hint)"
         case .emptyResponse:
             return L10n.string("ai_explain.error.empty_response")
         case .decodeFailed:
             return L10n.string("ai_explain.error.decode_failed")
+        }
+    }
+
+    // 常见状态码补一句可操作的排查提示，用户不必自己解读原始 HTTP 错误。
+    private static func hint(forStatusCode statusCode: Int) -> String? {
+        switch statusCode {
+        case 401, 403:
+            return L10n.string("ai_explain.error.hint.auth")
+        case 404:
+            return L10n.string("ai_explain.error.hint.not_found")
+        case 429:
+            return L10n.string("ai_explain.error.hint.rate_limited")
+        case 500...599:
+            return L10n.string("ai_explain.error.hint.server")
+        default:
+            return nil
         }
     }
 }

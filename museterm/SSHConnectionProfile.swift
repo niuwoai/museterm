@@ -2049,25 +2049,28 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         environment == .production ? .forceConfirm : .inherit
     }
 
+    // displayName/target/groupDisplayName 出现在排序比较器和搜索热路径里，
+    // 只修剪自己用到的字段，不做完整 normalized 深拷贝（那会重建 jumpHosts/portForwards 等全部数组）。
     var displayName: String {
-        let clean = normalized
-        if !clean.name.isEmpty { return clean.name }
-        return clean.user.isEmpty ? clean.host : "\(clean.user)@\(clean.host)"
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !cleanName.isEmpty { return cleanName }
+        return target
     }
 
     var target: String {
-        let clean = normalized
-        return clean.user.isEmpty ? clean.host : "\(clean.user)@\(clean.host)"
+        let cleanHost = host.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanUser = user.trimmingCharacters(in: .whitespacesAndNewlines)
+        return cleanUser.isEmpty ? cleanHost : "\(cleanUser)@\(cleanHost)"
     }
 
     var groupDisplayName: String {
-        let clean = normalized.groupName
+        let clean = groupName.trimmingCharacters(in: .whitespacesAndNewlines)
         return clean.isEmpty ? L10n.string("ssh.group.ungrouped") : clean
     }
 
     func matchesSearch(_ query: String, selectedTag: String? = nil) -> Bool {
-        let clean = normalized
-        if let selectedTag, !clean.tags.contains(where: { $0.caseInsensitiveCompare(selectedTag) == .orderedSame }) {
+        if let selectedTag,
+           !tags.cleanedTagList().contains(where: { $0.caseInsensitiveCompare(selectedTag) == .orderedSame }) {
             return false
         }
 
@@ -2082,22 +2085,23 @@ struct SSHConnectionProfile: Codable, Equatable, Identifiable {
         }
     }
 
+    // 搜索基于 lowercased contains，字段首尾空白不影响命中，直接用原字段拼 token，
+    // 避免每个 profile 每次键入都做完整 normalized 深拷贝。
     var searchTokens: [String] {
-        let clean = normalized
-        return [
-            clean.displayName,
-            clean.name,
-            clean.host,
-            clean.user,
-            clean.target,
-            clean.groupName,
-            clean.environment.name,
-            clean.environment.shortName
+        [
+            displayName,
+            name,
+            host,
+            user,
+            target,
+            groupName,
+            environment.name,
+            environment.shortName
         ]
-            + (clean.isFavorite ? [L10n.string("ssh.group.favorites"), "favorite", "star"] : [])
-            + (clean.lastConnectedAt == nil ? [] : [L10n.string("ssh.group.recent"), "recent"])
-            + clean.tags
-            + clean.jumpHosts.flatMap { [$0.displayName, $0.host, $0.user, $0.name] }
+            + (isFavorite ? [L10n.string("ssh.group.favorites"), "favorite", "star"] : [])
+            + (lastConnectedAt == nil ? [] : [L10n.string("ssh.group.recent"), "recent"])
+            + tags.cleanedTagList()
+            + jumpHosts.flatMap { [$0.displayName, $0.host, $0.user, $0.name] }
     }
 
     var recentConnectionSummary: String? {
