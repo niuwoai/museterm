@@ -404,6 +404,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func processTerminated(source: TerminalView, exitCode: Int32?) {
+        guard !terminalView.process.running else {
+            session?.state = .running
+            return
+        }
         session?.finishActiveCommand(
             exitCode: exitCode,
             completionSource: .processExit,
@@ -849,6 +853,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                     environment: Self.environmentArray(shellPath: nil),
                     currentDirectory: FileManager.default.homeDirectoryForCurrentUser.path
                 )
+                session?.state = .running
                 let startupCommands = [RemoteShellIntegration.shellProbeCommand]
                     + RemoteShellIntegration.startupCommands(for: profile)
                     + descriptor.startupCommands

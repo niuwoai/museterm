@@ -923,6 +923,9 @@ Host museterm-33333333-3333-3333-3333-333333333333-jump-1
         sshSession.state = .exited(255)
         XCTAssertTrue(sshSession.canManuallyReconnectSSH)
 
+        sshSession.state = .running
+        XCTAssertFalse(sshSession.canManuallyReconnectSSH)
+
         let localSession = TerminalSession(sequence: 2)
         localSession.state = .exited(0)
         XCTAssertFalse(localSession.canManuallyReconnectSSH)
