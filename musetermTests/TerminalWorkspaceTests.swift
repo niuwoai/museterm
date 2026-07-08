@@ -38,6 +38,56 @@ final class TerminalWorkspaceTests: XCTestCase {
         XCTAssertEqual(workspace.selectedID, secondTab.id)
     }
 
+    func testNewLocalTabInheritsSelectedLocalTabDirectory() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let workspace = TerminalWorkspace(automaticallyStartProcesses: false)
+        let firstTab = try XCTUnwrap(workspace.selectedTab)
+        firstTab.currentDirectory = directory.path
+
+        workspace.newTab()
+        let secondTab = try XCTUnwrap(workspace.selectedTab)
+
+        XCTAssertEqual(secondTab.currentDirectory, directory.path)
+        XCTAssertEqual(secondTab.launchConfiguration.localStartDirectory, directory.path)
+    }
+
+    func testNewLocalTabDoesNotInheritSelectedSSHTabDirectory() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let workspace = TerminalWorkspace(automaticallyStartProcesses: false)
+        workspace.openSSH(profile: SSHConnectionProfile(host: "example.com"))
+        let sshTab = try XCTUnwrap(workspace.selectedTab)
+        sshTab.currentDirectory = directory.path
+
+        workspace.newTab()
+        let localTab = try XCTUnwrap(workspace.selectedTab)
+
+        XCTAssertNil(localTab.currentDirectory)
+        XCTAssertNil(localTab.launchConfiguration.localStartDirectory)
+    }
+
+    func testExplicitNewLocalTabDirectoryOverridesSelectedTabDirectory() throws {
+        let selectedDirectory = try makeTemporaryDirectory()
+        let explicitDirectory = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: selectedDirectory)
+            try? FileManager.default.removeItem(at: explicitDirectory)
+        }
+
+        let workspace = TerminalWorkspace(automaticallyStartProcesses: false)
+        let firstTab = try XCTUnwrap(workspace.selectedTab)
+        firstTab.currentDirectory = selectedDirectory.path
+
+        workspace.newTab(startDirectory: explicitDirectory.path)
+        let secondTab = try XCTUnwrap(workspace.selectedTab)
+
+        XCTAssertEqual(secondTab.currentDirectory, explicitDirectory.path)
+        XCTAssertEqual(secondTab.launchConfiguration.localStartDirectory, explicitDirectory.path)
+    }
+
     func testShortcutNewTabDeduplicatesDoubleDispatch() {
         let workspace = TerminalWorkspace(automaticallyStartProcesses: false)
 
@@ -270,6 +320,13 @@ final class TerminalWorkspaceTests: XCTestCase {
         XCTAssertTrue(shortcut.hasProtectedInput)
         XCTAssertEqual(shortcut.events[1].bytes, [])
         XCTAssertEqual(shortcut.events[1].transientProtectedBytes, Array("secret\n".utf8))
+    }
+
+    private func makeTemporaryDirectory() throws -> URL {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("museterm-workspace-tests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
     }
 
     func testTerminalShortcutRecorderCoalescesInputUntilNewline() throws {

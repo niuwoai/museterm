@@ -893,9 +893,10 @@ final class TerminalWorkspace: ObservableObject {
     }
 
     func newTab(startDirectory: String? = nil) {
-        let tab = startDirectory == nil
+        let resolvedStartDirectory = resolvedNewLocalTabStartDirectory(explicitStartDirectory: startDirectory)
+        let tab = resolvedStartDirectory == nil
             ? takePreparedTab()
-            : makeTab(launchConfiguration: .localShell(startDirectory: startDirectory))
+            : makeTab(launchConfiguration: .localShell(startDirectory: resolvedStartDirectory))
         tab.attentionReporter = attentionReporter
         tabs.append(tab)
         selectedID = tab.id
@@ -906,6 +907,20 @@ final class TerminalWorkspace: ObservableObject {
             }
         }
         schedulePrepareNextTab()
+    }
+
+    private func resolvedNewLocalTabStartDirectory(explicitStartDirectory: String?) -> String? {
+        if explicitStartDirectory != nil {
+            return TerminalWorkingDirectory.normalizedExistingDirectory(explicitStartDirectory)
+        }
+
+        guard let selectedTab,
+              case .localShell(let launchStartDirectory) = selectedTab.launchConfiguration else {
+            return nil
+        }
+
+        return TerminalWorkingDirectory.normalizedExistingDirectory(selectedTab.currentDirectory)
+            ?? TerminalWorkingDirectory.normalizedExistingDirectory(launchStartDirectory)
     }
 
     func openSSH(profile: SSHConnectionProfile) {

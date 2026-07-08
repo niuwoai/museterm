@@ -168,6 +168,24 @@ enum TerminalVisualSkin: String, CaseIterable, Identifiable {
         }
     }
 
+    var tabSelectionFill: Color {
+        switch self {
+        case .seaSalt: return Color(red: 0.78, green: 0.93, blue: 0.91).opacity(0.74)
+        case .mist: return Color(red: 0.79, green: 0.92, blue: 0.84).opacity(0.72)
+        case .ink: return Color(red: 0.91, green: 0.88, blue: 0.77).opacity(0.70)
+        case .midnight: return accent.opacity(0.30)
+        case .aurora: return accent.opacity(0.26)
+        case .ember: return secondaryAccent.opacity(0.24)
+        }
+    }
+
+    var tabSelectionBorder: Color {
+        switch self {
+        case .seaSalt, .mist, .ink: return accent.opacity(0.28)
+        case .midnight, .aurora, .ember: return accent.opacity(0.36)
+        }
+    }
+
     var hoverFill: Color {
         switch self {
         case .seaSalt: return secondaryAccent.opacity(0.10)

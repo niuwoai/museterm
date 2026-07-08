@@ -220,7 +220,7 @@
 "ssh.keep_alive.enabled" = "Send SSH keepalive packets";
 "ssh.keep_alive.interval" = "Interval (s)";
 "ssh.keep_alive.count" = "Count";
-"ssh.keep_alive.help" = "Uses OpenSSH ServerAliveInterval and ServerAliveCountMax. Defaults keep idle connections alive without typing into the remote shell.";
+"ssh.keep_alive.help" = "Uses OpenSSH ServerAliveInterval and ServerAliveCountMax on the target and jump hosts. Defaults keep idle connections alive without typing into the remote shell.";
 "ssh.connection_reuse" = "Reuse";
 "ssh.connection_reuse.enabled" = "Reuse SSH connections";
 "ssh.connection_reuse.persist" = "Persist (min)";
@@ -558,6 +558,7 @@
 "settings.ai.summary" = "Configure the AI service used for command explanation, failure analysis, and suggestions. API keys are stored only in local Keychain, not preferences or MCP state.";
 "settings.ai.custom_name" = "Custom provider name";
 "settings.ai.custom_name.placeholder" = "Example: internal gateway";
+"settings.ai.base_url_preset" = "API node";
 "settings.ai.base_url" = "Base URL";
 "settings.ai.model" = "Model";
 "settings.ai.models" = "Model choices";
@@ -570,12 +571,14 @@
 "settings.ai.models.azure_unavailable" = "Azure OpenAI usually needs a deployment name; enter it directly in the model field.";
 "settings.ai.models.selected" = "Selected model: %@";
 "settings.ai.api_key" = "API key";
-"settings.ai.api_key.placeholder" = "Paste and save to Keychain";
+"settings.ai.api_key.placeholder" = "Enter API key";
+"settings.ai.api_key.placeholder.saved" = "••••••••••••••••";
 "settings.ai.api_key.saved" = "Saved";
 "settings.ai.api_key.not_saved" = "Not saved";
-"settings.ai.api_key.save" = "Save key";
-"settings.ai.api_key.clear" = "Clear key";
+"settings.ai.api_key.save" = "Save";
+"settings.ai.api_key.clear" = "Clear";
 "settings.ai.api_key.save_success" = "API key saved to local Keychain.";
+"settings.ai.api_key.save_failed" = "API key could not be saved. Check Keychain access and try again.";
 "settings.ai.api_key.clear_success" = "API key cleared from local Keychain.";
 "settings.ai.privacy" = "Future AI Explain features should use structured command blocks first and ask before sending or de-redacting context.";
 "settings.tools" = "MCP & command line";
@@ -932,6 +935,10 @@
 "ai.provider.azureOpenAI.summary" = "Azure deployment names and enterprise endpoints.";
 "ai.provider.openRouter.name" = "OpenRouter";
 "ai.provider.openRouter.summary" = "Route across multiple model providers.";
+"ai.provider.someIM.name" = "some.im";
+"ai.provider.someIM.summary" = "some.im OpenAI-compatible endpoint. Uses the China node by default.";
+"ai.provider.someIM.base_url.china" = "China node";
+"ai.provider.someIM.base_url.global" = "Global node";
 "ai.provider.ollama.name" = "Ollama";
 "ai.provider.ollama.summary" = "Local or LAN model service.";
 "ai.provider.llamaServer.name" = "llama-server";

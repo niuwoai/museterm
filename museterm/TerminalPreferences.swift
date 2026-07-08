@@ -38,12 +38,23 @@ enum TerminalCursorShape: String, CaseIterable, Identifiable {
     }
 }
 
+struct AIProviderBaseURLPreset: Identifiable, Hashable {
+    let id: String
+    let titleKey: String
+    let url: String
+
+    var title: String {
+        L10n.string(titleKey)
+    }
+}
+
 enum AIProviderKind: String, CaseIterable, Identifiable {
     case openAI
     case anthropic
     case google
     case azureOpenAI
     case openRouter
+    case someIM
     case ollama
     case llamaServer
     case custom
@@ -65,6 +76,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable {
         case .google: return "gemini-2.5-pro"
         case .azureOpenAI: return ""
         case .openRouter: return "openai/gpt-4.1"
+        case .someIM: return "deepseek-v4-flash"
         case .ollama: return "llama3.1"
         case .llamaServer: return ""
         case .custom: return ""
@@ -78,9 +90,30 @@ enum AIProviderKind: String, CaseIterable, Identifiable {
         case .google: return "https://generativelanguage.googleapis.com/v1beta"
         case .azureOpenAI: return ""
         case .openRouter: return "https://openrouter.ai/api/v1"
+        case .someIM: return "https://api.niuwoai.com/v1"
         case .ollama: return "http://127.0.0.1:11434/v1"
         case .llamaServer: return "http://127.0.0.1:8080/v1"
         case .custom: return ""
+        }
+    }
+
+    var baseURLPresets: [AIProviderBaseURLPreset] {
+        switch self {
+        case .someIM:
+            return [
+                AIProviderBaseURLPreset(
+                    id: "china",
+                    titleKey: "ai.provider.someIM.base_url.china",
+                    url: "https://api.niuwoai.com/v1"
+                ),
+                AIProviderBaseURLPreset(
+                    id: "global",
+                    titleKey: "ai.provider.someIM.base_url.global",
+                    url: "https://some.im/v1"
+                )
+            ]
+        default:
+            return []
         }
     }
 
@@ -91,8 +124,16 @@ enum AIProviderKind: String, CaseIterable, Identifiable {
         }
     }
 
+    func isBuiltInBaseURL(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        return defaultBaseURL == trimmed || baseURLPresets.contains { $0.url == trimmed }
+    }
+
     static var builtInDefaultBaseURLs: Set<String> {
-        Set(allCases.map(\.defaultBaseURL).filter { !$0.isEmpty })
+        Set(allCases.flatMap { provider in
+            [provider.defaultBaseURL] + provider.baseURLPresets.map(\.url)
+        }.filter { !$0.isEmpty })
     }
 
     static var builtInDefaultModels: Set<String> {
@@ -182,7 +223,7 @@ final class TerminalPreferences: ObservableObject {
             if previousModel.isEmpty || previousModel == previousProvider.defaultModel || AIProviderKind.builtInDefaultModels.contains(previousModel) {
                 aiModel = aiProvider.defaultModel
             }
-            if previousBaseURL.isEmpty || previousBaseURL == previousProvider.defaultBaseURL || AIProviderKind.builtInDefaultBaseURLs.contains(previousBaseURL) {
+            if previousBaseURL.isEmpty || previousProvider.isBuiltInBaseURL(previousBaseURL) || AIProviderKind.builtInDefaultBaseURLs.contains(previousBaseURL) {
                 aiBaseURL = aiProvider.defaultBaseURL
             }
         }
@@ -264,9 +305,10 @@ final class TerminalPreferences: ObservableObject {
         MuseTermKeychain.load(account: aiAPIKeyAccount)
     }
 
-    func saveAIAPIKey(_ apiKey: String) {
-        MuseTermKeychain.save(apiKey, account: aiAPIKeyAccount)
+    func saveAIAPIKey(_ apiKey: String) -> Bool {
+        let saved = MuseTermKeychain.save(apiKey, account: aiAPIKeyAccount)
         objectWillChange.send()
+        return saved && !loadAIAPIKey().isEmpty
     }
 
     func clearAIAPIKey() {
@@ -281,7 +323,7 @@ final class TerminalPreferences: ObservableObject {
     private func normalizeBuiltInAIProviderDefaults() {
         guard aiProvider != .custom else { return }
         let trimmedBaseURL = aiBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        if AIProviderKind.builtInDefaultBaseURLs.contains(trimmedBaseURL), trimmedBaseURL != aiProvider.defaultBaseURL {
+        if AIProviderKind.builtInDefaultBaseURLs.contains(trimmedBaseURL), !aiProvider.isBuiltInBaseURL(trimmedBaseURL) {
             aiBaseURL = aiProvider.defaultBaseURL
         }
         let trimmedModel = aiModel.trimmingCharacters(in: .whitespacesAndNewlines)

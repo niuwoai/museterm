@@ -41,7 +41,7 @@ struct AIExplainClient {
             return try await googleStream(prompt: prompt, onChunk: onChunk)
         case .azureOpenAI:
             return try await openAICompatibleStream(prompt: prompt, azure: true, onChunk: onChunk)
-        case .openAI, .openRouter, .ollama, .llamaServer, .custom:
+        case .openAI, .openRouter, .someIM, .ollama, .llamaServer, .custom:
             return try await openAICompatibleStream(prompt: prompt, azure: false, onChunk: onChunk)
         }
     }
@@ -305,7 +305,7 @@ struct AIModelDiscovery {
             return try await anthropicModels()
         case .azureOpenAI:
             return []
-        case .openAI, .openRouter, .ollama, .llamaServer, .custom:
+        case .openAI, .openRouter, .someIM, .ollama, .llamaServer, .custom:
             do {
                 return try await openAICompatibleModels()
             } catch {

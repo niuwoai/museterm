@@ -316,11 +316,11 @@ private struct TabRowView: View {
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 4)
-        .background(isSelected ? skin.selectionFill : Color.clear)
+        .background(isSelected ? skin.tabSelectionFill : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(isSelected ? skin.hairline : Color.clear, lineWidth: 1)
+                .strokeBorder(isSelected ? skin.tabSelectionBorder : Color.clear, lineWidth: 1)
         )
         .contentShape(Rectangle())
         .onHover { hovering in
@@ -368,11 +368,11 @@ private struct CompactTabRowView: View {
         .padding(.horizontal, 7)
         .padding(.vertical, 5)
         .frame(maxWidth: .infinity)
-        .background(isSelected ? skin.selectionFill : Color.clear)
+        .background(isSelected ? skin.tabSelectionFill : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .strokeBorder(isSelected ? skin.hairline : Color.clear, lineWidth: 1)
+                .strokeBorder(isSelected ? skin.tabSelectionBorder : Color.clear, lineWidth: 1)
         )
         .contentShape(Rectangle())
         .help(helpText)

@@ -519,6 +519,7 @@ private struct AIProviderChoiceView: View {
         case .google: return "sparkle.magnifyingglass"
         case .azureOpenAI: return "cloud"
         case .openRouter: return "arrow.triangle.branch"
+        case .someIM: return "globe.asia.australia"
         case .ollama: return "desktopcomputer"
         case .llamaServer: return "server.rack"
         case .custom: return "slider.horizontal.3"
@@ -631,6 +632,7 @@ private struct AIProviderSettingsSection: View {
 
     private var connectionFields: some View {
         VStack(alignment: .leading, spacing: 12) {
+            baseURLPresetPicker
             SettingsTextFieldRow(
                 title: L10n.string("settings.ai.base_url"),
                 text: $preferences.aiBaseURL,
@@ -642,6 +644,29 @@ private struct AIProviderSettingsSection: View {
                 text: $preferences.aiModel,
                 placeholder: preferences.aiProvider.defaultModel
             )
+        }
+    }
+
+    @ViewBuilder
+    private var baseURLPresetPicker: some View {
+        let presets = preferences.aiProvider.baseURLPresets
+        if !presets.isEmpty {
+            HStack {
+                Text(L10n.string("settings.ai.base_url_preset"))
+                    .font(.subheadline.weight(.medium))
+                Spacer()
+                Picker(
+                    L10n.string("settings.ai.base_url_preset"),
+                    selection: $preferences.aiBaseURL
+                ) {
+                    ForEach(presets) { preset in
+                        Text(preset.title).tag(preset.url)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 260)
+            }
         }
     }
 
@@ -725,14 +750,17 @@ private struct AIProviderSettingsSection: View {
                 Spacer()
                 apiKeyStatusBadge
             }
-            SecureField(L10n.string("settings.ai.api_key.placeholder"), text: $apiKeyDraft)
+            SecureField(apiKeyPlaceholder, text: $apiKeyDraft)
                 .textFieldStyle(.roundedBorder)
             HStack(spacing: 10) {
                 Button {
-                    preferences.saveAIAPIKey(apiKeyDraft)
-                    apiKeyDraft = ""
-                    statusMessage = L10n.string("settings.ai.api_key.save_success")
-                    refreshModelCandidates(clearExisting: true, force: true)
+                    if preferences.saveAIAPIKey(apiKeyDraft) {
+                        apiKeyDraft = ""
+                        statusMessage = L10n.string("settings.ai.api_key.save_success")
+                        refreshModelCandidates(clearExisting: true, force: true)
+                    } else {
+                        statusMessage = L10n.string("settings.ai.api_key.save_failed")
+                    }
                 } label: {
                     Label(L10n.string("settings.ai.api_key.save"), systemImage: "key.fill")
                 }
@@ -750,6 +778,12 @@ private struct AIProviderSettingsSection: View {
                 .disabled(!preferences.hasAIAPIKey)
             }
         }
+    }
+
+    private var apiKeyPlaceholder: String {
+        preferences.hasAIAPIKey
+            ? L10n.string("settings.ai.api_key.placeholder.saved")
+            : L10n.string("settings.ai.api_key.placeholder")
     }
 
     private var apiKeyStatusBadge: some View {

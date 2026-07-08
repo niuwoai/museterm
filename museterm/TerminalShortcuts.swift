@@ -611,20 +611,21 @@ enum MuseTermKeychain {
         testStorage = enabled ? [:] : nil
     }
 
-    nonisolated static func save(_ secret: String, account: String) {
+    @discardableResult
+    nonisolated static func save(_ secret: String, account: String) -> Bool {
         let trimmed = secret.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else {
             delete(account: account)
-            return
+            return true
         }
 
         if testStorage != nil {
             testStorage?[account] = trimmed
-            return
+            return true
         }
         if isRunningUnderXCTest {
             xctestStorage[account] = trimmed
-            return
+            return true
         }
 
         let query: [String: Any] = [
@@ -637,7 +638,7 @@ enum MuseTermKeychain {
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
         ]
         let status = SecItemUpdate(query as CFDictionary, update as CFDictionary)
-        if status == errSecSuccess { return }
+        if status == errSecSuccess { return true }
         if status != errSecItemNotFound {
             SecItemDelete(query as CFDictionary)
         }
@@ -645,7 +646,7 @@ enum MuseTermKeychain {
         var add = query
         add[kSecValueData as String] = data
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        SecItemAdd(add as CFDictionary, nil)
+        return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
     }
 
     nonisolated static func load(account: String) -> String {

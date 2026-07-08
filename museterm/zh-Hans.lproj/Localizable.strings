@@ -220,7 +220,7 @@
 "ssh.keep_alive.enabled" = "发送 SSH 保活包";
 "ssh.keep_alive.interval" = "间隔（秒）";
 "ssh.keep_alive.count" = "失败次数";
-"ssh.keep_alive.help" = "使用 OpenSSH 的 ServerAliveInterval 和 ServerAliveCountMax，默认可保持空闲连接，不会向远端 shell 输入字符。";
+"ssh.keep_alive.help" = "对目标主机和跳转机使用 OpenSSH 的 ServerAliveInterval 和 ServerAliveCountMax，默认可保持空闲连接，不会向远端 shell 输入字符。";
 "ssh.connection_reuse" = "复用";
 "ssh.connection_reuse.enabled" = "复用 SSH 连接";
 "ssh.connection_reuse.persist" = "保留（分钟）";
@@ -558,6 +558,7 @@
 "settings.ai.summary" = "配置用于解释命令、分析失败和生成建议的 AI 服务。API Key 只保存到本机 Keychain，不会写入偏好或 MCP 状态。";
 "settings.ai.custom_name" = "自定义 Provider 名称";
 "settings.ai.custom_name.placeholder" = "例如：公司内网网关";
+"settings.ai.base_url_preset" = "API 节点";
 "settings.ai.base_url" = "Base URL";
 "settings.ai.model" = "模型";
 "settings.ai.models" = "模型候选";
@@ -570,12 +571,14 @@
 "settings.ai.models.azure_unavailable" = "Azure OpenAI 通常需要填写部署名；请直接在模型框里输入部署名。";
 "settings.ai.models.selected" = "已选择模型：%@";
 "settings.ai.api_key" = "API Key";
-"settings.ai.api_key.placeholder" = "粘贴后保存到 Keychain";
+"settings.ai.api_key.placeholder" = "输入 API Key";
+"settings.ai.api_key.placeholder.saved" = "••••••••••••••••";
 "settings.ai.api_key.saved" = "已保存";
 "settings.ai.api_key.not_saved" = "未保存";
-"settings.ai.api_key.save" = "保存 Key";
-"settings.ai.api_key.clear" = "清除 Key";
+"settings.ai.api_key.save" = "保存";
+"settings.ai.api_key.clear" = "清除";
 "settings.ai.api_key.save_success" = "API Key 已保存到本机 Keychain。";
+"settings.ai.api_key.save_failed" = "API Key 保存失败，请检查 Keychain 权限后重试。";
 "settings.ai.api_key.clear_success" = "API Key 已从本机 Keychain 清除。";
 "settings.ai.privacy" = "后续 AI Explain 会优先使用结构化命令块；发送上下文前应允许用户确认和脱敏。";
 "settings.tools" = "MCP 与命令行";
@@ -932,6 +935,10 @@
 "ai.provider.azureOpenAI.summary" = "Azure 部署名与企业端点。";
 "ai.provider.openRouter.name" = "OpenRouter";
 "ai.provider.openRouter.summary" = "统一路由多个模型供应商。";
+"ai.provider.someIM.name" = "some.im";
+"ai.provider.someIM.summary" = "some.im OpenAI 兼容接口，默认使用国内节点。";
+"ai.provider.someIM.base_url.china" = "国内节点";
+"ai.provider.someIM.base_url.global" = "国外节点";
 "ai.provider.ollama.name" = "Ollama";
 "ai.provider.ollama.summary" = "本机或局域网模型服务。";
 "ai.provider.llamaServer.name" = "llama-server";

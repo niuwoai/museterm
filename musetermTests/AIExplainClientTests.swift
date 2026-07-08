@@ -56,6 +56,54 @@ final class AIExplainClientTests: XCTestCase {
         XCTAssertEqual(configuration.apiKey, "")
     }
 
+    func testCustomConfigurationUsesSavedAPIKey() throws {
+        let preferences = try isolatedPreferences()
+        preferences.aiProvider = .custom
+        preferences.aiCustomProviderName = "some.im"
+        preferences.aiModel = "deepseek-v4-flash"
+        preferences.aiBaseURL = "https://api.example.test/v1"
+
+        XCTAssertTrue(preferences.saveAIAPIKey("  test-api-key  "))
+
+        let configuration = try AIExplainClient.Configuration(preferences: preferences)
+
+        XCTAssertEqual(configuration.provider, .custom)
+        XCTAssertEqual(configuration.providerName, "some.im")
+        XCTAssertEqual(configuration.apiKey, "test-api-key")
+    }
+
+    func testSomeIMUsesChinaNodeByDefaultAndSavedAPIKey() throws {
+        let preferences = try isolatedPreferences()
+        preferences.aiProvider = .someIM
+
+        XCTAssertEqual(preferences.aiBaseURL, "https://api.niuwoai.com/v1")
+        XCTAssertEqual(preferences.aiModel, "deepseek-v4-flash")
+        XCTAssertTrue(preferences.saveAIAPIKey("test-api-key"))
+
+        let configuration = try AIExplainClient.Configuration(preferences: preferences)
+
+        XCTAssertEqual(configuration.provider, .someIM)
+        XCTAssertEqual(configuration.providerName, "some.im")
+        XCTAssertEqual(configuration.baseURL, "https://api.niuwoai.com/v1")
+        XCTAssertEqual(configuration.apiKey, "test-api-key")
+    }
+
+    func testSomeIMCanKeepGlobalNodeSelectionAfterReload() throws {
+        let suiteName = "museterm.ai-client.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        defaults.set(AIProviderKind.someIM.rawValue, forKey: "ai.provider")
+        defaults.set("https://some.im/v1", forKey: "ai.baseURL")
+        defaults.set(AIProviderKind.someIM.defaultModel, forKey: "ai.model")
+
+        let preferences = TerminalPreferences(defaults: defaults)
+
+        XCTAssertEqual(preferences.aiProvider, .someIM)
+        XCTAssertEqual(preferences.aiBaseURL, "https://some.im/v1")
+        XCTAssertEqual(preferences.aiModel, "deepseek-v4-flash")
+    }
+
     func testSwitchingProviderReplacesBuiltInDefaultBaseURL() throws {
         let preferences = try isolatedPreferences()
         preferences.aiProvider = .google
