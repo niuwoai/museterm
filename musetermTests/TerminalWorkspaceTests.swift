@@ -152,6 +152,27 @@ final class TerminalWorkspaceTests: XCTestCase {
         XCTAssertEqual(workspace.quickPathRecords.first?.path, directory.path)
     }
 
+    func testManualQuickPathAddPersistsDirectory() throws {
+        let directory = try makeTemporaryDirectory()
+        let storeDirectory = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: directory)
+            try? FileManager.default.removeItem(at: storeDirectory)
+        }
+        let previous = TerminalQuickPathStore._setTestDirectoryOverride(storeDirectory)
+        defer { _ = TerminalQuickPathStore._setTestDirectoryOverride(previous) }
+
+        let workspace = TerminalWorkspace(automaticallyStartProcesses: false)
+        let record = try XCTUnwrap(workspace.addQuickPath(directory.path))
+
+        XCTAssertEqual(record.path, directory.path)
+        XCTAssertEqual(record.visitCount, 1)
+        XCTAssertEqual(TerminalQuickPathStore.load().map(\.path), [directory.path])
+
+        let updated = try XCTUnwrap(workspace.addQuickPath(directory.path))
+        XCTAssertEqual(updated.visitCount, 2)
+    }
+
     func testQuickPathStoreSortsFrequentPathsByVisitsThenRecency() throws {
         let firstDirectory = try makeTemporaryDirectory()
         let secondDirectory = try makeTemporaryDirectory()
@@ -494,5 +515,64 @@ final class TerminalWorkspaceTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appendingPathComponent("protected-vault.key").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appendingPathComponent("protected-vault.json").path))
         XCTAssertEqual(loaded.events.first?.resolvedBytes(cache: &cache), Array("secret\n".utf8))
+    }
+
+    func testTerminalShortcutStoreListsNamedProtectedInputs() throws {
+        let eventID = UUID()
+        let shortcutID = UUID()
+        let shortcut = TerminalShortcut(
+            id: shortcutID,
+            title: "Deploy",
+            createdAt: Date(timeIntervalSince1970: 1),
+            updatedAt: Date(timeIntervalSince1970: 2),
+            durationMilliseconds: 100,
+            events: [
+                TerminalShortcutEvent(
+                    id: eventID,
+                    delayMilliseconds: 0,
+                    bytes: [],
+                    requiresEchoOff: true,
+                    protectedBytesReference: "prod-password"
+                )
+            ],
+            hasProtectedInput: true
+        )
+
+        let input = try XCTUnwrap(TerminalShortcutStore.protectedInputs(in: [shortcut]).first)
+
+        XCTAssertEqual(input.shortcutID, shortcutID)
+        XCTAssertEqual(input.shortcutTitle, "Deploy")
+        XCTAssertEqual(input.eventID, eventID)
+        XCTAssertEqual(input.eventIndex, 0)
+        XCTAssertEqual(input.account, "prod-password")
+        XCTAssertFalse(input.usesDefaultAccount)
+    }
+
+    func testTerminalShortcutStoreUpdatesNamedProtectedInput() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("museterm-shortcut-password-test-\(UUID().uuidString)", isDirectory: true)
+        let previous = TerminalShortcutStore._setTestDirectoryOverride(directory)
+        defer {
+            _ = TerminalShortcutStore._setTestDirectoryOverride(previous)
+            try? FileManager.default.removeItem(at: directory)
+        }
+
+        let account = "deploy-password-\(UUID().uuidString)"
+        XCTAssertFalse(TerminalShortcutStore.protectedInputHasValue(account: account))
+
+        XCTAssertTrue(TerminalShortcutStore.saveProtectedInput("secret", account: account, appendingReturn: true))
+        XCTAssertTrue(TerminalShortcutStore.protectedInputHasValue(account: account))
+
+        let event = TerminalShortcutEvent(
+            delayMilliseconds: 0,
+            bytes: [],
+            requiresEchoOff: true,
+            protectedBytesReference: account
+        )
+        var cache: [String: [UInt8]] = [:]
+        XCTAssertEqual(event.resolvedBytes(cache: &cache), Array("secret".utf8) + [0x0D])
+
+        TerminalShortcutStore.deleteProtectedInput(account: account)
+        XCTAssertFalse(TerminalShortcutStore.protectedInputHasValue(account: account))
     }
 }

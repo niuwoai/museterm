@@ -1032,12 +1032,22 @@ final class TerminalWorkspace: ObservableObject {
         openQuickPath(record.path)
     }
 
+    @discardableResult
+    func addQuickPath(_ path: String) -> TerminalQuickPathRecord? {
+        guard let normalizedPath = TerminalWorkingDirectory.normalizedExistingDirectory(path) else {
+            return nil
+        }
+        quickPathRecords = TerminalQuickPathStore.record(directory: normalizedPath, in: quickPathRecords)
+        flushPendingQuickPathSave()
+        return quickPathRecords.first { $0.path == normalizedPath }
+    }
+
     func openQuickPath(_ path: String) {
-        guard TerminalWorkingDirectory.normalizedExistingDirectory(path) != nil else {
+        guard let normalizedPath = TerminalWorkingDirectory.normalizedExistingDirectory(path) else {
             removeQuickPath(path)
             return
         }
-        newTab(startDirectory: path)
+        newTab(startDirectory: normalizedPath)
     }
 
     var recentQuickPaths: [TerminalQuickPathRecord] {
@@ -1170,7 +1180,9 @@ final class TerminalWorkspace: ObservableObject {
     }
 
     func deleteShortcut(id: UUID) {
-        shortcuts.filter { $0.id == id }.forEach(TerminalShortcutStore.deleteProtectedInputs)
+        for shortcut in shortcuts where shortcut.id == id {
+            TerminalShortcutStore.deleteProtectedInputs(for: shortcut)
+        }
         shortcuts.removeAll { $0.id == id }
         persistShortcuts()
     }
@@ -1181,9 +1193,7 @@ final class TerminalWorkspace: ObservableObject {
 
     func saveEditableShortcutsText(_ text: String) throws {
         let edited = try TerminalShortcutStore.decodeEditableText(text)
-        for shortcut in shortcuts where edited.contains(where: { $0.id == shortcut.id }) == false {
-            TerminalShortcutStore.deleteProtectedInputs(for: shortcut)
-        }
+        TerminalShortcutStore.deleteProtectedInputs(removedFrom: shortcuts, keeping: edited)
         shortcuts = edited
         TerminalShortcutStore.save(shortcuts)
     }
@@ -1282,7 +1292,9 @@ final class TerminalWorkspace: ObservableObject {
     }
 
     private func upsertShortcut(_ shortcut: TerminalShortcut) {
-        shortcuts.filter { $0.id == shortcut.id }.forEach(TerminalShortcutStore.deleteProtectedInputs)
+        for existingShortcut in shortcuts where existingShortcut.id == shortcut.id {
+            TerminalShortcutStore.deleteProtectedInputs(for: existingShortcut)
+        }
         shortcuts.removeAll { $0.id == shortcut.id }
         shortcuts.insert(shortcut.normalized, at: 0)
         persistShortcuts()
@@ -1312,7 +1324,7 @@ final class TerminalWorkspace: ObservableObject {
         scheduleQuickPathSave()
     }
 
-    private func removeQuickPath(_ path: String) {
+    func removeQuickPath(_ path: String) {
         guard let normalizedPath = TerminalWorkingDirectory.normalizedExistingDirectory(path) ?? path.nonEmptyTrimmed else {
             return
         }

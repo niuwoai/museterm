@@ -8,6 +8,7 @@ struct TerminalQuickPathSection: View {
     @ObservedObject var workspace: TerminalWorkspace
     let skin: TerminalVisualSkin
     @State private var showsMoreFrequentPaths = false
+    @State private var quickPathMessage = ""
 
     var body: some View {
         let recentPaths = workspace.recentQuickPaths
@@ -22,6 +23,30 @@ struct TerminalQuickPathSection: View {
             skin: skin,
             initiallyExpanded: true
         ) {
+            HStack(spacing: 6) {
+                Button {
+                    selectQuickPathFolder()
+                } label: {
+                    Label(L10n.string("quick_path.add"), systemImage: "folder.badge.plus")
+                        .font(.caption.weight(.medium))
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(skin.controlFill)
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .help(L10n.string("quick_path.add.help"))
+
+                Spacer()
+            }
+
+            if !quickPathMessage.isEmpty {
+                Text(quickPathMessage)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             if recentPaths.isEmpty && frequentPaths.isEmpty {
                 Text(L10n.string("quick_path.empty"))
                     .font(.caption2)
@@ -31,7 +56,7 @@ struct TerminalQuickPathSection: View {
                 if !recentPaths.isEmpty {
                     quickPathGroupTitle(L10n.string("quick_path.recent"))
                     ForEach(recentPaths) { record in
-                        quickPathButton(record)
+                        quickPathRow(record)
                     }
                 }
 
@@ -39,7 +64,7 @@ struct TerminalQuickPathSection: View {
                     quickPathGroupTitle(L10n.string("quick_path.frequent"))
                         .padding(.top, recentPaths.isEmpty ? 0 : 4)
                     ForEach(frequentPaths) { record in
-                        quickPathButton(record)
+                        quickPathRow(record)
                     }
 
                     if totalFrequentCount > Self.collapsedFrequentCount {
@@ -75,42 +100,97 @@ struct TerminalQuickPathSection: View {
             .padding(.horizontal, 2)
     }
 
-    private func quickPathButton(_ record: TerminalQuickPathRecord) -> some View {
-        Button {
-            workspace.openQuickPath(record)
-        } label: {
-            HStack(spacing: 7) {
-                Image(systemName: "folder.fill")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(skin.accent)
-                    .frame(width: 14)
+    private func quickPathRow(_ record: TerminalQuickPathRecord) -> some View {
+        HStack(spacing: 4) {
+            Button {
+                workspace.openQuickPath(record)
+            } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: "folder.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(skin.accent)
+                        .frame(width: 14)
 
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(record.displayName)
-                        .font(.caption2.weight(.medium))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    Text(record.path)
-                        .font(.system(size: 9))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(record.displayName)
+                            .font(.caption2.weight(.medium))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        Text(record.path)
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+
+                    Spacer(minLength: 2)
+
+                    Text(L10n.format("quick_path.visit_count", record.visitCount))
+                        .font(.system(size: 9, weight: .medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
-                        .truncationMode(.middle)
                 }
-
-                Spacer(minLength: 2)
-
-                Text(L10n.format("quick_path.visit_count", record.visitCount))
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(skin.controlFill)
-            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .buttonStyle(.plain)
+            .help(L10n.format("quick_path.open_help", record.path))
+
+            Menu {
+                Button {
+                    workspace.openQuickPath(record)
+                } label: {
+                    Label(L10n.string("quick_path.open_terminal"), systemImage: "terminal")
+                }
+                Button {
+                    openQuickPathInFolder(record)
+                } label: {
+                    Label(L10n.string("quick_path.open_folder"), systemImage: "folder")
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 20, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .help(L10n.string("quick_path.actions.help"))
         }
-        .buttonStyle(.plain)
-        .help(L10n.format("quick_path.open_help", record.path))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(skin.controlFill)
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+    }
+
+    private func selectQuickPathFolder() {
+        let panel = NSOpenPanel()
+        panel.title = L10n.string("quick_path.add.panel_title")
+        panel.prompt = L10n.string("quick_path.add")
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let record = workspace.addQuickPath(url.path) else {
+            NSSound.beep()
+            quickPathMessage = L10n.string("quick_path.add.failed")
+            return
+        }
+        quickPathMessage = L10n.format("quick_path.added", record.displayName)
+    }
+
+    private func openQuickPathInFolder(_ record: TerminalQuickPathRecord) {
+        guard let path = TerminalWorkingDirectory.normalizedExistingDirectory(record.path) else {
+            NSSound.beep()
+            workspace.removeQuickPath(record.path)
+            quickPathMessage = L10n.format("quick_path.missing", record.path)
+            return
+        }
+        if NSWorkspace.shared.open(URL(fileURLWithPath: path, isDirectory: true)) {
+            quickPathMessage = L10n.format("quick_path.opened_folder", record.displayName)
+        } else {
+            NSSound.beep()
+            quickPathMessage = L10n.format("quick_path.open_folder.failed", record.path)
+        }
     }
 }
 
@@ -122,6 +202,7 @@ struct TerminalShortcutSection: View {
     @State private var renameDraft: TerminalShortcutRenameDraft?
     @State private var isEditingJSON = false
     @State private var deletionCandidate: TerminalShortcut?
+    @State private var shortcutMessage = ""
 
     var body: some View {
         SidebarSection(
@@ -158,9 +239,19 @@ struct TerminalShortcutSection: View {
                         .frame(width: 28, height: 26)
                 }
                 .buttonStyle(.plain)
-                .help(L10n.string("shortcut.edit_json"))
+                .contextMenu {
+                    shortcutJSONContextMenu
+                }
+                .help(L10n.string("shortcut.edit_json.help"))
 
                 Spacer()
+            }
+
+            if !shortcutMessage.isEmpty {
+                Text(shortcutMessage)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             if workspace.shortcuts.isEmpty {
@@ -170,7 +261,7 @@ struct TerminalShortcutSection: View {
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 ForEach(workspace.shortcuts) { shortcut in
-                    shortcutMenu(shortcut)
+                    shortcutRow(shortcut)
                 }
             }
         }
@@ -214,50 +305,101 @@ struct TerminalShortcutSection: View {
         }
     }
 
-    private func shortcutMenu(_ shortcut: TerminalShortcut) -> some View {
-        Menu {
+    @ViewBuilder
+    private var shortcutJSONContextMenu: some View {
+        Button {
+            openShortcutJSON()
+        } label: {
+            Label(L10n.string("shortcut.open_external.default"), systemImage: "doc.text")
+        }
+
+        let editors = TerminalShortcutExternalEditor.installedEditors
+        if !editors.isEmpty {
+            Divider()
+            ForEach(editors) { editor in
+                Button {
+                    openShortcutJSON(with: editor)
+                } label: {
+                    Label(L10n.format("shortcut.open_external.with", editor.name), systemImage: editor.systemImage)
+                }
+            }
+        }
+    }
+
+    private func openShortcutJSON(with editor: TerminalShortcutExternalEditor? = nil) {
+        TerminalShortcutStore.save(workspace.shortcuts)
+        let editorName = editor?.name ?? L10n.string("shortcut.open_external.default_app")
+        shortcutMessage = L10n.format("shortcut.open_external.opening", editorName)
+        TerminalShortcutExternalEditor.open(fileURL: TerminalShortcutStore.fileURL, with: editor) { success in
+            if success {
+                shortcutMessage = L10n.format("shortcut.open_external.opened", editorName)
+            } else {
+                NSSound.beep()
+                shortcutMessage = L10n.format("shortcut.open_external.failed", editorName)
+            }
+        }
+    }
+
+    private func shortcutRow(_ shortcut: TerminalShortcut) -> some View {
+        HStack(spacing: 4) {
             Button {
                 workspace.playShortcut(shortcut)
             } label: {
-                Label(L10n.string("shortcut.play"), systemImage: "play.fill")
-            }
-            .disabled(workspace.isRecording)
-
-            Button {
-                renameDraft = TerminalShortcutRenameDraft(shortcut: shortcut)
-            } label: {
-                Label(L10n.string("shortcut.rename"), systemImage: "pencil")
-            }
-
-            Divider()
-
-            Button(role: .destructive) {
-                deletionCandidate = shortcut
-            } label: {
-                Label(L10n.string("shortcut.delete"), systemImage: "trash")
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "play.fill")
-                    .font(.system(size: 8, weight: .bold))
-                Text(shortcut.title)
-                    .font(.caption2.weight(.medium))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                Spacer(minLength: 2)
-                if shortcut.hasProtectedInput {
-                    Image(systemName: "lock.shield")
-                        .font(.system(size: 9))
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 8, weight: .bold))
+                    Text(shortcut.title)
+                        .font(.caption2.weight(.medium))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Spacer(minLength: 2)
+                    if shortcut.hasProtectedInput {
+                        Image(systemName: "lock.shield")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                    }
                 }
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(skin.controlFill)
-            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .buttonStyle(.plain)
+            .disabled(workspace.isRecording)
+            .help(L10n.string("shortcut.play"))
+
+            Menu {
+                Button {
+                    workspace.playShortcut(shortcut)
+                } label: {
+                    Label(L10n.string("shortcut.play"), systemImage: "play.fill")
+                }
+                .disabled(workspace.isRecording)
+
+                Button {
+                    renameDraft = TerminalShortcutRenameDraft(shortcut: shortcut)
+                } label: {
+                    Label(L10n.string("shortcut.rename"), systemImage: "pencil")
+                }
+
+                Divider()
+
+                Button(role: .destructive) {
+                    deletionCandidate = shortcut
+                } label: {
+                    Label(L10n.string("shortcut.delete"), systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 20, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .help(L10n.string("shortcut.actions.help"))
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(skin.controlFill)
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         .help(L10n.format("shortcut.tooltip", shortcut.eventCount, max(1, shortcut.durationMilliseconds / 1000)))
     }
 }
@@ -804,9 +946,15 @@ struct SSHProfilesSection: View {
     private func openPortForwardAccess(_ entry: SSHPortForwardAccessEntry) {
         guard let url = URL(string: entry.urlString) else {
             NSSound.beep()
+            importMessage = L10n.format("ssh.open_port_forward_entry.failed", entry.urlString)
             return
         }
-        NSWorkspace.shared.open(url)
+        if NSWorkspace.shared.open(url) {
+            importMessage = L10n.format("ssh.open_port_forward_entry.opened", entry.urlString)
+        } else {
+            NSSound.beep()
+            importMessage = L10n.format("ssh.open_port_forward_entry.failed", entry.urlString)
+        }
     }
 
     private func copyPortForwardAccess(_ entry: SSHPortForwardAccessEntry) {
@@ -1192,56 +1340,6 @@ private struct TerminalShortcutRenameSheet: View {
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-        }
-        .padding(18)
-    }
-}
-
-private struct TerminalShortcutJSONEditorSheet: View {
-    @State private var text: String
-    @State private var errorMessage = ""
-    let onCancel: () -> Void
-    let onSave: (String) throws -> Void
-
-    init(initialText: String, onCancel: @escaping () -> Void, onSave: @escaping (String) throws -> Void) {
-        _text = State(initialValue: initialText)
-        self.onCancel = onCancel
-        self.onSave = onSave
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.string("shortcut.edit_json"))
-                .font(.headline)
-            TextEditor(text: $text)
-                .font(.system(.caption, design: .monospaced))
-                .frame(width: 620, height: 360)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
-                )
-            if !errorMessage.isEmpty {
-                Text(errorMessage)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            HStack {
-                Text(TerminalShortcutStore.fileURL.path)
-                    .font(.caption2.monospaced())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                Spacer()
-                Button(L10n.string("action.cancel"), action: onCancel)
-                Button(L10n.string("action.save")) {
-                    do {
-                        try onSave(text)
-                    } catch {
-                        errorMessage = error.localizedDescription
-                    }
-                }
-                .keyboardShortcut(.defaultAction)
             }
         }
         .padding(18)

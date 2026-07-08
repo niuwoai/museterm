@@ -250,6 +250,22 @@ struct TerminalShortcut: Codable, Equatable, Identifiable {
     }
 }
 
+struct TerminalShortcutProtectedInput: Equatable, Identifiable {
+    let shortcutID: UUID
+    let shortcutTitle: String
+    let eventID: UUID
+    let eventIndex: Int
+    let account: String
+
+    var id: String {
+        "\(shortcutID.uuidString):\(eventID.uuidString):\(account)"
+    }
+
+    var usesDefaultAccount: Bool {
+        account.hasPrefix("terminal-shortcut/\(shortcutID.uuidString)/")
+    }
+}
+
 final class TerminalShortcutRecorder {
     private let startedAt: Date
     private var lastRecordedInputAt: Date
@@ -417,16 +433,64 @@ enum TerminalShortcutStore {
         return normalized(try decoder.decode([TerminalShortcut].self, from: data))
     }
 
-    nonisolated static func deleteProtectedInputs(for shortcut: TerminalShortcut) {
-        for event in shortcut.events {
-            if let account = event.protectedBytesReference, !account.isEmpty {
-                TerminalShortcutProtectedVault.delete(account: account)
-                MuseTermKeychain.delete(account: account)
-            } else if event.requiresEchoOff {
-                let account = protectedInputAccount(shortcutID: shortcut.id, eventID: event.id)
-                TerminalShortcutProtectedVault.delete(account: account)
-                MuseTermKeychain.delete(account: account)
+    static func protectedInputs(fromEditableText text: String) throws -> [TerminalShortcutProtectedInput] {
+        try protectedInputs(in: decodeEditableText(text))
+    }
+
+    static func protectedInputs(in shortcuts: [TerminalShortcut]) -> [TerminalShortcutProtectedInput] {
+        normalized(shortcuts).flatMap { shortcut in
+            shortcut.events.enumerated().compactMap { offset, event in
+                guard event.requiresEchoOff else { return nil }
+                let account = protectedInputAccount(for: event, shortcutID: shortcut.id)
+                guard !account.isEmpty else { return nil }
+                return TerminalShortcutProtectedInput(
+                    shortcutID: shortcut.id,
+                    shortcutTitle: shortcut.title,
+                    eventID: event.id,
+                    eventIndex: offset,
+                    account: account
+                )
             }
+        }
+    }
+
+    @discardableResult
+    static func saveProtectedInput(_ secret: String, account: String, appendingReturn: Bool) -> Bool {
+        guard !account.isEmpty else { return false }
+        guard !secret.isEmpty else {
+            deleteProtectedInput(account: account)
+            return true
+        }
+        var bytes = Array(secret.utf8)
+        if appendingReturn {
+            bytes.append(0x0D)
+        }
+        TerminalShortcutProtectedVault.save(bytes, account: account)
+        return true
+    }
+
+    static func protectedInputHasValue(account: String) -> Bool {
+        if TerminalShortcutProtectedVault.load(account: account)?.isEmpty == false {
+            return true
+        }
+        return MuseTermKeychain.load(account: account).isEmpty == false
+    }
+
+    static func deleteProtectedInput(account: String) {
+        TerminalShortcutProtectedVault.delete(account: account)
+        MuseTermKeychain.delete(account: account)
+    }
+
+    static func deleteProtectedInputs(removedFrom oldShortcuts: [TerminalShortcut], keeping newShortcuts: [TerminalShortcut]) {
+        let keptAccounts = Set(protectedInputAccounts(in: newShortcuts))
+        for account in protectedInputAccounts(in: oldShortcuts) where !keptAccounts.contains(account) {
+            deleteProtectedInput(account: account)
+        }
+    }
+
+    static func deleteProtectedInputs(for shortcut: TerminalShortcut) {
+        for account in protectedInputAccounts(in: [shortcut]) {
+            deleteProtectedInput(account: account)
         }
     }
 
@@ -455,6 +519,23 @@ enum TerminalShortcutStore {
             return prepared
         }
         return copy
+    }
+
+    private static func protectedInputAccounts(in shortcuts: [TerminalShortcut]) -> [String] {
+        shortcuts.flatMap { shortcut in
+            shortcut.events.compactMap { event in
+                guard event.requiresEchoOff else { return nil }
+                return protectedInputAccount(for: event, shortcutID: shortcut.id)
+            }
+        }
+    }
+
+    private static func protectedInputAccount(for event: TerminalShortcutEvent, shortcutID: UUID) -> String {
+        if let account = event.protectedBytesReference?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !account.isEmpty {
+            return account
+        }
+        return protectedInputAccount(shortcutID: shortcutID, eventID: event.id)
     }
 
     nonisolated private static func protectedInputAccount(shortcutID: UUID, eventID: UUID) -> String {
