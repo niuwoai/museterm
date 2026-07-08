@@ -77,7 +77,7 @@ final class AIExplainClientTests: XCTestCase {
         preferences.aiProvider = .someIM
 
         XCTAssertEqual(preferences.aiBaseURL, "https://api.niuwoai.com/v1")
-        XCTAssertEqual(preferences.aiModel, "deepseek-v4-flash")
+        XCTAssertEqual(preferences.aiModel, AIProviderKind.someIM.defaultModel)
         XCTAssertTrue(preferences.saveAIAPIKey("test-api-key"))
 
         let configuration = try AIExplainClient.Configuration(preferences: preferences)
@@ -101,7 +101,7 @@ final class AIExplainClientTests: XCTestCase {
 
         XCTAssertEqual(preferences.aiProvider, .someIM)
         XCTAssertEqual(preferences.aiBaseURL, "https://some.im/v1")
-        XCTAssertEqual(preferences.aiModel, "deepseek-v4-flash")
+        XCTAssertEqual(preferences.aiModel, AIProviderKind.someIM.defaultModel)
     }
 
     func testSwitchingProviderReplacesBuiltInDefaultBaseURL() throws {

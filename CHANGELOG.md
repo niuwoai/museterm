@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.216.0] - 2026-07-08
+
+### Added
+- AI 设置新增 some.im 浏览器连接卡片：进入设置后自动准备登录请求，用户在浏览器完成 some.im 登录后，MuseTerm 自动保存返回的 API Key 到 Keychain，并切换到 some.im。
+- 左侧栏在“录制捷径”上方新增“快捷路径”：本地 shell 会记录最近呆过和最常用的工作目录，默认展示最近 3 条与常用 3 条，常用路径可展开到最多 10 条；点击路径会在该目录新建本地标签。
+
+### Changed
+- AI Provider 默认从 OpenAI 改为 some.im，some.im 默认模型改为 `someim-auto-flash`；原有 Provider、Base URL、模型和 API Key 手动配置能力保留。
+
+### Fixed
+- 快捷路径记录不再在新建标签热路径上同步写盘或反复校验全部历史目录，改为内存即时更新、后台防抖保存，避免新开标签变慢。
+
 ## [1.214.0] - 2026-07-07
 
 ### Added

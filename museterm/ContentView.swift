@@ -130,6 +130,8 @@ private struct SidebarView: View {
                             }
                         }
 
+                        TerminalQuickPathSection(workspace: workspace, skin: preferences.skin)
+
                         TerminalShortcutSection(workspace: workspace, skin: preferences.skin)
 
                         FileTransferSection(workspace: workspace, skin: preferences.skin)

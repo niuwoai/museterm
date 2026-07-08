@@ -86,6 +86,15 @@
 "tab.default_title" = "Shell %d";
 "tab.shell.help" = "Shell：%@";
 
+"quick_path.section" = "快捷路径";
+"quick_path.recent" = "最近路径";
+"quick_path.frequent" = "常用路径";
+"quick_path.empty" = "本地 shell 呆过的目录会出现在这里。";
+"quick_path.show_more" = "展开到 %d 条";
+"quick_path.show_less" = "收起";
+"quick_path.open_help" = "在 %@ 新建标签";
+"quick_path.visit_count" = "%d 次";
+
 "shortcut.section" = "录制捷径";
 "shortcut.start_recording" = "开始录制终端";
 "shortcut.stop_recording" = "停止录制终端";
@@ -939,6 +948,16 @@
 "ai.provider.someIM.summary" = "some.im OpenAI 兼容接口，默认使用国内节点。";
 "ai.provider.someIM.base_url.china" = "国内节点";
 "ai.provider.someIM.base_url.global" = "国外节点";
+"settings.ai.someim.connect.title" = "连接 some.im";
+"settings.ai.someim.connect.subtitle" = "推荐用浏览器登录 some.im，完成后回到 MuseTerm。连接成功会自动切到 some.im，并使用 someim-auto-flash；下面仍可改成自己的 Provider、Base URL、模型和 API Key。";
+"settings.ai.someim.connect.open" = "在浏览器打开";
+"settings.ai.someim.connect.waiting" = "等待登录";
+"settings.ai.someim.connect.ready" = "已准备好 some.im 浏览器登录。";
+"settings.ai.someim.connect.waiting_detail" = "正在等待浏览器完成 some.im 登录。";
+"settings.ai.someim.connect.connected" = "some.im 已连接，默认模型已设为 someim-auto-flash。";
+"settings.ai.someim.connect.expired" = "some.im 登录请求已过期，请重新打开浏览器登录。";
+"settings.ai.someim.connect.missing_credentials" = "some.im 已登录，但没有返回可用于 MuseTerm 的 API Key。";
+"settings.ai.someim.connect.failed" = "some.im 连接失败：%@";
 "ai.provider.ollama.name" = "Ollama";
 "ai.provider.ollama.summary" = "本机或局域网模型服务。";
 "ai.provider.llamaServer.name" = "llama-server";

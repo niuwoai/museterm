@@ -76,7 +76,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable {
         case .google: return "gemini-2.5-pro"
         case .azureOpenAI: return ""
         case .openRouter: return "openai/gpt-4.1"
-        case .someIM: return "deepseek-v4-flash"
+        case .someIM: return "someim-auto-flash"
         case .ollama: return "llama3.1"
         case .llamaServer: return ""
         case .custom: return ""
@@ -271,7 +271,7 @@ final class TerminalPreferences: ObservableObject {
         notificationCooldownSeconds = defaults.object(forKey: Keys.notificationCooldownSeconds) as? Double ?? 10
         includeCommandInNotifications = defaults.object(forKey: Keys.includeCommandInNotifications) as? Bool ?? false
         appleScriptInputEnabled = defaults.object(forKey: Keys.appleScriptInputEnabled) as? Bool ?? true
-        let storedAIProvider = AIProviderKind(rawValue: defaults.string(forKey: Keys.aiProvider) ?? "") ?? .openAI
+        let storedAIProvider = AIProviderKind(rawValue: defaults.string(forKey: Keys.aiProvider) ?? "") ?? .someIM
         aiProvider = storedAIProvider
         aiModel = defaults.string(forKey: Keys.aiModel) ?? storedAIProvider.defaultModel
         aiBaseURL = defaults.string(forKey: Keys.aiBaseURL) ?? storedAIProvider.defaultBaseURL

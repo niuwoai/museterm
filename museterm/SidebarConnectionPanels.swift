@@ -1,6 +1,119 @@
 import AppKit
 import SwiftUI
 
+struct TerminalQuickPathSection: View {
+    private static let collapsedFrequentCount = 3
+    private static let expandedFrequentCount = 10
+
+    @ObservedObject var workspace: TerminalWorkspace
+    let skin: TerminalVisualSkin
+    @State private var showsMoreFrequentPaths = false
+
+    var body: some View {
+        let recentPaths = workspace.recentQuickPaths
+        let frequentPaths = workspace.frequentQuickPaths(
+            limit: showsMoreFrequentPaths ? Self.expandedFrequentCount : Self.collapsedFrequentCount
+        )
+        let totalFrequentCount = workspace.frequentQuickPaths(limit: Self.expandedFrequentCount).count
+
+        SidebarSection(
+            title: L10n.string("quick_path.section"),
+            systemImage: "folder",
+            skin: skin,
+            initiallyExpanded: true
+        ) {
+            if recentPaths.isEmpty && frequentPaths.isEmpty {
+                Text(L10n.string("quick_path.empty"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                if !recentPaths.isEmpty {
+                    quickPathGroupTitle(L10n.string("quick_path.recent"))
+                    ForEach(recentPaths) { record in
+                        quickPathButton(record)
+                    }
+                }
+
+                if !frequentPaths.isEmpty {
+                    quickPathGroupTitle(L10n.string("quick_path.frequent"))
+                        .padding(.top, recentPaths.isEmpty ? 0 : 4)
+                    ForEach(frequentPaths) { record in
+                        quickPathButton(record)
+                    }
+
+                    if totalFrequentCount > Self.collapsedFrequentCount {
+                        Button {
+                            showsMoreFrequentPaths.toggle()
+                        } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: showsMoreFrequentPaths ? "chevron.up" : "chevron.down")
+                                    .font(.system(size: 9, weight: .semibold))
+                                Text(
+                                    showsMoreFrequentPaths
+                                    ? L10n.string("quick_path.show_less")
+                                    : L10n.format("quick_path.show_more", totalFrequentCount)
+                                )
+                                .font(.caption2.weight(.medium))
+                                Spacer()
+                            }
+                            .foregroundStyle(skin.accent)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private func quickPathGroupTitle(_ title: String) -> some View {
+        Text(title)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 2)
+    }
+
+    private func quickPathButton(_ record: TerminalQuickPathRecord) -> some View {
+        Button {
+            workspace.openQuickPath(record)
+        } label: {
+            HStack(spacing: 7) {
+                Image(systemName: "folder.fill")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(skin.accent)
+                    .frame(width: 14)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(record.displayName)
+                        .font(.caption2.weight(.medium))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Text(record.path)
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+
+                Spacer(minLength: 2)
+
+                Text(L10n.format("quick_path.visit_count", record.visitCount))
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(skin.controlFill)
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .help(L10n.format("quick_path.open_help", record.path))
+    }
+}
+
 struct TerminalShortcutSection: View {
     private static let recordAccent = Color(red: 0.78, green: 0.34, blue: 0.20)
 

@@ -88,6 +88,96 @@ final class TerminalWorkspaceTests: XCTestCase {
         XCTAssertEqual(secondTab.launchConfiguration.localStartDirectory, explicitDirectory.path)
     }
 
+    func testWorkspaceTracksRecentLocalQuickPaths() throws {
+        let firstDirectory = try makeTemporaryDirectory()
+        let secondDirectory = try makeTemporaryDirectory()
+        let storeDirectory = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: firstDirectory)
+            try? FileManager.default.removeItem(at: secondDirectory)
+            try? FileManager.default.removeItem(at: storeDirectory)
+        }
+        let previous = TerminalQuickPathStore._setTestDirectoryOverride(storeDirectory)
+        defer { _ = TerminalQuickPathStore._setTestDirectoryOverride(previous) }
+
+        let workspace = TerminalWorkspace(automaticallyStartProcesses: false)
+        let tab = try XCTUnwrap(workspace.selectedTab)
+
+        tab.currentDirectory = firstDirectory.path
+        tab.currentDirectory = firstDirectory.path
+        tab.currentDirectory = secondDirectory.path
+
+        XCTAssertEqual(Set(workspace.recentQuickPaths.map(\.path)), Set([firstDirectory.path, secondDirectory.path]))
+        XCTAssertEqual(workspace.quickPathRecords.first { $0.path == firstDirectory.path }?.visitCount, 1)
+        workspace.flushQuickPathRecordsForTests()
+        XCTAssertEqual(Set(TerminalQuickPathStore.load().map(\.path)), Set([firstDirectory.path, secondDirectory.path]))
+    }
+
+    func testWorkspaceDoesNotTrackSSHQuickPaths() throws {
+        let directory = try makeTemporaryDirectory()
+        let storeDirectory = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: directory)
+            try? FileManager.default.removeItem(at: storeDirectory)
+        }
+        let previous = TerminalQuickPathStore._setTestDirectoryOverride(storeDirectory)
+        defer { _ = TerminalQuickPathStore._setTestDirectoryOverride(previous) }
+
+        let workspace = TerminalWorkspace(automaticallyStartProcesses: false)
+        workspace.openSSH(profile: SSHConnectionProfile(host: "example.com"))
+        let sshTab = try XCTUnwrap(workspace.selectedTab)
+
+        sshTab.currentDirectory = directory.path
+
+        XCTAssertTrue(workspace.quickPathRecords.isEmpty)
+        XCTAssertTrue(TerminalQuickPathStore.load().isEmpty)
+    }
+
+    func testOpenQuickPathCreatesLocalTabAtDirectory() throws {
+        let directory = try makeTemporaryDirectory()
+        let storeDirectory = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: directory)
+            try? FileManager.default.removeItem(at: storeDirectory)
+        }
+        let previous = TerminalQuickPathStore._setTestDirectoryOverride(storeDirectory)
+        defer { _ = TerminalQuickPathStore._setTestDirectoryOverride(previous) }
+
+        let workspace = TerminalWorkspace(automaticallyStartProcesses: false)
+        workspace.openQuickPath(directory.path)
+        let tab = try XCTUnwrap(workspace.selectedTab)
+
+        XCTAssertEqual(tab.currentDirectory, directory.path)
+        XCTAssertEqual(tab.launchConfiguration.localStartDirectory, directory.path)
+        XCTAssertEqual(workspace.quickPathRecords.first?.path, directory.path)
+    }
+
+    func testQuickPathStoreSortsFrequentPathsByVisitsThenRecency() throws {
+        let firstDirectory = try makeTemporaryDirectory()
+        let secondDirectory = try makeTemporaryDirectory()
+        let thirdDirectory = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: firstDirectory)
+            try? FileManager.default.removeItem(at: secondDirectory)
+            try? FileManager.default.removeItem(at: thirdDirectory)
+        }
+
+        let records = [
+            TerminalQuickPathRecord(path: firstDirectory.path, lastVisitedAt: Date(timeIntervalSince1970: 10), visitCount: 2),
+            TerminalQuickPathRecord(path: secondDirectory.path, lastVisitedAt: Date(timeIntervalSince1970: 30), visitCount: 4),
+            TerminalQuickPathRecord(path: thirdDirectory.path, lastVisitedAt: Date(timeIntervalSince1970: 20), visitCount: 4)
+        ]
+
+        XCTAssertEqual(
+            TerminalQuickPathStore.frequent(records, limit: 3).map(\.path),
+            [secondDirectory.path, thirdDirectory.path, firstDirectory.path]
+        )
+        XCTAssertEqual(
+            TerminalQuickPathStore.recent(records, limit: 2).map(\.path),
+            [secondDirectory.path, thirdDirectory.path]
+        )
+    }
+
     func testShortcutNewTabDeduplicatesDoubleDispatch() {
         let workspace = TerminalWorkspace(automaticallyStartProcesses: false)
 

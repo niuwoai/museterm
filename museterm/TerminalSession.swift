@@ -854,6 +854,7 @@ final class TerminalWorkspace: ObservableObject {
     @Published private(set) var tabs: [TerminalSession] = []
     @Published var selectedID: TerminalSession.ID?
     @Published private(set) var shortcuts: [TerminalShortcut] = TerminalShortcutStore.load()
+    @Published private(set) var quickPathRecords: [TerminalQuickPathRecord] = TerminalQuickPathStore.load()
     weak var attentionReporter: TerminalAttentionReporting? {
         didSet {
             tabs.forEach { $0.attentionReporter = attentionReporter }
@@ -872,6 +873,9 @@ final class TerminalWorkspace: ObservableObject {
     private var lastShortcutNewTabEventTimestamp: TimeInterval?
     private var lastShortcutCloseTabUptime: TimeInterval = -.infinity
     private var lastShortcutCloseTabEventTimestamp: TimeInterval?
+    private var quickPathCancellables: [TerminalSession.ID: AnyCancellable] = [:]
+    private var lastRecordedQuickPathByTab: [TerminalSession.ID: String] = [:]
+    private var pendingQuickPathSaveWorkItem: DispatchWorkItem?
     private var isClosingTab = false
 
     init(
@@ -884,6 +888,7 @@ final class TerminalWorkspace: ObservableObject {
     }
 
     deinit {
+        flushPendingQuickPathSave()
         preparedTab?.terminate()
     }
 
@@ -899,6 +904,7 @@ final class TerminalWorkspace: ObservableObject {
             : makeTab(launchConfiguration: .localShell(startDirectory: resolvedStartDirectory))
         tab.attentionReporter = attentionReporter
         tabs.append(tab)
+        trackQuickPaths(for: tab)
         selectedID = tab.id
         tab.clearUnreadAttention()
         if automaticallyStartProcesses {
@@ -927,6 +933,7 @@ final class TerminalWorkspace: ObservableObject {
         let tab = makeTab(launchConfiguration: .ssh(profile))
         tab.attentionReporter = attentionReporter
         tabs.append(tab)
+        trackQuickPaths(for: tab)
         selectedID = tab.id
         tab.clearUnreadAttention()
         if automaticallyStartProcesses {
@@ -987,8 +994,11 @@ final class TerminalWorkspace: ObservableObject {
         preparedTab = nil
         isPreparingNextTab = false
         tabs.forEach { $0.terminate() }
+        quickPathCancellables.removeAll()
+        lastRecordedQuickPathByTab.removeAll()
         tabs = restoredTabs
         tabs.forEach { $0.attentionReporter = attentionReporter }
+        tabs.forEach(trackQuickPaths)
 
         let selectedIndex = min(max(snapshot.selectedIndex, 0), tabs.count - 1)
         selectedID = tabs[selectedIndex].id
@@ -1016,6 +1026,26 @@ final class TerminalWorkspace: ObservableObject {
         guard now - lastShortcutNewTabUptime > 0.2 else { return }
         lastShortcutNewTabUptime = now
         newTab()
+    }
+
+    func openQuickPath(_ record: TerminalQuickPathRecord) {
+        openQuickPath(record.path)
+    }
+
+    func openQuickPath(_ path: String) {
+        guard TerminalWorkingDirectory.normalizedExistingDirectory(path) != nil else {
+            removeQuickPath(path)
+            return
+        }
+        newTab(startDirectory: path)
+    }
+
+    var recentQuickPaths: [TerminalQuickPathRecord] {
+        TerminalQuickPathStore.recent(quickPathRecords, limit: 3)
+    }
+
+    func frequentQuickPaths(limit: Int) -> [TerminalQuickPathRecord] {
+        TerminalQuickPathStore.frequent(quickPathRecords, limit: limit)
     }
 
     @discardableResult
@@ -1061,6 +1091,8 @@ final class TerminalWorkspace: ObservableObject {
 
         tab.terminate()
         tabs.remove(at: index)
+        quickPathCancellables[tab.id] = nil
+        lastRecordedQuickPathByTab[tab.id] = nil
 
         guard !tabs.isEmpty else {
             selectedID = nil
@@ -1259,5 +1291,59 @@ final class TerminalWorkspace: ObservableObject {
     private func persistShortcuts() {
         shortcuts = Array(shortcuts.map(\.normalized).filter(\.isPlayable).prefix(24))
         TerminalShortcutStore.save(shortcuts)
+    }
+
+    private func trackQuickPaths(for tab: TerminalSession) {
+        guard case .localShell = tab.launchConfiguration else { return }
+        recordQuickPath(tab.currentDirectory, for: tab)
+        quickPathCancellables[tab.id] = tab.$currentDirectory
+            .dropFirst()
+            .sink { [weak self, weak tab] directory in
+                guard let tab else { return }
+                self?.recordQuickPath(directory, for: tab)
+            }
+    }
+
+    private func recordQuickPath(_ directory: String?, for tab: TerminalSession) {
+        guard let path = TerminalWorkingDirectory.normalizedExistingDirectory(directory) else { return }
+        guard lastRecordedQuickPathByTab[tab.id] != path else { return }
+        lastRecordedQuickPathByTab[tab.id] = path
+        quickPathRecords = TerminalQuickPathStore.record(directory: path, in: quickPathRecords)
+        scheduleQuickPathSave()
+    }
+
+    private func removeQuickPath(_ path: String) {
+        guard let normalizedPath = TerminalWorkingDirectory.normalizedExistingDirectory(path) ?? path.nonEmptyTrimmed else {
+            return
+        }
+        quickPathRecords.removeAll { $0.path == normalizedPath }
+        scheduleQuickPathSave()
+    }
+
+    func flushQuickPathRecordsForTests() {
+        flushPendingQuickPathSave()
+    }
+
+    private func scheduleQuickPathSave() {
+        pendingQuickPathSaveWorkItem?.cancel()
+        let records = quickPathRecords
+        let workItem = DispatchWorkItem {
+            TerminalQuickPathStore.saveAsync(records)
+        }
+        pendingQuickPathSaveWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.75, execute: workItem)
+    }
+
+    private func flushPendingQuickPathSave() {
+        pendingQuickPathSaveWorkItem?.cancel()
+        pendingQuickPathSaveWorkItem = nil
+        TerminalQuickPathStore.save(quickPathRecords)
+    }
+}
+
+private extension String {
+    var nonEmptyTrimmed: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
