@@ -586,10 +586,8 @@
 "settings.about.app.willDeep.summary" = "专注写作与深度编辑。";
 "settings.about.app.timeBill.name" = "TimeBill";
 "settings.about.app.timeBill.summary" = "时间记录与账单助手。";
-"settings.about.app.museUploader.name" = "MuseUploader";
-"settings.about.app.museUploader.summary" = "快速图片与文件发布。";
-"settings.about.app.museSnip.name" = "MuseSnip";
-"settings.about.app.museSnip.summary" = "轻量截图工具。";
+"settings.about.app.museUploader.name" = "轻图";
+"settings.about.app.museUploader.summary" = "截图、图片编辑与上传分享。";
 "settings.about.app.markReader.name" = "MarkReader";
 "settings.about.app.markReader.summary" = "清爽的 Markdown 阅读。";
 "settings.about.app.museType.name" = "MuseType";

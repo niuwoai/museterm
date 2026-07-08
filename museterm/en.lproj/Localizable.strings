@@ -586,10 +586,8 @@
 "settings.about.app.willDeep.summary" = "Focused writing and deep editing.";
 "settings.about.app.timeBill.name" = "TimeBill";
 "settings.about.app.timeBill.summary" = "Time tracking and billing companion.";
-"settings.about.app.museUploader.name" = "MuseUploader";
-"settings.about.app.museUploader.summary" = "Quick image and file publishing.";
-"settings.about.app.museSnip.name" = "MuseSnip";
-"settings.about.app.museSnip.summary" = "Lightweight screenshot capture.";
+"settings.about.app.museUploader.name" = "MusePic";
+"settings.about.app.museUploader.summary" = "Screenshot, image editing, and upload sharing.";
 "settings.about.app.markReader.name" = "MarkReader";
 "settings.about.app.markReader.summary" = "Clean Markdown reading.";
 "settings.about.app.museType.name" = "MuseType";
