@@ -554,9 +554,11 @@
 "settings.tab.typography" = "字体";
 "settings.tab.glass" = "毛玻璃";
 "settings.tab.behavior" = "行为";
+"settings.tab.profiles" = "Profile";
 "settings.tab.notifications" = "通知";
 "settings.tab.ai" = "AI";
 "settings.tab.tools" = "MCP 与工具";
+"settings.profiles.summary" = "管理本地终端 Profile：shell、提示符风格、环境变量、启动命令与默认工作目录。默认 Profile 决定「+」新建标签的行为。";
 "settings.skin" = "皮肤";
 "settings.app_icon" = "App 图标";
 "settings.app_icon.footer" = "选择 轻连 运行时显示的 Dock 图标，重启后会自动恢复。";

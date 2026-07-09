@@ -3,14 +3,16 @@ import Security
 import SwiftUI
 
 struct SettingsView: View {
-    static let defaultWindowSize = CGSize(width: 720, height: 590)
+    static let defaultWindowSize = CGSize(width: 880, height: 680)
 
     @ObservedObject var preferences: TerminalPreferences
+    @ObservedObject var profileStore: TerminalProfileStore
     @ObservedObject private var notificationCoordinator = TerminalNotificationCoordinator.shared
     @State private var selectedSettingsTab: SettingsTab = .appearance
     @State private var cliInstallMessage = ""
     @State private var aiAPIKeyDraft = ""
     @State private var aiStatusMessage = ""
+    @State private var editingProfile: TerminalProfile?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -32,6 +34,16 @@ struct SettingsView: View {
         .tint(preferences.skin.accent)
         .preferredColorScheme(preferences.skin.preferredColorScheme)
         .focusable(false)
+        .sheet(item: $editingProfile) { profile in
+            TerminalProfileEditorSheet(
+                profile: profile,
+                onCancel: { editingProfile = nil },
+                onSave: { edited in
+                    profileStore.upsert(edited)
+                    editingProfile = nil
+                }
+            )
+        }
     }
 
     private var header: some View {
@@ -58,6 +70,8 @@ struct SettingsView: View {
             glassSection
         case .behavior:
             behaviorSection
+        case .profiles:
+            profilesSection
         case .notifications:
             notificationsSection
         case .ai:
@@ -411,6 +425,89 @@ struct SettingsView: View {
         }
     }
 
+    private var profilesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(L10n.string("profile.section"))
+                    .font(.headline)
+                Spacer()
+                Button {
+                    editingProfile = TerminalProfile()
+                } label: {
+                    Label(L10n.string("profile.add"), systemImage: "plus")
+                }
+            }
+
+            Text(L10n.string("settings.profiles.summary"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(spacing: 8) {
+                ForEach(profileStore.profiles) { profile in
+                    settingsProfileRow(profile)
+                }
+            }
+        }
+    }
+
+    private func settingsProfileRow(_ profile: TerminalProfile) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: profile.isDefault ? "star.fill" : "terminal")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(profile.isDefault ? .yellow : .secondary)
+                .frame(width: 20)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(profile.displayName)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                Text(settingsProfileSubtitle(profile))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+
+            Button {
+                profileStore.setDefault(profile)
+            } label: {
+                Text(L10n.string("profile.set_default"))
+                    .font(.caption.weight(.medium))
+            }
+            .buttonStyle(.borderless)
+            .disabled(profile.isDefault)
+
+            Button {
+                editingProfile = profile
+            } label: {
+                Image(systemName: "pencil")
+            }
+            .buttonStyle(.borderless)
+            .help(L10n.string("profile.edit"))
+
+            Button(role: .destructive) {
+                profileStore.delete(profile)
+            } label: {
+                Image(systemName: "trash")
+            }
+            .buttonStyle(.borderless)
+            .disabled(profile.isDefault)
+            .help(L10n.string("profile.delete"))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(preferences.skin.controlFill.opacity(0.6))
+        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+    }
+
+    private func settingsProfileSubtitle(_ profile: TerminalProfile) -> String {
+        let shell = L10n.string(profile.shell.titleKey)
+        let prompt = L10n.string(profile.promptStyle.titleKey)
+        return "\(shell) · \(prompt)"
+    }
+
     @ViewBuilder
     private func settingsPage<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         ScrollView {
@@ -429,6 +526,7 @@ private enum SettingsTab: CaseIterable, Identifiable {
     case typography
     case glass
     case behavior
+    case profiles
     case notifications
     case ai
     case tools
@@ -442,6 +540,7 @@ private enum SettingsTab: CaseIterable, Identifiable {
         case .typography: return "settings.tab.typography"
         case .glass: return "settings.tab.glass"
         case .behavior: return "settings.tab.behavior"
+        case .profiles: return "settings.tab.profiles"
         case .notifications: return "settings.tab.notifications"
         case .ai: return "settings.tab.ai"
         case .tools: return "settings.tab.tools"
@@ -455,6 +554,7 @@ private enum SettingsTab: CaseIterable, Identifiable {
         case .typography: return "textformat"
         case .glass: return "square.on.square.dashed"
         case .behavior: return "keyboard"
+        case .profiles: return "person.crop.rectangle.stack"
         case .notifications: return "bell.badge"
         case .ai: return "sparkles"
         case .tools: return "hammer"

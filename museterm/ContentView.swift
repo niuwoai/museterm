@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @StateObject private var workspace = TerminalWorkspace()
     @StateObject private var sshStore = SSHConnectionStore()
-    @StateObject private var profileStore = TerminalProfileStore()
+    @StateObject private var profileStore = TerminalProfileStore.shared
     @StateObject private var notificationCoordinator = TerminalNotificationCoordinator.shared
     @ObservedObject private var preferences: TerminalPreferences
     @State private var rightPanel: TerminalRightPanel?

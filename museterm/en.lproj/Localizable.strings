@@ -554,9 +554,11 @@
 "settings.tab.typography" = "Type";
 "settings.tab.glass" = "Glass";
 "settings.tab.behavior" = "Behavior";
+"settings.tab.profiles" = "Profiles";
 "settings.tab.notifications" = "Alerts";
 "settings.tab.ai" = "AI";
 "settings.tab.tools" = "MCP & Tools";
+"settings.profiles.summary" = "Manage local terminal profiles: shell, prompt style, environment variables, startup commands, and default working directory. The default profile drives the “+” new-tab button.";
 "settings.skin" = "Skin";
 "settings.app_icon" = "App icon";
 "settings.app_icon.footer" = "Choose the Dock icon used while QTerm is running. The choice is restored on launch.";

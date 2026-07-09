@@ -139,6 +139,8 @@ struct TerminalProfile: Codable, Equatable, Identifiable {
 
 /// Profile 列表持久化，完全复刻 SSHConnectionStore 的 JSON→UserDefaults 模式。
 final class TerminalProfileStore: ObservableObject {
+    // 单一主窗口 → 单一逻辑存储。侧栏与设置窗共享同一实例，改动即时互相反映。
+    static let shared = TerminalProfileStore()
     private static let key = "terminal.localProfiles.v1"
     private let defaults: UserDefaults
 

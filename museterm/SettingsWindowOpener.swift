@@ -13,7 +13,9 @@ enum SettingsWindowOpener {
             return
         }
 
-        let hostingController = NSHostingController(rootView: SettingsView(preferences: preferences))
+        let hostingController = NSHostingController(
+            rootView: SettingsView(preferences: preferences, profileStore: .shared)
+        )
         let window = NSWindow(contentViewController: hostingController)
         window.title = L10n.string("settings.title")
         window.styleMask = [.titled, .closable, .miniaturizable]
