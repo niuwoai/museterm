@@ -1054,8 +1054,8 @@ final class TerminalWorkspace: ObservableObject {
         TerminalQuickPathStore.recent(quickPathRecords, limit: 3)
     }
 
-    func frequentQuickPaths(limit: Int) -> [TerminalQuickPathRecord] {
-        TerminalQuickPathStore.frequent(quickPathRecords, limit: limit)
+    func frequentQuickPaths(limit: Int, excludingPaths: Set<String> = []) -> [TerminalQuickPathRecord] {
+        TerminalQuickPathStore.frequent(quickPathRecords, limit: limit, excludingPaths: excludingPaths)
     }
 
     @discardableResult

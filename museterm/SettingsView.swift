@@ -927,7 +927,7 @@ private struct AIProviderSettingsSection: View {
             return
         }
         do {
-            let request = try SomeIMBrowserLoginConnector.makeRequest(baseURL: AIProviderKind.someIM.defaultBaseURL)
+            let request = try SomeIMBrowserLoginConnector.makeRequest()
             someIMLoginRequest = request
             someIMLoginMessage = L10n.string("settings.ai.someim.connect.ready")
             startSomeIMBrowserLoginWatcher(for: request)
@@ -953,10 +953,7 @@ private struct AIProviderSettingsSection: View {
             let deadline = Date().addingTimeInterval(600)
             while !Task.isCancelled && Date() < deadline {
                 do {
-                    let status = try await SomeIMBrowserLoginConnector.checkStatus(
-                        request: request,
-                        baseURL: AIProviderKind.someIM.defaultBaseURL
-                    )
+                    let status = try await SomeIMBrowserLoginConnector.checkStatus(request: request)
                     await MainActor.run {
                         switch status.state {
                         case .pending, .unknown:
@@ -1014,8 +1011,10 @@ private struct AIProviderSettingsSection: View {
     }
 }
 
-fileprivate enum SomeIMBrowserLoginConnector {
+enum SomeIMBrowserLoginConnector {
     private static let clientID = "willdeep"
+    private static let browserLoginOrigin = "https://some.im"
+    private static let browserAPIOrigin = "https://some.im"
 
     struct LoginRequest: Equatable {
         var code: String
@@ -1035,15 +1034,15 @@ fileprivate enum SomeIMBrowserLoginConnector {
         var apiKey: String?
     }
 
-    static func makeRequest(baseURL: String) throws -> LoginRequest {
+    static func makeRequest() throws -> LoginRequest {
         let code = try randomDeviceCode()
         let pairToken = try randomPairToken()
-        let url = try browserLoginURL(baseURL: baseURL, code: code, pairToken: pairToken)
+        let url = try browserLoginURL(code: code, pairToken: pairToken)
         return LoginRequest(code: code, pairToken: pairToken, url: url)
     }
 
-    static func checkStatus(request loginRequest: LoginRequest, baseURL: String) async throws -> LoginStatus {
-        let endpoint = try browserStatusEndpoint(baseURL: baseURL, code: loginRequest.code)
+    static func checkStatus(request loginRequest: LoginRequest) async throws -> LoginStatus {
+        let endpoint = try browserStatusEndpoint(code: loginRequest.code)
         var request = URLRequest(url: endpoint)
         request.httpMethod = "GET"
         request.timeoutInterval = 12
@@ -1055,8 +1054,8 @@ fileprivate enum SomeIMBrowserLoginConnector {
         return LoginStatus(state: state, apiKey: decoded.apiKey)
     }
 
-    private static func browserStatusEndpoint(baseURL: String, code: String) throws -> URL {
-        guard var components = URLComponents(url: try publicAPIEndpoint(baseURL: baseURL, suffix: "public/client-login/browser-status"), resolvingAgainstBaseURL: false) else {
+    private static func browserStatusEndpoint(code: String) throws -> URL {
+        guard var components = URLComponents(url: try publicAPIEndpoint(baseURL: browserAPIOrigin, suffix: "public/client-login/browser-status"), resolvingAgainstBaseURL: false) else {
             throw SomeIMBrowserLoginError.invalidURL
         }
         components.queryItems = [
@@ -1067,8 +1066,8 @@ fileprivate enum SomeIMBrowserLoginConnector {
         return url
     }
 
-    private static func browserLoginURL(baseURL: String, code: String, pairToken: String) throws -> URL {
-        guard var components = URLComponents(string: baseURL.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+    private static func browserLoginURL(code: String, pairToken: String) throws -> URL {
+        guard var components = URLComponents(string: browserLoginOrigin) else {
             throw SomeIMBrowserLoginError.invalidURL
         }
         components.path = "/customer/login"
@@ -1100,7 +1099,7 @@ fileprivate enum SomeIMBrowserLoginConnector {
         guard status == errSecSuccess else { throw SomeIMBrowserLoginError.randomFailed }
         let alphabet = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
         let raw = bytes.map { alphabet[Int($0) % alphabet.count] }
-        return "MT-\(String(raw.prefix(4)))-\(String(raw.suffix(4)))"
+        return "WD-\(String(raw.prefix(4)))-\(String(raw.suffix(4)))"
     }
 
     private static func randomPairToken() throws -> String {

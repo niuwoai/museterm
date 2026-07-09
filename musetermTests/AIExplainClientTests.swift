@@ -104,6 +104,23 @@ final class AIExplainClientTests: XCTestCase {
         XCTAssertEqual(preferences.aiModel, AIProviderKind.someIM.defaultModel)
     }
 
+    func testSomeIMBrowserLoginUsesSomeIMOriginAndWillDeepDeviceCode() throws {
+        let request = try SomeIMBrowserLoginConnector.makeRequest()
+        let components = try XCTUnwrap(URLComponents(url: request.url, resolvingAgainstBaseURL: false))
+        let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).compactMap { item in
+            item.value.map { (item.name, $0) }
+        })
+
+        XCTAssertEqual(components.scheme, "https")
+        XCTAssertEqual(components.host, "some.im")
+        XCTAssertEqual(components.path, "/customer/login")
+        XCTAssertEqual(query["client_id"], "willdeep")
+        XCTAssertEqual(query["willdeep_device_code"], request.code)
+        XCTAssertTrue(request.code.range(of: #"^WD-[A-Z2-9]{4}-[A-Z2-9]{4}$"#, options: .regularExpression) != nil)
+        XCTAssertEqual(query["willdeep_pair_token"], request.pairToken)
+        XCTAssertEqual(request.pairToken.count, 64)
+    }
+
     func testSwitchingProviderReplacesBuiltInDefaultBaseURL() throws {
         let preferences = try isolatedPreferences()
         preferences.aiProvider = .google

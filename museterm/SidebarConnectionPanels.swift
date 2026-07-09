@@ -12,10 +12,15 @@ struct TerminalQuickPathSection: View {
 
     var body: some View {
         let recentPaths = workspace.recentQuickPaths
+        let recentPathSet = Set(recentPaths.map(\.path))
         let frequentPaths = workspace.frequentQuickPaths(
-            limit: showsMoreFrequentPaths ? Self.expandedFrequentCount : Self.collapsedFrequentCount
+            limit: showsMoreFrequentPaths ? Self.expandedFrequentCount : Self.collapsedFrequentCount,
+            excludingPaths: recentPathSet
         )
-        let totalFrequentCount = workspace.frequentQuickPaths(limit: Self.expandedFrequentCount).count
+        let totalFrequentCount = workspace.frequentQuickPaths(
+            limit: Self.expandedFrequentCount,
+            excludingPaths: recentPathSet
+        ).count
 
         SidebarSection(
             title: L10n.string("quick_path.section"),

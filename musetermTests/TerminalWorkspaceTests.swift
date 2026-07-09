@@ -108,6 +108,7 @@ final class TerminalWorkspaceTests: XCTestCase {
         tab.currentDirectory = secondDirectory.path
 
         XCTAssertEqual(Set(workspace.recentQuickPaths.map(\.path)), Set([firstDirectory.path, secondDirectory.path]))
+        XCTAssertTrue(workspace.frequentQuickPaths(limit: 3).isEmpty)
         XCTAssertEqual(workspace.quickPathRecords.first { $0.path == firstDirectory.path }?.visitCount, 1)
         workspace.flushQuickPathRecordsForTests()
         XCTAssertEqual(Set(TerminalQuickPathStore.load().map(\.path)), Set([firstDirectory.path, secondDirectory.path]))
@@ -167,10 +168,31 @@ final class TerminalWorkspaceTests: XCTestCase {
 
         XCTAssertEqual(record.path, directory.path)
         XCTAssertEqual(record.visitCount, 1)
+        XCTAssertTrue(workspace.frequentQuickPaths(limit: 3).isEmpty)
         XCTAssertEqual(TerminalQuickPathStore.load().map(\.path), [directory.path])
 
         let updated = try XCTUnwrap(workspace.addQuickPath(directory.path))
         XCTAssertEqual(updated.visitCount, 2)
+    }
+
+    func testQuickPathDisplayNameUsesDeepestDirectoryName() {
+        let record = TerminalQuickPathRecord(
+            path: "/Users/rocky/Downloads/client-project/reports/",
+            lastVisitedAt: Date(timeIntervalSince1970: 10),
+            visitCount: 1
+        )
+
+        XCTAssertEqual(record.displayName, "reports")
+    }
+
+    func testQuickPathDisplayNameAddsContextForGenericLeafDirectory() {
+        let record = TerminalQuickPathRecord(
+            path: "/Users/rocky/Downloads",
+            lastVisitedAt: Date(timeIntervalSince1970: 10),
+            visitCount: 1
+        )
+
+        XCTAssertEqual(record.displayName, "rocky / Downloads")
     }
 
     func testQuickPathStoreSortsFrequentPathsByVisitsThenRecency() throws {
@@ -184,9 +206,9 @@ final class TerminalWorkspaceTests: XCTestCase {
         }
 
         let records = [
-            TerminalQuickPathRecord(path: firstDirectory.path, lastVisitedAt: Date(timeIntervalSince1970: 10), visitCount: 2),
-            TerminalQuickPathRecord(path: secondDirectory.path, lastVisitedAt: Date(timeIntervalSince1970: 30), visitCount: 4),
-            TerminalQuickPathRecord(path: thirdDirectory.path, lastVisitedAt: Date(timeIntervalSince1970: 20), visitCount: 4)
+            TerminalQuickPathRecord(path: firstDirectory.path, lastVisitedAt: Date(timeIntervalSince1970: 10), visitCount: 5),
+            TerminalQuickPathRecord(path: secondDirectory.path, lastVisitedAt: Date(timeIntervalSince1970: 30), visitCount: 6),
+            TerminalQuickPathRecord(path: thirdDirectory.path, lastVisitedAt: Date(timeIntervalSince1970: 20), visitCount: 6)
         ]
 
         XCTAssertEqual(
@@ -195,6 +217,47 @@ final class TerminalWorkspaceTests: XCTestCase {
         )
         XCTAssertEqual(
             TerminalQuickPathStore.recent(records, limit: 2).map(\.path),
+            [secondDirectory.path, thirdDirectory.path]
+        )
+    }
+
+    func testQuickPathStoreRequiresFiveVisitsForFrequentPaths() throws {
+        let firstDirectory = try makeTemporaryDirectory()
+        let secondDirectory = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: firstDirectory)
+            try? FileManager.default.removeItem(at: secondDirectory)
+        }
+
+        let records = [
+            TerminalQuickPathRecord(path: firstDirectory.path, lastVisitedAt: Date(timeIntervalSince1970: 10), visitCount: 4),
+            TerminalQuickPathRecord(path: secondDirectory.path, lastVisitedAt: Date(timeIntervalSince1970: 20), visitCount: 5)
+        ]
+
+        XCTAssertEqual(
+            TerminalQuickPathStore.frequent(records, limit: 3).map(\.path),
+            [secondDirectory.path]
+        )
+    }
+
+    func testQuickPathStoreExcludesRecentPathsFromFrequentPaths() throws {
+        let firstDirectory = try makeTemporaryDirectory()
+        let secondDirectory = try makeTemporaryDirectory()
+        let thirdDirectory = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: firstDirectory)
+            try? FileManager.default.removeItem(at: secondDirectory)
+            try? FileManager.default.removeItem(at: thirdDirectory)
+        }
+
+        let records = [
+            TerminalQuickPathRecord(path: firstDirectory.path, lastVisitedAt: Date(timeIntervalSince1970: 30), visitCount: 9),
+            TerminalQuickPathRecord(path: secondDirectory.path, lastVisitedAt: Date(timeIntervalSince1970: 20), visitCount: 8),
+            TerminalQuickPathRecord(path: thirdDirectory.path, lastVisitedAt: Date(timeIntervalSince1970: 10), visitCount: 7)
+        ]
+
+        XCTAssertEqual(
+            TerminalQuickPathStore.frequent(records, limit: 3, excludingPaths: [firstDirectory.path]).map(\.path),
             [secondDirectory.path, thirdDirectory.path]
         )
     }

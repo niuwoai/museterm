@@ -1,6 +1,13 @@
 import Foundation
 
 struct TerminalQuickPathRecord: Codable, Equatable, Identifiable {
+    private static let contextualLeafNames: Set<String> = [
+        "desktop",
+        "documents",
+        "downloads",
+        "library"
+    ]
+
     var path: String
     var lastVisitedAt: Date
     var visitCount: Int
@@ -8,9 +15,12 @@ struct TerminalQuickPathRecord: Codable, Equatable, Identifiable {
     var id: String { path }
 
     var displayName: String {
-        let url = URL(fileURLWithPath: path)
-        let name = url.lastPathComponent
-        return name.isEmpty ? path : name
+        let components = Self.displayPathComponents(for: path)
+        guard let leaf = components.last else { return path }
+        guard Self.contextualLeafNames.contains(leaf.lowercased()), components.count >= 2 else {
+            return leaf
+        }
+        return "\(components[components.count - 2]) / \(leaf)"
     }
 
     var normalized: TerminalQuickPathRecord {
@@ -20,10 +30,23 @@ struct TerminalQuickPathRecord: Codable, Equatable, Identifiable {
             visitCount: max(1, visitCount)
         )
     }
+
+    private static func displayPathComponents(for path: String) -> [String] {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+
+        let expanded = (trimmed as NSString).expandingTildeInPath
+        let standardized = (expanded as NSString).standardizingPath
+        return (standardized as NSString).pathComponents
+            .filter { component in
+                component != "/" && !component.isEmpty
+            }
+    }
 }
 
 enum TerminalQuickPathStore {
     private static let maxStoredPaths = 80
+    static let minimumFrequentVisitCount = 5
     private static let fileName = "local-paths.json"
     private static let saveQueue = DispatchQueue(label: "im.some.museterm.quick-paths.save", qos: .utility)
     private static var directoryOverride: URL?
@@ -123,8 +146,15 @@ enum TerminalQuickPathStore {
             .map { $0 }
     }
 
-    static func frequent(_ records: [TerminalQuickPathRecord], limit: Int) -> [TerminalQuickPathRecord] {
+    static func frequent(
+        _ records: [TerminalQuickPathRecord],
+        limit: Int,
+        excludingPaths: Set<String> = []
+    ) -> [TerminalQuickPathRecord] {
         prepared(records)
+            .filter { record in
+                record.visitCount >= minimumFrequentVisitCount && !excludingPaths.contains(record.path)
+            }
             .sorted {
                 if $0.visitCount != $1.visitCount {
                     return $0.visitCount > $1.visitCount
