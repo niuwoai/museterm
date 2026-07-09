@@ -353,6 +353,17 @@ final class TerminalSession: ObservableObject, Identifiable {
         _ = controller
     }
 
+    /// 后台预热：让 shell 进程在离屏窗口里先跑起来，跑完 rc。仅本地 shell 适用。
+    func prewarm(preferences: TerminalPreferences?) {
+        guard case .localShell = launchConfiguration else { return }
+        controller.prewarm(preferences: preferences)
+    }
+
+    /// 从预热态取用：把容器交还给真窗口领养。
+    func adoptFromPrewarm() {
+        controller.adoptFromPrewarm()
+    }
+
     func startProcessIfNeeded() {
         controller.ensureProcessStarted()
     }
@@ -857,7 +868,13 @@ struct SystemTerminalTabCloseConfirmer: TerminalTabCloseConfirming {
 
 final class TerminalWorkspace: ObservableObject {
     @Published private(set) var tabs: [TerminalSession] = []
-    @Published var selectedID: TerminalSession.ID?
+    @Published var selectedID: TerminalSession.ID? {
+        didSet {
+            guard oldValue != selectedID else { return }
+            // 切换选中标签 → 新标签的继承目录变化，按新目录重排预热会话。
+            refreshPrewarmForDirectoryChangeIfNeeded()
+        }
+    }
     @Published private(set) var shortcuts: [TerminalShortcut] = TerminalShortcutStore.load()
     @Published private(set) var quickPathRecords: [TerminalQuickPathRecord] = TerminalQuickPathStore.load()
     weak var attentionReporter: TerminalAttentionReporting? {
@@ -870,11 +887,17 @@ final class TerminalWorkspace: ObservableObject {
     var onAllTabsClosed: (() -> Void)?
     // 本地终端 Profile 存储；由 ContentView 注入。未注入时「+」等入口回落系统默认行为。
     weak var profileStore: TerminalProfileStore?
+    // 终端偏好；由 ContentView 注入。预热离屏 shell 时用它确定字体/列数等几何，未注入则用默认。
+    weak var preferences: TerminalPreferences?
 
     private let automaticallyStartProcesses: Bool
     private let tabCloseConfirmer: TerminalTabCloseConfirming
     private var nextSequence = 1
     private var preparedTab: TerminalSession?
+    // 预热会话已在此目录 spawn 了 shell（rc 已在该目录下跑过）。开标签时只有继承目录与之
+    // 完全一致才复用，保证工作目录/rc 副作用（direnv 等）正确，绝不靠事后 cd 兜底。
+    private var preparedTabWarmDirectory: String?
+    private var prewarmRearmWorkItem: DispatchWorkItem?
     private var isPreparingNextTab = false
     private var lastShortcutNewTabUptime: TimeInterval = -.infinity
     private var lastShortcutNewTabEventTimestamp: TimeInterval?
@@ -911,13 +934,15 @@ final class TerminalWorkspace: ObservableObject {
             explicitStartDirectory: startDirectory,
             profile: effectiveProfile
         )
-        // 系统默认（无自定义、无起始目录）走预热 tab 快路径，保证零行为变化。
-        let usesSystemDefault = resolvedStartDirectory == nil && (effectiveProfile?.isSystemEquivalent ?? true)
+        // 系统默认 Profile 走预热快路径：只要继承目录与预热会话 spawn 的目录一致就直接复用
+        // 已就绪的 warm shell（近似秒开）；目录对不上则老实冷建，绝不靠事后 cd 兜底。
+        let profileIsSystemDefault = effectiveProfile?.isSystemEquivalent ?? true
         let tab: TerminalSession
-        if usesSystemDefault {
-            tab = takePreparedTab()
+        if profileIsSystemDefault,
+           let warmTab = takePreparedTabIfMatches(directory: canonicalNewTabDirectory(resolvedStartDirectory)) {
+            tab = warmTab
         } else {
-            let profileForConfig = (effectiveProfile?.isSystemEquivalent ?? true) ? nil : effectiveProfile
+            let profileForConfig = profileIsSystemDefault ? nil : effectiveProfile
             tab = makeTab(
                 launchConfiguration: .localShell(startDirectory: resolvedStartDirectory, profile: profileForConfig)
             )
@@ -1025,6 +1050,8 @@ final class TerminalWorkspace: ObservableObject {
 
         preparedTab?.terminate()
         preparedTab = nil
+        preparedTabWarmDirectory = nil
+        prewarmRearmWorkItem?.cancel()
         isPreparingNextTab = false
         tabs.forEach { $0.terminate() }
         quickPathCancellables.removeAll()
@@ -1297,14 +1324,23 @@ final class TerminalWorkspace: ObservableObject {
         throw TerminalToolError.tabNotFound(cleaned)
     }
 
-    private func takePreparedTab() -> TerminalSession {
-        if let preparedTab {
-            self.preparedTab = nil
-            preparedTab.attentionReporter = attentionReporter
-            return preparedTab
-        }
+    private var canonicalHomeDirectory: String {
+        FileManager.default.homeDirectoryForCurrentUser.path
+    }
 
-        return makeTab()
+    // 一个默认新标签实际会落到的目录：解析后的继承目录，为 nil 时 shell 回落到 home。
+    private func canonicalNewTabDirectory(_ resolvedStartDirectory: String?) -> String {
+        resolvedStartDirectory ?? canonicalHomeDirectory
+    }
+
+    /// 仅当预热会话正是在 `directory` 里 spawn 的才取用；否则返回 nil 让调用方冷建。
+    private func takePreparedTabIfMatches(directory: String) -> TerminalSession? {
+        guard let preparedTab, preparedTabWarmDirectory == directory else { return nil }
+        self.preparedTab = nil
+        preparedTabWarmDirectory = nil
+        preparedTab.attentionReporter = attentionReporter
+        preparedTab.adoptFromPrewarm()
+        return preparedTab
     }
 
     private func makeTab(launchConfiguration: TerminalLaunchConfiguration = .localShell()) -> TerminalSession {
@@ -1328,9 +1364,40 @@ final class TerminalWorkspace: ObservableObject {
         defer { isPreparingNextTab = false }
         guard preparedTab == nil else { return }
 
-        let tab = makeTab()
-        tab.prepareController()
+        // 只为「系统默认 Profile」预热（快路径的唯一适用场景）；非系统默认交给冷建。
+        guard profileStore?.defaultProfile.normalized.isSystemEquivalent ?? true else { return }
+
+        // 把「此刻一个默认新标签会继承到的目录」烘焙进预热会话，令 warm shell 直接在该目录起。
+        let warmDirectory = canonicalNewTabDirectory(
+            resolvedNewLocalTabStartDirectory(explicitStartDirectory: nil, profile: nil)
+        )
+        let tab = makeTab(launchConfiguration: .localShell(startDirectory: warmDirectory, profile: nil))
+        tab.prewarm(preferences: preferences)
         preparedTab = tab
+        preparedTabWarmDirectory = warmDirectory
+    }
+
+    /// 当前选中标签的目录变化后，预热会话烘焙的目录可能已过期：丢弃并按新目录重排一个。
+    /// 防抖，避免用户连续 cd 时反复 spawn shell。
+    func refreshPrewarmForDirectoryChangeIfNeeded() {
+        guard automaticallyStartProcesses else { return }
+        prewarmRearmWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            let desired = self.canonicalNewTabDirectory(
+                self.resolvedNewLocalTabStartDirectory(explicitStartDirectory: nil, profile: nil)
+            )
+            // 已有预热且目录仍匹配：无需动作。
+            if self.preparedTab != nil, self.preparedTabWarmDirectory == desired { return }
+            // 目录过期：拆掉旧预热，重新按新目录预热。
+            self.preparedTab?.terminate()
+            self.preparedTab = nil
+            self.preparedTabWarmDirectory = nil
+            self.isPreparingNextTab = false
+            self.schedulePrepareNextTab()
+        }
+        prewarmRearmWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2, execute: workItem)
     }
 
     private func upsertShortcut(_ shortcut: TerminalShortcut) {
@@ -1353,8 +1420,12 @@ final class TerminalWorkspace: ObservableObject {
         quickPathCancellables[tab.id] = tab.$currentDirectory
             .dropFirst()
             .sink { [weak self, weak tab] directory in
-                guard let tab else { return }
-                self?.recordQuickPath(directory, for: tab)
+                guard let self, let tab else { return }
+                self.recordQuickPath(directory, for: tab)
+                // 选中标签的目录变了 → 新标签的继承目录随之改变，按新目录重排预热会话。
+                if tab.id == self.selectedID {
+                    self.refreshPrewarmForDirectoryChangeIfNeeded()
+                }
             }
     }
 

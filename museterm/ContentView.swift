@@ -63,6 +63,7 @@ struct ContentView: View {
         .frame(minWidth: 920, minHeight: 560)
         .onAppear {
             workspace.profileStore = profileStore
+            workspace.preferences = preferences
             TerminalToolBridge.shared.attach(workspace: workspace)
             notificationCoordinator.attach(workspace: workspace, preferences: preferences)
             MuseTermScriptingRegistry.attach(

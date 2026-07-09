@@ -59,6 +59,12 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private var didStart = false
     private var pendingStart = false
     private var pendingStartWorkItem: DispatchWorkItem?
+    // 预热：把容器临时挂到一个离屏窗口里，让 shell 进程在后台就绪（跑完 rc、打完首个提示符），
+    // 等真正开标签时容器被 SwiftUI 领养到真窗口。prewarmWindow 仅为满足 canStartProcess 的
+    // window!=nil + 尺寸前提，不上屏。
+    private var prewarmWindow: NSWindow?
+    private var wasPrewarmed = false
+    private var didAttachToLiveWindow = false
     private var startupPromptPollWorkItem: DispatchWorkItem?
     private var startupHardDeadline: TimeInterval = 0
     private var startupLastOutputUptime: TimeInterval = 0
@@ -164,7 +170,18 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.frame.origin.x += marginWidth
         terminalView.frame.size.width = max(0, terminalView.frame.width - marginWidth * 2)
         startupCoverView.frame = container.bounds
+        handleAttachToLiveWindowIfNeeded()
         schedulePendingProcessStartIfReady()
+    }
+
+    // 预热会话首次落到真窗口时，容器尺寸从离屏默认值跳到实际大小，会触发一次 SIGWINCH 重绘，
+    // p10k 等可能把提示符重画成多条。此时 shell 已就绪，复用启动遮罩盖住这次重排：因首屏内容
+    // 早已存在，遮罩会在输出安静后很快（约 0.5s）揭幕，而不是从零等 shell 冷启动的那 ~1.5s。
+    private func handleAttachToLiveWindowIfNeeded() {
+        guard wasPrewarmed, !didAttachToLiveWindow else { return }
+        guard let window = terminalView.window, window !== prewarmWindow else { return }
+        didAttachToLiveWindow = true
+        beginStartupPromptDeduplication()
     }
 
     func terminate() {
@@ -173,6 +190,11 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         pendingSSHReconnectWorkItem = nil
         pendingOutputSnapshotWorkItem?.cancel()
         pendingOutputSnapshotWorkItem = nil
+        if prewarmWindow != nil {
+            container.removeFromSuperview()
+            prewarmWindow?.orderOut(nil)
+            prewarmWindow = nil
+        }
         terminalView.terminate()
     }
 
@@ -184,6 +206,37 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             pendingStart = true
             pendingStartWorkItem?.cancel()
         }
+    }
+
+    /// 后台预热：把容器塞进一个离屏窗口，令 shell 进程立即启动并跑完 rc，
+    /// 之后开标签直接复用这个已就绪的会话。重复调用与已启动的会话都安全跳过。
+    func prewarm(preferences: TerminalPreferences?) {
+        guard !didStart, prewarmWindow == nil else { return }
+        wasPrewarmed = true
+        let size = NSSize(width: 900, height: 560)
+        let window = NSWindow(
+            contentRect: NSRect(origin: CGPoint(x: -30_000, y: -30_000), size: size),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        window.isReleasedWhenClosed = false
+        container.frame = NSRect(origin: .zero, size: size)
+        window.contentView?.addSubview(container)
+        prewarmWindow = window
+        if let preferences {
+            apply(preferences: preferences)
+        }
+        layoutTerminalViews()
+        ensureProcessStarted()
+    }
+
+    /// 标签被真正取用时调用：把容器从离屏窗口摘下，交还给 SwiftUI 领养到真窗口。
+    func adoptFromPrewarm() {
+        guard prewarmWindow != nil else { return }
+        container.removeFromSuperview()
+        prewarmWindow?.orderOut(nil)
+        prewarmWindow = nil
     }
 
     func reconnectSSH() {
