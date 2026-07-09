@@ -144,7 +144,6 @@ enum AIProviderKind: String, CaseIterable, Identifiable {
 final class TerminalPreferences: ObservableObject {
     private enum Keys {
         static let skin = "terminal.skin"
-        static let colorPalette = "terminal.colorPalette"
         static let fontFamily = "terminal.fontFamily"
         static let fallbackFontFamily = "terminal.fallbackFontFamily"
         static let fontSize = "terminal.fontSize"
@@ -184,7 +183,6 @@ final class TerminalPreferences: ObservableObject {
     private let defaults: UserDefaults
 
     @Published var skin: TerminalVisualSkin { didSet { defaults.set(skin.rawValue, forKey: Keys.skin) } }
-    @Published var colorPalette: TerminalColorPalette { didSet { defaults.set(colorPalette.rawValue, forKey: Keys.colorPalette) } }
     @Published var fontFamily: String { didSet { defaults.set(fontFamily, forKey: Keys.fontFamily) } }
     @Published var fallbackFontFamily: String { didSet { defaults.set(fallbackFontFamily, forKey: Keys.fallbackFontFamily) } }
     @Published var fontSize: Double { didSet { defaults.set(fontSize, forKey: Keys.fontSize) } }
@@ -241,7 +239,6 @@ final class TerminalPreferences: ObservableObject {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         skin = TerminalVisualSkin(rawValue: defaults.string(forKey: Keys.skin) ?? "") ?? .seaSalt
-        colorPalette = TerminalColorPalette(rawValue: defaults.string(forKey: Keys.colorPalette) ?? "") ?? .apple
         fontFamily = defaults.string(forKey: Keys.fontFamily) ?? "SF Mono"
         fallbackFontFamily = defaults.string(forKey: Keys.fallbackFontFamily) ?? "PingFang SC"
         fontSize = defaults.object(forKey: Keys.fontSize) as? Double ?? 14

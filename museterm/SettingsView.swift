@@ -71,30 +71,12 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(L10n.string("settings.skin"))
                 .font(.headline)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 10)], spacing: 10) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], spacing: 10) {
                 ForEach(TerminalVisualSkin.allCases) { skin in
                     Button {
                         preferences.skin = skin
                     } label: {
                         SkinChoiceView(skin: skin, isSelected: preferences.skin == skin)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
-            Text(L10n.string("settings.palette"))
-                .font(.headline)
-                .padding(.top, 6)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], spacing: 10) {
-                ForEach(TerminalColorPalette.allCases) { palette in
-                    Button {
-                        preferences.colorPalette = palette
-                    } label: {
-                        PaletteChoiceView(
-                            palette: palette,
-                            isSelected: preferences.colorPalette == palette,
-                            skin: preferences.skin
-                        )
                     }
                     .buttonStyle(.plain)
                 }
@@ -1313,9 +1295,17 @@ private struct SkinChoiceView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 8), spacing: 2) {
+                ForEach(Array(skin.ansiColors.enumerated()), id: \.offset) { _, color in
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(Color(nsColor: color))
+                        .frame(height: 9)
+                }
+            }
+            .padding(.top, 2)
         }
         .padding(10)
-        .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
         .background(isSelected ? skin.selectionFill : skin.controlFill)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay(
@@ -1375,46 +1365,6 @@ private struct FontSearchPicker: View {
             }
             .frame(height: 96)
         }
-    }
-}
-
-private struct PaletteChoiceView: View {
-    let palette: TerminalColorPalette
-    let isSelected: Bool
-    let skin: TerminalVisualSkin
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(palette.name)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                Spacer()
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(skin.accent)
-                }
-            }
-            Text(palette.summary)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 8), spacing: 2) {
-                ForEach(Array(palette.nsColors.enumerated()), id: \.offset) { _, color in
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(Color(nsColor: color))
-                        .frame(height: 9)
-                }
-            }
-        }
-        .padding(10)
-        .frame(maxWidth: .infinity, minHeight: 92, alignment: .topLeading)
-        .background(isSelected ? skin.selectionFill : skin.controlFill)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(isSelected ? skin.accent.opacity(0.55) : skin.hairline, lineWidth: 1)
-        )
     }
 }
 

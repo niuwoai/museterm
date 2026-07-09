@@ -40,8 +40,8 @@
 - AppleScript 支持：随 App 打包 sdef 词典（含 Standard Suite），`tell application "museterm"` 可枚举标签（标题、目录、shell、busy、屏幕内容、历史、命令记录）、新建/关闭/切换标签、`write text` / `send key` 写入、`execute` 同步执行并取回退出码/输出/耗时（依赖 shell integration 命令边界，挂起 Apple 事件直至命令结束）、按名称打开 SSH 收藏、回放录制快捷方式（含受保护输入的一律拒绝）；设置 › 工具 提供「允许 AppleScript 写入终端」总开关（默认开，关闭后只读能力保留），错误以 -31000 起的自定义码和本地化消息回传；详见 `docs/APPLESCRIPT_SUPPORT.md`。
 - CLI/MCP 命令查询：`museterm commands --query` 与 MCP `read_commands.query` 支持 `risk:`、`lifecycle:` / `state:`、`boundary:` 和普通全文词组合过滤，过滤先于输出尾部截断执行，并在顶层返回 `filteredCommandCount`、`commandQuery` 与 `commandQueryFilters`，便于外部 AI 工具直接读取目标命令块，并解释查询 token 如何被解析。
 - AI Provider 设置：设置页支持 OpenAI、Anthropic、Google Gemini、Azure OpenAI、OpenRouter、some.im、Ollama、llama-server 和自定义端点；切换 Provider 时会把仍停留在内置默认值的 Base URL / 模型同步切换到新 Provider 默认值，避免 Ollama 等本地服务继续沿用 Gemini URL；some.im 推理默认 `https://api.niuwoai.com/v1` 国内节点，并可切换到 `https://some.im/v1` 国外节点；some.im 浏览器登录入口始终使用 `https://some.im` 主站，避免把国内推理节点误当作客户控制台页面；Ollama 默认 `http://127.0.0.1:11434/v1`，llama-server 默认 `http://127.0.0.1:8080/v1`；设置页可从 `/models`、Gemini `/models`、Anthropic `/v1/models` 或 Ollama `/api/tags` 自动读取模型候选，用户点击候选即可填入模型；API Key 仅保存到本机 Keychain，保存后会立即读回校验，输入框在已保存时用掩码占位提示。
-- 皮肤系统：从 MuseMail 的视觉体系迁移，针对终端场景提供浅色与深色皮肤。
-- 字符配色：支持 Apple、Tango、Solarized、Dracula、One Dark、Nord 等经典 ANSI palette。
+- 皮肤系统：从 MuseMail 的视觉体系迁移，针对终端场景提供 16 种皮肤（浅色 8 种：海盐晨蓝、淡雅雾林、水墨宣纸、樱色微光、素笺本白、晴空天蓝、抹茶浅野、暖沙落日；深色 8 种：午夜岩蓝、极光暗夜、焰火石墨、暮山紫霭、极地深蓝、玄铁石墨、深海靛蓝、石榴暗红）。
+- 字符配色：ANSI 16 色已并入皮肤，不再单独选择。每个皮肤内置一份与其底色最匹配的 ANSI 调色板（浅色皮肤用高对比深色字，深色皮肤沿用 Dracula / Nord / One Dark / Solarized 等成熟方案），随皮肤切换自动生效，设置卡片下方直接预览。
 - 毛玻璃配置：支持启用/关闭、材质选择、玻璃强度、终端底色透明度、染色和柔光。
 - 字体配置：支持从已安装字体中搜索选择主字体和回退字体。
 - 排版配置：支持字号和行高调节。

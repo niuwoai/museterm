@@ -129,7 +129,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.selectedTextBackgroundColor = preferences.skin.caret.withOpacity(0.22)
         terminalView.caretColor = preferences.skin.caret
         terminalView.font = preferences.terminalFont
-        terminalView.installColors(preferences.colorPalette.swiftTermColors)
+        terminalView.installColors(preferences.skin.ansiSwiftTermColors)
         terminalView.lineSpacing = CGFloat(preferences.lineHeight)
         terminalView.optionAsMetaKey = preferences.optionAsMeta
         terminalView.allowMouseReporting = preferences.mouseReporting
@@ -1856,7 +1856,6 @@ private enum ZModemLocalTool {
 
 private struct TerminalPreferenceSignature: Equatable {
     let skin: TerminalVisualSkin
-    let colorPalette: TerminalColorPalette
     let fontFamily: String
     let fallbackFontFamily: String
     let fontSize: Double
@@ -1873,7 +1872,6 @@ private struct TerminalPreferenceSignature: Equatable {
 
     init(preferences: TerminalPreferences) {
         skin = preferences.skin
-        colorPalette = preferences.colorPalette
         fontFamily = preferences.fontFamily
         fallbackFontFamily = preferences.fallbackFontFamily
         fontSize = preferences.fontSize
