@@ -151,6 +151,12 @@ struct TerminalQuickPathSection: View {
                 } label: {
                     Label(L10n.string("quick_path.open_folder"), systemImage: "folder")
                 }
+                Divider()
+                Button(role: .destructive) {
+                    removeQuickPath(record)
+                } label: {
+                    Label(L10n.string("quick_path.remove"), systemImage: "trash")
+                }
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 11, weight: .semibold))
@@ -196,6 +202,11 @@ struct TerminalQuickPathSection: View {
             NSSound.beep()
             quickPathMessage = L10n.format("quick_path.open_folder.failed", record.path)
         }
+    }
+
+    private func removeQuickPath(_ record: TerminalQuickPathRecord) {
+        workspace.removeQuickPath(record.path)
+        quickPathMessage = L10n.format("quick_path.removed", record.displayName)
     }
 }
 

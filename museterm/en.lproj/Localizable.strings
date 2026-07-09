@@ -97,6 +97,8 @@
 "quick_path.added" = "Added \"%@\".";
 "quick_path.open_terminal" = "Open in Terminal Tab";
 "quick_path.open_folder" = "Open in Folder";
+"quick_path.remove" = "Remove from List";
+"quick_path.removed" = "Removed \"%@\" from Quick Paths.";
 "quick_path.opened_folder" = "Opened \"%@\".";
 "quick_path.open_folder.failed" = "Could not open folder: %@";
 "quick_path.missing" = "The path no longer exists and was removed from Quick Paths: %@";

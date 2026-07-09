@@ -97,6 +97,8 @@
 "quick_path.added" = "已添加“%@”。";
 "quick_path.open_terminal" = "在终端标签打开";
 "quick_path.open_folder" = "在文件夹中打开";
+"quick_path.remove" = "从列表移除";
+"quick_path.removed" = "已从快捷路径移除“%@”。";
 "quick_path.opened_folder" = "已打开“%@”。";
 "quick_path.open_folder.failed" = "无法打开文件夹：%@";
 "quick_path.missing" = "路径不存在，已从快捷路径移除：%@";
