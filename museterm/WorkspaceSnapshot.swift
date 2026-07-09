@@ -26,13 +26,14 @@ struct TerminalWorkspaceSnapshot: Codable, Equatable {
         var kind: Kind
         var localDirectory: String?
         var sshProfile: SSHConnectionProfile?
+        var localProfile: TerminalProfile?
 
-        static func local(directory: String?) -> Tab {
-            Tab(kind: .local, localDirectory: directory, sshProfile: nil)
+        static func local(directory: String?, profile: TerminalProfile? = nil) -> Tab {
+            Tab(kind: .local, localDirectory: directory, sshProfile: nil, localProfile: profile?.normalized)
         }
 
         static func ssh(profile: SSHConnectionProfile) -> Tab {
-            Tab(kind: .ssh, localDirectory: nil, sshProfile: profile.normalized)
+            Tab(kind: .ssh, localDirectory: nil, sshProfile: profile.normalized, localProfile: nil)
         }
     }
 

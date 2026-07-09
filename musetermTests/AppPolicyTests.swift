@@ -11,16 +11,15 @@ final class AppPolicyTests: XCTestCase {
         let preferences = TerminalPreferences(defaults: defaults)
 
         XCTAssertEqual(preferences.skin, TerminalVisualSkin.seaSalt)
-        XCTAssertEqual(preferences.colorPalette, TerminalColorPalette.apple)
         XCTAssertTrue(preferences.glassEnabled)
         XCTAssertTrue(preferences.showsTabList)
         XCTAssertEqual(preferences.fontSize, 14)
     }
 
-    func testTerminalPalettesProvideAnsi16Colors() {
-        for palette in TerminalColorPalette.allCases {
-            XCTAssertEqual(palette.swiftTermColors.count, 16)
-            XCTAssertEqual(palette.nsColors.count, 16)
+    func testTerminalSkinsProvideAnsi16Colors() {
+        for skin in TerminalVisualSkin.allCases {
+            XCTAssertEqual(skin.ansiSwiftTermColors.count, 16)
+            XCTAssertEqual(skin.ansiColors.count, 16)
         }
     }
 

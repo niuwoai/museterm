@@ -2,7 +2,45 @@
 "app.lightweight" = "轻快终端";
 
 "action.new_tab" = "新建标签";
+"action.new_tab_with_profile" = "按 Profile 新建标签";
 "action.new_connection" = "新建连接";
+
+"profile.section" = "终端 Profile";
+"profile.untitled" = "未命名 Profile";
+"profile.default.name" = "默认";
+"profile.add" = "新建 Profile";
+"profile.open" = "用此 Profile 开标签";
+"profile.set_default" = "设为默认";
+"profile.edit" = "编辑";
+"profile.delete" = "删除";
+"profile.editor.title" = "终端 Profile";
+"profile.name" = "名称";
+"profile.name.placeholder" = "如：Fish 开发环境";
+"profile.shell" = "Shell";
+"profile.shell.login" = "跟随系统";
+"profile.shell.zsh" = "zsh";
+"profile.shell.bash" = "bash";
+"profile.shell.fish" = "fish";
+"profile.shell.custom" = "自定义";
+"profile.shell.custom_path" = "自定义 Shell 路径";
+"profile.shell.custom_path.help" = "填写可执行文件绝对路径，找不到时回落系统登录 Shell。";
+"profile.prompt" = "提示符风格";
+"profile.prompt.help" = "预设风格会按所选 Shell 自动生成实现；选「系统默认」则不改动你现有 PS1。";
+"profile.prompt.system" = "系统默认";
+"profile.prompt.minimal" = "精简";
+"profile.prompt.path" = "路径";
+"profile.prompt.git" = "Git 分支";
+"profile.prompt.twoLine" = "双行";
+"profile.prompt.custom" = "自定义";
+"profile.prompt.custom.help" = "按所选 Shell 的原生语法书写：zsh 填 PROMPT 值、bash 填 PS1 值、fish 填一段定义 fish_prompt 的代码。";
+"profile.working_directory" = "默认工作目录";
+"profile.working_directory.help" = "留空则继承当前标签目录。";
+"profile.environment" = "环境变量";
+"profile.environment.help" = "每行一个 KEY=VALUE，会在启动时追加/覆盖到该 Profile 的终端环境。";
+"profile.startup" = "启动命令";
+"profile.startup.help" = "每行一条，终端启动后依次自动执行（如 conda activate、nvm use）。";
+"profile.make_default" = "设为默认 Profile";
+"profile.make_default.help" = "默认 Profile 决定「+」新建标签的行为，且不可删除。";
 "action.settings" = "设置";
 "action.close_tab" = "关闭标签";
 "action.cancel" = "取消";
@@ -640,7 +678,7 @@
 "settings.tools.install_success" = "已安装 museterm 到 %@。如果 shell 找不到它，请把 ~/.local/bin 加入 PATH。";
 "settings.tools.install_failed" = "安装失败：%@";
 "settings.tools.commands" = "CLI 示例";
-"settings.tools.command_examples" = "museterm tabs\nmuseterm screen --tab selected --chars 4000\nmuseterm history --tab 1 --chars 12000\nmuseterm commands --tab selected --chars 4000\nmuseterm input --tab selected \"ls -la\"\nmuseterm key --tab selected enter\nmuseterm key --tab selected ctrl-c";
+"settings.tools.command_examples" = "museterm tabs\nmuseterm screen --tab selected --chars 4000\nmuseterm history --tab 1 --chars 12000\nmuseterm commands --tab selected --chars 4000\nmuseterm input --tab selected \"ls -la\"\nmuseterm key --tab selected enter\nmuseterm key --tab selected ctrl-c\nmuseterm tab ~/Sites\nmuseterm ssh \"生产服务器\"\nmuseterm shortcuts --json\nmuseterm shortcut --tab selected \"连接 SSH\"";
 "settings.tools.mcp" = "MCP 配置";
 "settings.tools.mcp_config" = "{\"mcpServers\":{\"museterm\":{\"command\":\"museterm\",\"args\":[\"mcp\"]}}}";
 "settings.tools.applescript_input" = "允许 AppleScript 写入终端";
@@ -661,6 +699,10 @@
 "tools.error.process_unavailable" = "终端进程尚未就绪。";
 "tools.error.unknown_action" = "未知工具动作：%@";
 "tools.response.input_sent" = "已向 %@ 发送输入。";
+"tools.response.shortcuts_listed" = "已列出 %d 个录制捷径。";
+"tools.response.tab_created" = "已新建标签页：%@。";
+"tools.response.ssh_profile_opened" = "已打开 SSH 配置：%@。";
+"tools.response.shortcut_played" = "已播放录制捷径：%@。";
 
 "command_inspector.title" = "命令搜索";
 "command_inspector.no_tab" = "当前没有可用终端标签。";

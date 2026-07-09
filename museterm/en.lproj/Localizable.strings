@@ -2,6 +2,44 @@
 "app.lightweight" = "Light terminal";
 
 "action.new_tab" = "New tab";
+"action.new_tab_with_profile" = "New tab from profile";
+
+"profile.section" = "Terminal Profiles";
+"profile.untitled" = "Untitled Profile";
+"profile.default.name" = "Default";
+"profile.add" = "New profile";
+"profile.open" = "Open tab with this profile";
+"profile.set_default" = "Set as default";
+"profile.edit" = "Edit";
+"profile.delete" = "Delete";
+"profile.editor.title" = "Terminal Profile";
+"profile.name" = "Name";
+"profile.name.placeholder" = "e.g. Fish dev environment";
+"profile.shell" = "Shell";
+"profile.shell.login" = "System";
+"profile.shell.zsh" = "zsh";
+"profile.shell.bash" = "bash";
+"profile.shell.fish" = "fish";
+"profile.shell.custom" = "Custom";
+"profile.shell.custom_path" = "Custom shell path";
+"profile.shell.custom_path.help" = "Absolute path to the executable; falls back to the system login shell if not found.";
+"profile.prompt" = "Prompt style";
+"profile.prompt.help" = "Preset styles are generated per shell; choose System default to leave your existing PS1 untouched.";
+"profile.prompt.system" = "System default";
+"profile.prompt.minimal" = "Minimal";
+"profile.prompt.path" = "Path";
+"profile.prompt.git" = "Git branch";
+"profile.prompt.twoLine" = "Two-line";
+"profile.prompt.custom" = "Custom";
+"profile.prompt.custom.help" = "Write it in your shell's native syntax: zsh sets PROMPT, bash sets PS1, fish defines a fish_prompt function.";
+"profile.working_directory" = "Default working directory";
+"profile.working_directory.help" = "Leave empty to inherit the current tab's directory.";
+"profile.environment" = "Environment variables";
+"profile.environment.help" = "One KEY=VALUE per line; appended/overridden into this profile's terminal environment at launch.";
+"profile.startup" = "Startup commands";
+"profile.startup.help" = "One per line, run automatically after the terminal starts (e.g. conda activate, nvm use).";
+"profile.make_default" = "Set as default profile";
+"profile.make_default.help" = "The default profile drives the + new-tab button and cannot be deleted.";
 "action.new_connection" = "New connection";
 "action.settings" = "Settings";
 "action.close_tab" = "Close tab";
@@ -640,7 +678,7 @@
 "settings.tools.install_success" = "Installed museterm at %@. Add ~/.local/bin to PATH if your shell cannot find it.";
 "settings.tools.install_failed" = "Install failed: %@";
 "settings.tools.commands" = "CLI examples";
-"settings.tools.command_examples" = "museterm tabs\nmuseterm screen --tab selected --chars 4000\nmuseterm history --tab 1 --chars 12000\nmuseterm commands --tab selected --chars 4000\nmuseterm input --tab selected \"ls -la\"\nmuseterm key --tab selected enter\nmuseterm key --tab selected ctrl-c";
+"settings.tools.command_examples" = "museterm tabs\nmuseterm screen --tab selected --chars 4000\nmuseterm history --tab 1 --chars 12000\nmuseterm commands --tab selected --chars 4000\nmuseterm input --tab selected \"ls -la\"\nmuseterm key --tab selected enter\nmuseterm key --tab selected ctrl-c\nmuseterm tab ~/Sites\nmuseterm ssh \"Production Server\"\nmuseterm shortcuts --json\nmuseterm shortcut --tab selected \"Connect SSH\"";
 "settings.tools.mcp" = "MCP configuration";
 "settings.tools.mcp_config" = "{\"mcpServers\":{\"museterm\":{\"command\":\"museterm\",\"args\":[\"mcp\"]}}}";
 "settings.tools.applescript_input" = "Allow AppleScript to Type into Terminals";
@@ -661,6 +699,10 @@
 "tools.error.process_unavailable" = "The terminal process is not ready.";
 "tools.error.unknown_action" = "Unknown tool action: %@";
 "tools.response.input_sent" = "Sent input to %@.";
+"tools.response.shortcuts_listed" = "Listed %d recorded shortcuts.";
+"tools.response.tab_created" = "Created tab: %@.";
+"tools.response.ssh_profile_opened" = "Opened SSH profile: %@.";
+"tools.response.shortcut_played" = "Played shortcut: %@.";
 
 "command_inspector.title" = "Command Search";
 "command_inspector.no_tab" = "No terminal tab is available.";

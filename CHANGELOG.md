@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.221.0-rc1] - 2026-07-09
+
+### Added
+- 新增本地「终端 Profile」：每个 Profile 可自定义 shell（跟随系统/zsh/bash/fish/自定义路径）、提示符风格（系统默认/精简/路径/Git 分支/双行/自定义）、环境变量、启动命令与默认工作目录。侧栏新增「终端 Profile」区可增删改与设为默认，「+」旁的下拉图标可先选 Profile 再开标签。
+- 有一个不可删除的默认 Profile：决定「+」新建标签的行为，初始等于当前系统登录 shell，上线零行为变化。
+
+### Changed
+- 提示符预设通过环境变量驱动共享的 shell 集成脚本实现：仅当 Profile 选择非「系统默认」时才改写 PROMPT/PS1/fish_prompt，系统默认 Profile 完全不改动用户既有 PS1。
+- 终端 Profile 会随工作区快照一起持久化与恢复（按 id 回取最新配置，取不到则用快照内嵌副本）。
+
+## [1.220.0-rc1] - 2026-07-09
+
+### Added
+- CLI/MCP 工具桥新增录制捷径列表能力：MCP 暴露 `list_shortcuts`，CLI 对应 `museterm shortcuts`，返回标题、ID、事件数、时长、是否包含受保护输入和是否可回放。
+
+## [1.219.0-rc1] - 2026-07-09
+
+### Added
+- CLI/MCP 工具桥新增新建本地标签、按名称打开已保存 SSH Profile、回放终端录制捷径能力；MCP 暴露 `create_tab`、`open_ssh_profile` 和 `play_shortcut`，CLI 对应 `museterm tab`、`museterm ssh`、`museterm shortcut`。
+- MCP/CLI 回放终端录制复用现有脚本安全策略，含受保护 echo-off 输入的录制捷径仍会被拒绝。
+
 ## [1.218.0-rc1] - 2026-07-09
 
 ### Changed

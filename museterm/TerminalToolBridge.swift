@@ -343,6 +343,31 @@ struct TerminalToolRequest: Codable {
     let text: String?
     let key: String?
     let bytes: [UInt8]?
+    let directory: String?
+    let profile: String?
+    let shortcut: String?
+}
+
+struct TerminalToolShortcutSummary: Codable {
+    let id: String
+    let title: String
+    let eventCount: Int
+    let durationMilliseconds: Int
+    let hasProtectedInput: Bool
+    let canPlay: Bool
+    let createdAt: Date
+    let updatedAt: Date
+
+    init(shortcut: TerminalShortcut, canPlay: Bool) {
+        self.id = shortcut.id.uuidString
+        self.title = shortcut.title
+        self.eventCount = shortcut.eventCount
+        self.durationMilliseconds = shortcut.durationMilliseconds
+        self.hasProtectedInput = shortcut.hasProtectedInput
+        self.canPlay = canPlay
+        self.createdAt = shortcut.createdAt
+        self.updatedAt = shortcut.updatedAt
+    }
 }
 
 struct TerminalToolResponse: Codable {
@@ -354,6 +379,7 @@ struct TerminalToolResponse: Codable {
     let snapshotSequence: Int
     let action: String?
     let tabID: String?
+    let shortcuts: [TerminalToolShortcutSummary]?
     let message: String?
     let error: String?
 
@@ -366,6 +392,7 @@ struct TerminalToolResponse: Codable {
         snapshotSequence: Int,
         action: String? = nil,
         tabID: String? = nil,
+        shortcuts: [TerminalToolShortcutSummary]? = nil,
         message: String?,
         error: String?
     ) {
@@ -377,6 +404,7 @@ struct TerminalToolResponse: Codable {
         self.snapshotSequence = snapshotSequence
         self.action = action
         self.tabID = tabID
+        self.shortcuts = shortcuts
         self.message = message
         self.error = error
     }
@@ -582,6 +610,154 @@ final class TerminalToolBridge {
         }
 
         switch request.action {
+        case "list_shortcuts":
+            let scriptedInputAllowed = MuseTermScriptingRegistry.isScriptedInputAllowed
+            let shortcuts = workspace.shortcuts.map { shortcut in
+                TerminalToolShortcutSummary(
+                    shortcut: shortcut,
+                    canPlay: scriptedInputAllowed && MuseTermScriptingPolicy.canPlay(shortcut)
+                )
+            }
+            return TerminalToolResponse(
+                id: request.id,
+                ok: true,
+                snapshotSequence: snapshotSequence,
+                action: request.action,
+                shortcuts: shortcuts,
+                message: L10n.format("tools.response.shortcuts_listed", shortcuts.count),
+                error: nil
+            )
+        case "create_tab":
+            workspace.newTab(startDirectory: request.directory)
+            guard let tab = workspace.selectedTab else {
+                return TerminalToolResponse(
+                    id: request.id,
+                    ok: false,
+                    snapshotSequence: snapshotSequence,
+                    action: request.action,
+                    message: nil,
+                    error: L10n.string("tools.error.no_workspace")
+                )
+            }
+            return TerminalToolResponse(
+                id: request.id,
+                ok: true,
+                snapshotSequence: snapshotSequence,
+                action: request.action,
+                tabID: tab.id.uuidString,
+                message: L10n.format("tools.response.tab_created", tab.tabTitle),
+                error: nil
+            )
+        case "open_ssh_profile":
+            let name = request.profile?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !name.isEmpty else {
+                return TerminalToolResponse(
+                    id: request.id,
+                    ok: false,
+                    snapshotSequence: snapshotSequence,
+                    action: request.action,
+                    message: nil,
+                    error: L10n.string("applescript.error.empty_input")
+                )
+            }
+            let profiles = MuseTermScriptingRegistry.sshStore?.profiles ?? []
+            guard let profile = profiles.first(where: { $0.displayName == name })
+                ?? profiles.first(where: { $0.displayName.localizedCaseInsensitiveCompare(name) == .orderedSame })
+            else {
+                return TerminalToolResponse(
+                    id: request.id,
+                    ok: false,
+                    snapshotSequence: snapshotSequence,
+                    action: request.action,
+                    message: nil,
+                    error: L10n.format("applescript.error.profile_not_found", name)
+                )
+            }
+            workspace.openSSH(profile: profile)
+            guard let tab = workspace.selectedTab else {
+                return TerminalToolResponse(
+                    id: request.id,
+                    ok: false,
+                    snapshotSequence: snapshotSequence,
+                    action: request.action,
+                    message: nil,
+                    error: L10n.string("tools.error.no_workspace")
+                )
+            }
+            return TerminalToolResponse(
+                id: request.id,
+                ok: true,
+                snapshotSequence: snapshotSequence,
+                action: request.action,
+                tabID: tab.id.uuidString,
+                message: L10n.format("tools.response.ssh_profile_opened", profile.displayName),
+                error: nil
+            )
+        case "play_shortcut":
+            guard MuseTermScriptingRegistry.isScriptedInputAllowed else {
+                return TerminalToolResponse(
+                    id: request.id,
+                    ok: false,
+                    snapshotSequence: snapshotSequence,
+                    action: request.action,
+                    message: nil,
+                    error: L10n.string("applescript.error.input_disabled")
+                )
+            }
+            let title = request.shortcut?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !title.isEmpty else {
+                return TerminalToolResponse(
+                    id: request.id,
+                    ok: false,
+                    snapshotSequence: snapshotSequence,
+                    action: request.action,
+                    message: nil,
+                    error: L10n.string("applescript.error.empty_input")
+                )
+            }
+            let shortcut = workspace.shortcuts.first { $0.title == title }
+                ?? workspace.shortcuts.first { $0.title.localizedCaseInsensitiveCompare(title) == .orderedSame }
+            guard let shortcut else {
+                return TerminalToolResponse(
+                    id: request.id,
+                    ok: false,
+                    snapshotSequence: snapshotSequence,
+                    action: request.action,
+                    message: nil,
+                    error: L10n.format("applescript.error.shortcut_not_found", title)
+                )
+            }
+            guard MuseTermScriptingPolicy.canPlay(shortcut) else {
+                return TerminalToolResponse(
+                    id: request.id,
+                    ok: false,
+                    snapshotSequence: snapshotSequence,
+                    action: request.action,
+                    message: nil,
+                    error: L10n.string("applescript.error.shortcut_protected")
+                )
+            }
+            do {
+                let tab = try workspace.playToolShortcut(shortcut, in: request.tab)
+                return TerminalToolResponse(
+                    id: request.id,
+                    ok: true,
+                    snapshotSequence: snapshotSequence,
+                    action: request.action,
+                    tabID: tab.id.uuidString,
+                    message: L10n.format("tools.response.shortcut_played", shortcut.title),
+                    error: nil
+                )
+            } catch {
+                return TerminalToolResponse(
+                    id: request.id,
+                    ok: false,
+                    snapshotSequence: snapshotSequence,
+                    action: request.action,
+                    message: nil,
+                    error: error.localizedDescription
+                )
+            }
         case "input", "send_text", "send_key":
             guard let bytes = TerminalToolInput.bytes(text: request.text, key: request.key, rawBytes: request.bytes) else {
                 return TerminalToolResponse(

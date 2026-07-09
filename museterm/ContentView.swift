@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @StateObject private var workspace = TerminalWorkspace()
     @StateObject private var sshStore = SSHConnectionStore()
+    @StateObject private var profileStore = TerminalProfileStore()
     @StateObject private var notificationCoordinator = TerminalNotificationCoordinator.shared
     @ObservedObject private var preferences: TerminalPreferences
     @State private var rightPanel: TerminalRightPanel?
@@ -32,6 +33,7 @@ struct ContentView: View {
                 SidebarView(
                     workspace: workspace,
                     sshStore: sshStore,
+                    profileStore: profileStore,
                     preferences: preferences
                 )
 
@@ -60,6 +62,7 @@ struct ContentView: View {
         .preferredColorScheme(preferences.skin.preferredColorScheme)
         .frame(minWidth: 920, minHeight: 560)
         .onAppear {
+            workspace.profileStore = profileStore
             TerminalToolBridge.shared.attach(workspace: workspace)
             notificationCoordinator.attach(workspace: workspace, preferences: preferences)
             MuseTermScriptingRegistry.attach(
@@ -98,6 +101,7 @@ private enum TerminalRightPanel {
 private struct SidebarView: View {
     @ObservedObject var workspace: TerminalWorkspace
     @ObservedObject var sshStore: SSHConnectionStore
+    @ObservedObject var profileStore: TerminalProfileStore
     @ObservedObject var preferences: TerminalPreferences
 
     private enum Layout {
@@ -135,6 +139,12 @@ private struct SidebarView: View {
                         TerminalShortcutSection(workspace: workspace, skin: preferences.skin)
 
                         FileTransferSection(workspace: workspace, skin: preferences.skin)
+
+                        TerminalProfilesSection(
+                            workspace: workspace,
+                            store: profileStore,
+                            skin: preferences.skin
+                        )
 
                         SSHProfilesSection(
                             workspace: workspace,
@@ -214,6 +224,7 @@ private struct SidebarView: View {
                     IconButton(systemName: "plus", title: L10n.string("action.new_tab")) {
                         workspace.newTab()
                     }
+                    ProfileNewTabMenu(workspace: workspace, store: profileStore)
                     IconButton(
                         systemName: "magnifyingglass",
                         title: L10n.string("command_inspector.title")
@@ -237,8 +248,38 @@ private struct SidebarView: View {
                 IconButton(systemName: "plus", title: L10n.string("action.new_tab")) {
                     workspace.newTab()
                 }
+                ProfileNewTabMenu(workspace: workspace, store: profileStore)
             }
         }
+    }
+}
+
+/// 「按 Profile 开 tab」的下拉菜单：列出所有 profile，选中即以该 profile 新开标签。
+private struct ProfileNewTabMenu: View {
+    @ObservedObject var workspace: TerminalWorkspace
+    @ObservedObject var store: TerminalProfileStore
+
+    var body: some View {
+        Menu {
+            ForEach(store.profiles) { profile in
+                Button {
+                    workspace.newTab(profile: profile)
+                } label: {
+                    if profile.isDefault {
+                        Label(profile.displayName, systemImage: "star.fill")
+                    } else {
+                        Text(profile.displayName)
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "rectangle.stack.badge.plus")
+                .frame(width: 28, height: 28)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(L10n.string("action.new_tab_with_profile"))
     }
 }
 

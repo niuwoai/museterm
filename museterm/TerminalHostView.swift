@@ -828,8 +828,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         didStart = true
 
         switch session?.launchConfiguration ?? .localShell() {
-        case .localShell(let startDirectory):
-            let descriptor = Self.localShellLaunchDescriptor()
+        case .localShell(let startDirectory, let profile):
+            let descriptor = Self.localShellLaunchDescriptor(profile: profile)
             let currentDirectory = TerminalWorkingDirectory.normalizedExistingDirectory(startDirectory)
                 ?? FileManager.default.homeDirectoryForCurrentUser.path
             session?.updateShellName(descriptor.shellName)
@@ -842,6 +842,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 execName: descriptor.execName,
                 currentDirectory: currentDirectory
             )
+            if let profile, !profile.normalized.startupCommands.isEmpty {
+                drainStartupCommands(profile.normalized.startupCommands)
+            }
         case .ssh(let profile):
             do {
                 resetSSHDiagnosticsForNewAttempt()
@@ -1199,10 +1202,12 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         return String(cString: password.pw_shell)
     }
 
-    private static func localShellLaunchDescriptor() -> LocalShellLaunchDescriptor {
-        let shellPath = loginShell()
+    private static func localShellLaunchDescriptor(profile: TerminalProfile? = nil) -> LocalShellLaunchDescriptor {
+        let clean = profile?.normalized
+        let shellPath = resolveShellExecutable(kind: clean?.shell ?? .login, customPath: clean?.customShellPath ?? "")
         let shellName = URL(fileURLWithPath: shellPath).lastPathComponent
         var environment = environmentDictionary(shellPath: shellPath)
+        applyProfileEnvironment(clean, into: &environment)
         var args: [String] = []
         var execName = "-" + shellName
 
@@ -1227,6 +1232,46 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             environment: environmentArray(from: environment),
             shellName: shellName
         )
+    }
+
+    /// 按 profile 指定的 shell 类型解析可执行文件路径；找不到时回落系统登录 shell。
+    private static func resolveShellExecutable(kind: ProfileShellKind, customPath: String) -> String {
+        switch kind {
+        case .login:
+            return loginShell()
+        case .zsh:
+            return firstExecutable(["/bin/zsh", "/usr/bin/zsh", "/opt/homebrew/bin/zsh", "/usr/local/bin/zsh"])
+                ?? "/bin/zsh"
+        case .bash:
+            return firstExecutable(["/opt/homebrew/bin/bash", "/usr/local/bin/bash", "/bin/bash", "/usr/bin/bash"])
+                ?? "/bin/bash"
+        case .fish:
+            return firstExecutable(["/opt/homebrew/bin/fish", "/usr/local/bin/fish", "/usr/bin/fish"])
+                ?? loginShell()
+        case .custom:
+            let trimmed = customPath.trimmingCharacters(in: .whitespacesAndNewlines)
+            return firstExecutable([trimmed]) ?? loginShell()
+        }
+    }
+
+    private static func firstExecutable(_ candidates: [String]) -> String? {
+        candidates.first { !$0.isEmpty && FileManager.default.isExecutableFile(atPath: $0) }
+    }
+
+    /// 把 profile 的自定义环境变量与 prompt 相关变量注入环境字典。
+    /// prompt 差异全走环境变量，集成脚本保持共享静态文件。
+    private static func applyProfileEnvironment(_ profile: TerminalProfile?, into environment: inout [String: String]) {
+        guard let profile else { return }
+        for (key, value) in profile.environment {
+            environment[key] = value
+        }
+        // .system 不设置 style 变量，集成脚本的 prompt 分派整体跳过，用户 PS1 保持不变。
+        if profile.promptStyle != .system {
+            environment["MUSETERM_PROFILE_PROMPT_STYLE"] = profile.promptStyle.rawValue
+            if profile.promptStyle == .custom, !profile.customPrompt.isEmpty {
+                environment["MUSETERM_PROFILE_CUSTOM_PROMPT"] = profile.customPrompt
+            }
+        }
     }
 
     private static func environmentArray(shellPath: String?) -> [String] {
@@ -1367,6 +1412,26 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             fi
 
             """
+            + zshProfilePromptScript()
+    }
+
+    /// 按 profile 的 prompt 风格设置 PROMPT；仅当 MUSETERM_PROFILE_PROMPT_STYLE 非空时生效，
+    /// 因此系统默认（.system）不会改动用户 PS1。
+    private static func zshProfilePromptScript() -> String {
+        """
+        if [[ -z "${MUSETERM_DISABLE_SHELL_INTEGRATION:-}" && -n "${MUSETERM_PROFILE_PROMPT_STYLE:-}" ]]; then
+          setopt prompt_subst 2>/dev/null
+          _museterm_git_branch() { git rev-parse --abbrev-ref HEAD 2>/dev/null }
+          case "$MUSETERM_PROFILE_PROMPT_STYLE" in
+            minimal) PROMPT='%1~ ❯ ' ;;
+            path) PROMPT='%n@%m %~ %# ' ;;
+            git) PROMPT='%~ $(_museterm_git_branch)%# ' ;;
+            twoLine) PROMPT=$'%~\\n%# ' ;;
+            custom) [[ -n "${MUSETERM_PROFILE_CUSTOM_PROMPT:-}" ]] && PROMPT="$MUSETERM_PROFILE_CUSTOM_PROMPT" ;;
+          esac
+        fi
+
+        """
     }
 
     private static func bashIntegrationScript() -> String {
@@ -1400,6 +1465,23 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         fi
 
         """
+            + bashProfilePromptScript()
+    }
+
+    private static func bashProfilePromptScript() -> String {
+        """
+        if [[ -z "${MUSETERM_DISABLE_SHELL_INTEGRATION:-}" && -n "${MUSETERM_PROFILE_PROMPT_STYLE:-}" ]]; then
+          _museterm_git_branch() { git rev-parse --abbrev-ref HEAD 2>/dev/null; }
+          case "$MUSETERM_PROFILE_PROMPT_STYLE" in
+            minimal) PS1='\\W ❯ ' ;;
+            path) PS1='\\u@\\h \\w \\$ ' ;;
+            git) PS1='\\w $(_museterm_git_branch)\\$ ' ;;
+            twoLine) PS1='\\w\\n\\$ ' ;;
+            custom) [[ -n "${MUSETERM_PROFILE_CUSTOM_PROMPT:-}" ]] && PS1="$MUSETERM_PROFILE_CUSTOM_PROMPT" ;;
+          esac
+        fi
+
+        """
     }
 
     private static func fishIntegrationScript() -> String {
@@ -1416,6 +1498,30 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 set -l muse_status $status
                 printf '\\033]777;MuseTerm;end=%d\\a' $muse_status
                 return $muse_status
+            end
+        end
+
+        """
+            + fishProfilePromptScript()
+    }
+
+    private static func fishProfilePromptScript() -> String {
+        """
+        if not set -q MUSETERM_DISABLE_SHELL_INTEGRATION; and set -q MUSETERM_PROFILE_PROMPT_STYLE
+            switch $MUSETERM_PROFILE_PROMPT_STYLE
+                case minimal
+                    function fish_prompt; printf '%s ❯ ' (prompt_pwd); end
+                case path
+                    function fish_prompt; printf '%s@%s %s > ' (whoami) (hostname -s) (pwd); end
+                case git
+                    function fish_prompt
+                        set -l muse_branch (git rev-parse --abbrev-ref HEAD 2>/dev/null)
+                        printf '%s %s> ' (pwd) "$muse_branch "
+                    end
+                case twoLine
+                    function fish_prompt; printf '%s\\n> ' (pwd); end
+                case custom
+                    if set -q MUSETERM_PROFILE_CUSTOM_PROMPT; eval $MUSETERM_PROFILE_CUSTOM_PROMPT; end
             end
         end
 

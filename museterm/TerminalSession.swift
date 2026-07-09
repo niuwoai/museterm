@@ -4,7 +4,7 @@ import Darwin
 import Foundation
 
 enum TerminalLaunchConfiguration: Equatable {
-    case localShell(startDirectory: String? = nil)
+    case localShell(startDirectory: String? = nil, profile: TerminalProfile? = nil)
     case ssh(SSHConnectionProfile)
 
     var connectionLabel: String? {
@@ -48,8 +48,13 @@ enum TerminalLaunchConfiguration: Equatable {
     }
 
     var localStartDirectory: String? {
-        guard case .localShell(let startDirectory) = self else { return nil }
+        guard case .localShell(let startDirectory, _) = self else { return nil }
         return startDirectory
+    }
+
+    var localProfile: TerminalProfile? {
+        guard case .localShell(_, let profile) = self else { return nil }
+        return profile
     }
 }
 
@@ -863,6 +868,8 @@ final class TerminalWorkspace: ObservableObject {
     }
     // 最后一个标签被关闭后触发；宿主窗口据此关闭自身，未绑定时工作区保持空标签状态。
     var onAllTabsClosed: (() -> Void)?
+    // 本地终端 Profile 存储；由 ContentView 注入。未注入时「+」等入口回落系统默认行为。
+    weak var profileStore: TerminalProfileStore?
 
     private let automaticallyStartProcesses: Bool
     private let tabCloseConfirmer: TerminalTabCloseConfirming
@@ -897,11 +904,24 @@ final class TerminalWorkspace: ObservableObject {
         return tabs.first { $0.id == selectedID } ?? tabs.first
     }
 
-    func newTab(startDirectory: String? = nil) {
-        let resolvedStartDirectory = resolvedNewLocalTabStartDirectory(explicitStartDirectory: startDirectory)
-        let tab = resolvedStartDirectory == nil
-            ? takePreparedTab()
-            : makeTab(launchConfiguration: .localShell(startDirectory: resolvedStartDirectory))
+    func newTab(startDirectory: String? = nil, profile: TerminalProfile? = nil) {
+        // profile 显式传入时用它，否则回落默认 profile（未注入 store 时为 nil = 系统默认）。
+        let effectiveProfile = (profile ?? profileStore?.defaultProfile)?.normalized
+        let resolvedStartDirectory = resolvedNewLocalTabStartDirectory(
+            explicitStartDirectory: startDirectory,
+            profile: effectiveProfile
+        )
+        // 系统默认（无自定义、无起始目录）走预热 tab 快路径，保证零行为变化。
+        let usesSystemDefault = resolvedStartDirectory == nil && (effectiveProfile?.isSystemEquivalent ?? true)
+        let tab: TerminalSession
+        if usesSystemDefault {
+            tab = takePreparedTab()
+        } else {
+            let profileForConfig = (effectiveProfile?.isSystemEquivalent ?? true) ? nil : effectiveProfile
+            tab = makeTab(
+                launchConfiguration: .localShell(startDirectory: resolvedStartDirectory, profile: profileForConfig)
+            )
+        }
         tab.attentionReporter = attentionReporter
         tabs.append(tab)
         trackQuickPaths(for: tab)
@@ -915,13 +935,22 @@ final class TerminalWorkspace: ObservableObject {
         schedulePrepareNextTab()
     }
 
-    private func resolvedNewLocalTabStartDirectory(explicitStartDirectory: String?) -> String? {
+    private func resolvedNewLocalTabStartDirectory(
+        explicitStartDirectory: String?,
+        profile: TerminalProfile?
+    ) -> String? {
         if explicitStartDirectory != nil {
             return TerminalWorkingDirectory.normalizedExistingDirectory(explicitStartDirectory)
         }
 
+        // profile 指定了默认工作目录时优先使用，其次继承当前本地标签目录。
+        if let directory = profile?.workingDirectory, !directory.isEmpty,
+           let normalized = TerminalWorkingDirectory.normalizedExistingDirectory(directory) {
+            return normalized
+        }
+
         guard let selectedTab,
-              case .localShell(let launchStartDirectory) = selectedTab.launchConfiguration else {
+              case .localShell(let launchStartDirectory, _) = selectedTab.launchConfiguration else {
             return nil
         }
 
@@ -946,8 +975,8 @@ final class TerminalWorkspace: ObservableObject {
     func saveSnapshot() throws {
         let snapshotTabs = tabs.map { tab -> TerminalWorkspaceSnapshot.Tab in
             switch tab.launchConfiguration {
-            case .localShell(let startDirectory):
-                return .local(directory: tab.currentDirectory ?? startDirectory)
+            case .localShell(let startDirectory, let profile):
+                return .local(directory: tab.currentDirectory ?? startDirectory, profile: profile)
             case .ssh(let profile):
                 return .ssh(profile: profile)
             }
@@ -977,9 +1006,13 @@ final class TerminalWorkspace: ObservableObject {
         let restoredTabs = try snapshot.tabs.map { tabSnapshot -> TerminalSession in
             switch tabSnapshot.kind {
             case .local:
+                // 恢复时优先按 id 取回最新 profile（用户可能已改），取不到再用快照内嵌副本。
+                let snapshotProfile = tabSnapshot.localProfile?.normalized
+                let resolvedProfile = snapshotProfile.flatMap { profileStore?.profile(id: $0.id)?.normalized } ?? snapshotProfile
                 return makeTab(
                     launchConfiguration: .localShell(
-                        startDirectory: TerminalWorkingDirectory.normalizedExistingDirectory(tabSnapshot.localDirectory)
+                        startDirectory: TerminalWorkingDirectory.normalizedExistingDirectory(tabSnapshot.localDirectory),
+                        profile: (resolvedProfile?.isSystemEquivalent ?? true) ? nil : resolvedProfile
                     )
                 )
             case .ssh:
@@ -1225,6 +1258,15 @@ final class TerminalWorkspace: ObservableObject {
         tab.startProcessIfNeeded()
         try tab.controller.sendToolInput(bytes: bytes)
         selectedID = tab.id
+        return tab
+    }
+
+    func playToolShortcut(_ shortcut: TerminalShortcut, in selector: String?) throws -> TerminalSession {
+        let tab = try toolTab(matching: selector)
+        tab.startProcessIfNeeded()
+        selectedID = tab.id
+        tab.playShortcut(shortcut)
+        objectWillChange.send()
         return tab
     }
 

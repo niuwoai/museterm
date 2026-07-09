@@ -146,7 +146,7 @@ def tabs_payload(state)
   }
 end
 
-def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, timeout_seconds: 3.0)
+def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: nil, profile: nil, shortcut: nil, timeout_seconds: 3.0)
   timeout_seconds = timeout_seconds.to_f
   raise "timeout must be positive." if timeout_seconds <= 0
 
@@ -158,7 +158,10 @@ def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, timeout_sec
     "tab" => tab,
     "text" => text,
     "key" => key,
-    "bytes" => bytes
+    "bytes" => bytes,
+    "directory" => directory,
+    "profile" => profile,
+    "shortcut" => shortcut
   }.compact
   File.write(File.join(REQUESTS, "#{id}.json"), JSON.generate(request))
   response_path = File.join(RESPONSES, "#{id}.json")
@@ -373,6 +376,66 @@ def command_key(args)
   response["ok"] ? puts(response["message"] || "ok") : abort(response["error"] || "request failed")
 end
 
+def command_create_tab(args)
+  _tab_selector, _chars, json, rest, timeout = parse_common(args)
+  directory = rest.join(" ")
+  response = send_request(
+    action: "create_tab",
+    directory: directory.empty? ? nil : directory,
+    timeout_seconds: timeout || 3.0
+  )
+  if json
+    print_json(response)
+    return
+  end
+  response["ok"] ? puts(response["message"] || "ok") : abort(response["error"] || "request failed")
+end
+
+def command_ssh_profile(args)
+  _tab_selector, _chars, json, rest, timeout = parse_common(args)
+  profile = rest.join(" ")
+  raise "ssh requires a saved SSH profile name." if profile.empty?
+  response = send_request(action: "open_ssh_profile", profile: profile, timeout_seconds: timeout || 3.0)
+  if json
+    print_json(response)
+    return
+  end
+  response["ok"] ? puts(response["message"] || "ok") : abort(response["error"] || "request failed")
+end
+
+def command_shortcuts(args)
+  _tab_selector, _chars, json, _rest, timeout = parse_common(args)
+  response = send_request(action: "list_shortcuts", timeout_seconds: timeout || 3.0)
+  unless response["ok"]
+    abort(response["error"] || "request failed")
+  end
+  if json
+    print_json(response)
+    return
+  end
+  response.fetch("shortcuts", []).each do |shortcut|
+    marker = shortcut["canPlay"] ? "playable" : "blocked"
+    puts "#{shortcut["title"]}\t#{shortcut["id"]}\t#{marker}"
+  end
+end
+
+def command_shortcut(args)
+  tab_selector, _chars, json, rest, timeout = parse_common(args)
+  shortcut = rest.join(" ")
+  raise "shortcut requires a recorded shortcut title." if shortcut.empty?
+  response = send_request(
+    action: "play_shortcut",
+    tab: tab_selector,
+    shortcut: shortcut,
+    timeout_seconds: timeout || 3.0
+  )
+  if json
+    print_json(response)
+    return
+  end
+  response["ok"] ? puts(response["message"] || "ok") : abort(response["error"] || "request failed")
+end
+
 class Hash
   def slice(*keys)
     keys.each_with_object({}) { |key, out| out[key] = self[key] if key?(key) }
@@ -452,6 +515,55 @@ def mcp_tools
       }
     },
     {
+      "name" => "create_tab",
+      "description" => "Create a new local MuseTerm tab, optionally starting in an existing directory.",
+      "inputSchema" => {
+        "type" => "object",
+        "properties" => {
+          "directory" => { "type" => "string", "description" => "optional start directory" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for MuseTerm to answer" },
+          "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
+        }
+      }
+    },
+    {
+      "name" => "open_ssh_profile",
+      "description" => "Open a saved MuseTerm SSH profile in a new tab by display name.",
+      "inputSchema" => {
+        "type" => "object",
+        "required" => ["profile"],
+        "properties" => {
+          "profile" => { "type" => "string", "description" => "saved SSH profile display name" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for MuseTerm to answer" },
+          "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
+        }
+      }
+    },
+    {
+      "name" => "list_shortcuts",
+      "description" => "List recorded MuseTerm terminal shortcuts with ids, titles, event counts, durations, and whether each can be replayed through MCP.",
+      "inputSchema" => {
+        "type" => "object",
+        "properties" => {
+          "timeout" => { "type" => "number", "description" => "seconds to wait for MuseTerm to answer" }
+        }
+      }
+    },
+    {
+      "name" => "play_shortcut",
+      "description" => "Replay a recorded MuseTerm terminal shortcut in a tab. Shortcuts containing protected echo-off input are refused.",
+      "inputSchema" => {
+        "type" => "object",
+        "required" => ["shortcut"],
+        "properties" => {
+          "tab" => { "type" => "string", "description" => "selected, 1-based index, id prefix, or title" },
+          "shortcut" => { "type" => "string", "description" => "recorded shortcut title" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for MuseTerm to answer" },
+          "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
+        }
+      }
+    },
+    {
       "name" => "send_text",
       "description" => "Send text to a MuseTerm tab.",
       "inputSchema" => {
@@ -509,6 +621,38 @@ def call_tool(name, args)
     state = read_state
     tab = require_tab(state, args["tab"])
     tool_result_text(JSON.pretty_generate(commands_payload(state, tab, args["chars"], args["query"])))
+  when "create_tab"
+    response = send_request(
+      action: "create_tab",
+      directory: args["directory"],
+      timeout_seconds: args["timeout"] || 3.0
+    )
+    raise(response["error"] || "request failed") unless response["ok"]
+    tool_result_text(args["metadata"] ? JSON.pretty_generate(response) : (response["message"] || "ok"))
+  when "open_ssh_profile"
+    response = send_request(
+      action: "open_ssh_profile",
+      profile: args.fetch("profile"),
+      timeout_seconds: args["timeout"] || 3.0
+    )
+    raise(response["error"] || "request failed") unless response["ok"]
+    tool_result_text(args["metadata"] ? JSON.pretty_generate(response) : (response["message"] || "ok"))
+  when "list_shortcuts"
+    response = send_request(
+      action: "list_shortcuts",
+      timeout_seconds: args["timeout"] || 3.0
+    )
+    raise(response["error"] || "request failed") unless response["ok"]
+    tool_result_text(JSON.pretty_generate(response))
+  when "play_shortcut"
+    response = send_request(
+      action: "play_shortcut",
+      tab: args["tab"],
+      shortcut: args.fetch("shortcut"),
+      timeout_seconds: args["timeout"] || 3.0
+    )
+    raise(response["error"] || "request failed") unless response["ok"]
+    tool_result_text(args["metadata"] ? JSON.pretty_generate(response) : (response["message"] || "ok"))
   when "send_text"
     response = send_request(action: "input", tab: args["tab"], text: args.fetch("text"), timeout_seconds: args["timeout"] || 3.0)
     raise(response["error"] || "request failed") unless response["ok"]
@@ -568,6 +712,10 @@ def command_help
       museterm commands [--tab selected|INDEX|ID] [--chars N] [--query QUERY]
       museterm input [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] TEXT
       museterm key [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] enter|ctrl-c|tab|escape|up|down|left|right
+      museterm tab [--timeout SECONDS] [--json] [DIRECTORY]
+      museterm ssh [--timeout SECONDS] [--json] PROFILE_NAME
+      museterm shortcuts [--timeout SECONDS] [--json]
+      museterm shortcut [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] SHORTCUT_TITLE
       museterm mcp
 
     MCP config example:
@@ -584,6 +732,10 @@ begin
   when "commands" then command_commands(ARGV)
   when "input" then command_input(ARGV)
   when "key" then command_key(ARGV)
+  when "tab" then command_create_tab(ARGV)
+  when "ssh" then command_ssh_profile(ARGV)
+  when "shortcuts" then command_shortcuts(ARGV)
+  when "shortcut" then command_shortcut(ARGV)
   when "mcp" then command_mcp
   when nil, "help", "--help", "-h" then command_help
   else

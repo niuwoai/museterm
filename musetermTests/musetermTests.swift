@@ -52,6 +52,10 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(script.contains("text_payload(state, tab, \"history\", args[\"chars\"])"))
         XCTAssertTrue(script.contains("museterm input"))
         XCTAssertTrue(script.contains("museterm key"))
+        XCTAssertTrue(script.contains("museterm tab"))
+        XCTAssertTrue(script.contains("museterm ssh"))
+        XCTAssertTrue(script.contains("museterm shortcuts"))
+        XCTAssertTrue(script.contains("museterm shortcut"))
         XCTAssertTrue(script.contains("print_json(response)"))
         XCTAssertTrue(script.contains("--timeout SECONDS"))
         XCTAssertTrue(script.contains("timeout must be positive."))
@@ -75,7 +79,76 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(script.contains("\"diagnostics\" => tab.fetch(\"commandDiagnostics\", {})"))
         XCTAssertTrue(script.contains("\"tools/call\""))
         XCTAssertTrue(script.contains("read_screen"))
+        XCTAssertTrue(script.contains("create_tab"))
+        XCTAssertTrue(script.contains("open_ssh_profile"))
+        XCTAssertTrue(script.contains("list_shortcuts"))
+        XCTAssertTrue(script.contains("play_shortcut"))
         XCTAssertTrue(script.contains("send_key"))
+    }
+
+    func testCliCreateTabJsonReturnsResponseMetadata() throws {
+        let fixture = try makeMuseTermCLITestFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let result = try runMuseTermCLIRequestScript(
+            fixture.scriptURL,
+            home: fixture.root,
+            arguments: ["tab", "--json", "--timeout", "1.5", "/tmp/project"],
+            response: [
+                "schemaVersion": 1,
+                "app": "MuseTerm",
+                "version": "test",
+                "ok": true,
+                "snapshotSequence": 45,
+                "action": "create_tab",
+                "tabID": "tab-2",
+                "message": "created"
+            ]
+        )
+
+        XCTAssertEqual(result.request["action"] as? String, "create_tab")
+        XCTAssertEqual(result.request["directory"] as? String, "/tmp/project")
+        XCTAssertEqual(result.output["snapshotSequence"] as? Int, 45)
+        XCTAssertEqual(result.output["action"] as? String, "create_tab")
+        XCTAssertEqual(result.output["tabID"] as? String, "tab-2")
+    }
+
+    func testCliShortcutsJsonReturnsShortcutSummaries() throws {
+        let fixture = try makeMuseTermCLITestFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let result = try runMuseTermCLIRequestScript(
+            fixture.scriptURL,
+            home: fixture.root,
+            arguments: ["shortcuts", "--json", "--timeout", "1.5"],
+            response: [
+                "schemaVersion": 1,
+                "app": "MuseTerm",
+                "version": "test",
+                "ok": true,
+                "snapshotSequence": 47,
+                "action": "list_shortcuts",
+                "message": "listed",
+                "shortcuts": [
+                    [
+                        "id": "shortcut-1",
+                        "title": "Deploy SSH",
+                        "eventCount": 3,
+                        "durationMilliseconds": 1200,
+                        "hasProtectedInput": false,
+                        "canPlay": true
+                    ]
+                ]
+            ]
+        )
+        let shortcuts = try XCTUnwrap(result.output["shortcuts"] as? [[String: Any]])
+        let shortcut = try XCTUnwrap(shortcuts.first)
+
+        XCTAssertEqual(result.request["action"] as? String, "list_shortcuts")
+        XCTAssertEqual(result.output["snapshotSequence"] as? Int, 47)
+        XCTAssertEqual(result.output["action"] as? String, "list_shortcuts")
+        XCTAssertEqual(shortcut["title"] as? String, "Deploy SSH")
+        XCTAssertEqual(shortcut["canPlay"] as? Bool, true)
     }
 
     func testCliCommandsReportsOutputTailTruncationMetadata() throws {
@@ -364,6 +437,112 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
         XCTAssertEqual(payload["snapshotSequence"] as? Int, 44)
         XCTAssertEqual(payload["action"] as? String, "input")
+        XCTAssertEqual(payload["tabID"] as? String, "tab-1")
+    }
+
+    func testMCPListShortcutsReturnsShortcutSummaries() throws {
+        let fixture = try makeMuseTermCLITestFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let result = try runMuseTermMCPRequestWithToolResponse(
+            fixture.scriptURL,
+            home: fixture.root,
+            request: [
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": [
+                    "name": "list_shortcuts",
+                    "arguments": [
+                        "timeout": 1.5
+                    ]
+                ]
+            ],
+            response: [
+                "schemaVersion": 1,
+                "app": "MuseTerm",
+                "version": "test",
+                "ok": true,
+                "snapshotSequence": 48,
+                "action": "list_shortcuts",
+                "message": "listed",
+                "shortcuts": [
+                    [
+                        "id": "shortcut-1",
+                        "title": "Deploy SSH",
+                        "eventCount": 3,
+                        "durationMilliseconds": 1200,
+                        "hasProtectedInput": false,
+                        "canPlay": true
+                    ]
+                ]
+            ]
+        )
+        let response = result.response
+        let request = result.toolRequest
+        let resultObject = try XCTUnwrap(response["result"] as? [String: Any])
+        let content = try XCTUnwrap(resultObject["content"] as? [[String: Any]])
+        let text = try XCTUnwrap(content.first?["text"] as? String)
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]
+        )
+        let shortcuts = try XCTUnwrap(payload["shortcuts"] as? [[String: Any]])
+        let shortcut = try XCTUnwrap(shortcuts.first)
+
+        XCTAssertEqual(request["action"] as? String, "list_shortcuts")
+        XCTAssertEqual(payload["snapshotSequence"] as? Int, 48)
+        XCTAssertEqual(payload["action"] as? String, "list_shortcuts")
+        XCTAssertEqual(shortcut["title"] as? String, "Deploy SSH")
+        XCTAssertEqual(shortcut["hasProtectedInput"] as? Bool, false)
+        XCTAssertEqual(shortcut["canPlay"] as? Bool, true)
+    }
+
+    func testMCPPlayShortcutSendsToolRequest() throws {
+        let fixture = try makeMuseTermCLITestFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let result = try runMuseTermMCPRequestWithToolResponse(
+            fixture.scriptURL,
+            home: fixture.root,
+            request: [
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": [
+                    "name": "play_shortcut",
+                    "arguments": [
+                        "tab": "tab-1",
+                        "shortcut": "Deploy SSH",
+                        "timeout": 1.5,
+                        "metadata": true
+                    ]
+                ]
+            ],
+            response: [
+                "schemaVersion": 1,
+                "app": "MuseTerm",
+                "version": "test",
+                "ok": true,
+                "snapshotSequence": 46,
+                "action": "play_shortcut",
+                "tabID": "tab-1",
+                "message": "played"
+            ]
+        )
+        let response = result.response
+        let request = result.toolRequest
+        let resultObject = try XCTUnwrap(response["result"] as? [String: Any])
+        let content = try XCTUnwrap(resultObject["content"] as? [[String: Any]])
+        let text = try XCTUnwrap(content.first?["text"] as? String)
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]
+        )
+
+        XCTAssertEqual(request["action"] as? String, "play_shortcut")
+        XCTAssertEqual(request["tab"] as? String, "tab-1")
+        XCTAssertEqual(request["shortcut"] as? String, "Deploy SSH")
+        XCTAssertEqual(payload["snapshotSequence"] as? Int, 46)
+        XCTAssertEqual(payload["action"] as? String, "play_shortcut")
         XCTAssertEqual(payload["tabID"] as? String, "tab-1")
     }
 
