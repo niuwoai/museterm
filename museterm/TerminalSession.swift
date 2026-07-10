@@ -872,7 +872,7 @@ final class TerminalWorkspace: ObservableObject {
         didSet {
             guard oldValue != selectedID else { return }
             // 切换选中标签 → 新标签的继承目录变化，按新目录重排预热会话。
-            refreshPrewarmForDirectoryChangeIfNeeded()
+            refreshPrewarmIfStale()
         }
     }
     @Published private(set) var shortcuts: [TerminalShortcut] = TerminalShortcutStore.load()
@@ -886,7 +886,18 @@ final class TerminalWorkspace: ObservableObject {
     // 最后一个标签被关闭后触发；宿主窗口据此关闭自身，未绑定时工作区保持空标签状态。
     var onAllTabsClosed: (() -> Void)?
     // 本地终端 Profile 存储；由 ContentView 注入。未注入时「+」等入口回落系统默认行为。
-    weak var profileStore: TerminalProfileStore?
+    weak var profileStore: TerminalProfileStore? {
+        didSet {
+            // Profile 列表变化（尤其是默认 Profile 被切换）后，预热会话可能烘焙的是旧默认
+            // 的 shell：订阅变更（跳过订阅时的首帧当前值），按新默认重排预热。
+            profileStoreCancellable = profileStore?.$profiles
+                .dropFirst()
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    self?.refreshPrewarmIfStale()
+                }
+        }
+    }
     // 终端偏好；由 ContentView 注入。预热离屏 shell 时用它确定字体/列数等几何，未注入则用默认。
     weak var preferences: TerminalPreferences?
 
@@ -901,6 +912,7 @@ final class TerminalWorkspace: ObservableObject {
     // profile 与之同一（id 相等）才复用，保证 fish/zsh 等 shell 与 rc 副作用一致。
     private var preparedTabWarmProfile: TerminalProfile?
     private var prewarmRearmWorkItem: DispatchWorkItem?
+    private var profileStoreCancellable: AnyCancellable?
     private var isPreparingNextTab = false
     private var lastShortcutNewTabUptime: TimeInterval = -.infinity
     private var lastShortcutNewTabEventTimestamp: TimeInterval?
@@ -1395,7 +1407,7 @@ final class TerminalWorkspace: ObservableObject {
 
     /// 当前选中标签的目录变化后，预热会话烘焙的目录可能已过期：丢弃并按新目录重排一个。
     /// 防抖，避免用户连续 cd 时反复 spawn shell。
-    func refreshPrewarmForDirectoryChangeIfNeeded() {
+    func refreshPrewarmIfStale() {
         guard automaticallyStartProcesses else { return }
         prewarmRearmWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
@@ -1444,7 +1456,7 @@ final class TerminalWorkspace: ObservableObject {
                 self.recordQuickPath(directory, for: tab)
                 // 选中标签的目录变了 → 新标签的继承目录随之改变，按新目录重排预热会话。
                 if tab.id == self.selectedID {
-                    self.refreshPrewarmForDirectoryChangeIfNeeded()
+                    self.refreshPrewarmIfStale()
                 }
             }
     }

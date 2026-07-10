@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.224.0-rc2] - 2026-07-10
+
+### Changed
+- 在设置里切换默认 Profile 后，预热会话现在会主动重排：`TerminalWorkspace` 订阅 `TerminalProfileStore` 的 Profile 变化，默认 Profile 一变就（防抖后）按新 shell / 目录重新预热。此前重排只挂在「选中标签目录变化」上，切完默认 Profile 的第一个新标签可能命不中 warm shell、走一次冷建（结果仍正确，只是少了提速）；现已消除这个边界。
+
 ## [1.224.0-rc1] - 2026-07-10
 
 ### Changed
