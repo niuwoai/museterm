@@ -910,10 +910,15 @@ final class TerminalWorkspace: ObservableObject {
 
     init(
         automaticallyStartProcesses: Bool = true,
-        tabCloseConfirmer: TerminalTabCloseConfirming = SystemTerminalTabCloseConfirmer()
+        tabCloseConfirmer: TerminalTabCloseConfirming = SystemTerminalTabCloseConfirmer(),
+        profileStore: TerminalProfileStore? = .shared
     ) {
         self.automaticallyStartProcesses = automaticallyStartProcesses
         self.tabCloseConfirmer = tabCloseConfirmer
+        // 必须在首个 newTab() 之前注入 store：否则启动首个标签读不到默认 Profile，
+        // 只能回落系统登录 shell（zsh），而 ContentView 的 onAppear 注入来得太晚。
+        // 默认取共享单例（与 ContentView 注入的是同一实例）；测试可显式传 nil。
+        self.profileStore = profileStore
         newTab()
     }
 

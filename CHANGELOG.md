@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.223.0-rc2] - 2026-07-10
+
+### Fixed
+- 修复「默认 Profile 对 App 启动后的第一个标签不生效」的问题：把默认 fish（或任意非系统默认）Profile 设为默认后，冷启动的首个标签仍旧用系统登录 shell（zsh），只有后续新建的标签才用 fish。根因是 `TerminalWorkspace` 在 `init()` 里就创建了首个标签，而 `profileStore` 要等到 `ContentView.onAppear` 才注入，时序上晚了一步，首个标签只能回落系统默认。现改为在 `init` 阶段即注入共享的 `TerminalProfileStore.shared`，首个标签与后续标签一致地读取默认 Profile。
+
 ## [1.223.0-rc1] - 2026-07-10
 
 ### Added
