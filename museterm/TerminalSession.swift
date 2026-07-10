@@ -897,6 +897,9 @@ final class TerminalWorkspace: ObservableObject {
     // 预热会话已在此目录 spawn 了 shell（rc 已在该目录下跑过）。开标签时只有继承目录与之
     // 完全一致才复用，保证工作目录/rc 副作用（direnv 等）正确，绝不靠事后 cd 兜底。
     private var preparedTabWarmDirectory: String?
+    // 预热会话按此 Profile spawn（nil = 系统默认 shell）。开标签时只有请求的 effective
+    // profile 与之同一（id 相等）才复用，保证 fish/zsh 等 shell 与 rc 副作用一致。
+    private var preparedTabWarmProfile: TerminalProfile?
     private var prewarmRearmWorkItem: DispatchWorkItem?
     private var isPreparingNextTab = false
     private var lastShortcutNewTabUptime: TimeInterval = -.infinity
@@ -939,15 +942,16 @@ final class TerminalWorkspace: ObservableObject {
             explicitStartDirectory: startDirectory,
             profile: effectiveProfile
         )
-        // 系统默认 Profile 走预热快路径：只要继承目录与预热会话 spawn 的目录一致就直接复用
-        // 已就绪的 warm shell（近似秒开）；目录对不上则老实冷建，绝不靠事后 cd 兜底。
-        let profileIsSystemDefault = effectiveProfile?.isSystemEquivalent ?? true
+        // 预热快路径：继承目录与请求 Profile 都与预热会话一致才复用已就绪的 warm shell
+        // （近似秒开）；任一对不上则老实冷建，绝不靠事后 cd / 换 shell 兜底。
         let tab: TerminalSession
-        if profileIsSystemDefault,
-           let warmTab = takePreparedTabIfMatches(directory: canonicalNewTabDirectory(resolvedStartDirectory)) {
+        if let warmTab = takePreparedTabIfMatches(
+            directory: canonicalNewTabDirectory(resolvedStartDirectory),
+            profile: effectiveProfile
+        ) {
             tab = warmTab
         } else {
-            let profileForConfig = profileIsSystemDefault ? nil : effectiveProfile
+            let profileForConfig = (effectiveProfile?.isSystemEquivalent ?? true) ? nil : effectiveProfile
             tab = makeTab(
                 launchConfiguration: .localShell(startDirectory: resolvedStartDirectory, profile: profileForConfig)
             )
@@ -1056,6 +1060,7 @@ final class TerminalWorkspace: ObservableObject {
         preparedTab?.terminate()
         preparedTab = nil
         preparedTabWarmDirectory = nil
+        preparedTabWarmProfile = nil
         prewarmRearmWorkItem?.cancel()
         isPreparingNextTab = false
         tabs.forEach { $0.terminate() }
@@ -1338,11 +1343,14 @@ final class TerminalWorkspace: ObservableObject {
         resolvedStartDirectory ?? canonicalHomeDirectory
     }
 
-    /// 仅当预热会话正是在 `directory` 里 spawn 的才取用；否则返回 nil 让调用方冷建。
-    private func takePreparedTabIfMatches(directory: String) -> TerminalSession? {
-        guard let preparedTab, preparedTabWarmDirectory == directory else { return nil }
+    /// 仅当预热会话正是在 `directory` 里、且用同一 `profile` spawn 的才取用；否则返回 nil 让调用方冷建。
+    private func takePreparedTabIfMatches(directory: String, profile: TerminalProfile?) -> TerminalSession? {
+        guard let preparedTab,
+              preparedTabWarmDirectory == directory,
+              preparedTabWarmProfile?.id == profile?.id else { return nil }
         self.preparedTab = nil
         preparedTabWarmDirectory = nil
+        preparedTabWarmProfile = nil
         preparedTab.attentionReporter = attentionReporter
         preparedTab.adoptFromPrewarm()
         return preparedTab
@@ -1369,17 +1377,20 @@ final class TerminalWorkspace: ObservableObject {
         defer { isPreparingNextTab = false }
         guard preparedTab == nil else { return }
 
-        // 只为「系统默认 Profile」预热（快路径的唯一适用场景）；非系统默认交给冷建。
-        guard profileStore?.defaultProfile.normalized.isSystemEquivalent ?? true else { return }
-
-        // 把「此刻一个默认新标签会继承到的目录」烘焙进预热会话，令 warm shell 直接在该目录起。
+        // 预热跟随默认 Profile：默认是 fish 就预热 fish、是系统默认就预热登录 shell，
+        // 让「点 + / 快捷键开默认标签」这条最高频路径无论用哪种 shell 都能秒开。
+        let warmProfile = profileStore?.defaultProfile.normalized
+        // 把「此刻一个默认新标签会继承到的目录」烘焙进预热会话（含 Profile 自带 workingDirectory），
+        // 令 warm shell 直接在该目录起。
         let warmDirectory = canonicalNewTabDirectory(
-            resolvedNewLocalTabStartDirectory(explicitStartDirectory: nil, profile: nil)
+            resolvedNewLocalTabStartDirectory(explicitStartDirectory: nil, profile: warmProfile)
         )
-        let tab = makeTab(launchConfiguration: .localShell(startDirectory: warmDirectory, profile: nil))
+        let profileForConfig = (warmProfile?.isSystemEquivalent ?? true) ? nil : warmProfile
+        let tab = makeTab(launchConfiguration: .localShell(startDirectory: warmDirectory, profile: profileForConfig))
         tab.prewarm(preferences: preferences)
         preparedTab = tab
         preparedTabWarmDirectory = warmDirectory
+        preparedTabWarmProfile = warmProfile
     }
 
     /// 当前选中标签的目录变化后，预热会话烘焙的目录可能已过期：丢弃并按新目录重排一个。
@@ -1389,15 +1400,19 @@ final class TerminalWorkspace: ObservableObject {
         prewarmRearmWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
             guard let self else { return }
+            let warmProfile = self.profileStore?.defaultProfile.normalized
             let desired = self.canonicalNewTabDirectory(
-                self.resolvedNewLocalTabStartDirectory(explicitStartDirectory: nil, profile: nil)
+                self.resolvedNewLocalTabStartDirectory(explicitStartDirectory: nil, profile: warmProfile)
             )
-            // 已有预热且目录仍匹配：无需动作。
-            if self.preparedTab != nil, self.preparedTabWarmDirectory == desired { return }
-            // 目录过期：拆掉旧预热，重新按新目录预热。
+            // 已有预热且目录、默认 Profile 都仍匹配：无需动作。
+            if self.preparedTab != nil,
+               self.preparedTabWarmDirectory == desired,
+               self.preparedTabWarmProfile?.id == warmProfile?.id { return }
+            // 目录或默认 Profile 过期：拆掉旧预热，重新按新目录 / Profile 预热。
             self.preparedTab?.terminate()
             self.preparedTab = nil
             self.preparedTabWarmDirectory = nil
+            self.preparedTabWarmProfile = nil
             self.isPreparingNextTab = false
             self.schedulePrepareNextTab()
         }

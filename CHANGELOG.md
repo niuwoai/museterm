@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.224.0-rc1] - 2026-07-10
+
+### Changed
+- 新标签预热改为「跟随默认 Profile」：此前预热只对系统默认 shell 生效，一旦把 fish（或任意非系统默认）Profile 设为默认，预热整体失效、每次新建标签都退回 ~1.5s 冷启动——恰好让最需要提速的用户享受不到提速。现在预热会话按当前默认 Profile 起（默认是 fish 就预热 fish、含其 `workingDirectory` 与 startup commands），「点 + / 快捷键开默认标签」这条最高频路径无论用哪种 shell 都能秒开。
+- 预热复用条件由「是否系统默认」收紧为「继承目录 + Profile 身份（id）双重匹配」：目录或默认 Profile 任一对不上都老实冷建，绝不靠事后 `cd` / 换 shell 兜底。切换选中标签目录、或默认 Profile 变化后，会（防抖）按新目录 / Profile 重排预热会话。
+
 ## [1.223.0-rc2] - 2026-07-10
 
 ### Fixed
