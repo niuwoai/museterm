@@ -1,0 +1,65 @@
+{
+  "app": "QTermPerf",
+  "app_version": "1.225.0-rc1",
+  "generated_at": "2026-07-11T00:08:00+08:00",
+  "test_target": "/private/tmp/QTermPerf.app",
+  "test_configuration": "Debug",
+  "tabs": {
+    "initial": 1,
+    "created": 8,
+    "total": 9,
+    "creation_duration_seconds": 3.55,
+    "creation_average_milliseconds_per_tab": 443.75
+  },
+  "baseline": {
+    "sample_count": 15,
+    "cpu_average_percent": 4.1,
+    "cpu_peak_percent": 5.4,
+    "rss_average_mb": 134.47,
+    "rss_peak_mb": 141.66
+  },
+  "burst_output": {
+    "active_tabs": 8,
+    "lines_per_tab": 3000,
+    "total_lines": 24000,
+    "dispatch_duration_seconds": 0.66,
+    "completed_tabs": 8,
+    "verification_duration_seconds": 0.25,
+    "cpu_average_percent": 39.92,
+    "cpu_peak_percent": 99.9,
+    "rss_average_mb": 147.59,
+    "rss_peak_mb": 158.0,
+    "rss_final_mb": 158.0
+  },
+  "sustained_output": {
+    "active_tabs": 8,
+    "lines_per_tab": 1200,
+    "line_interval_milliseconds": 5,
+    "total_lines": 9600,
+    "dispatch_duration_seconds": 0.47,
+    "completed_tabs": 8,
+    "apple_event_count_tabs_duration_seconds": 0.24,
+    "verification_duration_seconds": 0.23,
+    "cpu_average_percent": 94.95,
+    "cpu_peak_percent": 105.2,
+    "rss_average_mb": 172.03,
+    "rss_peak_mb": 179.44,
+    "rss_final_mb": 179.44
+  },
+  "cooldown": {
+    "sample_count": 15,
+    "cpu_average_percent": 5.37,
+    "cpu_peak_percent": 9.0,
+    "rss_average_mb": 185.8,
+    "rss_peak_mb": 185.81,
+    "rss_final_mb": 185.81
+  },
+  "observations": [
+    "8 个突发输出 Tab 与 8 个持续输出 Tab 均收到结束标记。",
+    "持续输出期间 count tabs Apple Event 在 0.24 秒内返回，主界面事件处理未被完全饿死。",
+    "持续流让 QTermPerf 基本占满一个 CPU 核心，峰值略高于 100%。",
+    "保留 8 个输出历史 Tab 时，冷却后 RSS 比空闲基线平均值增加约 51.3 MB。",
+    "关闭压测 Tab 的 AppleScript 超过 28.6 秒未返回，疑似被关闭确认偏好阻塞，未计入渲染结论。",
+    "系统同期存在其他 Xcode 编译任务且 load average 很高，绝对耗时仅供本机相对比较。"
+  ]
+}

@@ -329,6 +329,46 @@ extension NSScriptCommand {
         return (MuseTermScriptTab.wrapper(for: selected), selected)
     }
 
+    func museResolveTab(_ value: Any?) -> (MuseTermScriptTab, TerminalSession)? {
+        let resolvedValue = museEvaluatedTabValue(value)
+        if let tab = resolvedValue as? MuseTermScriptTab, let session = tab.session {
+            return (tab, session)
+        }
+
+        guard let workspace = MuseTermScriptingRegistry.workspace else { return nil }
+        let reference = (resolvedValue as? NSAppleEventDescriptor).flatMap(museDescriptorReference)
+            ?? (resolvedValue as? NSNumber)?.stringValue
+            ?? (resolvedValue as? String)
+        guard let reference, let session = museSession(reference: reference, in: workspace) else { return nil }
+        return (MuseTermScriptTab.wrapper(for: session), session)
+    }
+
+    private func museEvaluatedTabValue(_ value: Any?) -> Any? {
+        if let evaluatedReceivers {
+            return evaluatedReceivers
+        }
+        if let specifier = value as? NSScriptObjectSpecifier {
+            return specifier.objectsByEvaluatingSpecifier
+        }
+        return value
+    }
+
+    private func museDescriptorReference(_ descriptor: NSAppleEventDescriptor) -> String? {
+        if descriptor.descriptorType == typeObjectSpecifier {
+            return descriptor.forKeyword(AEKeyword(keyAEKeyData))?.stringValue
+        }
+        return descriptor.stringValue
+    }
+
+    private func museSession(reference: String, in workspace: TerminalWorkspace) -> TerminalSession? {
+        if let oneBasedIndex = Int(reference) {
+            let index = oneBasedIndex - 1
+            guard workspace.tabs.indices.contains(index) else { return nil }
+            return workspace.tabs[index]
+        }
+        return workspace.tabs.first { $0.id.uuidString == reference }
+    }
+
     func museSendInput(bytes: [UInt8], to session: TerminalSession) -> Any? {
         guard let workspace = MuseTermScriptingRegistry.workspace else {
             return museFail(MuseTermScriptErrorCode.noWorkspace, L10n.string("tools.error.no_workspace"))
@@ -346,6 +386,31 @@ extension NSScriptCommand {
             return museFail(MuseTermScriptErrorCode.processUnavailable, error.localizedDescription)
         }
         workspace.selectedID = session.id
+        return nil
+    }
+}
+
+// MARK: - close tab
+
+@objc(MuseTermCloseTabScriptCommand)
+final class MuseTermCloseTabScriptCommand: NSScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        guard let workspace = MuseTermScriptingRegistry.workspace else {
+            return museFail(MuseTermScriptErrorCode.noWorkspace, L10n.string("tools.error.no_workspace"))
+        }
+        guard let (_, session) = museResolveTab(directParameter) else {
+            return museFail(
+                MuseTermScriptErrorCode.tabNotFound,
+                L10n.format("tools.error.tab_not_found", String(describing: directParameter ?? "missing"))
+            )
+        }
+        let skipConfirmation = evaluatedArguments?["skipConfirmation"] as? Bool ?? false
+        guard workspace.close(session, skipConfirmation: skipConfirmation) else {
+            return museFail(
+                MuseTermScriptErrorCode.closeCancelled,
+                L10n.string("applescript.error.close_cancelled")
+            )
+        }
         return nil
     }
 }

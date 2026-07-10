@@ -404,6 +404,23 @@ final class TerminalWorkspaceTests: XCTestCase {
         XCTAssertEqual(confirmer.requestedTabTitles.count, 1)
     }
 
+    func testCloseCanExplicitlySkipConfirmation() throws {
+        let confirmer = RecordingTabCloseConfirmer()
+        confirmer.shouldAllowClose = false
+        let workspace = TerminalWorkspace(
+            automaticallyStartProcesses: false,
+            tabCloseConfirmer: confirmer
+        )
+        let firstTab = try XCTUnwrap(workspace.selectedTab)
+        workspace.newTab()
+        let secondTab = try XCTUnwrap(workspace.selectedTab)
+
+        XCTAssertTrue(workspace.close(secondTab, skipConfirmation: true))
+
+        XCTAssertEqual(workspace.tabs.map(\.id), [firstTab.id])
+        XCTAssertEqual(confirmer.requestedTabTitles, [])
+    }
+
     func testClosingLastTabEmptiesWorkspaceAndNotifiesHost() throws {
         let confirmer = RecordingTabCloseConfirmer()
         let workspace = TerminalWorkspace(

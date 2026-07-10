@@ -23,7 +23,7 @@ final class MuseTermScriptingTests: XCTestCase {
 
         let commandNames = try document.nodes(forXPath: "//command/@name")
             .compactMap(\.stringValue)
-        for expected in ["create tab", "open ssh profile", "write text", "send key", "execute", "play shortcut", "select"] {
+        for expected in ["create tab", "close tab", "open ssh profile", "write text", "send key", "execute", "play shortcut", "select"] {
             XCTAssertTrue(commandNames.contains(expected), "sdef 缺少命令 \(expected)")
         }
 
@@ -62,6 +62,23 @@ final class MuseTermScriptingTests: XCTestCase {
         for name in commandClasses {
             XCTAssertNotNil(NSClassFromString(name), "sdef 引用的命令类 \(name) 不存在")
         }
+    }
+
+    func testCloseTabCommandDeclaresExplicitSkipConfirmationParameter() throws {
+        let document = try loadSdefDocument()
+        let command = try XCTUnwrap(
+            document.nodes(forXPath: "//command[@name='close tab']").first as? XMLElement
+        )
+        XCTAssertEqual(command.attribute(forName: "code")?.stringValue, "MTrmCltb")
+
+        let parameters = try command.nodes(forXPath: "parameter")
+        let skipParameter = try XCTUnwrap(parameters.first as? XMLElement)
+        XCTAssertEqual(skipParameter.attribute(forName: "name")?.stringValue, "skipping confirmation")
+        XCTAssertEqual(skipParameter.attribute(forName: "type")?.stringValue, "boolean")
+        XCTAssertEqual(
+            try skipParameter.nodes(forXPath: "cocoa/@key").first?.stringValue,
+            "skipConfirmation"
+        )
     }
 
     func testSdefSameNamedTermsShareCodes() throws {

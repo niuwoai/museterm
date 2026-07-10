@@ -19,6 +19,14 @@
       <result type="tab" description="The newly created tab."/>
     </command>
 
+    <command name="close tab" code="MTrmCltb" description="Close a terminal tab, optionally bypassing the running-process confirmation.">
+      <cocoa class="MuseTermCloseTabScriptCommand"/>
+      <direct-parameter type="any" description="The 1-based tab index, tab object, or tab ID to close."/>
+      <parameter name="skipping confirmation" code="Cskp" type="boolean" optional="yes" description="Bypass the running-process confirmation (default: false).">
+        <cocoa key="skipConfirmation"/>
+      </parameter>
+    </command>
+
     <command name="open ssh profile" code="MTrmOssh" description="Open a saved SSH profile in a new tab.">
       <cocoa class="MuseTermOpenSSHProfileScriptCommand"/>
       <direct-parameter type="text" description="Display name of the saved SSH profile."/>

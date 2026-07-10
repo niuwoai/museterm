@@ -1173,13 +1173,13 @@ final class TerminalWorkspace: ObservableObject {
     }
 
     @discardableResult
-    func close(_ tab: TerminalSession) -> Bool {
+    func close(_ tab: TerminalSession, skipConfirmation: Bool = false) -> Bool {
         guard !isClosingTab else { return false }
         guard let index = tabs.firstIndex(where: { $0.id == tab.id }) else { return false }
         isClosingTab = true
         defer { isClosingTab = false }
 
-        guard tabCloseConfirmer.shouldClose(tab: tab) else { return false }
+        guard skipConfirmation || tabCloseConfirmer.shouldClose(tab: tab) else { return false }
 
         tab.terminate()
         tabs.remove(at: index)

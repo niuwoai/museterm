@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.225.0-rc2] - 2026-07-11
+
+### Fixed
+- AppleScript 新增 `close tab … skipping confirmation true` 显式跳过关闭确认的能力，支持以 1-based 索引、tab 对象或 tab ID 指定目标，压测和批处理脚本可可靠清理标签，不再挂在运行中标签确认框；缺省行为继续保留确认。
+- AppleScript 冒烟测试的标签清理改用跳过确认参数，并补充词典契约与工作区关闭策略测试。
+
 ## [1.224.0-rc2] - 2026-07-10
 
 ### Changed

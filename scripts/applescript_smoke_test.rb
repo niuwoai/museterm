@@ -94,7 +94,7 @@ run_case(results, "command_records", "读取命令记录数量",
          expect: ->(out) { out.to_i >= 0 })
 
 run_case(results, "close_tab", "关闭最后一个标签",
-         tell.call("close tab (count tabs)"))
+         tell.call("close tab (count tabs) skipping confirmation true"))
 
 passed = results.count { |r| r[:passed] }
 report = {

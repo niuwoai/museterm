@@ -1,6 +1,6 @@
 # MuseTerm AppleScript 支持需求文档
 
-> 版本：v1.210.0 | 最后更新：2026-07-03
+> 版本：v1.225.0-rc2 | 最后更新：2026-07-11
 > 状态：P1 / P2 / P3 全量实现
 
 ## 1. 背景与目标
@@ -30,7 +30,7 @@ macOS 上专业终端的隐形门槛之一是 AppleScript 可脚本化：iTerm2 
 | 命令 | 语法示例 | 说明 |
 |------|----------|------|
 | `create tab` | `create tab in directory "~/Sites"` | 新建本地标签，返回 tab 对象；目录可省略 |
-| `close` | `close tab 2` | 关闭标签（遵循「关闭前确认」偏好） |
+| `close tab` | `close tab 2` | 关闭标签，默认遵循「关闭前确认」偏好；自动化清理可显式传入 `skipping confirmation true` 跳过确认。目标可用 1-based 索引、tab 对象或 tab ID。 |
 | `select` | `select tab 2` | 切换选中标签；也可 `set selected tab to tab 2` |
 | `write text` | `write text "ls -la" to tab 1` | 写入文本，默认追加回车；`newline false` 可关闭 |
 | `send key` | `send key "ctrl-c" to selected tab` | 发送控制键，键名与 CLI 一致（enter/tab/escape/backspace/ctrl-c/ctrl-d/ctrl-z/ctrl-l/up/down/left/right 等） |
@@ -71,13 +71,14 @@ end tell
   - `NSApplication` 扩展提供 `scriptTabs` / `scriptSelectedTab` KVC 键与按 uniqueID 解析。
   - `MuseTermScriptTab` / `MuseTermScriptCommandRecord`：NSObject 包装器（会话本体非 NSObject，不能直接曝光给 Cocoa Scripting），按会话 ID 缓存保证对象标识稳定。
   - 动词为 `NSScriptCommand` 子类；`execute` 用 `suspendExecution` / `resumeExecution(withResult:)` 挂起事件，主线程定时器轮询命令块完成。
+  - `close tab` 使用独立命令类解析索引、tab 对象或 ID；`skipping confirmation` 缺省为 `false`，只有显式传 `true` 才绕过运行中标签确认。
   - 动作实现直接复用 Tool Bridge 同款内核：`TerminalWorkspace.sendToolInput`、`TerminalToolInput.bytes(forKey:)`、`TerminalHostController` 的屏幕/历史快照。
-- 错误码表：-31000 无工作区、-31001 找不到标签、-31002 写入被禁用、-31003 未知键名、-31004 进程不可用、-31005 找不到 SSH 收藏、-31006 找不到快捷方式、-31007 快捷方式含受保护输入、-31008 执行超时、-31009 空命令。
+- 错误码表：-31000 无工作区、-31001 找不到标签、-31002 写入被禁用、-31003 未知键名、-31004 进程不可用、-31005 找不到 SSH 收藏、-31006 找不到快捷方式、-31007 快捷方式含受保护输入、-31008 执行超时、-31009 空命令、-31010 关闭被取消。
 
 ## 6. 测试
 
 - 单元测试（`musetermTests/MuseTermScriptingTests.swift`）：sdef 打包与 XML 合法性、关键术语存在性、偏好默认值与持久化、受保护快捷方式拦截、执行结果记录描述符构造。
-- 冒烟测试（`scripts/applescript_smoke_test.rb`，Ruby）：对运行中的 App 依次跑 count tabs / create tab / write text / contents / execute / close，输出 JSON 与 Markdown 双格式报告。需要终端具备「自动化」TCC 授权。
+- 冒烟测试（`scripts/applescript_smoke_test.rb`，Ruby）：对运行中的 App 依次跑 count tabs / create tab / write text / contents / execute / close，清理阶段使用 `skipping confirmation true`，输出 JSON 与 Markdown 双格式报告。需要终端具备「自动化」TCC 授权。
 
 ## 7. 已知限制与后续
 
