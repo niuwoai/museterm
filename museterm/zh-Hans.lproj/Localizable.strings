@@ -576,6 +576,16 @@
 "settings.behavior" = "行为";
 "settings.option_as_meta" = "Option 作为 Meta 键";
 "settings.mouse_reporting" = "转发鼠标上报";
+"settings.line_navigation.title" = "命令行行首 / 行尾快捷键";
+"settings.line_navigation.description" = "默认使用符合 macOS 习惯的 ⌘← / ⌘→，并向终端发送通用的 Ctrl-A / Ctrl-E。点击按键框后直接按下新组合；按 Delete 清除，按 Esc 取消。";
+"settings.line_navigation.line_start" = "跳到行首";
+"settings.line_navigation.line_end" = "跳到行尾";
+"settings.line_navigation.restore_defaults" = "恢复默认";
+"settings.line_navigation.recording" = "请按快捷键…";
+"settings.line_navigation.unassigned" = "未设置";
+"settings.line_navigation.record_help" = "点击后录入快捷键；按 Delete 清除，按 Esc 取消。";
+"settings.line_navigation.record_accessibility" = "录入终端行首或行尾快捷键";
+"settings.line_navigation.conflict" = "行首和行尾不能使用同一个快捷键。";
 "settings.confirm_multiline_paste" = "多行粘贴前确认";
 "settings.confirm_dangerous_commands" = "高危命令前确认";
 "settings.custom_dangerous_rules" = "自定义高危规则";

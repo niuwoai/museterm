@@ -2071,6 +2071,16 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
     private let maxPendingEchoBytes = 2_048
     private let selectionAutoscrollInterval: TimeInterval = 0.08
 
+    // #1 高频输出防卡：把 PTY 数据合批喂入终端解析器，按 runloop tick 限量 flush。
+    // 效果：原先“每来一片数据就同步 feed + 触发一次重绘”，多 tab 刷屏时把主线程压垮、
+    // 且积压无上限（杀掉源头后仍要逐行啃完 → 永久 100%、界面冻死）。
+    // 改为缓冲后合并喂入：多片合并成一次 feed → 一次重绘；每 tick 最多解析 maxFeedBytesPerFlush，
+    // 剩余留到下一 tick 并把 runloop 让给 UI 事件，主线程始终可响应、杀源后能快速排空恢复。
+    // 全程在主线程（dataReceived 由 LocalProcess 在 main queue 上回调），故无需加锁。
+    private var pendingFeedBytes: [UInt8] = []
+    private var feedFlushScheduled = false
+    private let maxFeedBytesPerFlush = 256 * 1024
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         installTerminalDelegateRouter()
@@ -2496,8 +2506,32 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
         if shouldRecordInput?() == true, !isExpectedEcho(slice) {
             invalidateTerminalEchoCache()
         }
-        super.dataReceived(slice: slice)
+        // 到达时的 echo 检测 / onReceivedProcessData 已同步跑完（顺序敏感，保持原样）；
+        // 真正的 feed（解析+重绘）改为缓冲后合并限量 flush，见 flushPendingFeed()。
+        pendingFeedBytes.append(contentsOf: slice)
+        scheduleFeedFlush()
+    }
+
+    private func scheduleFeedFlush() {
+        guard !feedFlushScheduled else { return }
+        feedFlushScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            self?.flushPendingFeed()
+        }
+    }
+
+    private func flushPendingFeed() {
+        feedFlushScheduled = false
+        guard !pendingFeedBytes.isEmpty else { return }
+        let end = min(pendingFeedBytes.count, maxFeedBytesPerFlush)
+        // super.dataReceived == feed(byteArray:)，纯流式解析，合批喂入与逐片喂入等价。
+        super.dataReceived(slice: pendingFeedBytes[0..<end])
+        pendingFeedBytes.removeFirst(end)
         onProcessOutputCommitted?()
+        // 仍有积压 → 下一 tick 继续（让出 runloop 给 UI 事件，保持界面可响应）。
+        if !pendingFeedBytes.isEmpty {
+            scheduleFeedFlush()
+        }
     }
 
     var terminalEchoEnabled: Bool {

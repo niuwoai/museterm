@@ -8,7 +8,7 @@ struct TerminalQuickPathSection: View {
     @ObservedObject var workspace: TerminalWorkspace
     let skin: TerminalVisualSkin
     @State private var showsMoreFrequentPaths = false
-    @State private var quickPathMessage = ""
+    @State private var quickPathAlert: SidebarStatusAlert?
 
     var body: some View {
         let recentPaths = workspace.recentQuickPaths
@@ -45,11 +45,8 @@ struct TerminalQuickPathSection: View {
                 Spacer()
             }
 
-            if !quickPathMessage.isEmpty {
-                Text(quickPathMessage)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+            if let quickPathAlert {
+                SidebarAlertStrip(alert: quickPathAlert, skin: skin)
             }
 
             if recentPaths.isEmpty && frequentPaths.isEmpty {
@@ -183,30 +180,107 @@ struct TerminalQuickPathSection: View {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         guard let record = workspace.addQuickPath(url.path) else {
             NSSound.beep()
-            quickPathMessage = L10n.string("quick_path.add.failed")
+            showQuickPathAlert(L10n.string("quick_path.add.failed"), tone: .warning)
             return
         }
-        quickPathMessage = L10n.format("quick_path.added", record.displayName)
+        showQuickPathAlert(L10n.format("quick_path.added", record.displayName), tone: .success)
     }
 
     private func openQuickPathInFolder(_ record: TerminalQuickPathRecord) {
         guard let path = TerminalWorkingDirectory.normalizedExistingDirectory(record.path) else {
             NSSound.beep()
             workspace.removeQuickPath(record.path)
-            quickPathMessage = L10n.format("quick_path.missing", record.path)
+            showQuickPathAlert(L10n.format("quick_path.missing", record.path), tone: .warning)
             return
         }
         if NSWorkspace.shared.open(URL(fileURLWithPath: path, isDirectory: true)) {
-            quickPathMessage = L10n.format("quick_path.opened_folder", record.displayName)
+            showQuickPathAlert(L10n.format("quick_path.opened_folder", record.displayName), tone: .success)
         } else {
             NSSound.beep()
-            quickPathMessage = L10n.format("quick_path.open_folder.failed", record.path)
+            showQuickPathAlert(L10n.format("quick_path.open_folder.failed", record.path), tone: .error)
         }
     }
 
     private func removeQuickPath(_ record: TerminalQuickPathRecord) {
         workspace.removeQuickPath(record.path)
-        quickPathMessage = L10n.format("quick_path.removed", record.displayName)
+        showQuickPathAlert(L10n.format("quick_path.removed", record.displayName), tone: .info)
+    }
+
+    private func showQuickPathAlert(_ message: String, tone: SidebarAlertTone) {
+        quickPathAlert = SidebarStatusAlert(message: message, tone: tone)
+    }
+}
+
+private struct SidebarStatusAlert: Equatable {
+    let message: String
+    let tone: SidebarAlertTone
+}
+
+private enum SidebarAlertTone: Equatable {
+    case info
+    case success
+    case warning
+    case error
+
+    var iconName: String {
+        switch self {
+        case .info: return "info.circle.fill"
+        case .success: return "checkmark.circle.fill"
+        case .warning: return "exclamationmark.triangle.fill"
+        case .error: return "xmark.octagon.fill"
+        }
+    }
+
+    var accent: Color {
+        switch self {
+        case .info: return Color(red: 0.20, green: 0.49, blue: 0.82)
+        case .success: return Color(red: 0.18, green: 0.56, blue: 0.34)
+        case .warning: return Color(red: 0.78, green: 0.50, blue: 0.12)
+        case .error: return Color(red: 0.78, green: 0.22, blue: 0.22)
+        }
+    }
+
+    func background(isDark: Bool) -> Color {
+        accent.opacity(isDark ? 0.20 : 0.11)
+    }
+
+    func border(isDark: Bool) -> Color {
+        accent.opacity(isDark ? 0.46 : 0.28)
+    }
+}
+
+private struct SidebarAlertStrip: View {
+    let alert: SidebarStatusAlert
+    let skin: TerminalVisualSkin
+
+    var body: some View {
+        let isDark = skin.preferredColorScheme == .dark
+
+        HStack(alignment: .top, spacing: 7) {
+            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                .fill(alert.tone.accent)
+                .frame(width: 3)
+
+            Image(systemName: alert.tone.iconName)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(alert.tone.accent)
+                .padding(.top, 1)
+
+            Text(alert.message)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(alert.tone.background(isDark: isDark))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(alert.tone.border(isDark: isDark), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 

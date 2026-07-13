@@ -1,10 +1,27 @@
 # Changelog
 
+## [1.226.0-rc2] - 2026-07-13
+
+### Fixed
+- 快捷路径侧栏反馈改为类似 Chakra UI 的语义 alert 条样式；从列表移除路径时使用 info 语义，添加/打开成功、缺失路径和打开失败分别使用 success、warning 和 error 语义。
+
+## [1.226.0-rc1] - 2026-07-11
+
+### Added
+- 终端新增可配置的“跳到行首 / 跳到行尾”快捷键，默认使用符合 macOS 编辑习惯的 `Command-Left` / `Command-Right`，命中后向 shell 发送通用的 `Control-A` / `Control-E`。
+- 设置 › 行为新增快捷键录制控件，支持直接按键改绑、Delete 清除、Esc 取消、恢复默认与冲突提示，配置会通过用户偏好持久化。
+
 ## [1.225.0-rc2] - 2026-07-11
 
 ### Fixed
 - AppleScript 新增 `close tab … skipping confirmation true` 显式跳过关闭确认的能力，支持以 1-based 索引、tab 对象或 tab ID 指定目标，压测和批处理脚本可可靠清理标签，不再挂在运行中标签确认框；缺省行为继续保留确认。
 - AppleScript 冒烟测试的标签清理改用跳过确认参数，并补充词典契约与工作区关闭策略测试。
+
+## [1.225.0-rc1] - 2026-07-10
+
+### Changed
+- 设置页的字体选择改为直接下拉选择 macOS 已安装字体族，移除原先的搜索框与短列表交互，让主字体和回退字体配置更直接。
+- 同步应用内 `AppVersion`、Xcode `MARKETING_VERSION` 与产品说明里的当前版本，避免版本展示与构建版本不一致。
 
 ## [1.224.0-rc2] - 2026-07-10
 

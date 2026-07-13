@@ -576,6 +576,16 @@
 "settings.behavior" = "Behavior";
 "settings.option_as_meta" = "Use Option as Meta";
 "settings.mouse_reporting" = "Forward mouse reporting";
+"settings.line_navigation.title" = "Command-line start / end shortcuts";
+"settings.line_navigation.description" = "Defaults to the macOS-style ⌘← / ⌘→ and sends the terminal-standard Ctrl-A / Ctrl-E. Click a recorder and press a new combination; press Delete to clear or Esc to cancel.";
+"settings.line_navigation.line_start" = "Move to line start";
+"settings.line_navigation.line_end" = "Move to line end";
+"settings.line_navigation.restore_defaults" = "Restore Defaults";
+"settings.line_navigation.recording" = "Press shortcut…";
+"settings.line_navigation.unassigned" = "Not Set";
+"settings.line_navigation.record_help" = "Click to record a shortcut; press Delete to clear or Esc to cancel.";
+"settings.line_navigation.record_accessibility" = "Record a terminal line start or line end shortcut";
+"settings.line_navigation.conflict" = "Line start and line end cannot use the same shortcut.";
 "settings.confirm_multiline_paste" = "Confirm multi-line paste";
 "settings.confirm_dangerous_commands" = "Confirm dangerous commands";
 "settings.custom_dangerous_rules" = "Custom dangerous rules";

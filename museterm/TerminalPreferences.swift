@@ -159,6 +159,8 @@ final class TerminalPreferences: ObservableObject {
         static let showsTabList = "terminal.showsTabList"
         static let cursorShape = "terminal.cursorShape"
         static let cursorBlink = "terminal.cursorBlink"
+        static let lineStartShortcut = "terminal.shortcut.lineStart"
+        static let lineEndShortcut = "terminal.shortcut.lineEnd"
         static let confirmMultilinePaste = "terminal.confirmMultilinePaste"
         static let confirmDangerousCommands = "terminal.confirmDangerousCommands"
         static let customDangerousCommandRules = "terminal.customDangerousCommandRules"
@@ -198,6 +200,8 @@ final class TerminalPreferences: ObservableObject {
     @Published var showsTabList: Bool { didSet { defaults.set(showsTabList, forKey: Keys.showsTabList) } }
     @Published var cursorShape: TerminalCursorShape { didSet { defaults.set(cursorShape.rawValue, forKey: Keys.cursorShape) } }
     @Published var cursorBlink: Bool { didSet { defaults.set(cursorBlink, forKey: Keys.cursorBlink) } }
+    @Published var lineStartShortcut: String { didSet { defaults.set(lineStartShortcut, forKey: Keys.lineStartShortcut) } }
+    @Published var lineEndShortcut: String { didSet { defaults.set(lineEndShortcut, forKey: Keys.lineEndShortcut) } }
     @Published var confirmMultilinePaste: Bool { didSet { defaults.set(confirmMultilinePaste, forKey: Keys.confirmMultilinePaste) } }
     @Published var confirmDangerousCommands: Bool { didSet { defaults.set(confirmDangerousCommands, forKey: Keys.confirmDangerousCommands) } }
     @Published var customDangerousCommandRules: String { didSet { defaults.set(customDangerousCommandRules, forKey: Keys.customDangerousCommandRules) } }
@@ -254,6 +258,10 @@ final class TerminalPreferences: ObservableObject {
         showsTabList = defaults.object(forKey: Keys.showsTabList) as? Bool ?? true
         cursorShape = TerminalCursorShape(rawValue: defaults.string(forKey: Keys.cursorShape) ?? "") ?? .block
         cursorBlink = defaults.object(forKey: Keys.cursorBlink) as? Bool ?? true
+        lineStartShortcut = defaults.string(forKey: Keys.lineStartShortcut)
+            ?? TerminalKeyBinding.defaultLineStart.storageValue
+        lineEndShortcut = defaults.string(forKey: Keys.lineEndShortcut)
+            ?? TerminalKeyBinding.defaultLineEnd.storageValue
         confirmMultilinePaste = defaults.object(forKey: Keys.confirmMultilinePaste) as? Bool ?? true
         confirmDangerousCommands = defaults.object(forKey: Keys.confirmDangerousCommands) as? Bool ?? true
         customDangerousCommandRules = defaults.string(forKey: Keys.customDangerousCommandRules) ?? ""

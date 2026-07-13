@@ -3,6 +3,7 @@ import SwiftUI
 
 struct TerminalShortcutBridge: NSViewRepresentable {
     @ObservedObject var workspace: TerminalWorkspace
+    @ObservedObject var preferences: TerminalPreferences
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -10,12 +11,12 @@ struct TerminalShortcutBridge: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSView {
         let view = NSView(frame: .zero)
-        context.coordinator.install(hostView: view, workspace: workspace)
+        context.coordinator.install(hostView: view, workspace: workspace, preferences: preferences)
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.install(hostView: nsView, workspace: workspace)
+        context.coordinator.install(hostView: nsView, workspace: workspace, preferences: preferences)
     }
 
     static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
@@ -25,11 +26,13 @@ struct TerminalShortcutBridge: NSViewRepresentable {
     final class Coordinator {
         private weak var hostView: NSView?
         private weak var workspace: TerminalWorkspace?
+        private weak var preferences: TerminalPreferences?
         private var monitor: Any?
 
-        func install(hostView: NSView, workspace: TerminalWorkspace) {
+        func install(hostView: NSView, workspace: TerminalWorkspace, preferences: TerminalPreferences) {
             self.hostView = hostView
             self.workspace = workspace
+            self.preferences = preferences
 
             guard monitor == nil else { return }
             monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
@@ -46,6 +49,16 @@ struct TerminalShortcutBridge: NSViewRepresentable {
 
         private func handle(_ event: NSEvent) -> NSEvent? {
             guard hostView?.window?.isKeyWindow == true else { return event }
+
+            if let preferences,
+               let action = TerminalLineNavigationAction.resolve(
+                   event: event,
+                   lineStartShortcut: preferences.lineStartShortcut,
+                   lineEndShortcut: preferences.lineEndShortcut
+               ) {
+                sendLineNavigation(action)
+                return nil
+            }
 
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             guard flags.contains(.command) else { return event }
@@ -80,6 +93,15 @@ struct TerminalShortcutBridge: NSViewRepresentable {
             }
 
             return event
+        }
+
+        private func sendLineNavigation(_ action: TerminalLineNavigationAction) {
+            guard let workspace else { return }
+            do {
+                _ = try workspace.sendToolInput(to: "selected", bytes: action.bytes)
+            } catch {
+                NSLog("QTerm shortcut %@ failed: %@", String(describing: action), error.localizedDescription)
+            }
         }
     }
 }

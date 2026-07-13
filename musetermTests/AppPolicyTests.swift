@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import XCTest
 @testable import museterm
 
@@ -14,6 +14,51 @@ final class AppPolicyTests: XCTestCase {
         XCTAssertTrue(preferences.glassEnabled)
         XCTAssertTrue(preferences.showsTabList)
         XCTAssertEqual(preferences.fontSize, 14)
+        XCTAssertEqual(preferences.lineStartShortcut, "command+left")
+        XCTAssertEqual(preferences.lineEndShortcut, "command+right")
+    }
+
+    func testLineNavigationShortcutsPersist() throws {
+        let suiteName = "museterm.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let preferences = TerminalPreferences(defaults: defaults)
+        preferences.lineStartShortcut = "control+char:a"
+        preferences.lineEndShortcut = "end"
+
+        let reloaded = TerminalPreferences(defaults: defaults)
+        XCTAssertEqual(reloaded.lineStartShortcut, "control+char:a")
+        XCTAssertEqual(reloaded.lineEndShortcut, "end")
+    }
+
+    func testTerminalKeyBindingMatchesSemanticArrowShortcut() throws {
+        let event = try XCTUnwrap(NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.command],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "",
+            charactersIgnoringModifiers: "",
+            isARepeat: false,
+            keyCode: 123
+        ))
+
+        XCTAssertTrue(TerminalKeyBinding.defaultLineStart.matches(event))
+        XCTAssertFalse(TerminalKeyBinding.defaultLineEnd.matches(event))
+        XCTAssertEqual(TerminalKeyBinding.defaultLineStart.displayName, "⌘←")
+        XCTAssertEqual(
+            TerminalLineNavigationAction.resolve(
+                event: event,
+                lineStartShortcut: TerminalKeyBinding.defaultLineStart.storageValue,
+                lineEndShortcut: TerminalKeyBinding.defaultLineEnd.storageValue
+            ),
+            .lineStart
+        )
+        XCTAssertEqual(TerminalLineNavigationAction.lineStart.bytes, [0x01])
+        XCTAssertEqual(TerminalLineNavigationAction.lineEnd.bytes, [0x05])
     }
 
     func testTerminalSkinsProvideAnsi16Colors() {

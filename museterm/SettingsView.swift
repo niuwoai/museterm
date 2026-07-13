@@ -127,11 +127,11 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L10n.string("settings.fonts"))
                 .font(.headline)
-            FontSearchPicker(
+            FontFamilyPicker(
                 title: L10n.string("settings.primary_font"),
                 selection: $preferences.fontFamily
             )
-            FontSearchPicker(
+            FontFamilyPicker(
                 title: L10n.string("settings.fallback_font"),
                 selection: $preferences.fallbackFontFamily
             )
@@ -209,6 +209,7 @@ struct SettingsView: View {
             Toggle(L10n.string("settings.show_tab_list"), isOn: $preferences.showsTabList)
             Toggle(L10n.string("settings.option_as_meta"), isOn: $preferences.optionAsMeta)
             Toggle(L10n.string("settings.mouse_reporting"), isOn: $preferences.mouseReporting)
+            lineNavigationShortcutSection
             Toggle(L10n.string("settings.confirm_multiline_paste"), isOn: $preferences.confirmMultilinePaste)
             Toggle(L10n.string("settings.confirm_dangerous_commands"), isOn: $preferences.confirmDangerousCommands)
             VStack(alignment: .leading, spacing: 6) {
@@ -245,6 +246,76 @@ struct SettingsView: View {
             }
             .padding(.top, 4)
             Toggle(L10n.string("settings.cursor_blink"), isOn: $preferences.cursorBlink)
+        }
+    }
+
+    private var lineNavigationShortcutSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(L10n.string("settings.line_navigation.title"))
+                    .font(.caption.weight(.semibold))
+                Spacer()
+                Button(L10n.string("settings.line_navigation.restore_defaults")) {
+                    preferences.lineStartShortcut = TerminalKeyBinding.defaultLineStart.storageValue
+                    preferences.lineEndShortcut = TerminalKeyBinding.defaultLineEnd.storageValue
+                }
+                .buttonStyle(.link)
+                .font(.caption)
+            }
+
+            Text(L10n.string("settings.line_navigation.description"))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            lineNavigationShortcutRow(
+                title: L10n.string("settings.line_navigation.line_start"),
+                shortcut: Binding(
+                    get: { preferences.lineStartShortcut },
+                    set: { newValue in
+                        preferences.lineStartShortcut = newValue
+                        if !newValue.isEmpty, newValue == preferences.lineEndShortcut {
+                            preferences.lineEndShortcut = ""
+                        }
+                    }
+                )
+            )
+            lineNavigationShortcutRow(
+                title: L10n.string("settings.line_navigation.line_end"),
+                shortcut: Binding(
+                    get: { preferences.lineEndShortcut },
+                    set: { newValue in
+                        preferences.lineEndShortcut = newValue
+                        if !newValue.isEmpty, newValue == preferences.lineStartShortcut {
+                            preferences.lineStartShortcut = ""
+                        }
+                    }
+                )
+            )
+
+            if !preferences.lineStartShortcut.isEmpty,
+               preferences.lineStartShortcut == preferences.lineEndShortcut {
+                Label(L10n.string("settings.line_navigation.conflict"), systemImage: "exclamationmark.triangle")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+            }
+        }
+        .padding(10)
+        .background(preferences.skin.controlFill)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(preferences.skin.hairline, lineWidth: 1)
+        )
+    }
+
+    private func lineNavigationShortcutRow(title: String, shortcut: Binding<String>) -> some View {
+        HStack {
+            Text(title)
+                .font(.subheadline)
+            Spacer()
+            TerminalKeyShortcutRecorder(storageValue: shortcut)
+                .frame(width: 150, height: 26)
         }
     }
 
@@ -1415,55 +1486,35 @@ private struct SkinChoiceView: View {
     }
 }
 
-private struct FontSearchPicker: View {
+private struct FontFamilyPicker: View {
     let title: String
     @Binding var selection: String
-    @State private var query = ""
 
-    private var families: [String] {
-        let all = TerminalFontResolver.installedFamilies
-        guard !query.isEmpty else { return Array(all.prefix(24)) }
-        return all.filter { $0.localizedCaseInsensitiveContains(query) }.prefix(24).map(\.self)
+    private var options: [String] {
+        let installedFamilies = TerminalFontResolver.installedFamilies
+        guard !selection.isEmpty, !installedFamilies.contains(selection) else {
+            return installedFamilies
+        }
+        return [selection] + installedFamilies
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(title)
-                    .font(.subheadline.weight(.medium))
-                Spacer()
-                Text(selection)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            TextField(selection, text: $query)
-                .textFieldStyle(.roundedBorder)
-            ScrollView {
-                LazyVStack(spacing: 4) {
-                    ForEach(families, id: \.self) { family in
-                        Button {
-                            selection = family
-                            query = ""
-                        } label: {
-                            HStack {
-                                Text(family)
-                                    .font(.custom(family, size: 12))
-                                    .lineLimit(1)
-                                Spacer()
-                                if selection == family {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 6)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
+            Text(title)
+                .font(.subheadline.weight(.medium))
+            Picker(title, selection: $selection) {
+                ForEach(options, id: \.self) { family in
+                    Text(family)
+                        .tag(family)
                 }
             }
-            .frame(height: 96)
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(selection)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
     }
 }

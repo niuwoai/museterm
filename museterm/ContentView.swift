@@ -56,7 +56,7 @@ struct ContentView: View {
             }
         }
         .background(WindowConfigurator(workspace: workspace))
-        .background(TerminalShortcutBridge(workspace: workspace))
+        .background(TerminalShortcutBridge(workspace: workspace, preferences: preferences))
         .focusedValue(\.terminalWorkspace, workspace)
         .tint(preferences.skin.accent)
         .preferredColorScheme(preferences.skin.preferredColorScheme)
