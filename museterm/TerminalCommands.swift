@@ -5,6 +5,15 @@ struct TerminalCommands: Commands {
     @FocusedValue(\.terminalWorkspace) private var workspace
 
     var body: some Commands {
+        // 覆盖 WindowGroup 默认的「新建窗口(Cmd+N)」，改为新建标签，保证单窗口运行。
+        CommandGroup(replacing: .newItem) {
+            Button(L10n.string("action.new_tab")) {
+                workspace?.newTabFromShortcut(eventTimestamp: NSApp.currentEvent?.timestamp)
+            }
+            .keyboardShortcut("n", modifiers: .command)
+            .disabled(workspace == nil)
+        }
+
         CommandMenu(L10n.string("menu.tab")) {
             Button(L10n.string("action.new_tab")) {
                 workspace?.newTabFromShortcut(eventTimestamp: NSApp.currentEvent?.timestamp)

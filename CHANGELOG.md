@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.227.0-rc1] - 2026-07-13
+
+### Changed
+- 坚持单窗口运行：`Command-N` 不再新建独立窗口，而是与 `Command-T` 一样在当前窗口新建标签。通过 `CommandGroup(replacing: .newItem)` 覆盖 SwiftUI `WindowGroup` 默认的「新建窗口」命令并改绑到新建标签逻辑，同时从菜单中移除「新建窗口」项，避免多窗口分散会话。
+
 ## [1.226.0-rc2] - 2026-07-13
 
 ### Fixed
