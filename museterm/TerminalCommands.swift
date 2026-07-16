@@ -3,6 +3,7 @@ import SwiftUI
 
 struct TerminalCommands: Commands {
     @FocusedValue(\.terminalWorkspace) private var workspace
+    @ObservedObject var preferences: TerminalPreferences
 
     var body: some Commands {
         // 覆盖 WindowGroup 默认的「新建窗口(Cmd+N)」，改为新建标签，保证单窗口运行。
@@ -18,27 +19,36 @@ struct TerminalCommands: Commands {
             Button(L10n.string("action.new_tab")) {
                 workspace?.newTabFromShortcut(eventTimestamp: NSApp.currentEvent?.timestamp)
             }
-            .keyboardShortcut("t", modifiers: .command)
+            .terminalKeyboardShortcut(preferences.appShortcut(for: .newTab))
             .disabled(workspace == nil)
 
             Button(L10n.string("action.close_tab")) {
                 workspace?.closeSelectedTabFromShortcut(eventTimestamp: NSApp.currentEvent?.timestamp)
             }
-            .keyboardShortcut("w", modifiers: .command)
+            .terminalKeyboardShortcut(preferences.appShortcut(for: .closeTab))
             .disabled(workspace == nil)
 
             Divider()
 
+            Button(L10n.string("command_palette.title")) {
+                NotificationCenter.default.post(name: .showCommandPalette, object: nil)
+            }
+            .terminalKeyboardShortcut(preferences.appShortcut(for: .commandPalette))
+
+            Button(L10n.string("ai_command.title")) {
+                NotificationCenter.default.post(name: .showAICommandAssistant, object: nil)
+            }
+            .disabled(workspace == nil)
+
             Button(L10n.string("action.search_commands")) {
                 NotificationCenter.default.post(name: .toggleCommandInspector, object: nil)
             }
-            .keyboardShortcut("f", modifiers: .command)
+            .terminalKeyboardShortcut(preferences.appShortcut(for: .searchCommands))
             .disabled(workspace == nil)
 
             Button(L10n.string("action.show_tasks_ports")) {
                 NotificationCenter.default.post(name: .toggleTaskPortPanel, object: nil)
             }
-            .keyboardShortcut("p", modifiers: [.command, .shift])
             .disabled(workspace == nil)
 
             Divider()
@@ -62,13 +72,13 @@ struct TerminalCommands: Commands {
             Button(L10n.string("action.previous_tab")) {
                 workspace?.selectPreviousTab()
             }
-            .keyboardShortcut("[", modifiers: [.command, .shift])
+            .terminalKeyboardShortcut(preferences.appShortcut(for: .previousTab))
             .disabled((workspace?.tabs.count ?? 0) < 2)
 
             Button(L10n.string("action.next_tab")) {
                 workspace?.selectNextTab()
             }
-            .keyboardShortcut("]", modifiers: [.command, .shift])
+            .terminalKeyboardShortcut(preferences.appShortcut(for: .nextTab))
             .disabled((workspace?.tabs.count ?? 0) < 2)
 
             Divider()

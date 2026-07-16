@@ -8,8 +8,10 @@ struct ContentView: View {
     @StateObject private var sshStore = SSHConnectionStore()
     @StateObject private var profileStore = TerminalProfileStore.shared
     @StateObject private var notificationCoordinator = TerminalNotificationCoordinator.shared
+    @StateObject private var aiCommandAssistant = AICommandAssistantModel()
     @ObservedObject private var preferences: TerminalPreferences
     @State private var rightPanel: TerminalRightPanel?
+    @State private var commandPalettePresentation = CommandPalettePresentationState()
 
     init(preferences: TerminalPreferences = TerminalPreferences()) {
         self.preferences = preferences
@@ -37,7 +39,11 @@ struct ContentView: View {
                     preferences: preferences
                 )
 
-                TerminalPaneView(workspace: workspace, preferences: preferences)
+                TerminalPaneView(
+                    workspace: workspace,
+                    preferences: preferences,
+                    aiCommandAssistant: aiCommandAssistant
+                )
                     .ignoresSafeArea(.container, edges: .top)
 
                 if rightPanel == .commandInspector {
@@ -54,9 +60,29 @@ struct ContentView: View {
                     )
                 }
             }
+
+            if commandPalettePresentation.isPresented {
+                CommandPaletteView(
+                    isPresented: $commandPalettePresentation.isPresented,
+                    workspace: workspace,
+                    sshStore: sshStore,
+                    preferences: preferences
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
+                .zIndex(20)
+            }
         }
         .background(WindowConfigurator(workspace: workspace))
-        .background(TerminalShortcutBridge(workspace: workspace, preferences: preferences))
+        .background(
+            TerminalShortcutBridge(
+                workspace: workspace,
+                preferences: preferences,
+                isCommandPaletteActive: { commandPalettePresentation.isPresented },
+                onAICommandTrigger: beginAICommandAssistance,
+                isAICommandActive: { aiCommandAssistant.isActive },
+                onAICommandDismiss: { aiCommandAssistant.dismiss() }
+            )
+        )
         .focusedValue(\.terminalWorkspace, workspace)
         .tint(preferences.skin.accent)
         .preferredColorScheme(preferences.skin.preferredColorScheme)
@@ -78,9 +104,29 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .toggleTaskPortPanel)) { _ in
             toggleRightPanel(.tasks)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .showCommandPalette)) { _ in
+            aiCommandAssistant.dismiss(showNotice: false)
+            withAnimation(.easeOut(duration: 0.12)) {
+                commandPalettePresentation.present()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showAICommandAssistant)) { _ in
+            beginAICommandAssistance()
+        }
+        .onChange(of: workspace.selectedID) { selectedID in
+            aiCommandAssistant.cancelIfTargetChanged(selectedID: selectedID)
+        }
+    }
+
+    private func beginAICommandAssistance() {
+        guard !aiCommandAssistant.isActive, let selectedTab = workspace.selectedTab else { return }
+        rightPanel = nil
+        commandPalettePresentation.dismiss()
+        aiCommandAssistant.present(for: selectedTab)
     }
 
     private func toggleRightPanel(_ panel: TerminalRightPanel) {
+        aiCommandAssistant.dismiss(showNotice: false)
         rightPanel = rightPanel == panel ? nil : panel
     }
 
@@ -127,7 +173,8 @@ private struct SidebarView: View {
                                     isSelected: workspace.selectedID == tab.id,
                                     shortcutNumber: index < 9 ? index + 1 : nil,
                                     skin: preferences.skin,
-                                    closeAction: { workspace.close(tab) }
+                                    closeAction: { workspace.close(tab) },
+                                    detachAction: { detach(tab) }
                                 )
                                 .onTapGesture {
                                     workspace.select(tab)
@@ -137,7 +184,17 @@ private struct SidebarView: View {
 
                         TerminalQuickPathSection(workspace: workspace, skin: preferences.skin)
 
-                        TerminalShortcutSection(workspace: workspace, skin: preferences.skin)
+                        LearnedCommandSidebarSection(
+                            workspace: workspace,
+                            sshStore: sshStore,
+                            skin: preferences.skin
+                        )
+
+                        TerminalShortcutSection(
+                            workspace: workspace,
+                            sshStore: sshStore,
+                            skin: preferences.skin
+                        )
 
                         FileTransferSection(workspace: workspace, skin: preferences.skin)
 
@@ -167,7 +224,8 @@ private struct SidebarView: View {
                                 isSelected: workspace.selectedID == tab.id,
                                 shortcutNumber: index < 9 ? index + 1 : nil,
                                 skin: preferences.skin,
-                                closeAction: { workspace.close(tab) }
+                                closeAction: { workspace.close(tab) },
+                                detachAction: { detach(tab) }
                             )
                             .onTapGesture {
                                 workspace.select(tab)
@@ -199,6 +257,14 @@ private struct SidebarView: View {
         }
         .frame(width: preferences.showsTabList ? Layout.expandedWidth : Layout.collapsedWidth)
         .background(preferences.skin.sidebarBackground)
+    }
+
+    private func detach(_ tab: TerminalSession) {
+        DetachedTerminalPanelManager.shared.detach(
+            tab,
+            workspace: workspace,
+            preferences: preferences
+        )
     }
 
     @ViewBuilder
@@ -285,8 +351,12 @@ private struct ProfileNewTabMenu: View {
 }
 
 extension Notification.Name {
+    static let showCommandPalette = Notification.Name("MuseTermShowCommandPalette")
+    static let showAICommandAssistant = Notification.Name("MuseTermShowAICommandAssistant")
     static let toggleCommandInspector = Notification.Name("MuseTermToggleCommandInspector")
     static let toggleTaskPortPanel = Notification.Name("MuseTermToggleTaskPortPanel")
+    // 设置页里撤销「拉黑」后广播；运行中的工作区据此重载黑名单并刷新最近/常用列表。
+    static let recommendationBlacklistChanged = Notification.Name("MuseTermRecommendationBlacklistChanged")
 }
 
 private struct TabRowView: View {
@@ -295,6 +365,7 @@ private struct TabRowView: View {
     let shortcutNumber: Int?
     let skin: TerminalVisualSkin
     let closeAction: () -> Void
+    let detachAction: () -> Void
     @State private var isHovering = false
 
     var body: some View {
@@ -370,6 +441,15 @@ private struct TabRowView: View {
         .onHover { hovering in
             isHovering = hovering
         }
+        .contextMenu {
+            Button(action: detachAction) {
+                Label(L10n.string("action.detach_tab"), systemImage: "rectangle.on.rectangle.slash")
+            }
+            Divider()
+            Button(role: .destructive, action: closeAction) {
+                Label(L10n.string("action.close_tab"), systemImage: "xmark")
+            }
+        }
     }
 
     private var statusColor: Color {
@@ -386,6 +466,7 @@ private struct CompactTabRowView: View {
     let shortcutNumber: Int?
     let skin: TerminalVisualSkin
     let closeAction: () -> Void
+    let detachAction: () -> Void
 
     var body: some View {
         HStack(spacing: 5) {
@@ -421,6 +502,10 @@ private struct CompactTabRowView: View {
         .contentShape(Rectangle())
         .help(helpText)
         .contextMenu {
+            Button(action: detachAction) {
+                Label(L10n.string("action.detach_tab"), systemImage: "rectangle.on.rectangle.slash")
+            }
+            Divider()
             Button(role: .destructive, action: closeAction) {
                 Label(L10n.string("action.close_tab"), systemImage: "xmark")
             }
@@ -461,6 +546,7 @@ private struct ShellBadge: View {
 private struct TerminalPaneView: View {
     @ObservedObject var workspace: TerminalWorkspace
     @ObservedObject var preferences: TerminalPreferences
+    @ObservedObject var aiCommandAssistant: AICommandAssistantModel
 
     var body: some View {
         ZStack {
@@ -481,6 +567,12 @@ private struct TerminalPaneView: View {
                 .transition(.opacity)
                 .zIndex(2)
             }
+            AICommandAssistantLayer(
+                model: aiCommandAssistant,
+                workspace: workspace,
+                preferences: preferences
+            )
+            .zIndex(50)
         }
     }
 }

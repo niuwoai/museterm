@@ -33,16 +33,45 @@ struct AIExplainClient {
         contextText: String,
         onChunk: @escaping @MainActor (String) -> Void
     ) async throws -> String {
-        let prompt = prompt(for: contextText)
+        try await stream(
+            systemPrompt: L10n.string("ai_explain.system_prompt"),
+            userPrompt: prompt(for: contextText),
+            onChunk: onChunk
+        )
+    }
+
+    func stream(
+        systemPrompt: String,
+        userPrompt: String,
+        onChunk: @escaping @MainActor (String) -> Void
+    ) async throws -> String {
         switch configuration.provider {
         case .anthropic:
-            return try await anthropicStream(prompt: prompt, onChunk: onChunk)
+            return try await anthropicStream(
+                systemPrompt: systemPrompt,
+                prompt: userPrompt,
+                onChunk: onChunk
+            )
         case .google:
-            return try await googleStream(prompt: prompt, onChunk: onChunk)
+            return try await googleStream(
+                systemPrompt: systemPrompt,
+                prompt: userPrompt,
+                onChunk: onChunk
+            )
         case .azureOpenAI:
-            return try await openAICompatibleStream(prompt: prompt, azure: true, onChunk: onChunk)
+            return try await openAICompatibleStream(
+                systemPrompt: systemPrompt,
+                prompt: userPrompt,
+                azure: true,
+                onChunk: onChunk
+            )
         case .openAI, .openRouter, .someIM, .ollama, .llamaServer, .custom:
-            return try await openAICompatibleStream(prompt: prompt, azure: false, onChunk: onChunk)
+            return try await openAICompatibleStream(
+                systemPrompt: systemPrompt,
+                prompt: userPrompt,
+                azure: false,
+                onChunk: onChunk
+            )
         }
     }
 
@@ -55,6 +84,7 @@ struct AIExplainClient {
     }
 
     private func openAICompatibleStream(
+        systemPrompt: String,
         prompt: String,
         azure: Bool,
         onChunk: @escaping @MainActor (String) -> Void
@@ -74,7 +104,7 @@ struct AIExplainClient {
             "messages": [
                 [
                     "role": "system",
-                    "content": L10n.string("ai_explain.system_prompt")
+                    "content": systemPrompt
                 ],
                 [
                     "role": "user",
@@ -92,6 +122,7 @@ struct AIExplainClient {
     }
 
     private func anthropicStream(
+        systemPrompt: String,
         prompt: String,
         onChunk: @escaping @MainActor (String) -> Void
     ) async throws -> String {
@@ -105,7 +136,7 @@ struct AIExplainClient {
             "max_tokens": 1000,
             "temperature": 0.2,
             "stream": true,
-            "system": L10n.string("ai_explain.system_prompt"),
+            "system": systemPrompt,
             "messages": [
                 [
                     "role": "user",
@@ -121,6 +152,7 @@ struct AIExplainClient {
     }
 
     private func googleStream(
+        systemPrompt: String,
         prompt: String,
         onChunk: @escaping @MainActor (String) -> Void
     ) async throws -> String {
@@ -146,7 +178,7 @@ struct AIExplainClient {
                     "role": "user",
                     "parts": [
                         [
-                            "text": "\(L10n.string("ai_explain.system_prompt"))\n\n\(prompt)"
+                            "text": "\(systemPrompt)\n\n\(prompt)"
                         ]
                     ]
                 ]

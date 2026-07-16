@@ -3,6 +3,113 @@ import XCTest
 @testable import museterm
 
 final class AppPolicyTests: XCTestCase {
+    func testRepeatedCommandPalettePresentationKeepsPaletteVisible() {
+        var presentation = CommandPalettePresentationState()
+
+        presentation.present()
+        presentation.present()
+
+        XCTAssertTrue(presentation.isPresented)
+        presentation.dismiss()
+        XCTAssertFalse(presentation.isPresented)
+    }
+
+    func testCommandPaletteConsumesSupportedUnmodifiedKeys() throws {
+        let testCases: [(keyCode: UInt16, expected: CommandPaletteKeyboardAction)] = [
+            (126, .selectPrevious),
+            (125, .selectNext),
+            (36, .execute),
+            (76, .execute),
+            (53, .dismiss)
+        ]
+
+        for testCase in testCases {
+            let event = try XCTUnwrap(keyDownEvent(keyCode: testCase.keyCode))
+            XCTAssertEqual(CommandPaletteKeyboardAction.resolve(event: event), testCase.expected)
+        }
+    }
+
+    func testCommandPaletteLeavesTextAndModifiedKeysToSearchField() throws {
+        let letterEvent = try XCTUnwrap(keyDownEvent(keyCode: 0, characters: "a"))
+        let modifiedArrow = try XCTUnwrap(keyDownEvent(keyCode: 125, modifiers: [.shift]))
+
+        XCTAssertNil(CommandPaletteKeyboardAction.resolve(event: letterEvent))
+        XCTAssertNil(CommandPaletteKeyboardAction.resolve(event: modifiedArrow))
+    }
+
+    func testCommandPaletteDoesNotScrollWhileSelectionStaysInVisibleBand() {
+        // 高亮落在可视带 [top+margin, top+visibleCount-1-margin] = [8, 11] 内 → 列表不动。
+        let plan = CommandPaletteScrollPolicy.plan(
+            topIndex: 5,
+            selectedIndex: 9,
+            visibleCount: 10,
+            itemCount: 50,
+            margin: 3
+        )
+
+        XCTAssertEqual(plan, .none)
+    }
+
+    func testCommandPaletteScrollsUpToKeepMarginAboveWhenHittingTopEdge() {
+        // 高亮升到可视带上沿之上 → 滚动到高亮上方保留 margin 行：newTop = 6 - 3 = 3。
+        let plan = CommandPaletteScrollPolicy.plan(
+            topIndex: 5,
+            selectedIndex: 6,
+            visibleCount: 10,
+            itemCount: 50,
+            margin: 3
+        )
+
+        XCTAssertEqual(plan, .scrollTopTo(index: 3))
+    }
+
+    func testCommandPaletteScrollsDownToKeepMarginBelowWhenHittingBottomEdge() {
+        // 高亮降到可视带下沿之下 → newTop = 13 - (10-1) + 3 = 7，使高亮下方仍留 margin 行。
+        let plan = CommandPaletteScrollPolicy.plan(
+            topIndex: 5,
+            selectedIndex: 13,
+            visibleCount: 10,
+            itemCount: 50,
+            margin: 3
+        )
+
+        XCTAssertEqual(plan, .scrollTopTo(index: 7))
+    }
+
+    func testCommandPaletteDoesNotScrollWhenAllRowsFitViewport() {
+        let plan = CommandPaletteScrollPolicy.plan(
+            topIndex: 0,
+            selectedIndex: 4,
+            visibleCount: 5,
+            itemCount: 5,
+            margin: 3
+        )
+
+        XCTAssertEqual(plan, .none)
+    }
+
+    func testCommandPaletteClampsScrollAtListEnds() {
+        // 顶部已到 0，向上移动不再滚动。
+        let atTop = CommandPaletteScrollPolicy.plan(
+            topIndex: 0,
+            selectedIndex: 1,
+            visibleCount: 10,
+            itemCount: 50,
+            margin: 3
+        )
+        // 底部已到 maxTop（40），向下移动不再滚动。
+        let atBottom = CommandPaletteScrollPolicy.plan(
+            topIndex: 40,
+            selectedIndex: 49,
+            visibleCount: 10,
+            itemCount: 50,
+            margin: 3
+        )
+
+        XCTAssertEqual(atTop, .none)
+        XCTAssertEqual(atBottom, .none)
+    }
+
     func testDefaultPreferencesUseSeaSaltSkin() throws {
         let suiteName = "museterm.tests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -14,8 +121,102 @@ final class AppPolicyTests: XCTestCase {
         XCTAssertTrue(preferences.glassEnabled)
         XCTAssertTrue(preferences.showsTabList)
         XCTAssertEqual(preferences.fontSize, 14)
+        XCTAssertEqual(preferences.scrollbackLines, 3_000)
+        XCTAssertEqual(preferences.appShortcut(for: .newTab), "command+char:t")
+        XCTAssertEqual(preferences.appShortcut(for: .closeTab), "command+char:w")
+        XCTAssertEqual(preferences.appShortcut(for: .commandPalette), "shift+command+char:p")
+        XCTAssertEqual(preferences.appShortcut(for: .searchCommands), "command+char:f")
         XCTAssertEqual(preferences.lineStartShortcut, "command+left")
         XCTAssertEqual(preferences.lineEndShortcut, "command+right")
+    }
+
+    private func keyDownEvent(
+        keyCode: UInt16,
+        characters: String = "",
+        modifiers: NSEvent.ModifierFlags = []
+    ) -> NSEvent? {
+        NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: modifiers,
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: characters,
+            charactersIgnoringModifiers: characters,
+            isARepeat: false,
+            keyCode: keyCode
+        )
+    }
+
+    func testPrimaryShortcutsPersistAndResolveCommandPalette() throws {
+        let suiteName = "museterm.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let preferences = TerminalPreferences(defaults: defaults)
+        preferences.setAppShortcut("option+command+char:k", for: .commandPalette)
+
+        let reloaded = TerminalPreferences(defaults: defaults)
+        XCTAssertEqual(reloaded.appShortcut(for: .commandPalette), "option+command+char:k")
+
+        let event = try XCTUnwrap(NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.option, .command],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "k",
+            charactersIgnoringModifiers: "k",
+            isARepeat: false,
+            keyCode: 40
+        ))
+        XCTAssertEqual(
+            TerminalAppShortcutAction.resolve(
+                event: event,
+                shortcut: { reloaded.appShortcut(for: $0) }
+            ),
+            .commandPalette
+        )
+    }
+
+    func testShortcutAssignmentClearsConflictingBindings() throws {
+        let suiteName = "museterm.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let preferences = TerminalPreferences(defaults: defaults)
+        preferences.setAppShortcut("command+char:t", for: .commandPalette)
+
+        XCTAssertEqual(preferences.appShortcut(for: .commandPalette), "command+char:t")
+        XCTAssertEqual(preferences.appShortcut(for: .newTab), "")
+
+        preferences.setLineNavigationShortcut("command+char:t", for: .lineStart)
+        XCTAssertEqual(preferences.lineStartShortcut, "command+char:t")
+        XCTAssertEqual(preferences.appShortcut(for: .commandPalette), "")
+
+        preferences.restoreDefaultAppShortcuts()
+        XCTAssertEqual(preferences.appShortcut(for: .newTab), "command+char:t")
+        XCTAssertEqual(preferences.appShortcut(for: .commandPalette), "shift+command+char:p")
+        XCTAssertEqual(preferences.lineStartShortcut, "")
+    }
+
+    func testScrollbackLinesPersistAndClampToMaximum() throws {
+        let suiteName = "museterm.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let preferences = TerminalPreferences(defaults: defaults)
+        preferences.scrollbackLines = 12_000
+
+        var reloaded = TerminalPreferences(defaults: defaults)
+        XCTAssertEqual(reloaded.scrollbackLines, 12_000)
+
+        preferences.scrollbackLines = 99_000
+        reloaded = TerminalPreferences(defaults: defaults)
+        XCTAssertEqual(preferences.scrollbackLines, 20_000)
+        XCTAssertEqual(reloaded.scrollbackLines, 20_000)
     }
 
     func testLineNavigationShortcutsPersist() throws {
@@ -49,6 +250,13 @@ final class AppPolicyTests: XCTestCase {
         XCTAssertTrue(TerminalKeyBinding.defaultLineStart.matches(event))
         XCTAssertFalse(TerminalKeyBinding.defaultLineEnd.matches(event))
         XCTAssertEqual(TerminalKeyBinding.defaultLineStart.displayName, "⌘←")
+        let paletteBinding = try XCTUnwrap(TerminalKeyBinding(storageValue: "shift+command+char:p"))
+        XCTAssertEqual(paletteBinding.displayName, "⇧⌘P")
+        XCTAssertFalse(paletteBinding.isReservedApplicationShortcut)
+        XCTAssertTrue(
+            try XCTUnwrap(TerminalKeyBinding(storageValue: "command+char:1"))
+                .isReservedApplicationShortcut
+        )
         XCTAssertEqual(
             TerminalLineNavigationAction.resolve(
                 event: event,
@@ -228,7 +436,7 @@ final class AppPolicyTests: XCTestCase {
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         XCTAssertEqual(object["schemaVersion"] as? Int, 1)
-        XCTAssertEqual(object["app"] as? String, "MuseTerm")
+        XCTAssertEqual(object["app"] as? String, "QTerm")
         XCTAssertEqual(object["version"] as? String, "test")
         XCTAssertEqual(object["id"] as? String, "request-1")
         XCTAssertEqual(object["ok"] as? Bool, true)

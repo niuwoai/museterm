@@ -35,7 +35,7 @@ struct musetermApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .commands {
-            TerminalCommands()
+            TerminalCommands(preferences: preferences)
 
             CommandGroup(replacing: .appInfo) {
                 Button(L10n.string("menu.about")) {

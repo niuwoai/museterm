@@ -38,6 +38,116 @@ final class TerminalWorkspaceTests: XCTestCase {
         XCTAssertEqual(workspace.selectedID, secondTab.id)
     }
 
+    func testDetachTabRemovesFromTabsWithoutTerminating() throws {
+        let workspace = TerminalWorkspace(automaticallyStartProcesses: false)
+        let firstTab = try XCTUnwrap(workspace.selectedTab)
+        workspace.newTab()
+        let secondTab = try XCTUnwrap(workspace.selectedTab)
+        XCTAssertEqual(workspace.tabs.count, 2)
+
+        let detached = try XCTUnwrap(workspace.detachTab(secondTab))
+
+        XCTAssertEqual(detached.id, secondTab.id)
+        XCTAssertEqual(workspace.tabs.count, 1)
+        XCTAssertFalse(workspace.tabs.contains { $0.id == secondTab.id })
+        // 分离后当前选中回落到剩余标签，而非清空。
+        XCTAssertEqual(workspace.selectedID, firstTab.id)
+    }
+
+    func testDetachingOnlyTabSpawnsFreshTabToKeepMainWindowAlive() throws {
+        let workspace = TerminalWorkspace(automaticallyStartProcesses: false)
+        let onlyTab = try XCTUnwrap(workspace.selectedTab)
+
+        let detached = try XCTUnwrap(workspace.detachTab(onlyTab))
+
+        XCTAssertEqual(detached.id, onlyTab.id)
+        // 主窗口不能空着：应补一个全新的标签（非被分离的那个）。
+        XCTAssertEqual(workspace.tabs.count, 1)
+        let replacement = try XCTUnwrap(workspace.selectedTab)
+        XCTAssertNotEqual(replacement.id, onlyTab.id)
+    }
+
+    func testReattachTabAddsSessionBackAndSelectsIt() throws {
+        let workspace = TerminalWorkspace(automaticallyStartProcesses: false)
+        let firstTab = try XCTUnwrap(workspace.selectedTab)
+        workspace.newTab()
+        let secondTab = try XCTUnwrap(workspace.selectedTab)
+
+        let detached = try XCTUnwrap(workspace.detachTab(secondTab))
+        XCTAssertEqual(workspace.selectedID, firstTab.id)
+
+        XCTAssertTrue(workspace.reattachTab(detached))
+
+        XCTAssertEqual(workspace.tabs.count, 2)
+        XCTAssertTrue(workspace.tabs.contains { $0.id == secondTab.id })
+        XCTAssertEqual(workspace.selectedID, secondTab.id)
+    }
+
+    func testReattachTabAlreadyPresentIsIgnored() throws {
+        let workspace = TerminalWorkspace(automaticallyStartProcesses: false)
+        let firstTab = try XCTUnwrap(workspace.selectedTab)
+
+        XCTAssertFalse(workspace.reattachTab(firstTab))
+        XCTAssertEqual(workspace.tabs.count, 1)
+    }
+
+    func testBlacklistedQuickPathIsExcludedAndNotReAdded() throws {
+        let dirA = try makeTemporaryDirectory()
+        let dirB = try makeTemporaryDirectory()
+        let storeDirectory = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: dirA)
+            try? FileManager.default.removeItem(at: dirB)
+            try? FileManager.default.removeItem(at: storeDirectory)
+        }
+        let previous = TerminalQuickPathStore._setTestDirectoryOverride(storeDirectory)
+        defer { _ = TerminalQuickPathStore._setTestDirectoryOverride(previous) }
+
+        let workspace = TerminalWorkspace(automaticallyStartProcesses: false)
+        let tab = try XCTUnwrap(workspace.selectedTab)
+        // 交替 cd 使 dirA 累计 5 次访问 → 既是最近、也够常用阈值。
+        for _ in 0..<5 {
+            tab.currentDirectory = dirB.path
+            tab.currentDirectory = dirA.path
+        }
+        XCTAssertTrue(workspace.recentQuickPaths.contains { $0.path == dirA.path })
+        XCTAssertTrue(workspace.frequentQuickPaths(limit: 10).contains { $0.path == dirA.path })
+
+        workspace.blacklistQuickPath(dirA.path)
+
+        XCTAssertFalse(workspace.recentQuickPaths.contains { $0.path == dirA.path })
+        XCTAssertFalse(workspace.frequentQuickPaths(limit: 10).contains { $0.path == dirA.path })
+        XCTAssertTrue(workspace.blacklistedQuickPaths.contains(dirA.path))
+        XCTAssertTrue(TerminalQuickPathBlacklistStore.load().contains(dirA.path))
+
+        // 拉黑后再次 cd 到 dirA，也不该把它加回最近列表。
+        tab.currentDirectory = dirB.path
+        tab.currentDirectory = dirA.path
+        XCTAssertFalse(workspace.recentQuickPaths.contains { $0.path == dirA.path })
+    }
+
+    func testQuickPathBlacklistStoreRoundTrips() throws {
+        let storeDirectory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: storeDirectory) }
+        let previous = TerminalQuickPathStore._setTestDirectoryOverride(storeDirectory)
+        defer { _ = TerminalQuickPathStore._setTestDirectoryOverride(previous) }
+
+        XCTAssertTrue(TerminalQuickPathBlacklistStore.load().isEmpty)
+        TerminalQuickPathBlacklistStore.save(["/tmp/alpha", "/tmp/beta"])
+        XCTAssertEqual(TerminalQuickPathBlacklistStore.load(), ["/tmp/alpha", "/tmp/beta"])
+    }
+
+    func testLearnedCommandBlacklistStoreRoundTrips() throws {
+        let storeDirectory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: storeDirectory) }
+        let previous = LearnedCommandStore._setTestDirectoryOverride(storeDirectory)
+        defer { _ = LearnedCommandStore._setTestDirectoryOverride(previous) }
+
+        XCTAssertTrue(LearnedCommandBlacklistStore.load().isEmpty)
+        LearnedCommandBlacklistStore.save(["git status", "ls -la"])
+        XCTAssertEqual(LearnedCommandBlacklistStore.load(), ["git status", "ls -la"])
+    }
+
     func testNewLocalTabInheritsSelectedLocalTabDirectory() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }

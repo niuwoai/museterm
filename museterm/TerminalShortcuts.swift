@@ -235,6 +235,7 @@ struct TerminalShortcut: Codable, Equatable, Identifiable {
     var durationMilliseconds: Int
     var events: [TerminalShortcutEvent]
     var hasProtectedInput: Bool
+    var executionContext: TerminalExecutionContext? = nil
 
     var eventCount: Int { events.count }
     var isPlayable: Bool { !events.isEmpty }
@@ -340,7 +341,12 @@ final class TerminalShortcutRecorder {
         lastRecordedInputAt = anchor ?? now
     }
 
-    func finish(title: String, id: UUID = UUID(), finishedAt: Date = Date()) -> TerminalShortcut? {
+    func finish(
+        title: String,
+        id: UUID = UUID(),
+        executionContext: TerminalExecutionContext? = nil,
+        finishedAt: Date = Date()
+    ) -> TerminalShortcut? {
         flushPendingInput(now: finishedAt)
         guard !events.isEmpty else { return nil }
         return TerminalShortcut(
@@ -350,7 +356,8 @@ final class TerminalShortcutRecorder {
             updatedAt: finishedAt,
             durationMilliseconds: max(0, Int(finishedAt.timeIntervalSince(startedAt) * 1000)),
             events: events,
-            hasProtectedInput: hasProtectedInput
+            hasProtectedInput: hasProtectedInput,
+            executionContext: executionContext
         ).normalized
     }
 }
@@ -694,24 +701,29 @@ enum MuseTermKeychain {
 
     @discardableResult
     nonisolated static func save(_ secret: String, account: String) -> Bool {
+        save(secret, account: account, serviceName: service)
+    }
+
+    @discardableResult
+    nonisolated static func save(_ secret: String, account: String, serviceName: String) -> Bool {
         let trimmed = secret.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else {
-            delete(account: account)
+            delete(account: account, serviceName: serviceName)
             return true
         }
 
         if testStorage != nil {
-            testStorage?[account] = trimmed
+            testStorage?[storageKey(serviceName: serviceName, account: account)] = trimmed
             return true
         }
         if isRunningUnderXCTest {
-            xctestStorage[account] = trimmed
+            xctestStorage[storageKey(serviceName: serviceName, account: account)] = trimmed
             return true
         }
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
+            kSecAttrService as String: serviceName,
             kSecAttrAccount as String: account
         ]
         let update: [String: Any] = [
@@ -719,7 +731,10 @@ enum MuseTermKeychain {
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
         ]
         let status = SecItemUpdate(query as CFDictionary, update as CFDictionary)
-        if status == errSecSuccess { return true }
+        if status == errSecSuccess,
+           load(account: account, serviceName: serviceName) == trimmed {
+            return true
+        }
         if status != errSecItemNotFound {
             SecItemDelete(query as CFDictionary)
         }
@@ -727,20 +742,25 @@ enum MuseTermKeychain {
         var add = query
         add[kSecValueData as String] = data
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
+        guard SecItemAdd(add as CFDictionary, nil) == errSecSuccess else { return false }
+        return load(account: account, serviceName: serviceName) == trimmed
     }
 
     nonisolated static func load(account: String) -> String {
+        load(account: account, serviceName: service)
+    }
+
+    nonisolated static func load(account: String, serviceName: String) -> String {
         if let testStorage {
-            return testStorage[account] ?? ""
+            return testStorage[storageKey(serviceName: serviceName, account: account)] ?? ""
         }
         if isRunningUnderXCTest {
-            return xctestStorage[account] ?? ""
+            return xctestStorage[storageKey(serviceName: serviceName, account: account)] ?? ""
         }
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
+            kSecAttrService as String: serviceName,
             kSecAttrAccount as String: account,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
@@ -755,20 +775,28 @@ enum MuseTermKeychain {
     }
 
     nonisolated static func delete(account: String) {
+        delete(account: account, serviceName: service)
+    }
+
+    nonisolated static func delete(account: String, serviceName: String) {
         if testStorage != nil {
-            testStorage?.removeValue(forKey: account)
+            testStorage?.removeValue(forKey: storageKey(serviceName: serviceName, account: account))
             return
         }
         if isRunningUnderXCTest {
-            xctestStorage.removeValue(forKey: account)
+            xctestStorage.removeValue(forKey: storageKey(serviceName: serviceName, account: account))
             return
         }
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
+            kSecAttrService as String: serviceName,
             kSecAttrAccount as String: account
         ]
         SecItemDelete(query as CFDictionary)
+    }
+
+    nonisolated private static func storageKey(serviceName: String, account: String) -> String {
+        "\(serviceName)\u{1F}\(account)"
     }
 }

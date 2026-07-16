@@ -169,7 +169,7 @@ enum TerminalCommandRiskAnalyzer {
             normalized,
             [
                 "ls", "pwd", "cat", "less", "more", "tail", "head", "grep", "rg", "find", "awk",
-                "jq", "yq", "ps", "lsof", "netstat", "ss", "whoami", "id", "uname", "date",
+                "jq", "yq", "ps", "lsof", "netstat", "ss", "journalctl", "whoami", "id", "uname", "date",
                 "df", "du", "env", "printenv", "which", "where", "type", "echo", "printf",
                 "git status", "git log", "git diff", "git show", "git branch", "git rev-parse"
             ]

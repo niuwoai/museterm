@@ -2,6 +2,36 @@ import XCTest
 @testable import museterm
 
 final class AIExplainClientTests: XCTestCase {
+    func testSettingsWindowSessionSavesPendingAPIKeyBeforeClosing() throws {
+        MuseTermKeychain._useTestStorage(true)
+        defer { MuseTermKeychain._useTestStorage(false) }
+        let preferences = try isolatedPreferences()
+        preferences.aiProvider = .someIM
+        let session = SettingsWindowSession()
+        session.aiAPIKeyDraft = "  pending-api-key  "
+
+        XCTAssertTrue(session.savePendingAIAPIKey(preferences: preferences))
+        XCTAssertEqual(session.aiAPIKeyDraft, "")
+        XCTAssertEqual(preferences.loadAIAPIKey(), "pending-api-key")
+        XCTAssertEqual(
+            session.aiStatusMessage,
+            L10n.string("settings.ai.api_key.save_success")
+        )
+    }
+
+    func testLegacyAIKeychainEntryMigratesToDedicatedService() throws {
+        MuseTermKeychain._useTestStorage(true)
+        defer { MuseTermKeychain._useTestStorage(false) }
+        let preferences = try isolatedPreferences()
+        preferences.aiProvider = .someIM
+        let account = "ai-provider/someIM/api-key"
+        XCTAssertTrue(MuseTermKeychain.save("legacy-api-key", account: account))
+
+        XCTAssertEqual(preferences.loadAIAPIKey(), "legacy-api-key")
+        XCTAssertEqual(MuseTermKeychain.load(account: account), "")
+        XCTAssertEqual(preferences.loadAIAPIKey(), "legacy-api-key")
+    }
+
     func testConfigurationRequiresModelBeforeNetworkUse() throws {
         let preferences = try isolatedPreferences()
         preferences.aiProvider = .ollama

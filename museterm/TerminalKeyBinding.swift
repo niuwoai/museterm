@@ -54,6 +54,36 @@ struct TerminalKeyBinding: Equatable {
         return modifierSymbols + Self.keyDisplayName(key)
     }
 
+    var keyEquivalent: KeyEquivalent? {
+        switch key {
+        case "left": return .leftArrow
+        case "right": return .rightArrow
+        case "up": return .upArrow
+        case "down": return .downArrow
+        case "home": return .home
+        case "end": return .end
+        case "pageup": return .pageUp
+        case "pagedown": return .pageDown
+        case "plus": return KeyEquivalent("+")
+        default:
+            guard key.hasPrefix("char:"), let character = key.dropFirst(5).first else { return nil }
+            return KeyEquivalent(character)
+        }
+    }
+
+    var eventModifiers: EventModifiers {
+        var result: EventModifiers = []
+        if modifiers.contains(.control) { result.insert(.control) }
+        if modifiers.contains(.option) { result.insert(.option) }
+        if modifiers.contains(.shift) { result.insert(.shift) }
+        if modifiers.contains(.command) { result.insert(.command) }
+        return result
+    }
+
+    var isReservedApplicationShortcut: Bool {
+        Self.reservedApplicationShortcuts.contains(storageValue)
+    }
+
     func matches(_ event: NSEvent) -> Bool {
         event.modifierFlags.intersection(Self.supportedModifiers) == modifiers
             && Self.keyIdentifier(for: event) == key
@@ -110,6 +140,91 @@ struct TerminalKeyBinding: Equatable {
             return String(key.dropFirst(5)).uppercased()
         }
     }
+
+    private static let reservedApplicationShortcuts: Set<String> = {
+        var values: Set<String> = [
+            "command+char:q",
+            "command+char:h",
+            "option+command+char:h",
+            "command+char:m",
+            "command+char:,",
+            "command+char:n",
+            "option+command+char:s",
+            "option+command+char:o",
+            "command+char:c",
+            "command+char:v",
+            "command+char:x",
+            "command+char:a",
+            "command+char:z",
+            "shift+command+char:z"
+        ]
+        for tabNumber in 1...9 {
+            values.insert("command+char:\(tabNumber)")
+        }
+        return values
+    }()
+}
+
+enum TerminalAppShortcutAction: String, CaseIterable, Identifiable {
+    case newTab
+    case closeTab
+    case commandPalette
+    case searchCommands
+    case previousTab
+    case nextTab
+
+    var id: String { rawValue }
+
+    var titleKey: String {
+        switch self {
+        case .newTab: return "action.new_tab"
+        case .closeTab: return "action.close_tab"
+        case .commandPalette: return "command_palette.title"
+        case .searchCommands: return "action.search_commands"
+        case .previousTab: return "action.previous_tab"
+        case .nextTab: return "action.next_tab"
+        }
+    }
+
+    var defaultStorageValue: String {
+        switch self {
+        case .newTab: return "command+char:t"
+        case .closeTab: return "command+char:w"
+        case .commandPalette: return "shift+command+char:p"
+        case .searchCommands: return "command+char:f"
+        case .previousTab: return "shift+command+char:["
+        case .nextTab: return "shift+command+char:]"
+        }
+    }
+
+    static func resolve(
+        event: NSEvent,
+        shortcut: (TerminalAppShortcutAction) -> String
+    ) -> TerminalAppShortcutAction? {
+        allCases.first { action in
+            TerminalKeyBinding(storageValue: shortcut(action))?.matches(event) == true
+        }
+    }
+}
+
+private struct OptionalTerminalKeyboardShortcutModifier: ViewModifier {
+    let storageValue: String
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let binding = TerminalKeyBinding(storageValue: storageValue),
+           let keyEquivalent = binding.keyEquivalent {
+            content.keyboardShortcut(keyEquivalent, modifiers: binding.eventModifiers)
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    func terminalKeyboardShortcut(_ storageValue: String) -> some View {
+        modifier(OptionalTerminalKeyboardShortcutModifier(storageValue: storageValue))
+    }
 }
 
 enum TerminalLineNavigationAction: Equatable {
@@ -140,6 +255,15 @@ enum TerminalLineNavigationAction: Equatable {
 
 struct TerminalKeyShortcutRecorder: NSViewRepresentable {
     @Binding var storageValue: String
+    let validator: (TerminalKeyBinding) -> Bool
+
+    init(
+        storageValue: Binding<String>,
+        validator: @escaping (TerminalKeyBinding) -> Bool = { !$0.isReservedApplicationShortcut }
+    ) {
+        _storageValue = storageValue
+        self.validator = validator
+    }
 
     func makeNSView(context: Context) -> TerminalKeyShortcutRecorderButton {
         let button = TerminalKeyShortcutRecorderButton()
@@ -153,11 +277,12 @@ struct TerminalKeyShortcutRecorder: NSViewRepresentable {
 
     private func configure(_ button: TerminalKeyShortcutRecorderButton) {
         button.binding = TerminalKeyBinding(storageValue: storageValue)
+        button.validator = validator
         button.onChange = { binding in
             storageValue = binding?.storageValue ?? ""
         }
-        button.toolTip = L10n.string("settings.line_navigation.record_help")
-        button.setAccessibilityLabel(L10n.string("settings.line_navigation.record_accessibility"))
+        button.toolTip = L10n.string("settings.shortcuts.record_help")
+        button.setAccessibilityLabel(L10n.string("settings.shortcuts.record_accessibility"))
     }
 }
 
@@ -166,6 +291,7 @@ final class TerminalKeyShortcutRecorderButton: NSButton {
         didSet { refreshTitle() }
     }
     var onChange: ((TerminalKeyBinding?) -> Void)?
+    var validator: (TerminalKeyBinding) -> Bool = { _ in true }
 
     private var isRecordingShortcut = false
     private var eventMonitor: Any?
@@ -202,7 +328,7 @@ final class TerminalKeyShortcutRecorderButton: NSButton {
     @objc private func beginRecording() {
         guard !isRecordingShortcut else { return }
         isRecordingShortcut = true
-        title = L10n.string("settings.line_navigation.recording")
+        title = L10n.string("settings.shortcuts.recording")
         window?.makeFirstResponder(self)
         eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, self.isRecordingShortcut else { return event }
@@ -221,6 +347,10 @@ final class TerminalKeyShortcutRecorderButton: NSButton {
             finishRecording()
         default:
             guard let captured = TerminalKeyBinding(event: event) else {
+                NSSound.beep()
+                return
+            }
+            guard validator(captured) else {
                 NSSound.beep()
                 return
             }
@@ -245,6 +375,6 @@ final class TerminalKeyShortcutRecorderButton: NSButton {
 
     private func refreshTitle() {
         guard !isRecordingShortcut else { return }
-        title = binding?.displayName ?? L10n.string("settings.line_navigation.unassigned")
+        title = binding?.displayName ?? L10n.string("settings.shortcuts.unassigned")
     }
 }

@@ -174,6 +174,10 @@ enum TerminalQuickPathStore {
         return previous
     }
 
+    static var blacklistFileURL: URL {
+        directory.appendingPathComponent("blacklisted-paths.json")
+    }
+
     private static func prepared(
         _ records: [TerminalQuickPathRecord],
         validateExistingDirectories: Bool = false
@@ -210,5 +214,36 @@ enum TerminalQuickPathStore {
             }
             .prefix(maxStoredPaths)
             .map { $0.normalized }
+    }
+}
+
+/// 被「拉黑」的路径：无论访问多频繁，都不再出现在最近/常用路径里。存于快捷路径同目录，
+/// 复用 TerminalQuickPathStore 的测试目录注入。存归一化（展开 ~）后的绝对路径字符串。
+enum TerminalQuickPathBlacklistStore {
+    static func load() -> Set<String> {
+        let url = TerminalQuickPathStore.blacklistFileURL
+        guard FileManager.default.fileExists(atPath: url.path) else { return [] }
+        do {
+            let list = try JSONDecoder().decode([String].self, from: Data(contentsOf: url))
+            return Set(list.map { ($0 as NSString).expandingTildeInPath })
+        } catch {
+            NSLog("MuseTerm quick path blacklist load failed: \(error.localizedDescription)")
+            return []
+        }
+    }
+
+    static func save(_ paths: Set<String>) {
+        let url = TerminalQuickPathStore.blacklistFileURL
+        do {
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            try encoder.encode(paths.sorted()).write(to: url, options: .atomic)
+        } catch {
+            NSLog("MuseTerm quick path blacklist save failed: \(error.localizedDescription)")
+        }
     }
 }

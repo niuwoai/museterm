@@ -142,6 +142,8 @@ enum AIProviderKind: String, CaseIterable, Identifiable {
 }
 
 final class TerminalPreferences: ObservableObject {
+    private static let aiKeychainServiceName = "im.some.museterm.ai-credentials"
+
     private enum Keys {
         static let skin = "terminal.skin"
         static let fontFamily = "terminal.fontFamily"
@@ -156,11 +158,14 @@ final class TerminalPreferences: ObservableObject {
         static let glow = "terminal.glow"
         static let optionAsMeta = "terminal.optionAsMeta"
         static let mouseReporting = "terminal.mouseReporting"
+        static let scrollbackLines = "terminal.scrollbackLines"
         static let showsTabList = "terminal.showsTabList"
         static let cursorShape = "terminal.cursorShape"
         static let cursorBlink = "terminal.cursorBlink"
+        static let appShortcuts = "terminal.shortcuts.app"
         static let lineStartShortcut = "terminal.shortcut.lineStart"
         static let lineEndShortcut = "terminal.shortcut.lineEnd"
+        static let aiCommandActivation = "terminal.aiCommandActivation"
         static let confirmMultilinePaste = "terminal.confirmMultilinePaste"
         static let confirmDangerousCommands = "terminal.confirmDangerousCommands"
         static let customDangerousCommandRules = "terminal.customDangerousCommandRules"
@@ -175,6 +180,7 @@ final class TerminalPreferences: ObservableObject {
         static let notificationCooldownSeconds = "notifications.cooldownSeconds"
         static let includeCommandInNotifications = "notifications.includeCommand"
         static let appleScriptInputEnabled = "applescript.inputEnabled"
+        static let detachedPanelOpacity = "detachedPanel.opacity"
         static let appIcon = "app.icon"
         static let aiProvider = "ai.provider"
         static let aiModel = "ai.model"
@@ -183,6 +189,9 @@ final class TerminalPreferences: ObservableObject {
     }
 
     private let defaults: UserDefaults
+    static let minimumScrollbackLines = 500
+    static let defaultScrollbackLines = 3_000
+    static let maximumScrollbackLines = 20_000
 
     @Published var skin: TerminalVisualSkin { didSet { defaults.set(skin.rawValue, forKey: Keys.skin) } }
     @Published var fontFamily: String { didSet { defaults.set(fontFamily, forKey: Keys.fontFamily) } }
@@ -197,11 +206,27 @@ final class TerminalPreferences: ObservableObject {
     @Published var glow: Double { didSet { defaults.set(glow, forKey: Keys.glow) } }
     @Published var optionAsMeta: Bool { didSet { defaults.set(optionAsMeta, forKey: Keys.optionAsMeta) } }
     @Published var mouseReporting: Bool { didSet { defaults.set(mouseReporting, forKey: Keys.mouseReporting) } }
+    @Published var scrollbackLines: Int {
+        didSet {
+            let normalized = Self.clampedScrollbackLines(scrollbackLines)
+            guard scrollbackLines == normalized else {
+                scrollbackLines = normalized
+                return
+            }
+            defaults.set(scrollbackLines, forKey: Keys.scrollbackLines)
+        }
+    }
     @Published var showsTabList: Bool { didSet { defaults.set(showsTabList, forKey: Keys.showsTabList) } }
     @Published var cursorShape: TerminalCursorShape { didSet { defaults.set(cursorShape.rawValue, forKey: Keys.cursorShape) } }
     @Published var cursorBlink: Bool { didSet { defaults.set(cursorBlink, forKey: Keys.cursorBlink) } }
+    @Published private(set) var appShortcutOverrides: [String: String] {
+        didSet { defaults.set(appShortcutOverrides, forKey: Keys.appShortcuts) }
+    }
     @Published var lineStartShortcut: String { didSet { defaults.set(lineStartShortcut, forKey: Keys.lineStartShortcut) } }
     @Published var lineEndShortcut: String { didSet { defaults.set(lineEndShortcut, forKey: Keys.lineEndShortcut) } }
+    @Published var aiCommandActivation: AICommandActivation {
+        didSet { defaults.set(aiCommandActivation.rawValue, forKey: Keys.aiCommandActivation) }
+    }
     @Published var confirmMultilinePaste: Bool { didSet { defaults.set(confirmMultilinePaste, forKey: Keys.confirmMultilinePaste) } }
     @Published var confirmDangerousCommands: Bool { didSet { defaults.set(confirmDangerousCommands, forKey: Keys.confirmDangerousCommands) } }
     @Published var customDangerousCommandRules: String { didSet { defaults.set(customDangerousCommandRules, forKey: Keys.customDangerousCommandRules) } }
@@ -216,6 +241,8 @@ final class TerminalPreferences: ObservableObject {
     @Published var notificationCooldownSeconds: Double { didSet { defaults.set(notificationCooldownSeconds, forKey: Keys.notificationCooldownSeconds) } }
     @Published var includeCommandInNotifications: Bool { didSet { defaults.set(includeCommandInNotifications, forKey: Keys.includeCommandInNotifications) } }
     @Published var appleScriptInputEnabled: Bool { didSet { defaults.set(appleScriptInputEnabled, forKey: Keys.appleScriptInputEnabled) } }
+    // 分离悬浮面板的整体不透明度（含文字），默认 0.5，让面板半透融入桌面；与终端 glassOpacity 独立。
+    @Published var detachedPanelOpacity: Double { didSet { defaults.set(detachedPanelOpacity, forKey: Keys.detachedPanelOpacity) } }
     @Published var aiProvider: AIProviderKind {
         didSet {
             let previousProvider = oldValue
@@ -255,13 +282,21 @@ final class TerminalPreferences: ObservableObject {
         glow = defaults.object(forKey: Keys.glow) as? Double ?? 0.24
         optionAsMeta = defaults.object(forKey: Keys.optionAsMeta) as? Bool ?? true
         mouseReporting = defaults.object(forKey: Keys.mouseReporting) as? Bool ?? true
+        scrollbackLines = Self.clampedScrollbackLines(
+            defaults.object(forKey: Keys.scrollbackLines) as? Int ?? Self.defaultScrollbackLines
+        )
         showsTabList = defaults.object(forKey: Keys.showsTabList) as? Bool ?? true
         cursorShape = TerminalCursorShape(rawValue: defaults.string(forKey: Keys.cursorShape) ?? "") ?? .block
         cursorBlink = defaults.object(forKey: Keys.cursorBlink) as? Bool ?? true
+        appShortcutOverrides = (defaults.dictionary(forKey: Keys.appShortcuts) ?? [:])
+            .compactMapValues { $0 as? String }
         lineStartShortcut = defaults.string(forKey: Keys.lineStartShortcut)
             ?? TerminalKeyBinding.defaultLineStart.storageValue
         lineEndShortcut = defaults.string(forKey: Keys.lineEndShortcut)
             ?? TerminalKeyBinding.defaultLineEnd.storageValue
+        aiCommandActivation = AICommandActivation(
+            rawValue: defaults.string(forKey: Keys.aiCommandActivation) ?? ""
+        ) ?? .doubleControl
         confirmMultilinePaste = defaults.object(forKey: Keys.confirmMultilinePaste) as? Bool ?? true
         confirmDangerousCommands = defaults.object(forKey: Keys.confirmDangerousCommands) as? Bool ?? true
         customDangerousCommandRules = defaults.string(forKey: Keys.customDangerousCommandRules) ?? ""
@@ -276,6 +311,7 @@ final class TerminalPreferences: ObservableObject {
         notificationCooldownSeconds = defaults.object(forKey: Keys.notificationCooldownSeconds) as? Double ?? 10
         includeCommandInNotifications = defaults.object(forKey: Keys.includeCommandInNotifications) as? Bool ?? false
         appleScriptInputEnabled = defaults.object(forKey: Keys.appleScriptInputEnabled) as? Bool ?? true
+        detachedPanelOpacity = defaults.object(forKey: Keys.detachedPanelOpacity) as? Double ?? 0.5
         let storedAIProvider = AIProviderKind(rawValue: defaults.string(forKey: Keys.aiProvider) ?? "") ?? .someIM
         aiProvider = storedAIProvider
         aiModel = defaults.string(forKey: Keys.aiModel) ?? storedAIProvider.defaultModel
@@ -284,6 +320,58 @@ final class TerminalPreferences: ObservableObject {
         appIcon = AppIconChoice(rawValue: defaults.string(forKey: Keys.appIcon) ?? "") ?? .defaultTerminal
         normalizeBuiltInAIProviderDefaults()
         AppIconManager.apply(appIcon)
+    }
+
+    static func clampedScrollbackLines(_ value: Int) -> Int {
+        min(max(value, minimumScrollbackLines), maximumScrollbackLines)
+    }
+
+    func appShortcut(for action: TerminalAppShortcutAction) -> String {
+        appShortcutOverrides[action.rawValue] ?? action.defaultStorageValue
+    }
+
+    func setAppShortcut(_ storageValue: String, for action: TerminalAppShortcutAction) {
+        var nextOverrides = appShortcutOverrides
+        if !storageValue.isEmpty {
+            for otherAction in TerminalAppShortcutAction.allCases where otherAction != action {
+                if appShortcut(for: otherAction) == storageValue {
+                    nextOverrides[otherAction.rawValue] = ""
+                }
+            }
+            if lineStartShortcut == storageValue { lineStartShortcut = "" }
+            if lineEndShortcut == storageValue { lineEndShortcut = "" }
+        }
+        nextOverrides[action.rawValue] = storageValue
+        appShortcutOverrides = nextOverrides
+    }
+
+    func restoreDefaultAppShortcuts() {
+        let defaultValues = Set(TerminalAppShortcutAction.allCases.map(\.defaultStorageValue))
+        if defaultValues.contains(lineStartShortcut) { lineStartShortcut = "" }
+        if defaultValues.contains(lineEndShortcut) { lineEndShortcut = "" }
+        appShortcutOverrides = [:]
+        aiCommandActivation = .doubleControl
+    }
+
+    func setLineNavigationShortcut(_ storageValue: String, for action: TerminalLineNavigationAction) {
+        var nextOverrides = appShortcutOverrides
+        if !storageValue.isEmpty {
+            for appAction in TerminalAppShortcutAction.allCases where appShortcut(for: appAction) == storageValue {
+                nextOverrides[appAction.rawValue] = ""
+            }
+        }
+
+        switch action {
+        case .lineStart:
+            lineStartShortcut = storageValue
+            if !storageValue.isEmpty, lineEndShortcut == storageValue { lineEndShortcut = "" }
+        case .lineEnd:
+            lineEndShortcut = storageValue
+            if !storageValue.isEmpty, lineStartShortcut == storageValue { lineStartShortcut = "" }
+        }
+        if nextOverrides != appShortcutOverrides {
+            appShortcutOverrides = nextOverrides
+        }
     }
 
     var terminalFont: NSFont {
@@ -303,20 +391,43 @@ final class TerminalPreferences: ObservableObject {
     }
 
     var hasAIAPIKey: Bool {
-        !MuseTermKeychain.load(account: aiAPIKeyAccount).isEmpty
+        !loadAIAPIKey().isEmpty
     }
 
     func loadAIAPIKey() -> String {
-        MuseTermKeychain.load(account: aiAPIKeyAccount)
+        let current = MuseTermKeychain.load(
+            account: aiAPIKeyAccount,
+            serviceName: Self.aiKeychainServiceName
+        )
+        guard current.isEmpty else { return current }
+
+        let legacy = MuseTermKeychain.load(account: aiAPIKeyAccount)
+        guard !legacy.isEmpty else { return "" }
+        if MuseTermKeychain.save(
+            legacy,
+            account: aiAPIKeyAccount,
+            serviceName: Self.aiKeychainServiceName
+        ) {
+            MuseTermKeychain.delete(account: aiAPIKeyAccount)
+        }
+        return legacy
     }
 
     func saveAIAPIKey(_ apiKey: String) -> Bool {
-        let saved = MuseTermKeychain.save(apiKey, account: aiAPIKeyAccount)
+        let saved = MuseTermKeychain.save(
+            apiKey,
+            account: aiAPIKeyAccount,
+            serviceName: Self.aiKeychainServiceName
+        )
         objectWillChange.send()
         return saved && !loadAIAPIKey().isEmpty
     }
 
     func clearAIAPIKey() {
+        MuseTermKeychain.delete(
+            account: aiAPIKeyAccount,
+            serviceName: Self.aiKeychainServiceName
+        )
         MuseTermKeychain.delete(account: aiAPIKeyAccount)
         objectWillChange.send()
     }

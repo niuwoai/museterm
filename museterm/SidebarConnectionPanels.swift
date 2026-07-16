@@ -154,6 +154,11 @@ struct TerminalQuickPathSection: View {
                 } label: {
                     Label(L10n.string("quick_path.remove"), systemImage: "trash")
                 }
+                Button(role: .destructive) {
+                    workspace.blacklistQuickPath(record.path)
+                } label: {
+                    Label(L10n.string("quick_path.blacklist"), systemImage: "nosign")
+                }
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 11, weight: .semibold))
@@ -288,6 +293,7 @@ struct TerminalShortcutSection: View {
     private static let recordAccent = Color(red: 0.78, green: 0.34, blue: 0.20)
 
     @ObservedObject var workspace: TerminalWorkspace
+    @ObservedObject var sshStore: SSHConnectionStore
     let skin: TerminalVisualSkin
     @State private var renameDraft: TerminalShortcutRenameDraft?
     @State private var isEditingJSON = false
@@ -433,7 +439,7 @@ struct TerminalShortcutSection: View {
     private func shortcutRow(_ shortcut: TerminalShortcut) -> some View {
         HStack(spacing: 4) {
             Button {
-                workspace.playShortcut(shortcut)
+                playShortcut(shortcut)
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "play.fill")
@@ -457,7 +463,7 @@ struct TerminalShortcutSection: View {
 
             Menu {
                 Button {
-                    workspace.playShortcut(shortcut)
+                    playShortcut(shortcut)
                 } label: {
                     Label(L10n.string("shortcut.play"), systemImage: "play.fill")
                 }
@@ -491,6 +497,15 @@ struct TerminalShortcutSection: View {
         .background(skin.controlFill)
         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         .help(L10n.format("shortcut.tooltip", shortcut.eventCount, max(1, shortcut.durationMilliseconds / 1000)))
+    }
+
+    private func playShortcut(_ shortcut: TerminalShortcut) {
+        do {
+            try workspace.playShortcutInRecordedContext(shortcut, sshProfiles: sshStore.profiles)
+        } catch {
+            NSSound.beep()
+            shortcutMessage = L10n.format("shortcut.context_error", error.localizedDescription)
+        }
     }
 }
 
@@ -1289,7 +1304,7 @@ private struct FileTransferControls: View {
     }
 }
 
-private struct SidebarSection<Content: View>: View {
+struct SidebarSection<Content: View>: View {
     let title: String
     let systemImage: String
     let skin: TerminalVisualSkin

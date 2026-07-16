@@ -1,11 +1,11 @@
-# MuseTerm AppleScript 支持需求文档
+# QTerm AppleScript 支持需求文档
 
 > 版本：v1.225.0-rc2 | 最后更新：2026-07-11
 > 状态：P1 / P2 / P3 全量实现
 
 ## 1. 背景与目标
 
-macOS 上专业终端的隐形门槛之一是 AppleScript 可脚本化：iTerm2 的词典支撑了大量自动化工作流，系统 Terminal 也提供 `do script`。MuseTerm 已有 CLI、MCP、Tool Bridge 三套自动化入口，核心动作面（读屏、历史、命令块、输入、按键）均已存在。本需求为同一内核增加第四个门面 —— Cocoa Scripting（AppleScript / JXA / Shortcuts「运行 AppleScript」均可调用），不重写业务逻辑。
+macOS 上专业终端的隐形门槛之一是 AppleScript 可脚本化：iTerm2 的词典支撑了大量自动化工作流，系统 Terminal 也提供 `do script`。QTerm 已有 CLI、MCP、Tool Bridge 三套自动化入口，核心动作面（读屏、历史、命令块、输入、按键）均已存在。本需求为同一内核增加第四个门面 —— Cocoa Scripting（AppleScript / JXA / Shortcuts「运行 AppleScript」均可调用），不重写业务逻辑。
 
 **目标用户场景：**
 
@@ -15,7 +15,7 @@ macOS 上专业终端的隐形门槛之一是 AppleScript 可脚本化：iTerm2 
 
 ## 2. 术语与对象模型（sdef）
 
-应用以 `tell application "museterm"` 寻址。对象模型为扁平两层：
+应用以 `tell application "QTerm"` 寻址。对象模型为扁平两层：
 
 | 对象 | 属性 | 说明 |
 |------|------|------|
@@ -39,7 +39,7 @@ macOS 上专业终端的隐形门槛之一是 AppleScript 可脚本化：iTerm2 
 ### P2 — 同步执行（招牌能力）
 
 ```applescript
-tell application "museterm"
+tell application "QTerm"
   set r to execute "git status" in tab 1 timeout 60
   -- r 为记录：{succeeded:true, exit code:0, output:"...", duration:0.42}
 end tell
@@ -49,7 +49,7 @@ end tell
 - `timeout` 单位秒，默认 120，上限 3600；超时报错并提示可能未启用 shell integration。
 - `output` 为命令块的输出尾部（与命令巡检器一致，有长度上限），超长输出请用 `history of tab`。
 
-### P3 — MuseTerm 特色
+### P3 — QTerm 特色
 
 | 命令 | 语法示例 | 说明 |
 |------|----------|------|
@@ -84,5 +84,5 @@ end tell
 
 - `execute` 依赖 shell integration；未启用时以超时错误提示。
 - `output` 为输出尾部截断（与命令巡检器上限一致）。
-- 暂不提供 window 层级（MuseTerm 为单窗口多标签）；如未来支持多窗口需在词典中插入 window 容器层。
+- 暂不提供 window 层级（QTerm 为单窗口多标签）；如未来支持多窗口需在词典中插入 window 容器层。
 - Shortcuts（App Intents）原生动作暂未提供，可作为后续版本目标（词汇表可与本词典对齐）。

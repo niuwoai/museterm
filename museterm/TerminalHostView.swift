@@ -109,6 +109,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     func apply(preferences: TerminalPreferences) {
         self.preferences = preferences
         layoutTerminalViews()
+        applyScrollbackLines(preferences.scrollbackLines)
         let signature = TerminalPreferenceSignature(preferences: preferences)
         guard signature != lastAppliedPreferences else { return }
         lastAppliedPreferences = signature
@@ -147,6 +148,13 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         configureMetalIfNeeded()
 
         requestTerminalRepaint()
+    }
+
+    private func applyScrollbackLines(_ lines: Int) {
+        guard let terminal = terminalView.terminal else { return }
+        let normalized = TerminalPreferences.clampedScrollbackLines(lines)
+        guard terminal.options.scrollback != normalized else { return }
+        terminal.changeScrollback(normalized)
     }
 
     func layoutTerminalViews() {
@@ -697,6 +705,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 )
             case .shellDetected(let shellName):
                 session?.updateShellName(shellName)
+            case .executionContext(let context):
+                session?.updateExecutionContext(context)
             }
         }
     }
@@ -879,6 +889,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         pendingStartWorkItem?.cancel()
         pendingStartWorkItem = nil
         didStart = true
+        session?.markStartupCommandsStarted()
+        applyScrollbackLines(preferences?.scrollbackLines ?? TerminalPreferences.defaultScrollbackLines)
 
         switch session?.launchConfiguration ?? .localShell() {
         case .localShell(let startDirectory, let profile):
@@ -897,6 +909,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             )
             if let profile, !profile.normalized.startupCommands.isEmpty {
                 drainStartupCommands(profile.normalized.startupCommands)
+            } else {
+                session?.markStartupCommandsFinished()
             }
         case .ssh(let profile):
             do {
@@ -998,7 +1012,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     private func drainStartupCommands(_ commands: [String]) {
-        guard !commands.isEmpty else { return }
+        guard !commands.isEmpty else {
+            session?.markStartupCommandsFinished()
+            return
+        }
         Task { [weak self] in
             for command in commands {
                 try? await Task.sleep(nanoseconds: 450_000_000)
@@ -1006,6 +1023,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                     guard let self, self.terminalView.process.running else { return }
                     self.terminalView.send(source: self.terminalView, data: Array((command + "\n").utf8)[...])
                 }
+            }
+            await MainActor.run {
+                self?.session?.markStartupCommandsFinished()
             }
         }
     }
@@ -1034,6 +1054,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     private func applyStablePTYSize(newCols: Int, newRows: Int) {
+        applyScrollbackLines(preferences?.scrollbackLines ?? TerminalPreferences.defaultScrollbackLines)
         guard terminalView.process.running else { return }
         var size = terminalView.getWindowSize()
         let _ = PseudoTerminalHelpers.setWinSize(
@@ -1442,6 +1463,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
 
     private static func zshrcIntegrationScript() -> String {
         sourceOriginalZshFile(".zshrc")
+            + posixContextIntegrationFunctions
             + """
             if [[ -z "${MUSETERM_DISABLE_SHELL_INTEGRATION:-}" ]]; then
               _museterm_emit_start() {
@@ -1455,6 +1477,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
               _museterm_precmd() {
                 local muse_status=$?
                 printf '\\033]777;MuseTerm;end=%d\\a' "$muse_status"
+                _museterm_emit_context
               }
               typeset -ga preexec_functions
               preexec_functions=(${preexec_functions:#_museterm_preexec})
@@ -1463,6 +1486,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
               precmd_functions=(${precmd_functions:#_museterm_precmd})
               precmd_functions=(_museterm_precmd $precmd_functions)
             fi
+            _museterm_emit_context
 
             """
             + zshProfilePromptScript()
@@ -1505,10 +1529,15 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
           unset _museterm_home
         fi
 
+        """
+            + posixContextIntegrationFunctions
+            + """
+
         if [[ -z "${MUSETERM_DISABLE_SHELL_INTEGRATION:-}" ]]; then
           _museterm_prompt_command() {
             local muse_status=$?
             printf '\\033]777;MuseTerm;end=%d\\a' "$muse_status"
+            _museterm_emit_context
             return "$muse_status"
           }
           case ";${PROMPT_COMMAND:-};" in
@@ -1516,6 +1545,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             *) PROMPT_COMMAND="_museterm_prompt_command${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;;
           esac
         fi
+        _museterm_emit_context
 
         """
             + bashProfilePromptScript()
@@ -1541,6 +1571,17 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         """
         # Generated by MuseTerm. Do not edit.
         if not set -q MUSETERM_DISABLE_SHELL_INTEGRATION
+            function _museterm_hex
+                printf '%s' "$argv[1]" | od -An -tx1 | tr -d ' \\n'
+            end
+            function _museterm_emit_context
+                set -l muse_cwd_hex (_museterm_hex "$PWD")
+                set -l muse_user_hex (_museterm_hex (id -un 2>/dev/null))
+                set -l muse_uid (id -u 2>/dev/null)
+                set -l muse_host_hex (_museterm_hex (hostname 2>/dev/null))
+                set -l muse_shell_hex (_museterm_hex "$SHELL")
+                printf '\\033]777;MuseTerm;context=%s,%s,%s,%s,%s\\a' "$muse_cwd_hex" "$muse_user_hex" "$muse_uid" "$muse_host_hex" "$muse_shell_hex"
+            end
             functions -e _museterm_preexec 2>/dev/null
             function _museterm_preexec --on-event fish_preexec
                 set -l muse_cmd_hex (printf '%s' "$argv[1]" | od -An -tx1 | tr -d ' \\n')
@@ -1550,13 +1591,29 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             function _museterm_postexec --on-event fish_postexec
                 set -l muse_status $status
                 printf '\\033]777;MuseTerm;end=%d\\a' $muse_status
+                _museterm_emit_context
                 return $muse_status
             end
+            _museterm_emit_context
         end
 
         """
             + fishProfilePromptScript()
     }
+
+    private static let posixContextIntegrationFunctions = """
+        _museterm_hex() { printf '%s' "$1" | od -An -tx1 | tr -d ' \\n'; }
+        _museterm_emit_context() {
+          local muse_cwd_hex muse_user_hex muse_uid muse_host_hex muse_shell_hex
+          muse_cwd_hex=$(_museterm_hex "${PWD:-}")
+          muse_user_hex=$(_museterm_hex "$(id -un 2>/dev/null)")
+          muse_uid=$(id -u 2>/dev/null)
+          muse_host_hex=$(_museterm_hex "$(hostname 2>/dev/null)")
+          muse_shell_hex=$(_museterm_hex "${SHELL:-}")
+          printf '\\033]777;MuseTerm;context=%s,%s,%s,%s,%s\\a' "$muse_cwd_hex" "$muse_user_hex" "$muse_uid" "$muse_host_hex" "$muse_shell_hex"
+        }
+
+        """
 
     private static func fishProfilePromptScript() -> String {
         """
@@ -2026,6 +2083,7 @@ private struct TerminalPreferenceSignature: Equatable {
     let tintOpacity: Double
     let optionAsMeta: Bool
     let mouseReporting: Bool
+    let scrollbackLines: Int
     let cursorShape: TerminalCursorShape
     let cursorBlink: Bool
 
@@ -2042,6 +2100,7 @@ private struct TerminalPreferenceSignature: Equatable {
         tintOpacity = preferences.tintOpacity
         optionAsMeta = preferences.optionAsMeta
         mouseReporting = preferences.mouseReporting
+        scrollbackLines = preferences.scrollbackLines
         cursorShape = preferences.cursorShape
         cursorBlink = preferences.cursorBlink
     }

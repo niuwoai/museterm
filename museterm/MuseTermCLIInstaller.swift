@@ -3,7 +3,7 @@ import Foundation
 enum MuseTermCLIInstaller {
     static let installDirectory = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".local/bin", isDirectory: true)
-    static let installURL = installDirectory.appendingPathComponent("museterm")
+    static let installURL = installDirectory.appendingPathComponent("qterm")
 
     static var installPath: String {
         installURL.path
@@ -25,8 +25,8 @@ enum MuseTermCLIInstaller {
 
     static let script = #"""
 #!/usr/bin/env ruby
-# MuseTerm CLI and MCP bridge.
-# Installed by MuseTerm. Safe to replace on app updates.
+# QTerm CLI and MCP bridge.
+# Installed by QTerm. Safe to replace on app updates.
 
 require "json"
 require "securerandom"
@@ -35,7 +35,7 @@ require "time"
 require "shellwords"
 require "timeout"
 
-ROOT = File.expand_path("~/Library/Application Support/MuseTerm/Tools")
+ROOT = File.expand_path("~/Library/Application Support/QTerm/Tools")
 STATE = File.join(ROOT, "state.json")
 REQUESTS = File.join(ROOT, "requests")
 RESPONSES = File.join(ROOT, "responses")
@@ -46,7 +46,7 @@ def ensure_dirs
 end
 
 def read_state
-  raise "MuseTerm is not publishing tool state yet. Open MuseTerm first." unless File.file?(STATE)
+  raise "QTerm is not publishing tool state yet. Open QTerm first." unless File.file?(STATE)
   JSON.parse(File.read(STATE))
 end
 
@@ -177,12 +177,12 @@ def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: 
     end
   end
 rescue Timeout::Error
-  raise "MuseTerm did not answer the tool request in time."
+  raise "QTerm did not answer the tool request in time."
 end
 
 def require_tab(state, selector)
   tab = selected_tab(state, selector)
-  raise "No MuseTerm tab matched #{selector.inspect}." unless tab
+  raise "No QTerm tab matched #{selector.inspect}." unless tab
   tab
 end
 
@@ -470,7 +470,7 @@ def mcp_tools
   [
     {
       "name" => "list_tabs",
-      "description" => "List MuseTerm tabs and their ids, titles, selection state, size, working directory, and detected shell name.",
+      "description" => "List QTerm tabs and their ids, titles, selection state, size, working directory, and detected shell name.",
       "inputSchema" => {
         "type" => "object",
         "properties" => {
@@ -480,7 +480,7 @@ def mcp_tools
     },
     {
       "name" => "read_screen",
-      "description" => "Read the latest visible screen from a MuseTerm tab.",
+      "description" => "Read the latest visible screen from a QTerm tab.",
       "inputSchema" => {
         "type" => "object",
         "properties" => {
@@ -492,7 +492,7 @@ def mcp_tools
     },
     {
       "name" => "read_history",
-      "description" => "Read terminal scrollback/history from a MuseTerm tab.",
+      "description" => "Read terminal scrollback/history from a QTerm tab.",
       "inputSchema" => {
         "type" => "object",
         "properties" => {
@@ -504,7 +504,7 @@ def mcp_tools
     },
     {
       "name" => "read_commands",
-      "description" => "Read recent structured command blocks from a MuseTerm tab. Query supports risk:, lifecycle:/state:, boundary:, and text terms.",
+      "description" => "Read recent structured command blocks from a QTerm tab. Query supports risk:, lifecycle:/state:, boundary:, and text terms.",
       "inputSchema" => {
         "type" => "object",
         "properties" => {
@@ -516,63 +516,63 @@ def mcp_tools
     },
     {
       "name" => "create_tab",
-      "description" => "Create a new local MuseTerm tab, optionally starting in an existing directory.",
+      "description" => "Create a new local QTerm tab, optionally starting in an existing directory.",
       "inputSchema" => {
         "type" => "object",
         "properties" => {
           "directory" => { "type" => "string", "description" => "optional start directory" },
-          "timeout" => { "type" => "number", "description" => "seconds to wait for MuseTerm to answer" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to answer" },
           "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
         }
       }
     },
     {
       "name" => "open_ssh_profile",
-      "description" => "Open a saved MuseTerm SSH profile in a new tab by display name.",
+      "description" => "Open a saved QTerm SSH profile in a new tab by display name.",
       "inputSchema" => {
         "type" => "object",
         "required" => ["profile"],
         "properties" => {
           "profile" => { "type" => "string", "description" => "saved SSH profile display name" },
-          "timeout" => { "type" => "number", "description" => "seconds to wait for MuseTerm to answer" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to answer" },
           "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
         }
       }
     },
     {
       "name" => "list_shortcuts",
-      "description" => "List recorded MuseTerm terminal shortcuts with ids, titles, event counts, durations, and whether each can be replayed through MCP.",
+      "description" => "List recorded QTerm terminal shortcuts with ids, titles, event counts, durations, and whether each can be replayed through MCP.",
       "inputSchema" => {
         "type" => "object",
         "properties" => {
-          "timeout" => { "type" => "number", "description" => "seconds to wait for MuseTerm to answer" }
+          "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to answer" }
         }
       }
     },
     {
       "name" => "play_shortcut",
-      "description" => "Replay a recorded MuseTerm terminal shortcut in a tab. Shortcuts containing protected echo-off input are refused.",
+      "description" => "Replay a recorded QTerm terminal shortcut in a tab. Shortcuts containing protected echo-off input are refused.",
       "inputSchema" => {
         "type" => "object",
         "required" => ["shortcut"],
         "properties" => {
           "tab" => { "type" => "string", "description" => "selected, 1-based index, id prefix, or title" },
           "shortcut" => { "type" => "string", "description" => "recorded shortcut title" },
-          "timeout" => { "type" => "number", "description" => "seconds to wait for MuseTerm to answer" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to answer" },
           "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
         }
       }
     },
     {
       "name" => "send_text",
-      "description" => "Send text to a MuseTerm tab.",
+      "description" => "Send text to a QTerm tab.",
       "inputSchema" => {
         "type" => "object",
         "required" => ["text"],
         "properties" => {
           "tab" => { "type" => "string" },
           "text" => { "type" => "string" },
-          "timeout" => { "type" => "number", "description" => "seconds to wait for MuseTerm to answer" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to answer" },
           "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
         }
       }
@@ -586,7 +586,7 @@ def mcp_tools
         "properties" => {
           "tab" => { "type" => "string" },
           "key" => { "type" => "string" },
-          "timeout" => { "type" => "number", "description" => "seconds to wait for MuseTerm to answer" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to answer" },
           "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
         }
       }
@@ -680,7 +680,7 @@ def command_mcp
       when "initialize"
         {
           "protocolVersion" => "2024-11-05",
-          "serverInfo" => { "name" => "museterm", "version" => "\#(AppVersion.value)" },
+          "serverInfo" => { "name" => "qterm", "version" => "\#(AppVersion.value)" },
           "capabilities" => { "tools" => {} }
         }
       when "tools/list"
@@ -703,23 +703,23 @@ end
 
 def command_help
   puts <<~HELP
-    MuseTerm CLI
+    QTerm CLI
 
     Commands:
-      museterm tabs
-      museterm screen [--tab selected|INDEX|ID] [--chars N] [--json]
-      museterm history [--tab selected|INDEX|ID] [--chars N] [--json]
-      museterm commands [--tab selected|INDEX|ID] [--chars N] [--query QUERY]
-      museterm input [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] TEXT
-      museterm key [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] enter|ctrl-c|tab|escape|up|down|left|right
-      museterm tab [--timeout SECONDS] [--json] [DIRECTORY]
-      museterm ssh [--timeout SECONDS] [--json] PROFILE_NAME
-      museterm shortcuts [--timeout SECONDS] [--json]
-      museterm shortcut [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] SHORTCUT_TITLE
-      museterm mcp
+      qterm tabs
+      qterm screen [--tab selected|INDEX|ID] [--chars N] [--json]
+      qterm history [--tab selected|INDEX|ID] [--chars N] [--json]
+      qterm commands [--tab selected|INDEX|ID] [--chars N] [--query QUERY]
+      qterm input [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] TEXT
+      qterm key [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] enter|ctrl-c|tab|escape|up|down|left|right
+      qterm tab [--timeout SECONDS] [--json] [DIRECTORY]
+      qterm ssh [--timeout SECONDS] [--json] PROFILE_NAME
+      qterm shortcuts [--timeout SECONDS] [--json]
+      qterm shortcut [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] SHORTCUT_TITLE
+      qterm mcp
 
     MCP config example:
-      {"mcpServers":{"museterm":{"command":"museterm","args":["mcp"]}}}
+      {"mcpServers":{"qterm":{"command":"qterm","args":["mcp"]}}}
   HELP
 end
 

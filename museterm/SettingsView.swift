@@ -1,17 +1,36 @@
 import AppKit
+import Combine
 import Security
 import SwiftUI
+
+final class SettingsWindowSession: ObservableObject {
+    @Published var aiAPIKeyDraft = ""
+    @Published var aiStatusMessage = ""
+
+    @discardableResult
+    func savePendingAIAPIKey(preferences: TerminalPreferences) -> Bool {
+        let trimmed = aiAPIKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return true }
+
+        guard preferences.saveAIAPIKey(trimmed) else {
+            aiStatusMessage = L10n.string("settings.ai.api_key.save_failed")
+            return false
+        }
+        aiAPIKeyDraft = ""
+        aiStatusMessage = L10n.string("settings.ai.api_key.save_success")
+        return true
+    }
+}
 
 struct SettingsView: View {
     static let defaultWindowSize = CGSize(width: 880, height: 680)
 
     @ObservedObject var preferences: TerminalPreferences
     @ObservedObject var profileStore: TerminalProfileStore
+    @ObservedObject var session: SettingsWindowSession
     @ObservedObject private var notificationCoordinator = TerminalNotificationCoordinator.shared
     @State private var selectedSettingsTab: SettingsTab = .appearance
     @State private var cliInstallMessage = ""
-    @State private var aiAPIKeyDraft = ""
-    @State private var aiStatusMessage = ""
     @State private var editingProfile: TerminalProfile?
 
     var body: some View {
@@ -68,6 +87,8 @@ struct SettingsView: View {
             fontSection
         case .glass:
             glassSection
+        case .floatingPanel:
+            floatingPanelSection
         case .behavior:
             behaviorSection
         case .profiles:
@@ -202,6 +223,24 @@ struct SettingsView: View {
         }
     }
 
+    private var floatingPanelSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L10n.string("settings.floating_panel"))
+                .font(.headline)
+            Text(L10n.string("settings.floating_panel.help"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            SliderRow(
+                title: L10n.string("settings.floating_panel.opacity"),
+                value: $preferences.detachedPanelOpacity,
+                range: 0.2...1,
+                format: "%.0f%%",
+                multiplier: 100
+            )
+        }
+    }
+
     private var behaviorSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(L10n.string("settings.behavior"))
@@ -209,6 +248,8 @@ struct SettingsView: View {
             Toggle(L10n.string("settings.show_tab_list"), isOn: $preferences.showsTabList)
             Toggle(L10n.string("settings.option_as_meta"), isOn: $preferences.optionAsMeta)
             Toggle(L10n.string("settings.mouse_reporting"), isOn: $preferences.mouseReporting)
+            scrollbackLinesRow
+            primaryShortcutSection
             lineNavigationShortcutSection
             Toggle(L10n.string("settings.confirm_multiline_paste"), isOn: $preferences.confirmMultilinePaste)
             Toggle(L10n.string("settings.confirm_dangerous_commands"), isOn: $preferences.confirmDangerousCommands)
@@ -246,7 +287,37 @@ struct SettingsView: View {
             }
             .padding(.top, 4)
             Toggle(L10n.string("settings.cursor_blink"), isOn: $preferences.cursorBlink)
+
+            Divider().padding(.vertical, 4)
+            RecommendationBlacklistManagerView(skin: preferences.skin)
         }
+    }
+
+    private var scrollbackLinesRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(L10n.string("settings.scrollback_lines"))
+                Spacer()
+                Stepper(
+                    value: $preferences.scrollbackLines,
+                    in: TerminalPreferences.minimumScrollbackLines...TerminalPreferences.maximumScrollbackLines,
+                    step: 500
+                ) {
+                    Text(L10n.format("settings.scrollback_lines.value", preferences.scrollbackLines))
+                        .font(.body.monospacedDigit())
+                }
+                .frame(width: 190)
+            }
+            Text(L10n.format(
+                "settings.scrollback_lines.help",
+                TerminalPreferences.defaultScrollbackLines,
+                TerminalPreferences.maximumScrollbackLines
+            ))
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, 4)
     }
 
     private var lineNavigationShortcutSection: some View {
@@ -256,8 +327,14 @@ struct SettingsView: View {
                     .font(.caption.weight(.semibold))
                 Spacer()
                 Button(L10n.string("settings.line_navigation.restore_defaults")) {
-                    preferences.lineStartShortcut = TerminalKeyBinding.defaultLineStart.storageValue
-                    preferences.lineEndShortcut = TerminalKeyBinding.defaultLineEnd.storageValue
+                    preferences.setLineNavigationShortcut(
+                        TerminalKeyBinding.defaultLineStart.storageValue,
+                        for: .lineStart
+                    )
+                    preferences.setLineNavigationShortcut(
+                        TerminalKeyBinding.defaultLineEnd.storageValue,
+                        for: .lineEnd
+                    )
                 }
                 .buttonStyle(.link)
                 .font(.caption)
@@ -273,10 +350,7 @@ struct SettingsView: View {
                 shortcut: Binding(
                     get: { preferences.lineStartShortcut },
                     set: { newValue in
-                        preferences.lineStartShortcut = newValue
-                        if !newValue.isEmpty, newValue == preferences.lineEndShortcut {
-                            preferences.lineEndShortcut = ""
-                        }
+                        preferences.setLineNavigationShortcut(newValue, for: .lineStart)
                     }
                 )
             )
@@ -285,10 +359,7 @@ struct SettingsView: View {
                 shortcut: Binding(
                     get: { preferences.lineEndShortcut },
                     set: { newValue in
-                        preferences.lineEndShortcut = newValue
-                        if !newValue.isEmpty, newValue == preferences.lineStartShortcut {
-                            preferences.lineStartShortcut = ""
-                        }
+                        preferences.setLineNavigationShortcut(newValue, for: .lineEnd)
                     }
                 )
             )
@@ -309,7 +380,73 @@ struct SettingsView: View {
         )
     }
 
+    private var primaryShortcutSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(L10n.string("settings.primary_shortcuts.title"))
+                    .font(.caption.weight(.semibold))
+                Spacer()
+                Button(L10n.string("settings.primary_shortcuts.restore_defaults")) {
+                    preferences.restoreDefaultAppShortcuts()
+                }
+                .buttonStyle(.link)
+                .font(.caption)
+            }
+
+            Text(L10n.string("settings.primary_shortcuts.description"))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            ForEach(TerminalAppShortcutAction.allCases) { action in
+                shortcutRow(
+                    title: L10n.string(action.titleKey),
+                    shortcut: Binding(
+                        get: { preferences.appShortcut(for: action) },
+                        set: { preferences.setAppShortcut($0, for: action) }
+                    )
+                )
+            }
+
+            Divider()
+
+            HStack {
+                Text(L10n.string("settings.ai_command.activation.title"))
+                    .font(.subheadline)
+                Spacer()
+                Picker("", selection: $preferences.aiCommandActivation) {
+                    ForEach(AICommandActivation.allCases) { activation in
+                        Text(L10n.string(activation.titleKey)).tag(activation)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 150)
+            }
+
+            Text(L10n.string("settings.ai_command.activation.help"))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(L10n.string("settings.primary_shortcuts.reserved_help"))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(10)
+        .background(preferences.skin.controlFill)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(preferences.skin.hairline, lineWidth: 1)
+        )
+    }
+
     private func lineNavigationShortcutRow(title: String, shortcut: Binding<String>) -> some View {
+        shortcutRow(title: title, shortcut: shortcut)
+    }
+
+    private func shortcutRow(title: String, shortcut: Binding<String>) -> some View {
         HStack {
             Text(title)
                 .font(.subheadline)
@@ -322,8 +459,11 @@ struct SettingsView: View {
     private var aiSection: some View {
         AIProviderSettingsSection(
             preferences: preferences,
-            apiKeyDraft: $aiAPIKeyDraft,
-            statusMessage: $aiStatusMessage
+            apiKeyDraft: $session.aiAPIKeyDraft,
+            statusMessage: $session.aiStatusMessage,
+            onSaveAPIKey: {
+                session.savePendingAIAPIKey(preferences: preferences)
+            }
         )
     }
 
@@ -596,6 +736,7 @@ private enum SettingsTab: CaseIterable, Identifiable {
     case appIcon
     case typography
     case glass
+    case floatingPanel
     case behavior
     case profiles
     case notifications
@@ -610,6 +751,7 @@ private enum SettingsTab: CaseIterable, Identifiable {
         case .appIcon: return "settings.tab.app_icon"
         case .typography: return "settings.tab.typography"
         case .glass: return "settings.tab.glass"
+        case .floatingPanel: return "settings.tab.floating_panel"
         case .behavior: return "settings.tab.behavior"
         case .profiles: return "settings.tab.profiles"
         case .notifications: return "settings.tab.notifications"
@@ -624,6 +766,7 @@ private enum SettingsTab: CaseIterable, Identifiable {
         case .appIcon: return "app"
         case .typography: return "textformat"
         case .glass: return "square.on.square.dashed"
+        case .floatingPanel: return "macwindow.on.rectangle"
         case .behavior: return "keyboard"
         case .profiles: return "person.crop.rectangle.stack"
         case .notifications: return "bell.badge"
@@ -719,6 +862,7 @@ private struct AIProviderSettingsSection: View {
     @ObservedObject var preferences: TerminalPreferences
     @Binding var apiKeyDraft: String
     @Binding var statusMessage: String
+    let onSaveAPIKey: () -> Bool
     @State private var modelCandidates: [String] = []
     @State private var modelDiscoveryMessage = ""
     @State private var isLoadingModels = false
@@ -965,12 +1109,8 @@ private struct AIProviderSettingsSection: View {
                 .textFieldStyle(.roundedBorder)
             HStack(spacing: 10) {
                 Button {
-                    if preferences.saveAIAPIKey(apiKeyDraft) {
-                        apiKeyDraft = ""
-                        statusMessage = L10n.string("settings.ai.api_key.save_success")
+                    if onSaveAPIKey() {
                         refreshModelCandidates(clearExisting: true, force: true)
-                    } else {
-                        statusMessage = L10n.string("settings.ai.api_key.save_failed")
                     }
                 } label: {
                     Label(L10n.string("settings.ai.api_key.save"), systemImage: "key.fill")
@@ -1608,6 +1748,101 @@ private struct SettingsCodeBlock: View {
                 copied = false
             }
         }
+    }
+}
+
+/// 「拉黑」管理：列出被拉黑的路径与命令，可逐条撤销。直接读写黑名单存储，撤销后广播
+/// `.recommendationBlacklistChanged`，运行中的工作区据此重载并刷新最近/常用列表。
+private struct RecommendationBlacklistManagerView: View {
+    let skin: TerminalVisualSkin
+    @State private var paths: [String] = []
+    @State private var commands: [String] = []
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.string("settings.blacklist.title"))
+                .font(.caption.weight(.semibold))
+            Text(L10n.string("settings.blacklist.help"))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            group(
+                title: L10n.string("settings.blacklist.paths"),
+                items: paths,
+                empty: L10n.string("settings.blacklist.empty_paths"),
+                remove: removePath
+            )
+            group(
+                title: L10n.string("settings.blacklist.commands"),
+                items: commands,
+                empty: L10n.string("settings.blacklist.empty_commands"),
+                remove: removeCommand
+            )
+        }
+        .onAppear(perform: reload)
+    }
+
+    @ViewBuilder
+    private func group(
+        title: String,
+        items: [String],
+        empty: String,
+        remove: @escaping (String) -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+            if items.isEmpty {
+                Text(empty)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            } else {
+                ForEach(items, id: \.self) { item in
+                    HStack(spacing: 8) {
+                        Text(item)
+                            .font(.system(.caption, design: .monospaced))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer(minLength: 8)
+                        Button {
+                            remove(item)
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help(L10n.string("settings.blacklist.remove"))
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(skin.controlFill)
+                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                }
+            }
+        }
+    }
+
+    private func reload() {
+        paths = TerminalQuickPathBlacklistStore.load().sorted()
+        commands = LearnedCommandBlacklistStore.load().sorted()
+    }
+
+    private func removePath(_ path: String) {
+        var set = TerminalQuickPathBlacklistStore.load()
+        set.remove(path)
+        TerminalQuickPathBlacklistStore.save(set)
+        NotificationCenter.default.post(name: .recommendationBlacklistChanged, object: nil)
+        reload()
+    }
+
+    private func removeCommand(_ command: String) {
+        var set = LearnedCommandBlacklistStore.load()
+        set.remove(command)
+        LearnedCommandBlacklistStore.save(set)
+        NotificationCenter.default.post(name: .recommendationBlacklistChanged, object: nil)
+        reload()
     }
 }
 

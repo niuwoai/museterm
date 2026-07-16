@@ -1,6 +1,7 @@
 .derivedData/
 .local-derived-data/
 DerivedData/
+.app-backups/
 *.xcuserstate
 xcuserdata/
 .DS_Store

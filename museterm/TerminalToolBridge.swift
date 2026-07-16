@@ -1,7 +1,7 @@
 import Foundation
 
 struct TerminalToolPaths {
-    static let supportDirectoryName = "MuseTerm/Tools"
+    static let supportDirectoryName = "QTerm/Tools"
     static let stateFileName = "state.json"
     static let requestDirectoryName = "requests"
     static let responseDirectoryName = "responses"
@@ -385,7 +385,7 @@ struct TerminalToolResponse: Codable {
 
     init(
         schemaVersion: Int = 1,
-        app: String = "MuseTerm",
+        app: String = "QTerm",
         version: String = AppVersion.value,
         id: String,
         ok: Bool,
@@ -497,7 +497,7 @@ final class TerminalToolBridge {
             try TerminalToolPaths.ensureDirectories()
             writeState()
         } catch {
-            NSLog("MuseTerm tool bridge failed to prepare directories: \(error.localizedDescription)")
+            NSLog("QTerm tool bridge failed to prepare directories: \(error.localizedDescription)")
         }
 
         guard timer == nil else { return }
@@ -542,7 +542,7 @@ final class TerminalToolBridge {
         guard let workspace else { return }
         snapshotSequence += 1
         let state = TerminalToolState(
-            app: "MuseTerm",
+            app: "QTerm",
             version: AppVersion.value,
             snapshotSequence: snapshotSequence,
             updatedAt: Date(),
@@ -558,7 +558,7 @@ final class TerminalToolBridge {
                 let data = try encoder.encode(state)
                 try data.write(to: TerminalToolPaths.stateFile, options: .atomic)
             } catch {
-                NSLog("MuseTerm tool bridge failed to write state: \(error.localizedDescription)")
+                NSLog("QTerm tool bridge failed to write state: \(error.localizedDescription)")
             }
         }
     }
@@ -809,7 +809,7 @@ final class TerminalToolBridge {
             let url = TerminalToolPaths.responseDirectory.appendingPathComponent("\(response.id).json")
             try data.write(to: url, options: .atomic)
         } catch {
-            NSLog("MuseTerm tool bridge failed to write response: \(error.localizedDescription)")
+            NSLog("QTerm tool bridge failed to write response: \(error.localizedDescription)")
         }
     }
 }

@@ -4,6 +4,7 @@ enum TerminalShellIntegrationEvent: Equatable {
     case commandStarted(String)
     case commandFinished(Int32)
     case shellDetected(String)
+    case executionContext(TerminalShellReportedContext)
 }
 
 final class TerminalShellIntegrationParser {
@@ -62,6 +63,20 @@ final class TerminalShellIntegrationParser {
             return .shellDetected(shell)
         }
 
+        if payload.hasPrefix("context=") {
+            let value = String(payload.dropFirst("context=".count))
+            let fields = value.split(separator: ",", omittingEmptySubsequences: false).map(String.init)
+            guard fields.count == 5 else { return nil }
+            let context = TerminalShellReportedContext(
+                workingDirectory: text(fromHex: fields[0]),
+                user: text(fromHex: fields[1]),
+                uid: Int(fields[2]),
+                host: text(fromHex: fields[3]),
+                shell: text(fromHex: fields[4])
+            )
+            return context.isEmpty ? nil : .executionContext(context)
+        }
+
         return nil
     }
 
@@ -89,6 +104,10 @@ final class TerminalShellIntegrationParser {
     }
 
     private static func command(fromHex hex: String) -> String? {
+        text(fromHex: hex)?.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func text(fromHex hex: String) -> String? {
         let clean = hex.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty, clean.count.isMultiple(of: 2) else { return nil }
 
@@ -102,8 +121,7 @@ final class TerminalShellIntegrationParser {
             index = next
         }
 
-        return String(bytes: bytes, encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return String(bytes: bytes, encoding: .utf8)
     }
 
     private func keepPossiblePrefixTail() {
