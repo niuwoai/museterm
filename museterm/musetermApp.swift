@@ -29,12 +29,18 @@ struct musetermApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var preferences = TerminalPreferences()
 
+    init() {
+        SomeIMUpdateController.shared.start()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView(preferences: preferences)
         }
         .windowStyle(.hiddenTitleBar)
         .commands {
+            SomeIMUpdateCommands()
+
             TerminalCommands(preferences: preferences)
 
             CommandGroup(replacing: .appInfo) {

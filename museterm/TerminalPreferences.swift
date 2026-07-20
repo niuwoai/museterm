@@ -180,6 +180,7 @@ final class TerminalPreferences: ObservableObject {
         static let notificationCooldownSeconds = "notifications.cooldownSeconds"
         static let includeCommandInNotifications = "notifications.includeCommand"
         static let appleScriptInputEnabled = "applescript.inputEnabled"
+        static let toolBridgeWritesEnabled = "tools.writeEnabled"
         static let detachedPanelOpacity = "detachedPanel.opacity"
         static let appIcon = "app.icon"
         static let aiProvider = "ai.provider"
@@ -241,6 +242,7 @@ final class TerminalPreferences: ObservableObject {
     @Published var notificationCooldownSeconds: Double { didSet { defaults.set(notificationCooldownSeconds, forKey: Keys.notificationCooldownSeconds) } }
     @Published var includeCommandInNotifications: Bool { didSet { defaults.set(includeCommandInNotifications, forKey: Keys.includeCommandInNotifications) } }
     @Published var appleScriptInputEnabled: Bool { didSet { defaults.set(appleScriptInputEnabled, forKey: Keys.appleScriptInputEnabled) } }
+    @Published var toolBridgeWritesEnabled: Bool { didSet { defaults.set(toolBridgeWritesEnabled, forKey: Keys.toolBridgeWritesEnabled) } }
     // 分离悬浮面板的整体不透明度（含文字），默认 0.5，让面板半透融入桌面；与终端 glassOpacity 独立。
     @Published var detachedPanelOpacity: Double { didSet { defaults.set(detachedPanelOpacity, forKey: Keys.detachedPanelOpacity) } }
     @Published var aiProvider: AIProviderKind {
@@ -311,6 +313,7 @@ final class TerminalPreferences: ObservableObject {
         notificationCooldownSeconds = defaults.object(forKey: Keys.notificationCooldownSeconds) as? Double ?? 10
         includeCommandInNotifications = defaults.object(forKey: Keys.includeCommandInNotifications) as? Bool ?? false
         appleScriptInputEnabled = defaults.object(forKey: Keys.appleScriptInputEnabled) as? Bool ?? true
+        toolBridgeWritesEnabled = defaults.object(forKey: Keys.toolBridgeWritesEnabled) as? Bool ?? false
         detachedPanelOpacity = defaults.object(forKey: Keys.detachedPanelOpacity) as? Double ?? 0.5
         let storedAIProvider = AIProviderKind(rawValue: defaults.string(forKey: Keys.aiProvider) ?? "") ?? .someIM
         aiProvider = storedAIProvider

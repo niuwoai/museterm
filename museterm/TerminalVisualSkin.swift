@@ -622,7 +622,7 @@ enum TerminalVisualSkin: String, CaseIterable, Identifiable {
 extension NSColor {
     convenience init(hex: Int, alpha: CGFloat = 1) {
         self.init(
-            calibratedRed: CGFloat((hex >> 16) & 0xFF) / 255,
+            srgbRed: CGFloat((hex >> 16) & 0xFF) / 255,
             green: CGFloat((hex >> 8) & 0xFF) / 255,
             blue: CGFloat(hex & 0xFF) / 255,
             alpha: alpha

@@ -2252,6 +2252,19 @@ final class SSHConnectionStore: ObservableObject {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        if ProcessInfo.processInfo.arguments.contains("-ui-testing-ssh-fixture") {
+            profiles = [
+                SSHConnectionProfile(
+                    name: "UI Test Host",
+                    host: "127.0.0.1",
+                    user: "tester",
+                    environment: .development,
+                    groupName: "Fixtures",
+                    tags: ["ui-test"]
+                )
+            ]
+            return
+        }
         profiles = Self.load(defaults: defaults)
     }
 

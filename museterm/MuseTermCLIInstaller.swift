@@ -34,15 +34,29 @@ require "fileutils"
 require "time"
 require "shellwords"
 require "timeout"
+require "open3"
 
 ROOT = File.expand_path("~/Library/Application Support/QTerm/Tools")
 STATE = File.join(ROOT, "state.json")
 REQUESTS = File.join(ROOT, "requests")
 RESPONSES = File.join(ROOT, "responses")
+CLIENT_ID = "qterm-cli"
+KEYCHAIN_SERVICE = "im.some.museterm.tool-access"
 
 def ensure_dirs
   FileUtils.mkdir_p(REQUESTS)
   FileUtils.mkdir_p(RESPONSES)
+  FileUtils.chmod(0o700, [ROOT, REQUESTS, RESPONSES])
+end
+
+def access_token
+  output, _error, status = Open3.capture3(
+    "security", "find-generic-password",
+    "-s", KEYCHAIN_SERVICE,
+    "-a", CLIENT_ID,
+    "-w"
+  )
+  status.success? ? output.strip : nil
 end
 
 def read_state
@@ -129,9 +143,13 @@ def text_payload(state, tab, field, chars)
   }
 end
 
+def tab_summary_keys
+  ["id", "index", "title", "subtitle", "currentDirectory", "shellName", "sessionTunnelStatus", "isSelected", "state", "columns", "rows", "updatedAt"]
+end
+
 def tab_summaries(state)
   state.fetch("tabs", []).map { |tab|
-    tab.slice("id", "index", "title", "subtitle", "currentDirectory", "shellName", "isSelected", "state", "columns", "rows", "updatedAt")
+    tab.slice(*tab_summary_keys)
   }
 end
 
@@ -146,7 +164,28 @@ def tabs_payload(state)
   }
 end
 
-def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: nil, profile: nil, shortcut: nil, timeout_seconds: 3.0)
+def session_tunnels_payload(state)
+  tunnels = state.fetch("tabs", []).each_with_object([]) { |tab, out|
+    tunnel = tab["sessionTunnelStatus"]
+    next unless tunnel
+    out << tunnel.merge(
+      "tabID" => tab["id"],
+      "tabIndex" => tab["index"],
+      "tabTitle" => tab["title"],
+      "tabShellName" => tab["shellName"]
+    )
+  }
+  {
+    "schemaVersion" => state["schemaVersion"],
+    "app" => state["app"],
+    "version" => state["version"],
+    "snapshotSequence" => state["snapshotSequence"],
+    "selectedTabID" => state["selectedTabID"],
+    "sessionTunnels" => tunnels
+  }
+end
+
+def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: nil, profile: nil, shortcut: nil, tunnel_name: nil, target_host: nil, target_port: nil, local_port: nil, timeout_seconds: 3.0)
   timeout_seconds = timeout_seconds.to_f
   raise "timeout must be positive." if timeout_seconds <= 0
 
@@ -161,9 +200,17 @@ def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: 
     "bytes" => bytes,
     "directory" => directory,
     "profile" => profile,
-    "shortcut" => shortcut
+    "shortcut" => shortcut,
+    "tunnelName" => tunnel_name,
+    "targetHost" => target_host,
+    "targetPort" => target_port,
+    "localPort" => local_port,
+    "clientID" => CLIENT_ID,
+    "authToken" => access_token
   }.compact
-  File.write(File.join(REQUESTS, "#{id}.json"), JSON.generate(request))
+  request_path = File.join(REQUESTS, "#{id}.json")
+  File.write(request_path, JSON.generate(request))
+  FileUtils.chmod(0o600, request_path)
   response_path = File.join(RESPONSES, "#{id}.json")
 
   Timeout.timeout(timeout_seconds) do
@@ -436,6 +483,70 @@ def command_shortcut(args)
   response["ok"] ? puts(response["message"] || "ok") : abort(response["error"] || "request failed")
 end
 
+def command_tunnels(args)
+  _tab_selector, _chars, _json, _rest, _timeout = parse_common(args)
+  print_json(session_tunnels_payload(read_state))
+end
+
+def command_tunnel(args)
+  tab_selector, _chars, json, rest, timeout = parse_common(args)
+  subcommand = rest.shift
+  case subcommand
+  when "start"
+    target_host = nil
+    target_port = nil
+    local_port = nil
+    tunnel_name = nil
+    until rest.empty?
+      item = rest.shift
+      case item
+      when "--target-host"
+        target_host = rest.shift
+      when "--target-port"
+        target_port = rest.shift&.to_i
+      when "--local-port"
+        local_port = rest.shift&.to_i
+      when "--name"
+        tunnel_name = rest.shift
+      else
+        raise "unknown tunnel start option: #{item}"
+      end
+    end
+    raise "tunnel start requires --target-host." if target_host.to_s.empty?
+    raise "tunnel start requires --target-port." if target_port.nil? || target_port <= 0
+    raise "tunnel start requires --local-port." if local_port.nil? || local_port <= 0
+    response = send_request(
+      action: "start_session_tunnel",
+      tab: tab_selector,
+      tunnel_name: tunnel_name,
+      target_host: target_host,
+      target_port: target_port,
+      local_port: local_port,
+      timeout_seconds: timeout || 3.0
+    )
+    if json
+      print_json(response)
+      return
+    end
+    response["ok"] ? puts(response["message"] || "ok") : abort(response["error"] || "request failed")
+  when "stop"
+    response = send_request(
+      action: "stop_session_tunnel",
+      tab: tab_selector,
+      timeout_seconds: timeout || 3.0
+    )
+    if json
+      print_json(response)
+      return
+    end
+    response["ok"] ? puts(response["message"] || "ok") : abort(response["error"] || "request failed")
+  when "list", nil
+    command_tunnels(args)
+  else
+    raise "unknown tunnel subcommand: #{subcommand}"
+  end
+end
+
 class Hash
   def slice(*keys)
     keys.each_with_object({}) { |key, out| out[key] = self[key] if key?(key) }
@@ -540,6 +651,43 @@ def mcp_tools
       }
     },
     {
+      "name" => "list_session_tunnels",
+      "description" => "List active or recently failed QTerm session tunnels with local and remote endpoints.",
+      "inputSchema" => {
+        "type" => "object",
+        "properties" => {}
+      }
+    },
+    {
+      "name" => "start_session_tunnel",
+      "description" => "Start a QTerm session tunnel through a tab that is already logged into the deepest reachable server. The local listener binds to 127.0.0.1 only.",
+      "inputSchema" => {
+        "type" => "object",
+        "required" => ["targetHost", "targetPort", "localPort"],
+        "properties" => {
+          "tab" => { "type" => "string", "description" => "selected, 1-based index, id prefix, or title" },
+          "name" => { "type" => "string", "description" => "optional tunnel display name" },
+          "targetHost" => { "type" => "string", "description" => "host reachable from the deepest logged-in server" },
+          "targetPort" => { "type" => "integer", "description" => "remote target TCP port" },
+          "localPort" => { "type" => "integer", "description" => "local 127.0.0.1 listener port on this Mac" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to accept the request" },
+          "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
+        }
+      }
+    },
+    {
+      "name" => "stop_session_tunnel",
+      "description" => "Stop the session tunnel occupying a QTerm tab.",
+      "inputSchema" => {
+        "type" => "object",
+        "properties" => {
+          "tab" => { "type" => "string", "description" => "selected, 1-based index, id prefix, or title" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to accept the request" },
+          "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
+        }
+      }
+    },
+    {
       "name" => "list_shortcuts",
       "description" => "List recorded QTerm terminal shortcuts with ids, titles, event counts, durations, and whether each can be replayed through MCP.",
       "inputSchema" => {
@@ -637,6 +785,29 @@ def call_tool(name, args)
     )
     raise(response["error"] || "request failed") unless response["ok"]
     tool_result_text(args["metadata"] ? JSON.pretty_generate(response) : (response["message"] || "ok"))
+  when "list_session_tunnels"
+    state = read_state
+    tool_result_text(JSON.pretty_generate(session_tunnels_payload(state)))
+  when "start_session_tunnel"
+    response = send_request(
+      action: "start_session_tunnel",
+      tab: args["tab"],
+      tunnel_name: args["name"],
+      target_host: args.fetch("targetHost"),
+      target_port: args.fetch("targetPort").to_i,
+      local_port: args.fetch("localPort").to_i,
+      timeout_seconds: args["timeout"] || 3.0
+    )
+    raise(response["error"] || "request failed") unless response["ok"]
+    tool_result_text(args["metadata"] ? JSON.pretty_generate(response) : (response["message"] || "ok"))
+  when "stop_session_tunnel"
+    response = send_request(
+      action: "stop_session_tunnel",
+      tab: args["tab"],
+      timeout_seconds: args["timeout"] || 3.0
+    )
+    raise(response["error"] || "request failed") unless response["ok"]
+    tool_result_text(args["metadata"] ? JSON.pretty_generate(response) : (response["message"] || "ok"))
   when "list_shortcuts"
     response = send_request(
       action: "list_shortcuts",
@@ -714,6 +885,9 @@ def command_help
       qterm key [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] enter|ctrl-c|tab|escape|up|down|left|right
       qterm tab [--timeout SECONDS] [--json] [DIRECTORY]
       qterm ssh [--timeout SECONDS] [--json] PROFILE_NAME
+      qterm tunnels
+      qterm tunnel start [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] --target-host HOST --target-port PORT --local-port PORT [--name NAME]
+      qterm tunnel stop [--tab selected|INDEX|ID] [--timeout SECONDS] [--json]
       qterm shortcuts [--timeout SECONDS] [--json]
       qterm shortcut [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] SHORTCUT_TITLE
       qterm mcp
@@ -734,6 +908,8 @@ begin
   when "key" then command_key(ARGV)
   when "tab" then command_create_tab(ARGV)
   when "ssh" then command_ssh_profile(ARGV)
+  when "tunnels" then command_tunnels(ARGV)
+  when "tunnel" then command_tunnel(ARGV)
   when "shortcuts" then command_shortcuts(ARGV)
   when "shortcut" then command_shortcut(ARGV)
   when "mcp" then command_mcp

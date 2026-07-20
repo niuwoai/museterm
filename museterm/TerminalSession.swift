@@ -316,6 +316,7 @@ final class TerminalSession: ObservableObject, Identifiable {
     @Published private(set) var activeRecordingStartedAt: Date?
     @Published private(set) var isPlayingShortcut = false
     @Published private(set) var fileTransferStatus: TerminalFileTransferStatus?
+    @Published private(set) var sessionTunnelStatus: SessionTunnelStatus?
     @Published private(set) var commandBlocks: [TerminalCommandBlock] = []
     @Published private(set) var historySearchSnapshot = ""
     @Published private(set) var hasUnreadAttention = false
@@ -591,7 +592,9 @@ final class TerminalSession: ObservableObject, Identifiable {
                 }
                 if !shouldContinue { break }
 
-                let bytes = event.resolvedBytes(cache: &protectedBytesCache)
+                let bytes = TerminalShortcutEvent.terminalPlaybackBytes(
+                    from: event.resolvedBytes(cache: &protectedBytesCache)
+                )
                 guard !bytes.isEmpty else { continue }
                 await MainActor.run {
                     self?.controller.sendProcessInput(bytes: bytes)
@@ -613,6 +616,37 @@ final class TerminalSession: ObservableObject, Identifiable {
         guard case .running = state else { return }
         startProcessIfNeeded()
         controller.startZModemDownload(remotePath: remotePath, destinationFile: destinationFile)
+    }
+
+    var canStartSessionTunnel: Bool {
+        guard case .running = state,
+              sessionTunnelStatus?.occupiesTerminal != true,
+              fileTransferStatus?.isActive != true else {
+            return false
+        }
+        return true
+    }
+
+    func startSessionTunnel(configuration: SessionTunnelConfiguration) throws {
+        guard canStartSessionTunnel else {
+            if sessionTunnelStatus?.occupiesTerminal == true {
+                throw SessionTunnelStartError.tunnelAlreadyActive
+            }
+            if fileTransferStatus?.isActive == true {
+                throw SessionTunnelStartError.fileTransferActive
+            }
+            throw SessionTunnelStartError.processUnavailable
+        }
+        startProcessIfNeeded()
+        try controller.startSessionTunnel(configuration: configuration.validated())
+    }
+
+    func stopSessionTunnel() {
+        controller.stopSessionTunnel()
+    }
+
+    func updateSessionTunnelStatus(_ status: SessionTunnelStatus?) {
+        sessionTunnelStatus = status
     }
 
     func updateFileTransferStatus(_ status: TerminalFileTransferStatus?) {
@@ -1616,6 +1650,28 @@ final class TerminalWorkspace: ObservableObject {
         tab.startProcessIfNeeded()
         try tab.controller.sendToolInput(bytes: bytes)
         selectedID = tab.id
+        return tab
+    }
+
+    func startToolSessionTunnel(
+        configuration: SessionTunnelConfiguration,
+        in selector: String?
+    ) throws -> TerminalSession {
+        let tab = try toolTab(matching: selector)
+        try tab.startSessionTunnel(configuration: configuration)
+        selectedID = tab.id
+        objectWillChange.send()
+        return tab
+    }
+
+    func stopToolSessionTunnel(in selector: String?) throws -> TerminalSession {
+        let tab = try toolTab(matching: selector)
+        guard tab.sessionTunnelStatus != nil else {
+            throw TerminalToolError.sessionTunnelNotActive
+        }
+        tab.stopSessionTunnel()
+        selectedID = tab.id
+        objectWillChange.send()
         return tab
     }
 

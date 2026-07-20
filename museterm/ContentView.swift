@@ -12,6 +12,7 @@ struct ContentView: View {
     @ObservedObject private var preferences: TerminalPreferences
     @State private var rightPanel: TerminalRightPanel?
     @State private var commandPalettePresentation = CommandPalettePresentationState()
+    @State private var isSessionTunnelSheetPresented = false
 
     init(preferences: TerminalPreferences = TerminalPreferences()) {
         self.preferences = preferences
@@ -36,7 +37,8 @@ struct ContentView: View {
                     workspace: workspace,
                     sshStore: sshStore,
                     profileStore: profileStore,
-                    preferences: preferences
+                    preferences: preferences,
+                    onCreateSessionTunnel: presentSessionTunnelSheet
                 )
 
                 TerminalPaneView(
@@ -46,7 +48,15 @@ struct ContentView: View {
                 )
                     .ignoresSafeArea(.container, edges: .top)
 
-                if rightPanel == .commandInspector {
+                if rightPanel == .sessionTunnel, let selectedTab = workspace.selectedTab {
+                    SessionTunnelInspectorView(
+                        tab: selectedTab,
+                        preferences: preferences,
+                        onDismiss: {
+                            rightPanel = nil
+                        }
+                    )
+                } else if rightPanel == .commandInspector {
                     CommandInspectorView(
                         workspace: workspace,
                         preferences: preferences,
@@ -84,6 +94,20 @@ struct ContentView: View {
             )
         )
         .focusedValue(\.terminalWorkspace, workspace)
+        .sheet(isPresented: $isSessionTunnelSheetPresented) {
+            if let selectedTab = workspace.selectedTab {
+                SessionTunnelCreateSheet(
+                    tab: selectedTab,
+                    isPresented: $isSessionTunnelSheetPresented,
+                    onStart: { configuration in
+                        aiCommandAssistant.dismiss(showNotice: false)
+                        commandPalettePresentation.dismiss()
+                        try selectedTab.startSessionTunnel(configuration: configuration)
+                        rightPanel = .sessionTunnel
+                    }
+                )
+            }
+        }
         .tint(preferences.skin.accent)
         .preferredColorScheme(preferences.skin.preferredColorScheme)
         .frame(minWidth: 920, minHeight: 560)
@@ -115,19 +139,44 @@ struct ContentView: View {
         }
         .onChange(of: workspace.selectedID) { selectedID in
             aiCommandAssistant.cancelIfTargetChanged(selectedID: selectedID)
+            if workspace.selectedTab?.sessionTunnelStatus != nil {
+                rightPanel = .sessionTunnel
+            } else if rightPanel == .sessionTunnel {
+                rightPanel = nil
+            }
         }
     }
 
     private func beginAICommandAssistance() {
-        guard !aiCommandAssistant.isActive, let selectedTab = workspace.selectedTab else { return }
+        guard !aiCommandAssistant.isActive,
+              let selectedTab = workspace.selectedTab,
+              selectedTab.sessionTunnelStatus?.occupiesTerminal != true else {
+            return
+        }
         rightPanel = nil
         commandPalettePresentation.dismiss()
         aiCommandAssistant.present(for: selectedTab)
     }
 
     private func toggleRightPanel(_ panel: TerminalRightPanel) {
+        guard workspace.selectedTab?.sessionTunnelStatus?.occupiesTerminal != true else {
+            rightPanel = .sessionTunnel
+            return
+        }
         aiCommandAssistant.dismiss(showNotice: false)
         rightPanel = rightPanel == panel ? nil : panel
+    }
+
+    private func presentSessionTunnelSheet() {
+        guard let selectedTab = workspace.selectedTab else { return }
+        if selectedTab.sessionTunnelStatus != nil {
+            rightPanel = .sessionTunnel
+            return
+        }
+        aiCommandAssistant.dismiss(showNotice: false)
+        commandPalettePresentation.dismiss()
+        rightPanel = nil
+        isSessionTunnelSheetPresented = true
     }
 
     private func rightPanelBinding(_ panel: TerminalRightPanel) -> Binding<Bool> {
@@ -141,6 +190,7 @@ struct ContentView: View {
 }
 
 private enum TerminalRightPanel {
+    case sessionTunnel
     case commandInspector
     case tasks
 }
@@ -150,6 +200,7 @@ private struct SidebarView: View {
     @ObservedObject var sshStore: SSHConnectionStore
     @ObservedObject var profileStore: TerminalProfileStore
     @ObservedObject var preferences: TerminalPreferences
+    let onCreateSessionTunnel: () -> Void
 
     private enum Layout {
         static let expandedWidth: CGFloat = 220
@@ -251,6 +302,7 @@ private struct SidebarView: View {
                 }
                 .buttonStyle(.plain)
                 .help(L10n.string("action.settings"))
+                .accessibilityLabel(L10n.string("action.settings"))
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -304,6 +356,12 @@ private struct SidebarView: View {
                     ) {
                         NotificationCenter.default.post(name: .toggleTaskPortPanel, object: nil)
                     }
+                    IconButton(
+                        systemName: "arrow.left.arrow.right",
+                        title: L10n.string("session_tunnel.create.action"),
+                        action: onCreateSessionTunnel
+                    )
+                    .accessibilityIdentifier("sessionTunnelCreateButton")
                     Spacer(minLength: 0)
                 }
             }
@@ -316,6 +374,12 @@ private struct SidebarView: View {
                     workspace.newTab()
                 }
                 ProfileNewTabMenu(workspace: workspace, store: profileStore)
+                IconButton(
+                    systemName: "arrow.left.arrow.right",
+                    title: L10n.string("session_tunnel.create.action"),
+                    action: onCreateSessionTunnel
+                )
+                .accessibilityIdentifier("sessionTunnelCreateButton")
             }
         }
     }
@@ -347,6 +411,7 @@ private struct ProfileNewTabMenu: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .help(L10n.string("action.new_tab_with_profile"))
+        .accessibilityLabel(L10n.string("action.new_tab_with_profile"))
     }
 }
 
@@ -414,6 +479,14 @@ private struct TabRowView: View {
 
             Spacer(minLength: 4)
 
+            if tab.sessionTunnelStatus?.occupiesTerminal == true {
+                Image(systemName: "link")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.green)
+                    .help(L10n.string("session_tunnel.phase.running"))
+                    .accessibilityLabel(L10n.string("session_tunnel.phase.running"))
+            }
+
             if tab.environment != .local {
                 EnvironmentBadge(environment: tab.environment)
             }
@@ -428,6 +501,7 @@ private struct TabRowView: View {
             .disabled(!isHovering)
             .accessibilityHidden(!isHovering)
             .help(L10n.string("action.close_tab"))
+            .accessibilityLabel(L10n.string("action.close_tab"))
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 4)
@@ -489,6 +563,13 @@ private struct CompactTabRowView: View {
                 .truncationMode(.tail)
 
             Spacer(minLength: 0)
+
+            if tab.sessionTunnelStatus?.occupiesTerminal == true {
+                Image(systemName: "link")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.green)
+                    .accessibilityLabel(L10n.string("session_tunnel.phase.running"))
+            }
         }
         .padding(.horizontal, 7)
         .padding(.vertical, 5)
@@ -555,7 +636,9 @@ private struct TerminalPaneView: View {
                 let isSelected = workspace.selectedID == tab.id
                 TerminalHostView(session: tab, preferences: preferences, isActive: isSelected)
                     .id(tab.id)
-                    .allowsHitTesting(isSelected)
+                    .allowsHitTesting(
+                        isSelected && tab.sessionTunnelStatus?.occupiesTerminal != true
+                    )
                     .accessibilityHidden(!isSelected)
                     .zIndex(isSelected ? 1 : 0)
             }
@@ -567,12 +650,16 @@ private struct TerminalPaneView: View {
                 .transition(.opacity)
                 .zIndex(2)
             }
+            if let selectedTab = workspace.selectedTab {
+                SessionTunnelMaskContainer(tab: selectedTab, skin: preferences.skin)
+                    .zIndex(40)
+            }
             AICommandAssistantLayer(
                 model: aiCommandAssistant,
                 workspace: workspace,
                 preferences: preferences
             )
-            .zIndex(50)
+            .zIndex(30)
         }
     }
 }
@@ -633,6 +720,7 @@ private struct CommandInspectorView: View {
     @State private var runbookHomePath = ""
     @State private var runbookWorkingDirectory = ""
     @State private var runbookNote = ""
+    @State private var showsAdvancedControls = false
     @State private var copiedMessage = ""
     @State private var copiedMessageGeneration = 0
     @State private var explainingBlockID: UUID?
@@ -710,6 +798,7 @@ private struct CommandInspectorView: View {
             }
             .buttonStyle(.plain)
             .help(L10n.string("action.close"))
+            .accessibilityLabel(L10n.string("action.close"))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -719,6 +808,44 @@ private struct CommandInspectorView: View {
         VStack(alignment: .leading, spacing: 5) {
             TextField(L10n.string("command_inspector.search_placeholder"), text: $query)
                 .textFieldStyle(.roundedBorder)
+            HStack(spacing: 8) {
+                compactToggle("command_inspector.failures_only", isOn: $failuresOnly)
+                Spacer()
+                Button {
+                    withAnimation(.easeInOut(duration: 0.16)) {
+                        showsAdvancedControls.toggle()
+                    }
+                } label: {
+                    Label(
+                        L10n.string("command_inspector.advanced"),
+                        systemImage: showsAdvancedControls ? "chevron.up" : "chevron.down"
+                    )
+                    .font(.caption.weight(.medium))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(preferences.skin.accent)
+                .accessibilityValue(
+                    L10n.string(showsAdvancedControls ? "accessibility.expanded" : "accessibility.collapsed")
+                )
+            }
+            if showsAdvancedControls {
+                advancedControls
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+            if !copiedMessage.isEmpty {
+                Text(copiedMessage)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            aiExplainPanel
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+    }
+
+    private var advancedControls: some View {
+        VStack(alignment: .leading, spacing: 6) {
             optionToggles
             if includeReplayScript, parameterizeReplayScript {
                 runbookVariableEditor
@@ -736,61 +863,28 @@ private struct CommandInspectorView: View {
                 .font(.caption)
                 .lineLimit(1...2)
             HStack(spacing: 8) {
-                Button {
-                    exportRunbookToClipboard()
-                } label: {
-                    Label(L10n.string("runbook.copy"), systemImage: "doc.on.doc")
-                        .font(.caption.weight(.medium))
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(preferences.skin.controlFill)
-                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-                .disabled(runbookExportBlocks.isEmpty)
-
-                Button {
-                    saveRunbook()
-                } label: {
-                    Label(L10n.string("runbook.save"), systemImage: "square.and.arrow.down")
-                        .font(.caption.weight(.medium))
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(preferences.skin.controlFill)
-                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-                .disabled(runbookExportBlocks.isEmpty)
-
-                Button {
-                    copyReplayScript()
-                } label: {
-                    Label(L10n.string("runbook.copy_replay"), systemImage: "play.rectangle")
-                        .font(.caption.weight(.medium))
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(preferences.skin.controlFill)
-                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-                .disabled(runbookExportBlocks.isEmpty)
-            }
-            if !copiedMessage.isEmpty {
-                Text(copiedMessage)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                runbookActionButton(
+                    titleKey: "runbook.copy",
+                    systemImage: "doc.on.doc",
+                    action: exportRunbookToClipboard
+                )
+                runbookActionButton(
+                    titleKey: "runbook.save",
+                    systemImage: "square.and.arrow.down",
+                    action: saveRunbook
+                )
+                runbookActionButton(
+                    titleKey: "runbook.copy_replay",
+                    systemImage: "play.rectangle",
+                    action: copyReplayScript
+                )
             }
             sensitiveOutputPanel
-            aiExplainPanel
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
     }
 
     private var optionToggles: some View {
         LazyVGrid(columns: commandInspectorToggleColumns, alignment: .leading, spacing: 4) {
-            compactToggle("command_inspector.failures_only", isOn: $failuresOnly)
             compactToggle("runbook.redact_sensitive", isOn: $redactSensitiveData)
             compactToggle("runbook.include_replay_script", isOn: $includeReplayScript)
             if includeReplayScript {
@@ -798,6 +892,23 @@ private struct CommandInspectorView: View {
                 compactToggle("runbook.confirm_each_step", isOn: $confirmReplaySteps)
             }
         }
+    }
+
+    private func runbookActionButton(
+        titleKey: String,
+        systemImage: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(L10n.string(titleKey), systemImage: systemImage)
+                .font(.caption.weight(.medium))
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(preferences.skin.controlFill)
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .disabled(runbookExportBlocks.isEmpty)
     }
 
     private func compactToggle(_ titleKey: String, isOn: Binding<Bool>) -> some View {
@@ -862,6 +973,7 @@ private struct CommandInspectorView: View {
                         }
                         .buttonStyle(.plain)
                         .help(L10n.string("action.close"))
+                        .accessibilityLabel(L10n.string("action.close"))
                     }
                 }
                 .foregroundStyle(preferences.skin.accent)
@@ -911,9 +1023,24 @@ private struct CommandInspectorView: View {
     @ViewBuilder
     private var content: some View {
         if workspace.selectedTab == nil {
-            emptyState(L10n.string("command_inspector.no_tab"))
+            emptyState(
+                title: L10n.string("command_inspector.no_tab.title"),
+                detail: L10n.string("command_inspector.no_tab.detail")
+            )
         } else if blocks.isEmpty, historySearchResult == nil {
-            emptyState(L10n.string("command_inspector.empty"))
+            let hasFilter = !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || failuresOnly
+            emptyState(
+                title: L10n.string(
+                    hasFilter
+                        ? "command_inspector.empty.filtered.title"
+                        : "command_inspector.empty.title"
+                ),
+                detail: L10n.string(
+                    hasFilter
+                        ? "command_inspector.empty.filtered.detail"
+                        : "command_inspector.empty.detail"
+                )
+            )
         } else {
             ScrollView {
                 LazyVStack(spacing: 8) {
@@ -964,12 +1091,14 @@ private struct CommandInspectorView: View {
         }
     }
 
-    private func emptyState(_ text: String) -> some View {
+    private func emptyState(title: String, detail: String) -> some View {
         VStack(spacing: 8) {
             Image(systemName: "terminal")
                 .font(.title2)
                 .foregroundStyle(.secondary)
-            Text(text)
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+            Text(detail)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -1019,6 +1148,7 @@ private struct CommandInspectorView: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
                 .help(L10n.string("runbook.reset_variables"))
+                .accessibilityLabel(L10n.string("runbook.reset_variables"))
             }
 
             HStack(spacing: 6) {
@@ -1439,6 +1569,7 @@ private struct CommandBlockCard: View {
                 }
                 .buttonStyle(.plain)
                 .help(L10n.string("command_inspector.tooltip.copy_command"))
+                .accessibilityLabel(L10n.string("command_inspector.copy_command"))
 
                 Button(action: copyOutput) {
                     Image(systemName: "text.page")
@@ -1447,6 +1578,7 @@ private struct CommandBlockCard: View {
                 .buttonStyle(.plain)
                 .disabled(block.outputTail.isEmpty)
                 .help(L10n.string("command_inspector.tooltip.copy_output"))
+                .accessibilityLabel(L10n.string("command_inspector.copy_output"))
 
                 Button(action: copyAIContext) {
                     Image(systemName: "sparkles")
@@ -1454,6 +1586,7 @@ private struct CommandBlockCard: View {
                 }
                 .buttonStyle(.plain)
                 .help(L10n.string("command_inspector.tooltip.copy_ai_context"))
+                .accessibilityLabel(L10n.string("command_inspector.copy_ai_context"))
 
                 Button(action: copyOutputSummary) {
                     Image(systemName: "text.badge.checkmark")
@@ -1462,6 +1595,7 @@ private struct CommandBlockCard: View {
                 .buttonStyle(.plain)
                 .disabled(displaySummary.isEmpty)
                 .help(L10n.string("command_inspector.tooltip.copy_output_summary"))
+                .accessibilityLabel(L10n.string("command_inspector.copy_output_summary"))
 
                 Button(action: stageCommand) {
                     Image(systemName: "arrow.turn.down.right")
@@ -1469,6 +1603,7 @@ private struct CommandBlockCard: View {
                 }
                 .buttonStyle(.plain)
                 .help(L10n.string("command_inspector.tooltip.stage_command"))
+                .accessibilityLabel(L10n.string("runbook.stage_command"))
 
                 Button(action: explainCommand) {
                     if isExplaining {
@@ -1483,6 +1618,7 @@ private struct CommandBlockCard: View {
                 .buttonStyle(.plain)
                 .disabled(isExplaining)
                 .help(L10n.string("command_inspector.tooltip.explain_command"))
+                .accessibilityLabel(L10n.string("ai_explain.button"))
 
                 Spacer()
             }
@@ -1545,6 +1681,7 @@ private struct IconButton: View {
         }
         .buttonStyle(.plain)
         .help(title)
+        .accessibilityLabel(title)
     }
 }
 

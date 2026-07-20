@@ -76,6 +76,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private var lastAppliedPreferences: TerminalPreferenceSignature?
     private var pendingZModemProbe: PendingZModemProbe?
     private var activeZModemTransfer: ZModemBridgeProcess?
+    private var activeSessionTunnel: SessionTunnelBridge?
+    private var activeSessionTunnelID: UUID?
     private let shellIntegrationParser = TerminalShellIntegrationParser()
     private var pendingShellIntegrationEvents: [TerminalShellIntegrationEvent] = []
     private weak var preferences: TerminalPreferences?
@@ -194,6 +196,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
 
     func terminate() {
         isTerminating = true
+        activeSessionTunnel?.forceCancel(error: nil)
+        activeSessionTunnel = nil
+        activeSessionTunnelID = nil
+        session?.updateSessionTunnelStatus(nil)
         pendingSSHReconnectWorkItem?.cancel()
         pendingSSHReconnectWorkItem = nil
         pendingOutputSnapshotWorkItem?.cancel()
@@ -307,6 +313,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.metalScaleFactorOverride = nil
     }
 
+    @MainActor
     func toolSnapshot(
         index: Int,
         isSelected: Bool,
@@ -320,6 +327,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             subtitle: session?.tabSubtitle,
             currentDirectory: session?.currentDirectory,
             shellName: session?.shellName,
+            sessionTunnelStatus: session?.sessionTunnelStatus.map(TerminalToolSessionTunnelSnapshot.init(status:)),
             isSelected: isSelected,
             state: session?.toolStateText ?? "unknown",
             columns: terminalView.terminal?.cols ?? 0,
@@ -359,6 +367,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         guard didStart, terminalView.process.running else {
             throw TerminalToolError.processUnavailable
         }
+        guard activeSessionTunnel == nil else {
+            throw TerminalToolError.sessionTunnelActive
+        }
         sendProcessInput(bytes: bytes)
     }
 
@@ -371,6 +382,13 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func startZModemUpload(fileURLs: [URL]) {
+        guard activeSessionTunnel == nil else {
+            reportFileTransferFailure(
+                kind: .upload,
+                reason: L10n.string("session_tunnel.error.file_transfer_during_tunnel")
+            )
+            return
+        }
         guard didStart, terminalView.process.running else {
             reportFileTransferFailure(kind: .upload, reason: L10n.string("file_transfer.error.process_unavailable"))
             return
@@ -406,6 +424,13 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func startZModemDownload(remotePath: String, destinationFile: URL) {
+        guard activeSessionTunnel == nil else {
+            reportFileTransferFailure(
+                kind: .download,
+                reason: L10n.string("session_tunnel.error.file_transfer_during_tunnel")
+            )
+            return
+        }
         guard didStart, terminalView.process.running else {
             reportFileTransferFailure(kind: .download, reason: L10n.string("file_transfer.error.process_unavailable"))
             return
@@ -450,6 +475,77 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         scheduleZModemProbeTimeout(probeID: probe.id)
     }
 
+    func startSessionTunnel(configuration: SessionTunnelConfiguration) throws {
+        guard didStart, terminalView.process.running else {
+            throw SessionTunnelStartError.processUnavailable
+        }
+        guard activeSessionTunnel == nil else {
+            throw SessionTunnelStartError.tunnelAlreadyActive
+        }
+        guard pendingZModemProbe == nil, activeZModemTransfer == nil else {
+            throw SessionTunnelStartError.fileTransferActive
+        }
+
+        let bridgeID = UUID()
+        let usesUITestFixture = ProcessInfo.processInfo.arguments.contains(
+            "-ui-testing-session-tunnel-fixture"
+        )
+        let bridgeToken = usesUITestFixture
+            ? "musetermuitestsessiontunnel"
+            : UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+        let bridge = SessionTunnelBridge(
+            configuration: configuration,
+            token: bridgeToken,
+            shouldSendBootstrapCommand: !usesUITestFixture,
+            sendToRemote: { [weak self] bytes in
+                guard !usesUITestFixture else { return }
+                DispatchQueue.main.async {
+                    guard let self,
+                          self.activeSessionTunnelID == bridgeID,
+                          self.terminalView.process.running else {
+                        return
+                    }
+                    self.terminalView.process.send(data: bytes[...])
+                }
+            },
+            onStatus: { [weak self] status in
+                guard let self, self.activeSessionTunnelID == bridgeID else { return }
+                self.session?.updateSessionTunnelStatus(status)
+            },
+            onFinished: { [weak self] error in
+                guard let self, self.activeSessionTunnelID == bridgeID else { return }
+                self.activeSessionTunnel = nil
+                self.activeSessionTunnelID = nil
+                if let error {
+                    var failed = self.session?.sessionTunnelStatus
+                        ?? .starting(configuration: configuration)
+                    failed.phase = .failed
+                    failed.errorMessage = error
+                    self.session?.updateSessionTunnelStatus(failed)
+                } else {
+                    self.session?.updateSessionTunnelStatus(nil)
+                    if !usesUITestFixture, self.terminalView.process.running {
+                        self.terminalView.process.send(data: [0x0D][...])
+                    }
+                }
+            }
+        )
+        activeSessionTunnelID = bridgeID
+        activeSessionTunnel = bridge
+        session?.updateSessionTunnelStatus(.starting(configuration: configuration))
+        bridge.start()
+        if usesUITestFixture,
+           let ready = SessionTunnelFrameCodec.encode(
+            SessionTunnelProtocolMessage(token: bridgeToken, type: "ready")
+           ) {
+            bridge.acceptRemoteData(ready)
+        }
+    }
+
+    func stopSessionTunnel() {
+        activeSessionTunnel?.stop()
+    }
+
     var terminalEchoEnabled: Bool {
         terminalView.terminalEchoEnabled
     }
@@ -474,6 +570,11 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             completionSource: .processExit,
             historySnapshot: refreshHistoryTextCache()
         )
+        if let activeSessionTunnel {
+            activeSessionTunnel.forceCancel(
+                error: L10n.string("session_tunnel.error.process_terminated")
+            )
+        }
         if scheduleSSHReconnectIfNeeded(exitCode: exitCode) {
             return
         }
@@ -532,6 +633,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         }
         terminalView.onSendToProcess = { [weak self] data, echoEnabled in
             guard let self else { return true }
+            guard self.activeSessionTunnel == nil else { return false }
             guard self.approveProcessInputIfNeeded(data: data, echoEnabled: echoEnabled) else {
                 return false
             }
@@ -550,6 +652,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         }
         terminalView.onReceivedProcessData = { [weak self] data in
             guard let self else { return false }
+            if self.handleProcessOutputForSessionTunnel(data) {
+                return true
+            }
             self.observeSSHProcessOutput(data)
             self.handleProcessOutputForShellIntegration(data)
             return self.handleProcessOutputForZModem(data)
@@ -645,8 +750,19 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         return true
     }
 
+    private func handleProcessOutputForSessionTunnel(_ data: ArraySlice<UInt8>) -> Bool {
+        guard let activeSessionTunnel else { return false }
+        noteStartupOutputActivity()
+        activeSessionTunnel.acceptRemoteData(Array(data))
+        return true
+    }
+
     private func handleProcessOutputForShellIntegration(_ data: ArraySlice<UInt8>) {
-        guard activeZModemTransfer == nil, pendingZModemProbe == nil else { return }
+        guard activeZModemTransfer == nil,
+              pendingZModemProbe == nil,
+              activeSessionTunnel == nil else {
+            return
+        }
         pendingShellIntegrationEvents.append(contentsOf: shellIntegrationParser.accept(data))
     }
 

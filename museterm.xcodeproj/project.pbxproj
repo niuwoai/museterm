@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		5CB51EA02FF2F2500010675C /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 5CB51E9F2FF2F2500010675C /* SwiftTerm */; };
+		8A9F219FE8C16A99E23EA90E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5C6103F847CC9EC58053615E /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -58,11 +59,15 @@
 		};
 		5CB51E822FF2EAB20010675C /* musetermTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = musetermTests;
 			sourceTree = "<group>";
 		};
 		5CB51E8C2FF2EAB20010675C /* musetermUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = musetermUITests;
 			sourceTree = "<group>";
 		};
@@ -74,6 +79,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5CB51EA02FF2F2500010675C /* SwiftTerm in Frameworks */,
+				8A9F219FE8C16A99E23EA90E /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -135,6 +141,7 @@
 			name = museterm;
 			packageProductDependencies = (
 				5CB51E9F2FF2F2500010675C /* SwiftTerm */,
+				5C6103F847CC9EC58053615E /* Sparkle */,
 			);
 			productName = museterm;
 			productReference = 5CB51E702FF2EAAD0010675C /* QTerm.app */;
@@ -157,8 +164,6 @@
 				5CB51E822FF2EAB20010675C /* musetermTests */,
 			);
 			name = musetermTests;
-			packageProductDependencies = (
-			);
 			productName = musetermTests;
 			productReference = 5CB51E7F2FF2EAB20010675C /* musetermTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -180,8 +185,6 @@
 				5CB51E8C2FF2EAB20010675C /* musetermUITests */,
 			);
 			name = musetermUITests;
-			packageProductDependencies = (
-			);
 			productName = musetermUITests;
 			productReference = 5CB51E892FF2EAB20010675C /* musetermUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -221,6 +224,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				5CB51E9E2FF2F2500010675C /* XCRemoteSwiftPackageReference "SwiftTerm" */,
+				93B5CCAF05C2E76BB42C3613 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5CB51E712FF2EAAD0010675C /* Products */;
@@ -423,7 +427,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 269;
+				CURRENT_PROJECT_VERSION = 279;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -436,14 +440,19 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = museterm/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_SUAutomaticallyUpdate = YES;
+				INFOPLIST_KEY_SUEnableAutomaticChecks = YES;
+				INFOPLIST_KEY_SUFeedURL = "https://some.im/api/v1/public/app-updates/appcast.xml?app_id=qterm&platform=macos&channel=stable";
+				INFOPLIST_KEY_SUPublicEDKey = "3QVMPCYo42ORmq8uUHqUdW8ayy5nw8Hs5uq9DLKDp0A=";
+				INFOPLIST_KEY_SUVerifyUpdateBeforeExtraction = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = "1.233.0-rc1";
+				MARKETING_VERSION = "1.238.0-rc1";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.museterm;
-				PRODUCT_NAME = QTerm;
 				PRODUCT_MODULE_NAME = museterm;
+				PRODUCT_NAME = QTerm;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -461,7 +470,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 269;
+				CURRENT_PROJECT_VERSION = 279;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -474,14 +483,19 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = museterm/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_SUAutomaticallyUpdate = YES;
+				INFOPLIST_KEY_SUEnableAutomaticChecks = YES;
+				INFOPLIST_KEY_SUFeedURL = "https://some.im/api/v1/public/app-updates/appcast.xml?app_id=qterm&platform=macos&channel=stable";
+				INFOPLIST_KEY_SUPublicEDKey = "3QVMPCYo42ORmq8uUHqUdW8ayy5nw8Hs5uq9DLKDp0A=";
+				INFOPLIST_KEY_SUVerifyUpdateBeforeExtraction = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = "1.233.0-rc1";
+				MARKETING_VERSION = "1.238.0-rc1";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.museterm;
-				PRODUCT_NAME = QTerm;
 				PRODUCT_MODULE_NAME = museterm;
+				PRODUCT_NAME = QTerm;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -497,11 +511,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 269;
+				CURRENT_PROJECT_VERSION = 279;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = "1.233.0-rc1";
+				MARKETING_VERSION = "1.238.0-rc1";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -518,11 +532,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 269;
+				CURRENT_PROJECT_VERSION = 279;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = "1.233.0-rc1";
+				MARKETING_VERSION = "1.238.0-rc1";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -538,10 +552,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 269;
+				CURRENT_PROJECT_VERSION = 279;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = "1.233.0-rc1";
+				MARKETING_VERSION = "1.238.0-rc1";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -557,10 +571,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 269;
+				CURRENT_PROJECT_VERSION = 279;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = "1.233.0-rc1";
+				MARKETING_VERSION = "1.238.0-rc1";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -622,9 +636,22 @@
 				revision = 9adb62463d2264e7403feb7a1471aaf27eaab2f4;
 			};
 		};
+		93B5CCAF05C2E76BB42C3613 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.4;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		5C6103F847CC9EC58053615E /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 93B5CCAF05C2E76BB42C3613 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
 		5CB51E9F2FF2F2500010675C /* SwiftTerm */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 5CB51E9E2FF2F2500010675C /* XCRemoteSwiftPackageReference "SwiftTerm" */;

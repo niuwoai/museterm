@@ -225,6 +225,31 @@ struct TerminalShortcutEvent: Codable, Equatable, Identifiable {
         cache[protectedBytesReference] = bytes
         return bytes
     }
+
+    static func terminalPlaybackBytes(from bytes: [UInt8]) -> [UInt8] {
+        var result: [UInt8] = []
+        result.reserveCapacity(bytes.count)
+        var index = 0
+        while index < bytes.count {
+            let byte = bytes[index]
+            if byte == 0x0D {
+                result.append(0x0D)
+                if index + 1 < bytes.count, bytes[index + 1] == 0x0A {
+                    index += 2
+                } else {
+                    index += 1
+                }
+                continue
+            }
+            if byte == 0x0A {
+                result.append(0x0D)
+            } else {
+                result.append(byte)
+            }
+            index += 1
+        }
+        return result
+    }
 }
 
 struct TerminalShortcut: Codable, Equatable, Identifiable {

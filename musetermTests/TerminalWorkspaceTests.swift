@@ -657,6 +657,16 @@ final class TerminalWorkspaceTests: XCTestCase {
         XCTAssertEqual(decoded.bytes, Array("ls -la\n".utf8))
     }
 
+    func testTerminalShortcutPlaybackNormalizesLineFeedToCarriageReturn() {
+        let bytes = Array("ssh host\npwd\r\nwhoami\r".utf8)
+        let normalized = TerminalShortcutEvent.terminalPlaybackBytes(from: bytes)
+
+        XCTAssertEqual(
+            TerminalShortcutTextCodec.escapedText(from: normalized),
+            "ssh host\\rpwd\\rwhoami\\r"
+        )
+    }
+
     func testTerminalShortcutDecodesLegacyNumericBytes() throws {
         let id = UUID()
         let json = """

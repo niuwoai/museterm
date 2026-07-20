@@ -23,26 +23,34 @@ final class SettingsWindowSession: ObservableObject {
 }
 
 struct SettingsView: View {
-    static let defaultWindowSize = CGSize(width: 880, height: 680)
+    static let defaultWindowSize = CGSize(width: 980, height: 680)
 
     @ObservedObject var preferences: TerminalPreferences
     @ObservedObject var profileStore: TerminalProfileStore
     @ObservedObject var session: SettingsWindowSession
     @ObservedObject private var notificationCoordinator = TerminalNotificationCoordinator.shared
     @State private var selectedSettingsTab: SettingsTab = .appearance
+    @State private var settingsSearchQuery = ""
     @State private var cliInstallMessage = ""
+    @State private var toolBridgeAccessMessage = ""
+    @State private var isBuiltInToolClientPaired = TerminalToolAccess.isPaired()
     @State private var editingProfile: TerminalProfile?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
             Divider()
-            SettingsTabBar(
-                selection: $selectedSettingsTab,
-                skin: preferences.skin
-            )
-            settingsPage {
-                settingsContent
+            HStack(alignment: .top, spacing: 0) {
+                SettingsSidebar(
+                    selection: $selectedSettingsTab,
+                    searchQuery: $settingsSearchQuery,
+                    skin: preferences.skin
+                )
+                Divider()
+                    .padding(.horizontal, 14)
+                settingsPage {
+                    settingsContent
+                }
             }
         }
         .padding(.horizontal, 20)
@@ -562,6 +570,77 @@ struct SettingsView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Label(
+                        L10n.string("settings.tools.access_control"),
+                        systemImage: "lock.shield"
+                    )
+                    .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Label(
+                        L10n.string(
+                            isBuiltInToolClientPaired
+                                ? "settings.tools.client_paired"
+                                : "settings.tools.client_unpaired"
+                        ),
+                        systemImage: isBuiltInToolClientPaired
+                            ? "checkmark.seal.fill"
+                            : "lock.fill"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(isBuiltInToolClientPaired ? .green : .secondary)
+                }
+
+                Toggle(
+                    L10n.string("settings.tools.allow_paired_writes"),
+                    isOn: $preferences.toolBridgeWritesEnabled
+                )
+                Text(L10n.string("settings.tools.allow_paired_writes_desc"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 10) {
+                    if isBuiltInToolClientPaired {
+                        Button(role: .destructive) {
+                            TerminalToolAccess.revoke()
+                            isBuiltInToolClientPaired = false
+                            toolBridgeAccessMessage = L10n.string("settings.tools.client_revoked")
+                        } label: {
+                            Label(L10n.string("settings.tools.revoke_client"), systemImage: "person.crop.circle.badge.minus")
+                        }
+                    } else {
+                        Button {
+                            pairBuiltInToolClient()
+                        } label: {
+                            Label(L10n.string("settings.tools.pair_client"), systemImage: "person.badge.key")
+                        }
+                    }
+                    Text(L10n.string("settings.tools.client_name"))
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                }
+
+                if !toolBridgeAccessMessage.isEmpty {
+                    Text(toolBridgeAccessMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                SettingsCodeRow(
+                    title: L10n.string("settings.tools.audit_path"),
+                    value: TerminalToolAccess.auditFile.path
+                )
+            }
+            .padding(10)
+            .background(preferences.skin.controlFill.opacity(0.7))
+            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .strokeBorder(preferences.skin.hairline, lineWidth: 1)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
                 SettingsCodeRow(title: L10n.string("settings.tools.install_path"), value: MuseTermCLIInstaller.installPath)
                 SettingsCodeRow(title: L10n.string("settings.tools.state_path"), value: MuseTermCLIInstaller.supportPath)
             }
@@ -634,6 +713,15 @@ struct SettingsView: View {
         } catch {
             cliInstallMessage = L10n.format("settings.tools.install_failed", error.localizedDescription)
         }
+    }
+
+    private func pairBuiltInToolClient() {
+        guard TerminalToolAccess.pair() else {
+            toolBridgeAccessMessage = L10n.string("settings.tools.client_pair_failed")
+            return
+        }
+        isBuiltInToolClientPaired = true
+        toolBridgeAccessMessage = L10n.string("settings.tools.client_pair_success")
     }
 
     private var profilesSection: some View {
@@ -776,6 +864,58 @@ private enum SettingsTab: CaseIterable, Identifiable {
     }
 }
 
+private enum SettingsGroup: CaseIterable, Identifiable {
+    case appearance
+    case terminal
+    case connections
+    case notifications
+    case intelligence
+    case automation
+
+    var id: Self { self }
+
+    var titleKey: String {
+        switch self {
+        case .appearance: return "settings.group.appearance"
+        case .terminal: return "settings.group.terminal"
+        case .connections: return "settings.group.connections"
+        case .notifications: return "settings.group.notifications"
+        case .intelligence: return "settings.group.intelligence"
+        case .automation: return "settings.group.automation"
+        }
+    }
+
+    var tabs: [SettingsTab] {
+        switch self {
+        case .appearance:
+            return [.appearance, .appIcon, .typography, .glass, .floatingPanel]
+        case .terminal:
+            return [.behavior]
+        case .connections:
+            return [.profiles]
+        case .notifications:
+            return [.notifications]
+        case .intelligence:
+            return [.ai]
+        case .automation:
+            return [.tools]
+        }
+    }
+
+    func filteredTabs(matching query: String) -> [SettingsTab] {
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else { return tabs }
+
+        let groupTitle = L10n.string(titleKey)
+        if groupTitle.localizedCaseInsensitiveContains(trimmedQuery) {
+            return tabs
+        }
+        return tabs.filter {
+            L10n.string($0.titleKey).localizedCaseInsensitiveContains(trimmedQuery)
+        }
+    }
+}
+
 private struct AIProviderChoiceView: View {
     let provider: AIProviderKind
     let isSelected: Bool
@@ -825,36 +965,105 @@ private struct AIProviderChoiceView: View {
     }
 }
 
-private struct SettingsTabBar: View {
+private struct SettingsSidebar: View {
     @Binding var selection: SettingsTab
+    @Binding var searchQuery: String
     let skin: TerminalVisualSkin
 
     var body: some View {
-        HStack(spacing: 6) {
-            ForEach(SettingsTab.allCases) { tab in
+        VStack(alignment: .leading, spacing: 12) {
+            searchField
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 12) {
+                    ForEach(SettingsGroup.allCases) { group in
+                        let tabs = group.filteredTabs(matching: searchQuery)
+                        if !tabs.isEmpty {
+                            settingsGroup(group, tabs: tabs)
+                        }
+                    }
+
+                    if hasNoResults {
+                        Text(L10n.string("settings.search.no_results"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 20)
+                    }
+                }
+            }
+        }
+        .frame(width: 210, alignment: .topLeading)
+        .onChange(of: searchQuery) { newQuery in
+            let matches = SettingsGroup.allCases.flatMap {
+                $0.filteredTabs(matching: newQuery)
+            }
+            guard !matches.isEmpty, !matches.contains(selection) else { return }
+            selection = matches[0]
+        }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 7) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+            TextField(L10n.string("settings.search.placeholder"), text: $searchQuery)
+                .textFieldStyle(.plain)
+            if !searchQuery.isEmpty {
+                Button {
+                    searchQuery = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .accessibilityLabel(L10n.string("action.clear"))
+            }
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
+        .background(skin.controlFill)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(skin.hairline, lineWidth: 1)
+        }
+    }
+
+    private var hasNoResults: Bool {
+        SettingsGroup.allCases.allSatisfy {
+            $0.filteredTabs(matching: searchQuery).isEmpty
+        }
+    }
+
+    @ViewBuilder
+    private func settingsGroup(_ group: SettingsGroup, tabs: [SettingsTab]) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(L10n.string(group.titleKey))
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .padding(.horizontal, 8)
+
+            ForEach(tabs) { tab in
                 Button {
                     selection = tab
                 } label: {
                     Label(L10n.string(tab.titleKey), systemImage: tab.systemImage)
-                        .font(.caption.weight(.medium))
+                        .font(.subheadline.weight(.medium))
                         .lineLimit(1)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .frame(maxWidth: .infinity)
-                        // 让整块胶囊（含内边距/留白）都可点击，而非仅文字本身。
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 7)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .focusable(false)
-                .foregroundStyle(selection == tab ? skin.accent : .secondary)
+                .foregroundStyle(selection == tab ? skin.accent : .primary)
                 .background(selection == tab ? skin.selectionFill : Color.clear)
                 .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                 .help(L10n.string(tab.titleKey))
             }
         }
-        .padding(4)
-        .background(skin.controlFill)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 
@@ -1589,6 +1798,14 @@ private struct SkinChoiceView: View {
     let skin: TerminalVisualSkin
     let isSelected: Bool
 
+    private var previewBackground: Color {
+        Color(nsColor: skin.terminalBackground)
+    }
+
+    private var previewForeground: Color {
+        Color(nsColor: skin.terminalForeground)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -1602,9 +1819,10 @@ private struct SkinChoiceView: View {
             }
             Text(skin.name)
                 .font(.subheadline.weight(.semibold))
+                .foregroundStyle(previewForeground)
             Text(skin.summary)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(previewForeground)
                 .lineLimit(2)
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 8), spacing: 2) {
                 ForEach(Array(skin.ansiColors.enumerated()), id: \.offset) { _, color in
@@ -1617,7 +1835,14 @@ private struct SkinChoiceView: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
-        .background(isSelected ? skin.selectionFill : skin.controlFill)
+        .background {
+            ZStack {
+                previewBackground
+                if isSelected {
+                    skin.selectionFill
+                }
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
