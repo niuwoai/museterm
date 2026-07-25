@@ -70,6 +70,7 @@
 "action.select_tab" = "Select tab %d";
 "action.show_tab_list" = "Show tab list";
 "action.hide_tab_list" = "Hide tab list";
+"sidebar.resize.help" = "Drag to resize the sidebar";
 "action.search_commands" = "Search Commands and Output";
 "action.show_tasks_ports" = "Tasks and Ports";
 "action.save_workspace" = "Save Workspace";

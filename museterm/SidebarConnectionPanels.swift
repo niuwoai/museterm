@@ -864,15 +864,20 @@ struct SSHProfilesSection: View {
                         Text(profile.displayName)
                             .font(.caption2.weight(.semibold))
                             .lineLimit(1)
+                            .help(profile.displayName)
                         Text(profile.target)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
+                            .truncationMode(.middle)
+                            .help(profile.target)
                         if !profile.normalized.tags.isEmpty {
-                            Text(profile.normalized.tags.map { "#\($0)" }.joined(separator: " "))
+                            let tagSummary = profile.normalized.tags.map { "#\($0)" }.joined(separator: " ")
+                            Text(tagSummary)
                                 .font(.system(size: 9))
                                 .foregroundStyle(.secondary.opacity(0.8))
                                 .lineLimit(1)
+                                .help(tagSummary)
                         }
                     }
                     Spacer(minLength: 2)
@@ -887,7 +892,7 @@ struct SSHProfilesSection: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help(L10n.string("ssh.connect"))
+            .help(rowHelp(for: profile, health: health))
 
             Menu {
                 Button {
@@ -1002,6 +1007,7 @@ struct SSHProfilesSection: View {
         let capabilities = profile.connectionCapabilityText
         let portForwards = profile.portForwardClipboardText
         return [
+            profile.displayName,
             base,
             profile.recentConnectionSummary,
             capabilities.isEmpty ? nil : capabilities,

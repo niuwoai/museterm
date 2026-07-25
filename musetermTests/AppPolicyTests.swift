@@ -120,6 +120,7 @@ final class AppPolicyTests: XCTestCase {
         XCTAssertEqual(preferences.skin, TerminalVisualSkin.seaSalt)
         XCTAssertTrue(preferences.glassEnabled)
         XCTAssertTrue(preferences.showsTabList)
+        XCTAssertEqual(preferences.sidebarExpandedWidth, 220)
         XCTAssertEqual(preferences.fontSize, 14)
         XCTAssertEqual(preferences.scrollbackLines, 3_000)
         XCTAssertEqual(preferences.appShortcut(for: .newTab), "command+char:t")
@@ -217,6 +218,28 @@ final class AppPolicyTests: XCTestCase {
         reloaded = TerminalPreferences(defaults: defaults)
         XCTAssertEqual(preferences.scrollbackLines, 20_000)
         XCTAssertEqual(reloaded.scrollbackLines, 20_000)
+    }
+
+    func testSidebarExpandedWidthPersistsAndClamps() throws {
+        let suiteName = "museterm.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let preferences = TerminalPreferences(defaults: defaults)
+        preferences.sidebarExpandedWidth = 320
+
+        var reloaded = TerminalPreferences(defaults: defaults)
+        XCTAssertEqual(reloaded.sidebarExpandedWidth, 320)
+
+        preferences.sidebarExpandedWidth = 120
+        reloaded = TerminalPreferences(defaults: defaults)
+        XCTAssertEqual(preferences.sidebarExpandedWidth, 220)
+        XCTAssertEqual(reloaded.sidebarExpandedWidth, 220)
+
+        preferences.sidebarExpandedWidth = 900
+        reloaded = TerminalPreferences(defaults: defaults)
+        XCTAssertEqual(preferences.sidebarExpandedWidth, 420)
+        XCTAssertEqual(reloaded.sidebarExpandedWidth, 420)
     }
 
     func testLineNavigationShortcutsPersist() throws {

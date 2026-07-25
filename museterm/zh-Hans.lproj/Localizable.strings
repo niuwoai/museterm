@@ -70,6 +70,7 @@
 "action.select_tab" = "选择标签 %d";
 "action.show_tab_list" = "显示标签列表";
 "action.hide_tab_list" = "隐藏标签列表";
+"sidebar.resize.help" = "拖拽调整侧栏宽度";
 "action.search_commands" = "搜索命令与输出";
 "action.show_tasks_ports" = "任务与端口";
 "action.save_workspace" = "保存工作区";

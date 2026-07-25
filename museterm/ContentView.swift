@@ -203,23 +203,74 @@ private struct SidebarView: View {
     let onCreateSessionTunnel: () -> Void
 
     private enum Layout {
-        static let expandedWidth: CGFloat = 220
         static let collapsedWidth: CGFloat = 88
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            .padding(.horizontal, 14)
-            .padding(.top, 14)
-            .padding(.bottom, 10)
+        ZStack(alignment: .trailing) {
+            VStack(spacing: 0) {
+                header
+                .padding(.horizontal, 14)
+                .padding(.top, 14)
+                .padding(.bottom, 10)
 
-            if preferences.showsTabList {
-                ScrollView {
-                    LazyVStack(spacing: 8) {
-                        VStack(spacing: 4) {
+                if preferences.showsTabList {
+                    ScrollView {
+                        LazyVStack(spacing: 8) {
+                            VStack(spacing: 4) {
+                                ForEach(Array(workspace.tabs.enumerated()), id: \.element.id) { index, tab in
+                                    TabRowView(
+                                        tab: tab,
+                                        isSelected: workspace.selectedID == tab.id,
+                                        shortcutNumber: index < 9 ? index + 1 : nil,
+                                        skin: preferences.skin,
+                                        closeAction: { workspace.close(tab) },
+                                        detachAction: { detach(tab) }
+                                    )
+                                    .onTapGesture {
+                                        workspace.select(tab)
+                                    }
+                                }
+                            }
+
+                            TerminalQuickPathSection(workspace: workspace, skin: preferences.skin)
+
+                            LearnedCommandSidebarSection(
+                                workspace: workspace,
+                                sshStore: sshStore,
+                                skin: preferences.skin
+                            )
+
+                            TerminalShortcutSection(
+                                workspace: workspace,
+                                sshStore: sshStore,
+                                skin: preferences.skin
+                            )
+
+                            FileTransferSection(workspace: workspace, skin: preferences.skin)
+
+                            TerminalProfilesSection(
+                                workspace: workspace,
+                                store: profileStore,
+                                skin: preferences.skin
+                            )
+
+                            SSHProfilesSection(
+                                workspace: workspace,
+                                store: sshStore,
+                                skin: preferences.skin
+                            )
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                    }
+                } else {
+                    // 收起态保留一个窄版标签列表：只显示状态点 + 截断标题，
+                    // 点击切换、右键关闭，悬停提示完整标题与 ⌘ 快捷键。
+                    ScrollView {
+                        LazyVStack(spacing: 4) {
                             ForEach(Array(workspace.tabs.enumerated()), id: \.element.id) { index, tab in
-                                TabRowView(
+                                CompactTabRowView(
                                     tab: tab,
                                     isSelected: workspace.selectedID == tab.id,
                                     shortcutNumber: index < 9 ? index + 1 : nil,
@@ -232,83 +283,54 @@ private struct SidebarView: View {
                                 }
                             }
                         }
-
-                        TerminalQuickPathSection(workspace: workspace, skin: preferences.skin)
-
-                        LearnedCommandSidebarSection(
-                            workspace: workspace,
-                            sshStore: sshStore,
-                            skin: preferences.skin
-                        )
-
-                        TerminalShortcutSection(
-                            workspace: workspace,
-                            sshStore: sshStore,
-                            skin: preferences.skin
-                        )
-
-                        FileTransferSection(workspace: workspace, skin: preferences.skin)
-
-                        TerminalProfilesSection(
-                            workspace: workspace,
-                            store: profileStore,
-                            skin: preferences.skin
-                        )
-
-                        SSHProfilesSection(
-                            workspace: workspace,
-                            store: sshStore,
-                            skin: preferences.skin
-                        )
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
                     }
-                    .padding(.horizontal, 10)
+                }
+
+                Spacer(minLength: 8)
+
+                if preferences.showsTabList {
+                    HStack {
+                        Spacer()
+                        settingsButton
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                } else {
+                    HStack {
+                        settingsButton
+                    }
+                    .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                 }
-            } else {
-                // 收起态保留一个窄版标签列表：只显示状态点 + 截断标题，
-                // 点击切换、右键关闭，悬停提示完整标题与 ⌘ 快捷键。
-                ScrollView {
-                    LazyVStack(spacing: 4) {
-                        ForEach(Array(workspace.tabs.enumerated()), id: \.element.id) { index, tab in
-                            CompactTabRowView(
-                                tab: tab,
-                                isSelected: workspace.selectedID == tab.id,
-                                shortcutNumber: index < 9 ? index + 1 : nil,
-                                skin: preferences.skin,
-                                closeAction: { workspace.close(tab) },
-                                detachAction: { detach(tab) }
-                            )
-                            .onTapGesture {
-                                workspace.select(tab)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                }
             }
+            .frame(maxWidth: .infinity)
 
-            Spacer(minLength: 8)
-
-            HStack {
-                if preferences.showsTabList {
-                    Spacer()
-                }
-                Button {
-                    SettingsWindowOpener.open(preferences: preferences)
-                } label: {
-                    Image(systemName: "gearshape")
-                        .frame(width: 28, height: 28)
-                }
-                .buttonStyle(.plain)
-                .help(L10n.string("action.settings"))
-                .accessibilityLabel(L10n.string("action.settings"))
+            if preferences.showsTabList {
+                SidebarResizeHandle(preferences: preferences)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
         }
-        .frame(width: preferences.showsTabList ? Layout.expandedWidth : Layout.collapsedWidth)
+        .frame(width: sidebarWidth)
         .background(preferences.skin.sidebarBackground)
+    }
+
+    private var sidebarWidth: CGFloat {
+        preferences.showsTabList
+            ? CGFloat(preferences.sidebarExpandedWidth)
+            : Layout.collapsedWidth
+    }
+
+    private var settingsButton: some View {
+        Button {
+            SettingsWindowOpener.open(preferences: preferences)
+        } label: {
+            Image(systemName: "gearshape")
+                .frame(width: 28, height: 28)
+        }
+        .buttonStyle(.plain)
+        .help(L10n.string("action.settings"))
+        .accessibilityLabel(L10n.string("action.settings"))
     }
 
     private func detach(_ tab: TerminalSession) {
@@ -382,6 +404,55 @@ private struct SidebarView: View {
                 .accessibilityIdentifier("sessionTunnelCreateButton")
             }
         }
+    }
+}
+
+private struct SidebarResizeHandle: View {
+    @ObservedObject var preferences: TerminalPreferences
+    @State private var isHovering = false
+    @State private var dragStartWidth: Double?
+
+    var body: some View {
+        Rectangle()
+            .fill(Color.clear)
+            .frame(width: 10)
+            .overlay(alignment: .trailing) {
+                RoundedRectangle(cornerRadius: 1, style: .continuous)
+                    .fill(preferences.skin.hairline.opacity(isHovering || dragStartWidth != nil ? 0.95 : 0.55))
+                    .frame(width: 1)
+            }
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        if dragStartWidth == nil {
+                            dragStartWidth = preferences.sidebarExpandedWidth
+                        }
+                        let startWidth = dragStartWidth ?? preferences.sidebarExpandedWidth
+                        preferences.sidebarExpandedWidth = TerminalPreferences.clampedSidebarExpandedWidth(
+                            startWidth + value.translation.width
+                        )
+                    }
+                    .onEnded { _ in
+                        dragStartWidth = nil
+                    }
+            )
+            .onHover { hovering in
+                isHovering = hovering
+                if hovering {
+                    NSCursor.resizeLeftRight.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+            .onDisappear {
+                if isHovering {
+                    NSCursor.pop()
+                    isHovering = false
+                }
+            }
+            .help(L10n.string("sidebar.resize.help"))
+            .accessibilityLabel(L10n.string("sidebar.resize.help"))
     }
 }
 

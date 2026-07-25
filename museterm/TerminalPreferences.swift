@@ -160,6 +160,7 @@ final class TerminalPreferences: ObservableObject {
         static let mouseReporting = "terminal.mouseReporting"
         static let scrollbackLines = "terminal.scrollbackLines"
         static let showsTabList = "terminal.showsTabList"
+        static let sidebarExpandedWidth = "terminal.sidebarExpandedWidth"
         static let cursorShape = "terminal.cursorShape"
         static let cursorBlink = "terminal.cursorBlink"
         static let appShortcuts = "terminal.shortcuts.app"
@@ -193,6 +194,9 @@ final class TerminalPreferences: ObservableObject {
     static let minimumScrollbackLines = 500
     static let defaultScrollbackLines = 3_000
     static let maximumScrollbackLines = 20_000
+    static let minimumSidebarExpandedWidth = 220.0
+    static let defaultSidebarExpandedWidth = 220.0
+    static let maximumSidebarExpandedWidth = 420.0
 
     @Published var skin: TerminalVisualSkin { didSet { defaults.set(skin.rawValue, forKey: Keys.skin) } }
     @Published var fontFamily: String { didSet { defaults.set(fontFamily, forKey: Keys.fontFamily) } }
@@ -218,6 +222,16 @@ final class TerminalPreferences: ObservableObject {
         }
     }
     @Published var showsTabList: Bool { didSet { defaults.set(showsTabList, forKey: Keys.showsTabList) } }
+    @Published var sidebarExpandedWidth: Double {
+        didSet {
+            let normalized = Self.clampedSidebarExpandedWidth(sidebarExpandedWidth)
+            guard sidebarExpandedWidth == normalized else {
+                sidebarExpandedWidth = normalized
+                return
+            }
+            defaults.set(sidebarExpandedWidth, forKey: Keys.sidebarExpandedWidth)
+        }
+    }
     @Published var cursorShape: TerminalCursorShape { didSet { defaults.set(cursorShape.rawValue, forKey: Keys.cursorShape) } }
     @Published var cursorBlink: Bool { didSet { defaults.set(cursorBlink, forKey: Keys.cursorBlink) } }
     @Published private(set) var appShortcutOverrides: [String: String] {
@@ -288,6 +302,9 @@ final class TerminalPreferences: ObservableObject {
             defaults.object(forKey: Keys.scrollbackLines) as? Int ?? Self.defaultScrollbackLines
         )
         showsTabList = defaults.object(forKey: Keys.showsTabList) as? Bool ?? true
+        sidebarExpandedWidth = Self.clampedSidebarExpandedWidth(
+            defaults.object(forKey: Keys.sidebarExpandedWidth) as? Double ?? Self.defaultSidebarExpandedWidth
+        )
         cursorShape = TerminalCursorShape(rawValue: defaults.string(forKey: Keys.cursorShape) ?? "") ?? .block
         cursorBlink = defaults.object(forKey: Keys.cursorBlink) as? Bool ?? true
         appShortcutOverrides = (defaults.dictionary(forKey: Keys.appShortcuts) ?? [:])
@@ -327,6 +344,10 @@ final class TerminalPreferences: ObservableObject {
 
     static func clampedScrollbackLines(_ value: Int) -> Int {
         min(max(value, minimumScrollbackLines), maximumScrollbackLines)
+    }
+
+    static func clampedSidebarExpandedWidth(_ value: Double) -> Double {
+        min(max(value, minimumSidebarExpandedWidth), maximumSidebarExpandedWidth)
     }
 
     func appShortcut(for action: TerminalAppShortcutAction) -> String {
