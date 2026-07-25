@@ -1233,6 +1233,22 @@ private struct FileTransferControls: View {
                 .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                 .disabled(isTransferActive)
                 .help(L10n.string("file_transfer.download.help"))
+
+                if isTransferActive {
+                    Button {
+                        workspace.cancelFileTransfer()
+                    } label: {
+                        Label(L10n.string("file_transfer.cancel"), systemImage: "xmark.circle.fill")
+                            .font(.caption.weight(.medium))
+                            .labelStyle(.titleAndIcon)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(skin.controlFill)
+                    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .help(L10n.string("file_transfer.cancel.help"))
+                }
             }
 
             if let status = tab.fileTransferStatus {

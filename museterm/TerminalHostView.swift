@@ -76,6 +76,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private var lastAppliedPreferences: TerminalPreferenceSignature?
     private var pendingZModemProbe: PendingZModemProbe?
     private var activeZModemTransfer: ZModemBridgeProcess?
+    /// Identifies the transfer whose `onExit` is still welcome. A superseded
+    /// or torn-down bridge exits later on a background queue; the stale
+    /// callback must not clobber the status of a newer transfer.
+    private var activeZModemTransferToken: UUID?
     private var activeSessionTunnel: SessionTunnelBridge?
     private var activeSessionTunnelID: UUID?
     private let shellIntegrationParser = TerminalShellIntegrationParser()
@@ -575,6 +579,19 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 error: L10n.string("session_tunnel.error.process_terminated")
             )
         }
+        // PTY 死亡时本地 lrzsz 桥接进程必须一并回收，否则它会一直挂着，
+        // 侧栏状态也永远停在"传输中"。
+        if pendingZModemProbe != nil || activeZModemTransfer != nil {
+            let kind = pendingZModemProbe?.kind
+                ?? (activeZModemTransfer != nil ? session?.fileTransferStatus?.kind : nil)
+            cancelActiveZModemTransfer()
+            if let kind {
+                reportFileTransferFailure(
+                    kind: kind,
+                    reason: L10n.string("file_transfer.error.process_unavailable")
+                )
+            }
+        }
         if scheduleSSHReconnectIfNeeded(exitCode: exitCode) {
             return
         }
@@ -637,7 +654,23 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             guard self.approveProcessInputIfNeeded(data: data, echoEnabled: echoEnabled) else {
                 return false
             }
-            guard self.activeZModemTransfer == nil, self.pendingZModemProbe == nil else {
+            if self.activeZModemTransfer != nil {
+                // ZMODEM 传输期间键盘输入不得混入协议流；Ctrl+C 双端中止，
+                // 其余按键一律吞掉。
+                if data.contains(0x03) {
+                    self.requestUserCancelZModemTransfer()
+                }
+                return false
+            }
+            if self.pendingZModemProbe != nil {
+                // 探测阶段远端仍是 shell：按键放行（不记录）；Ctrl+C 在
+                // 打断远端命令的同时结束本地的探测等待。
+                if data.contains(0x03), let probe = self.pendingZModemProbe {
+                    self.pendingZModemProbe = nil
+                    self.session?.updateFileTransferStatus(
+                        .failed(kind: probe.kind, reason: L10n.string("file_transfer.error.cancelled"))
+                    )
+                }
                 return true
             }
             self.session?.recordInputIfNeeded(data: data, echoEnabled: echoEnabled)
@@ -901,6 +934,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         downloadPlan: ZModemDownloadPlan? = nil
     ) {
         do {
+            let token = UUID()
             let transfer = try ZModemBridgeProcess(
                 executableURL: executableURL,
                 arguments: arguments,
@@ -913,16 +947,24 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 },
                 onProgress: { [weak self] progress in
                     DispatchQueue.main.async {
-                        self?.session?.updateFileTransferStatus(.transferring(kind: kind, progress: progress))
+                        guard let self, self.activeZModemTransferToken == token else { return }
+                        self.session?.updateFileTransferStatus(.transferring(kind: kind, progress: progress))
                     }
                 },
-                onExit: { [weak self] exitCode in
+                onExit: { [weak self] exitCode, endReason in
                     DispatchQueue.main.async {
-                        self?.finishZModemTransfer(kind: kind, exitCode: exitCode, downloadPlan: downloadPlan)
+                        guard let self, self.activeZModemTransferToken == token else { return }
+                        self.finishZModemTransfer(
+                            kind: kind,
+                            exitCode: exitCode,
+                            endReason: endReason,
+                            downloadPlan: downloadPlan
+                        )
                     }
                 }
             )
             activeZModemTransfer = transfer
+            activeZModemTransferToken = token
             session?.updateFileTransferStatus(.transferring(kind: kind, progress: nil))
             if !initialRemoteBytes.isEmpty {
                 transfer.acceptRemoteData(initialRemoteBytes)
@@ -932,27 +974,64 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         }
     }
 
-    private func finishZModemTransfer(kind: TerminalFileTransferKind, exitCode: Int32, downloadPlan: ZModemDownloadPlan?) {
+    private func finishZModemTransfer(
+        kind: TerminalFileTransferKind,
+        exitCode: Int32,
+        endReason: ZModemBridgeEndReason,
+        downloadPlan: ZModemDownloadPlan?
+    ) {
         activeZModemTransfer = nil
-        if exitCode == 0 {
-            do {
-                try downloadPlan?.moveDownloadedFileToDestination()
-                session?.updateFileTransferStatus(.completed(kind: kind))
-                terminalView.feed(text: "\n\(L10n.string(kind == .upload ? "file_transfer.upload.completed" : "file_transfer.download.completed"))\n")
-            } catch {
-                reportFileTransferFailure(kind: kind, reason: error.localizedDescription)
+        activeZModemTransferToken = nil
+        defer { downloadPlan?.cleanup() }
+
+        switch endReason {
+        case .userCancelled:
+            let reason = L10n.string("file_transfer.error.cancelled")
+            reportFileTransferFailure(kind: kind, reason: reason)
+            terminalView.feed(text: "\n\(reason)\n")
+        case .timedOut:
+            let reason = L10n.format("file_transfer.error.stalled", Int(activeTransferIdleTimeout))
+            reportFileTransferFailure(kind: kind, reason: reason)
+            terminalView.feed(text: "\n\(reason)\n")
+        case .none:
+            if exitCode == 0 {
+                do {
+                    try downloadPlan?.moveDownloadedFileToDestination()
+                    session?.updateFileTransferStatus(.completed(kind: kind))
+                    terminalView.feed(text: "\n\(L10n.string(kind == .upload ? "file_transfer.upload.completed" : "file_transfer.download.completed"))\n")
+                } catch {
+                    reportFileTransferFailure(kind: kind, reason: error.localizedDescription)
+                }
+            } else {
+                reportFileTransferFailure(kind: kind, reason: L10n.format("file_transfer.error.local_exit", exitCode))
             }
-            downloadPlan?.cleanup()
-        } else {
-            reportFileTransferFailure(kind: kind, reason: L10n.format("file_transfer.error.local_exit", exitCode))
-            downloadPlan?.cleanup()
         }
     }
 
+    /// Idle window before an in-flight transfer is declared dead. Mirrors
+    /// ZModemBridgeProcess's default; kept here for the timeout message.
+    private var activeTransferIdleTimeout: TimeInterval { 30 }
+
+    /// Silently tear down any probe/transfer so a new one can take the PTY
+    /// (or the PTY itself died). The stale bridge's late `onExit` is dropped
+    /// by the token guard.
     private func cancelActiveZModemTransfer() {
         pendingZModemProbe = nil
-        activeZModemTransfer?.terminate()
+        activeZModemTransferToken = nil
+        activeZModemTransfer?.cancel(reason: .userCancelled)
         activeZModemTransfer = nil
+    }
+
+    /// User-facing cancel (Ctrl+C or the sidebar button): abort both sides
+    /// and let the normal `onExit` path report "cancelled".
+    func requestUserCancelZModemTransfer() {
+        if let probe = pendingZModemProbe {
+            pendingZModemProbe = nil
+            session?.updateFileTransferStatus(
+                .failed(kind: probe.kind, reason: L10n.string("file_transfer.error.cancelled"))
+            )
+        }
+        activeZModemTransfer?.cancel(reason: .userCancelled)
     }
 
     private func reportLocalToolMissing(kind: TerminalFileTransferKind, toolName: String) {
@@ -1792,399 +1871,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 }
 
-enum TerminalFileTransferKind: Equatable {
-    case upload
-    case download
-}
-
-enum TerminalFileTransferPhase: Equatable {
-    case checkingRemote
-    case transferring
-    case completed
-    case failed
-}
-
-struct TerminalFileTransferStatus: Equatable {
-    let kind: TerminalFileTransferKind
-    let phase: TerminalFileTransferPhase
-    let reason: String?
-    let progress: TerminalFileTransferProgress?
-
-    var isActive: Bool {
-        phase == .checkingRemote || phase == .transferring
-    }
-
-    var localizedSummary: String {
-        if let reason, phase == .failed {
-            return reason
-        }
-
-        switch (kind, phase) {
-        case (.upload, .checkingRemote):
-            return L10n.string("file_transfer.upload.checking")
-        case (.upload, .transferring):
-            return L10n.string("file_transfer.upload.running")
-        case (.upload, .completed):
-            return L10n.string("file_transfer.upload.completed")
-        case (.upload, .failed):
-            return L10n.string("file_transfer.upload.failed")
-        case (.download, .checkingRemote):
-            return L10n.string("file_transfer.download.checking")
-        case (.download, .transferring):
-            return L10n.string("file_transfer.download.running")
-        case (.download, .completed):
-            return L10n.string("file_transfer.download.completed")
-        case (.download, .failed):
-            return L10n.string("file_transfer.download.failed")
-        }
-    }
-
-    static func checkingRemote(kind: TerminalFileTransferKind) -> Self {
-        Self(kind: kind, phase: .checkingRemote, reason: nil, progress: nil)
-    }
-
-    static func transferring(kind: TerminalFileTransferKind, progress: TerminalFileTransferProgress?) -> Self {
-        Self(kind: kind, phase: .transferring, reason: nil, progress: progress)
-    }
-
-    static func completed(kind: TerminalFileTransferKind) -> Self {
-        Self(kind: kind, phase: .completed, reason: nil, progress: TerminalFileTransferProgress(percent: 1, fileName: nil, detail: nil))
-    }
-
-    static func failed(kind: TerminalFileTransferKind, reason: String) -> Self {
-        Self(kind: kind, phase: .failed, reason: reason, progress: nil)
-    }
-}
-
-struct TerminalFileTransferProgress: Equatable {
-    let percent: Double?
-    let fileName: String?
-    let detail: String?
-
-    init(percent: Double?, fileName: String?, detail: String?) {
-        self.percent = percent.map { min(1, max(0, $0)) }
-        self.fileName = fileName
-        self.detail = detail
-    }
-}
-
-private final class PendingZModemProbe {
-    enum Result {
-        case ready(initialRemoteBytes: [UInt8])
-        case missing
-    }
-
-    let id = UUID()
-    let kind: TerminalFileTransferKind
-    let startLocalTransfer: ([UInt8]) -> Void
-    private let readyMarker: [UInt8]
-    private let missingMarker: [UInt8]
-    private var buffer: [UInt8] = []
-    private let maxProbeBufferSize = 16_384
-
-    init(
-        kind: TerminalFileTransferKind,
-        readyMarker: String,
-        missingMarker: String,
-        startLocalTransfer: @escaping ([UInt8]) -> Void
-    ) {
-        self.kind = kind
-        self.readyMarker = Array(readyMarker.utf8)
-        self.missingMarker = Array(missingMarker.utf8)
-        self.startLocalTransfer = startLocalTransfer
-    }
-
-    func acceptRemoteProbeData(_ bytes: [UInt8]) -> Result? {
-        buffer.append(contentsOf: bytes)
-        if buffer.count > maxProbeBufferSize {
-            buffer.removeFirst(buffer.count - maxProbeBufferSize)
-        }
-
-        if buffer.firstRange(of: missingMarker) != nil {
-            return .missing
-        }
-
-        guard let readyRange = buffer.firstRange(of: readyMarker) else {
-            return nil
-        }
-
-        let trailingBytes = Array(buffer[readyRange.upperBound...])
-        return .ready(initialRemoteBytes: trailingBytes)
-    }
-}
-
-private extension Array where Element == UInt8 {
-    func firstRange(of marker: [UInt8]) -> Range<Int>? {
-        guard !marker.isEmpty, marker.count <= count else { return nil }
-        for index in 0...(count - marker.count) {
-            if self[index..<(index + marker.count)].elementsEqual(marker) {
-                return index..<(index + marker.count)
-            }
-        }
-        return nil
-    }
-}
-
-private struct ZModemDownloadPlan {
-    let remoteBasename: String
-    let destinationFile: URL
-    let temporaryDirectory: URL
-
-    init(remotePath: String, destinationFile: URL) throws {
-        let remoteBasename = Self.basename(from: remotePath)
-        guard !remoteBasename.isEmpty else {
-            throw NSError(
-                domain: "MuseTermZModem",
-                code: 1,
-                userInfo: [NSLocalizedDescriptionKey: L10n.string("file_transfer.error.remote_basename")]
-            )
-        }
-
-        let temporaryDirectory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("MuseTermZModem", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
-
-        self.remoteBasename = remoteBasename
-        self.destinationFile = destinationFile
-        self.temporaryDirectory = temporaryDirectory
-    }
-
-    func moveDownloadedFileToDestination() throws {
-        let expected = temporaryDirectory.appendingPathComponent(remoteBasename)
-        let source: URL
-        if FileManager.default.fileExists(atPath: expected.path) {
-            source = expected
-        } else {
-            let receivedFiles = try FileManager.default.contentsOfDirectory(
-                at: temporaryDirectory,
-                includingPropertiesForKeys: [.isRegularFileKey],
-                options: [.skipsHiddenFiles]
-            ).filter { url in
-                (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
-            }
-            guard let first = receivedFiles.first else {
-                throw NSError(
-                    domain: "MuseTermZModem",
-                    code: 2,
-                    userInfo: [NSLocalizedDescriptionKey: L10n.string("file_transfer.error.download_missing")]
-                )
-            }
-            source = first
-        }
-
-        let destinationDirectory = destinationFile.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: destinationDirectory, withIntermediateDirectories: true)
-        if FileManager.default.fileExists(atPath: destinationFile.path) {
-            try FileManager.default.removeItem(at: destinationFile)
-        }
-        try FileManager.default.moveItem(at: source, to: destinationFile)
-    }
-
-    func cleanup() {
-        try? FileManager.default.removeItem(at: temporaryDirectory)
-    }
-
-    private static func basename(from remotePath: String) -> String {
-        let trimmed = remotePath.trimmingCharacters(in: .whitespacesAndNewlines)
-        let withoutTrailingSlash = trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        return withoutTrailingSlash.split(separator: "/").last.map(String.init) ?? ""
-    }
-}
-
-private final class ZModemProgressParser {
-    private var bufferedText = ""
-    private var lastFileName: String?
-    private let maxBufferedTextLength = 8_192
-
-    func accept(stderrData: Data) -> TerminalFileTransferProgress? {
-        let text = String(data: stderrData, encoding: .utf8)
-            ?? String(data: stderrData, encoding: .isoLatin1)
-            ?? ""
-        guard !text.isEmpty else { return nil }
-
-        bufferedText.append(text)
-        if bufferedText.count > maxBufferedTextLength {
-            bufferedText.removeFirst(bufferedText.count - maxBufferedTextLength)
-        }
-
-        let candidates = bufferedText
-            .components(separatedBy: CharacterSet(charactersIn: "\r\n"))
-            .map(Self.cleanProgressLine)
-            .filter { !$0.isEmpty }
-        guard let line = candidates.last else { return nil }
-
-        if let fileName = Self.fileName(from: line) {
-            lastFileName = fileName
-        }
-
-        let percent = Self.percent(from: line)
-        return TerminalFileTransferProgress(
-            percent: percent,
-            fileName: lastFileName,
-            detail: line
-        )
-    }
-
-    nonisolated private static func cleanProgressLine(_ line: String) -> String {
-        line
-            .replacingOccurrences(of: "\u{1B}\\[[0-9;?]*[ -/]*[@-~]", with: "", options: .regularExpression)
-            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    nonisolated private static func fileName(from line: String) -> String? {
-        let prefixes = ["Sending:", "Receiving:"]
-        for prefix in prefixes where line.localizedCaseInsensitiveContains(prefix) {
-            let parts = line.components(separatedBy: ":")
-            guard parts.count > 1 else { continue }
-            let candidate = parts.dropFirst().joined(separator: ":")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            if !candidate.isEmpty {
-                return URL(fileURLWithPath: candidate).lastPathComponent
-            }
-        }
-        return nil
-    }
-
-    nonisolated private static func percent(from line: String) -> Double? {
-        if let percentText = firstMatch(in: line, pattern: #"(\d{1,3})(?:\.\d+)?\s*%"#),
-           let percent = Double(percentText) {
-            return percent / 100
-        }
-
-        if let fraction = firstFraction(in: line), fraction.total > 0 {
-            return Double(fraction.current) / Double(fraction.total)
-        }
-
-        return nil
-    }
-
-    nonisolated private static func firstMatch(in line: String, pattern: String) -> String? {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
-        let range = NSRange(line.startIndex..<line.endIndex, in: line)
-        guard let match = regex.firstMatch(in: line, range: range), match.numberOfRanges > 1 else {
-            return nil
-        }
-        guard let valueRange = Range(match.range(at: 1), in: line) else { return nil }
-        return String(line[valueRange])
-    }
-
-    nonisolated private static func firstFraction(in line: String) -> (current: Int64, total: Int64)? {
-        guard let regex = try? NSRegularExpression(pattern: #"(\d+)\s*/\s*(\d+)"#) else { return nil }
-        let range = NSRange(line.startIndex..<line.endIndex, in: line)
-        guard let match = regex.firstMatch(in: line, range: range), match.numberOfRanges > 2 else {
-            return nil
-        }
-        guard
-            let currentRange = Range(match.range(at: 1), in: line),
-            let totalRange = Range(match.range(at: 2), in: line),
-            let current = Int64(line[currentRange]),
-            let total = Int64(line[totalRange])
-        else {
-            return nil
-        }
-        return (current, total)
-    }
-}
-
-private final class ZModemBridgeProcess {
-    private let process = Process()
-    private let stdinPipe = Pipe()
-    private let stdoutPipe = Pipe()
-    private let stderrPipe = Pipe()
-    private let writeQueue = DispatchQueue(label: "app.museterm.zmodem.stdin")
-    private let progressParser = ZModemProgressParser()
-
-    init(
-        executableURL: URL,
-        arguments: [String],
-        currentDirectory: URL?,
-        onOutput: @escaping ([UInt8]) -> Void,
-        onProgress: @escaping (TerminalFileTransferProgress) -> Void,
-        onExit: @escaping (Int32) -> Void
-    ) throws {
-        process.executableURL = executableURL
-        process.arguments = arguments
-        process.standardInput = stdinPipe
-        process.standardOutput = stdoutPipe
-        process.standardError = stderrPipe
-        if let currentDirectory {
-            process.currentDirectoryURL = currentDirectory
-        }
-
-        stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            guard !data.isEmpty else { return }
-            onOutput(Array(data))
-        }
-        stderrPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            guard !data.isEmpty else { return }
-            if let progress = self.progressParser.accept(stderrData: data) {
-                onProgress(progress)
-            }
-        }
-        process.terminationHandler = { process in
-            self.stdoutPipe.fileHandleForReading.readabilityHandler = nil
-            self.stderrPipe.fileHandleForReading.readabilityHandler = nil
-            onExit(process.terminationStatus)
-        }
-
-        try process.run()
-    }
-
-    func acceptRemoteData(_ bytes: [UInt8]) {
-        guard !bytes.isEmpty else { return }
-        let data = Data(bytes)
-        writeQueue.async { [stdinPipe] in
-            do {
-                try stdinPipe.fileHandleForWriting.write(contentsOf: data)
-            } catch {
-                stdinPipe.fileHandleForWriting.closeFile()
-            }
-        }
-    }
-
-    func terminate() {
-        stdoutPipe.fileHandleForReading.readabilityHandler = nil
-        stderrPipe.fileHandleForReading.readabilityHandler = nil
-        if process.isRunning {
-            process.terminate()
-        }
-        stdinPipe.fileHandleForWriting.closeFile()
-    }
-}
-
-private enum ZModemLocalTool {
-    static func executable(named name: String) -> URL? {
-        searchDirectories
-            .lazy
-            .map { $0.appendingPathComponent(name) }
-            .first { FileManager.default.isExecutableFile(atPath: $0.path) }
-    }
-
-    private static var searchDirectories: [URL] {
-        let pathDirectories = (ProcessInfo.processInfo.environment["PATH"] ?? "")
-            .split(separator: ":")
-            .map { URL(fileURLWithPath: String($0), isDirectory: true) }
-
-        let commonDirectories = [
-            "/opt/homebrew/bin",
-            "/usr/local/bin",
-            "/usr/bin",
-            "/bin"
-        ].map { URL(fileURLWithPath: $0, isDirectory: true) }
-
-        var seen = Set<String>()
-        return (pathDirectories + commonDirectories).filter { url in
-            let key = url.standardizedFileURL.path
-            guard !seen.contains(key) else { return false }
-            seen.insert(key)
-            return true
-        }
-    }
-}
+// TerminalFileTransfer* 状态模型与 ZMODEM 桥接类型
+// （PendingZModemProbe / ZModemDownloadPlan / ZModemProgressParser /
+// ZModemBridgeProcess / ZModemLocalTool）已迁至 TerminalZModemSupport.swift。
 
 private struct TerminalPreferenceSignature: Equatable {
     let skin: TerminalVisualSkin

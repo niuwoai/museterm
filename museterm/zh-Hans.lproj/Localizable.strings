@@ -233,6 +233,10 @@
 "file_transfer.error.download_missing" = "下载完成后没有找到接收到的文件。";
 "file_transfer.local_install" = "请先在本机安装 lrzsz：brew install lrzsz";
 "file_transfer.remote_install" = "请在远端安装 lrzsz：Debian/Ubuntu 用 sudo apt update && sudo apt install lrzsz；Fedora/RHEL/CentOS 用 sudo dnf install lrzsz 或 sudo yum install lrzsz；Arch 用 sudo pacman -S lrzsz；Alpine 用 sudo apk add lrzsz；macOS 用 brew install lrzsz。";
+"file_transfer.cancel" = "取消";
+"file_transfer.cancel.help" = "中止本地与远端的传输。";
+"file_transfer.error.cancelled" = "传输已取消。";
+"file_transfer.error.stalled" = "%d 秒无数据流动，传输已中止。";
 
 "ssh.section" = "SSH 主机";
 "ssh.add" = "添加主机";

@@ -618,6 +618,10 @@ final class TerminalSession: ObservableObject, Identifiable {
         controller.startZModemDownload(remotePath: remotePath, destinationFile: destinationFile)
     }
 
+    func cancelFileTransfer() {
+        controller.requestUserCancelZModemTransfer()
+    }
+
     var canStartSessionTunnel: Bool {
         guard case .running = state,
               sessionTunnelStatus?.occupiesTerminal != true,
@@ -1592,6 +1596,11 @@ final class TerminalWorkspace: ObservableObject {
 
     func startZModemDownload(remotePath: String, destinationFile: URL) {
         selectedTab?.startZModemDownload(remotePath: remotePath, destinationFile: destinationFile)
+        objectWillChange.send()
+    }
+
+    func cancelFileTransfer() {
+        selectedTab?.cancelFileTransfer()
         objectWillChange.send()
     }
 

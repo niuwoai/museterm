@@ -233,6 +233,10 @@
 "file_transfer.error.download_missing" = "The received file was not found after the download finished.";
 "file_transfer.local_install" = "Install lrzsz locally first: brew install lrzsz";
 "file_transfer.remote_install" = "Install lrzsz on the remote host: Debian/Ubuntu: sudo apt update && sudo apt install lrzsz; Fedora/RHEL/CentOS: sudo dnf install lrzsz or sudo yum install lrzsz; Arch: sudo pacman -S lrzsz; Alpine: sudo apk add lrzsz; macOS: brew install lrzsz.";
+"file_transfer.cancel" = "Cancel";
+"file_transfer.cancel.help" = "Abort the transfer on both the local and remote side.";
+"file_transfer.error.cancelled" = "Transfer cancelled.";
+"file_transfer.error.stalled" = "No data moved for %d seconds; the transfer was aborted.";
 
 "ssh.section" = "SSH Hosts";
 "ssh.add" = "Add host";
