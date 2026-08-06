@@ -661,9 +661,9 @@
 "tab.notification_unread" = "Unread terminal event";
 "notification.bell.title" = "Terminal bell";
 "notification.bell.body" = "%@ sent a bell.";
-"notification.command_failed.title" = "Command failed";
-"notification.command_failed.body" = "%@ failed with exit %d after %@.";
-"notification.command_failed.body_with_command" = "%@ failed with exit %d after %@: %@";
+"notification.command_failed.title" = "Task needs attention";
+"notification.command_failed.body" = "A task in %@ did not complete successfully after %@. Open the tab for details.";
+"notification.command_failed.body_with_command" = "A task in %@ did not complete successfully after %@: %@";
 "notification.command_completed.title" = "Long command finished";
 "notification.command_completed.body" = "%@ finished after %@.";
 "notification.command_completed.body_with_command" = "%@ finished after %@: %@";
@@ -742,6 +742,8 @@
 "settings.tools.state_path" = "Local bridge data";
 "settings.tools.install_cli" = "Install CLI";
 "settings.tools.copy_path" = "Copy path";
+"settings.tools.copy_path_success" = "CLI path copied: %@";
+"settings.tools.copy_path_failed" = "Could not copy the CLI path. Please try again.";
 "settings.tools.installed" = "Installed";
 "settings.tools.not_installed" = "Not installed";
 "settings.tools.install_success" = "Installed qterm at %@. Add ~/.local/bin to PATH if your shell cannot find it.";
@@ -891,6 +893,7 @@
 "settings.ai_command.activation.disabled" = "Disabled";
 "ai_command.title" = "AI Assistant";
 "ai_command.input.placeholder" = "Describe what you want the terminal to do";
+"ai_command.input.keyboard_help" = "Press Enter to generate. Press Shift-Enter for a new line.";
 "ai_command.generate" = "Generate commands";
 "ai_command.close_help" = "Close and end this AI session";
 "ai_command.close_ends_session" = "Closing cancels generation and ends this AI session.";

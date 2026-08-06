@@ -3,6 +3,42 @@ import XCTest
 @testable import museterm
 
 final class AICommandAssistantTests: XCTestCase {
+    func testComposerInputExpandsToAtMostFiveLines() {
+        XCTAssertEqual(AICommandComposerLayout.maximumInputLines, 5)
+        XCTAssertEqual(AICommandComposerLayout.minimumBarHeight, 46)
+    }
+
+    func testComposerUsesCompactSpacingForContextRow() {
+        XCTAssertEqual(AICommandComposerLayout.contextRowSpacing, 4)
+        XCTAssertEqual(AICommandComposerLayout.bottomRowSpacing, 10)
+    }
+
+    func testComposerKeyboardActionsDistinguishSubmitAndNewline() {
+        XCTAssertEqual(
+            AICommandComposerKeyResolver.action(keyCode: 36, modifierFlags: []),
+            .submit
+        )
+        XCTAssertEqual(
+            AICommandComposerKeyResolver.action(keyCode: 36, modifierFlags: [.shift]),
+            .insertNewline
+        )
+        XCTAssertEqual(
+            AICommandComposerKeyResolver.action(keyCode: 76, modifierFlags: []),
+            .submit
+        )
+    }
+
+    func testComposerKeyboardActionsPassThroughOtherShortcuts() {
+        XCTAssertEqual(
+            AICommandComposerKeyResolver.action(keyCode: 36, modifierFlags: [.command]),
+            .passthrough
+        )
+        XCTAssertEqual(
+            AICommandComposerKeyResolver.action(keyCode: 0, modifierFlags: [.shift]),
+            .passthrough
+        )
+    }
+
     func testDoubleControlTriggersAfterTwoIsolatedTaps() {
         var detector = DoubleModifierTapDetector()
 

@@ -9,6 +9,7 @@ struct TerminalQuickPathSection: View {
     let skin: TerminalVisualSkin
     @State private var showsMoreFrequentPaths = false
     @State private var quickPathAlert: SidebarStatusAlert?
+    @State private var quickPathAlertDismissTask: Task<Void, Never>?
 
     var body: some View {
         let recentPaths = workspace.recentQuickPaths
@@ -212,7 +213,17 @@ struct TerminalQuickPathSection: View {
     }
 
     private func showQuickPathAlert(_ message: String, tone: SidebarAlertTone) {
-        quickPathAlert = SidebarStatusAlert(message: message, tone: tone)
+        quickPathAlertDismissTask?.cancel()
+        withAnimation(.easeOut(duration: 0.15)) {
+            quickPathAlert = SidebarStatusAlert(message: message, tone: tone)
+        }
+        quickPathAlertDismissTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.25)) {
+                quickPathAlert = nil
+            }
+        }
     }
 }
 

@@ -377,6 +377,30 @@ final class AppPolicyTests: XCTestCase {
         }
     }
 
+    func testNotificationPolicyDoesNotNotifyNavigationCommandFailures() {
+        let block = commandBlock(
+            command: "cd /missing-directory",
+            exitCode: 1,
+            duration: 12,
+            outputSummary: TerminalOutputSummary(
+                insightKinds: [.error],
+                errorLine: "cd: no such file or directory",
+                warningLine: nil,
+                url: nil,
+                filePath: nil,
+                commitHash: nil,
+                stackTraceLine: nil
+            )
+        )
+        let delivery = TerminalNotificationPolicy.delivery(for: notificationPolicyInput(
+            event: .commandFinished(block),
+            appIsActive: false,
+            tabIsSelected: false
+        ))
+
+        XCTAssertEqual(delivery, .none)
+    }
+
     func testNotificationPayloadOmitsCommandWhenPrivacyDisabled() {
         let block = commandBlock(
             command: "make test --filter LoginTests",
@@ -393,6 +417,7 @@ final class AppPolicyTests: XCTestCase {
         XCTAssertEqual(payload.cooldownKey, "command-failed")
         XCTAssertFalse(payload.body.contains("make test"))
         XCTAssertFalse(payload.body.contains("LoginTests"))
+        XCTAssertFalse(payload.body.contains("exit 1"))
     }
 
     func testNotificationPayloadIncludesSanitizedCommandWhenAllowed() {

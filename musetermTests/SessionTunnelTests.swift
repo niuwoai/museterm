@@ -48,6 +48,8 @@ private final class SessionTunnelTestOutputBuffer: @unchecked Sendable {
 }
 
 final class SessionTunnelTests: XCTestCase {
+    private static let canonicalPTYInputByteLimit = 1_024
+
     func testHelperPlatformDetectionAndResourceNames() {
         let cases: [(String, String, SessionTunnelHelperPlatform)] = [
             ("Linux", "x86_64", .linuxAMD64),
@@ -403,25 +405,26 @@ final class SessionTunnelTests: XCTestCase {
 
         try process.run()
         let encodedPayload = SessionTunnelBundledHelper.helperPayload(payload)
-        input.fileHandleForWriting.write(
-            Data(
-                SessionTunnelBundledHelper.loaderInputBytes(
-                    configuration: SessionTunnelConfiguration(
-                        name: "db",
-                        targetHost: "127.0.0.1",
-                        targetPort: 9,
-                        localPort: 13306
-                    ),
-                    token: token,
-                    payloadByteCount: encodedPayload.count
-                )
-            )
+        let loaderInput = SessionTunnelBundledHelper.loaderInputBytes(
+            configuration: SessionTunnelConfiguration(
+                name: "db",
+                targetHost: "127.0.0.1",
+                targetPort: 9,
+                localPort: 13306
+            ),
+            token: token,
+            payloadByteCount: encodedPayload.count
         )
+        XCTAssertLessThan(loaderInput.count, Self.canonicalPTYInputByteLimit)
+        input.fileHandleForWriting.write(Data(loaderInput))
         guard XCTWaiter.wait(for: [loaderReady], timeout: 5) == .completed else {
             process.terminate()
             process.waitUntilExit()
             output.fileHandleForReading.readabilityHandler = nil
-            XCTFail("static loader did not become ready")
+            XCTFail(
+                "static loader did not become ready: "
+                    + String(decoding: outputBuffer.snapshot, as: UTF8.self)
+            )
             return
         }
         input.fileHandleForWriting.write(
@@ -454,6 +457,30 @@ final class SessionTunnelTests: XCTestCase {
             messages.map(\.type),
             ["loader_ready", "ready", "stopped", "shell_ready"]
         )
+    }
+
+    func testStaticLoaderCommandsFitCanonicalPTYInputLimit() {
+        let configuration = SessionTunnelConfiguration(
+            name: "db",
+            targetHost: String(repeating: "a", count: 253),
+            targetPort: 65_535,
+            localPort: 65_535
+        )
+        let token = String(repeating: "f", count: 32)
+
+        for isGzipCompressed in [false, true] {
+            let loaderInput = SessionTunnelBundledHelper.loaderInputBytes(
+                configuration: configuration,
+                token: token,
+                payloadByteCount: 9_999_999,
+                isGzipCompressed: isGzipCompressed
+            )
+            XCTAssertLessThan(
+                loaderInput.count,
+                Self.canonicalPTYInputByteLimit,
+                "gzip=\(isGzipCompressed), bytes=\(loaderInput.count)"
+            )
+        }
     }
 
     func testNativeStaticHelperStartsAndStopsOverPipes() throws {

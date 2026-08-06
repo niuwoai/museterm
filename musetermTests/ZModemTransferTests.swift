@@ -39,6 +39,21 @@ final class ZModemTransferTests: XCTestCase {
         }
     }
 
+    func testAutomaticUploadDetectorRecognizesBinaryRzHandshakeAcrossChunks() {
+        let detector = AutomaticZModemUploadDetector()
+
+        XCTAssertNil(detector.accept(Array("rz waiting to receive.**".utf8)))
+        let result = detector.accept([0x18] + Array("B0100000023be50\r".utf8))
+
+        XCTAssertEqual(result, [0x2A, 0x2A, 0x18] + Array("B0100000023be50\r".utf8))
+    }
+
+    func testAutomaticUploadDetectorIgnoresOrdinaryTerminalOutput() {
+        let detector = AutomaticZModemUploadDetector()
+
+        XCTAssertNil(detector.accept(Array("build **B02000000 completed\n".utf8)))
+    }
+
     // MARK: - ZModemProgressParser
 
     func testProgressParserParsesPercentAndFileName() {

@@ -72,12 +72,30 @@ enum TerminalNotificationPolicy {
         guard block.endedAt != nil else { return false }
         let duration = Double(block.durationMilliseconds ?? 0) / 1_000
         if block.commandLifecycleState == .failed, notifyFailures {
+            guard !isLowInformationShellCommand(block.command) else { return false }
             return duration >= failureMinimumDuration || block.outputSummary?.hasErrorSignal == true
         }
         if block.commandLifecycleState == .succeeded, notifyLongCompletion {
             return duration >= longThreshold
         }
         return false
+    }
+
+    private static func isLowInformationShellCommand(_ command: String) -> Bool {
+        let words = command
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(whereSeparator: \.isWhitespace)
+            .map(String.init)
+        guard !words.isEmpty else { return true }
+
+        let wrappers: Set<String> = ["builtin", "command"]
+        let commandIndex = words.indices.first { !wrappers.contains(words[$0]) } ?? words.startIndex
+        let commandName = URL(fileURLWithPath: words[commandIndex]).lastPathComponent
+        let lowInformationCommands: Set<String> = [
+            "alias", "bg", "cd", "clear", "dirs", "disown", "export", "false",
+            "fg", "history", "jobs", "popd", "pushd", "pwd", "true", "unalias", "unset"
+        ]
+        return lowInformationCommands.contains(commandName)
     }
 }
 
@@ -133,8 +151,8 @@ enum TerminalNotificationPayloadBuilder {
         case .failed:
             let title = L10n.string("notification.command_failed.title")
             let body = includeCommand
-                ? L10n.format("notification.command_failed.body_with_command", sessionTitle, block.exitCode ?? -1, duration, command)
-                : L10n.format("notification.command_failed.body", sessionTitle, block.exitCode ?? -1, duration)
+                ? L10n.format("notification.command_failed.body_with_command", sessionTitle, duration, command)
+                : L10n.format("notification.command_failed.body", sessionTitle, duration)
             return TerminalNotificationPayload(title: title, body: body, cooldownKey: key)
         case .succeeded:
             let title = L10n.string("notification.command_completed.title")

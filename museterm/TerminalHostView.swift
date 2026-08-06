@@ -76,6 +76,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private var lastAppliedPreferences: TerminalPreferenceSignature?
     private var pendingZModemProbe: PendingZModemProbe?
     private var activeZModemTransfer: ZModemBridgeProcess?
+    private let automaticZModemUploadDetector = AutomaticZModemUploadDetector()
+    private var isAwaitingAutomaticUploadSelection = false
+    private var automaticUploadRemoteBytes: [UInt8] = []
     /// Identifies the transfer whose `onExit` is still welcome. A superseded
     /// or torn-down bridge exits later on a background queue; the stale
     /// callback must not clobber the status of a newer transfer.
@@ -581,7 +584,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         }
         // PTY 死亡时本地 lrzsz 桥接进程必须一并回收，否则它会一直挂着，
         // 侧栏状态也永远停在"传输中"。
-        if pendingZModemProbe != nil || activeZModemTransfer != nil {
+        if pendingZModemProbe != nil || isAwaitingAutomaticUploadSelection || activeZModemTransfer != nil {
             let kind = pendingZModemProbe?.kind
                 ?? (activeZModemTransfer != nil ? session?.fileTransferStatus?.kind : nil)
             cancelActiveZModemTransfer()
@@ -689,8 +692,11 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 return true
             }
             self.observeSSHProcessOutput(data)
+            if self.handleProcessOutputForZModem(data) {
+                return true
+            }
             self.handleProcessOutputForShellIntegration(data)
-            return self.handleProcessOutputForZModem(data)
+            return false
         }
         terminalView.onProcessOutputCommitted = { [weak self] in
             guard let self else { return }
@@ -769,7 +775,19 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             return true
         }
 
-        guard let pendingZModemProbe else { return false }
+        if isAwaitingAutomaticUploadSelection {
+            automaticUploadRemoteBytes.append(contentsOf: data)
+            return true
+        }
+
+        guard let pendingZModemProbe else {
+            guard activeSessionTunnel == nil,
+                  let initialRemoteBytes = automaticZModemUploadDetector.accept(Array(data)) else {
+                return false
+            }
+            beginAutomaticZModemUpload(initialRemoteBytes: initialRemoteBytes)
+            return true
+        }
         let bytes = Array(data)
         if let result = pendingZModemProbe.acceptRemoteProbeData(bytes) {
             self.pendingZModemProbe = nil
@@ -783,6 +801,57 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         return true
     }
 
+    private func beginAutomaticZModemUpload(initialRemoteBytes: [UInt8]) {
+        isAwaitingAutomaticUploadSelection = true
+        automaticUploadRemoteBytes = initialRemoteBytes
+        session?.updateFileTransferStatus(.checkingRemote(kind: .upload))
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.isAwaitingAutomaticUploadSelection else { return }
+            guard let toolURL = ZModemLocalTool.executable(named: "sz") else {
+                self.finishAutomaticUploadSelection(
+                    failureReason: L10n.format("file_transfer.error.local_tool_missing", "sz")
+                )
+                return
+            }
+
+            let panel = NSOpenPanel()
+            panel.title = L10n.string("file_transfer.upload.panel_title")
+            panel.prompt = L10n.string("file_transfer.upload")
+            panel.canChooseFiles = true
+            panel.canChooseDirectories = false
+            panel.allowsMultipleSelection = true
+
+            guard panel.runModal() == .OK, !panel.urls.isEmpty else {
+                self.finishAutomaticUploadSelection(
+                    failureReason: L10n.string("file_transfer.error.cancelled")
+                )
+                return
+            }
+
+            let remoteBytes = self.automaticUploadRemoteBytes
+            self.isAwaitingAutomaticUploadSelection = false
+            self.automaticUploadRemoteBytes.removeAll(keepingCapacity: true)
+            self.automaticZModemUploadDetector.reset()
+            self.startLocalZModemTransfer(
+                kind: .upload,
+                executableURL: toolURL,
+                arguments: ["-b"] + panel.urls.map(\.path),
+                currentDirectory: nil,
+                initialRemoteBytes: remoteBytes
+            )
+        }
+    }
+
+    private func finishAutomaticUploadSelection(failureReason: String) {
+        isAwaitingAutomaticUploadSelection = false
+        automaticUploadRemoteBytes.removeAll(keepingCapacity: true)
+        automaticZModemUploadDetector.reset()
+        sendProcessInput(bytes: ZModemBridgeProcess.remoteCancelSequence)
+        reportFileTransferFailure(kind: .upload, reason: failureReason)
+        terminalView.feed(text: "\n\(failureReason)\n")
+    }
+
     private func handleProcessOutputForSessionTunnel(_ data: ArraySlice<UInt8>) -> Bool {
         guard let activeSessionTunnel else { return false }
         noteStartupOutputActivity()
@@ -793,6 +862,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private func handleProcessOutputForShellIntegration(_ data: ArraySlice<UInt8>) {
         guard activeZModemTransfer == nil,
               pendingZModemProbe == nil,
+              !isAwaitingAutomaticUploadSelection,
               activeSessionTunnel == nil else {
             return
         }
@@ -1017,6 +1087,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     /// by the token guard.
     private func cancelActiveZModemTransfer() {
         pendingZModemProbe = nil
+        isAwaitingAutomaticUploadSelection = false
+        automaticUploadRemoteBytes.removeAll(keepingCapacity: true)
+        automaticZModemUploadDetector.reset()
         activeZModemTransferToken = nil
         activeZModemTransfer?.cancel(reason: .userCancelled)
         activeZModemTransfer = nil
@@ -1025,6 +1098,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     /// User-facing cancel (Ctrl+C or the sidebar button): abort both sides
     /// and let the normal `onExit` path report "cancelled".
     func requestUserCancelZModemTransfer() {
+        if isAwaitingAutomaticUploadSelection {
+            finishAutomaticUploadSelection(failureReason: L10n.string("file_transfer.error.cancelled"))
+            return
+        }
         if let probe = pendingZModemProbe {
             pendingZModemProbe = nil
             session?.updateFileTransferStatus(

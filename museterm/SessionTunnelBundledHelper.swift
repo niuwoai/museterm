@@ -128,38 +128,30 @@ enum SessionTunnelBundledHelper {
         payloadByteCount: Int,
         isGzipCompressed: Bool
     ) -> String {
-        let temporaryTemplate = "${TMPDIR:-/tmp}/.museterm-tunnel-\(token).XXXXXX"
-        let payloadTemporaryTemplate = "${TMPDIR:-/tmp}/.museterm-tunnel-\(token).payload.XXXXXX"
-        let encodedTemporaryTemplate = "${TMPDIR:-/tmp}/.museterm-tunnel-\(token).b64.XXXXXX"
+        let temporaryTemplate = "${TMPDIR:-/tmp}/.mst-\(token).XXXXXX"
         let readyFrame = "{\"v\":1,\"token\":\"\(token)\",\"type\":\"loader_ready\"}"
         let restoredFrameFormat = "{\"v\":1,\"token\":\"\(token)\",\"type\":\"shell_ready\",\"data\":\"%s\"}"
-        var script = [
+        let decodePipeline = isGzipCompressed
+            ? "head -c \(payloadByteCount)|base64 \"$d\"|gzip -dc>\"$f\""
+            : "head -c \(payloadByteCount)|base64 \"$d\">\"$f\""
+        let script = [
             "umask 077",
-            "_mst_old=$(stty -g) || exit 71",
-            "_mst_tmp=$(mktemp \"\(temporaryTemplate)\") || exit 72",
-            "_mst_payload=$(mktemp \"\(payloadTemporaryTemplate)\") || exit 72",
-            "_mst_b64=$(mktemp \"\(encodedTemporaryTemplate)\") || exit 72",
-            "_mst_restore(){ stty \"$_mst_old\" >/dev/null 2>&1; rm -f \"$_mst_tmp\" \"$_mst_payload\" \"$_mst_b64\"; }",
-            "trap '_mst_restore' EXIT HUP INT TERM",
-            "stty raw -echo || exit 73",
+            "o=$(stty -g)||exit 71",
+            "f=$(mktemp \"\(temporaryTemplate)\")||exit 72",
+            "r(){ stty \"$o\" >/dev/null 2>&1;rm -f \"$f\"; }",
+            "trap r EXIT HUP INT TERM",
+            "stty raw -echo||exit 73",
             "printf '\\n%s\\n' \(SessionTunnelRemoteHelper.shellQuoted(readyFrame))",
-            "(head -c \(payloadByteCount) > \"$_mst_b64\" 2>/dev/null || dd bs=1 count=\(payloadByteCount) of=\"$_mst_b64\" 2>/dev/null) || exit 74",
-            "(base64 -d \"$_mst_b64\" > \"$_mst_payload\" 2>/dev/null || base64 -D -i \"$_mst_b64\" -o \"$_mst_payload\" 2>/dev/null || openssl base64 -d -A -in \"$_mst_b64\" -out \"$_mst_payload\" 2>/dev/null) || exit 74"
-        ]
-        if isGzipCompressed {
-            script.append("(gzip -dc \"$_mst_payload\" > \"$_mst_tmp\" 2>/dev/null || gunzip -c \"$_mst_payload\" > \"$_mst_tmp\" 2>/dev/null) || exit 74")
-        } else {
-            script.append("mv \"$_mst_payload\" \"$_mst_tmp\" || exit 74")
-        }
-        script.append(contentsOf: [
-            "chmod 700 \"$_mst_tmp\" || exit 75",
-            "\"$_mst_tmp\" \(SessionTunnelRemoteHelper.shellQuoted(configuration.targetHost)) \(SessionTunnelRemoteHelper.shellQuoted(String(configuration.targetPort))) \(SessionTunnelRemoteHelper.shellQuoted(token))",
-            "_mst_code=$?",
-            "_mst_restore",
+            "base64 -d </dev/null >/dev/null 2>&1&&d=-d||d=-D",
+            "\(decodePipeline)||exit 74",
+            "chmod 700 \"$f\"||exit 75",
+            "\"$f\" \(SessionTunnelRemoteHelper.shellQuoted(configuration.targetHost)) \(SessionTunnelRemoteHelper.shellQuoted(String(configuration.targetPort))) \(SessionTunnelRemoteHelper.shellQuoted(token))",
+            "c=$?",
+            "r",
             "trap - EXIT HUP INT TERM",
-            "printf '\\n\(restoredFrameFormat)\\n' \"$_mst_code\"",
-            "exit \"$_mst_code\""
-        ])
+            "printf '\\n\(restoredFrameFormat)\\n' \"$c\"",
+            "exit \"$c\""
+        ]
         let shellScript = script.joined(separator: ";")
         return "/bin/sh -c \(SessionTunnelRemoteHelper.shellQuoted(shellScript))\n"
     }

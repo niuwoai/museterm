@@ -661,9 +661,9 @@
 "tab.notification_unread" = "未读终端事件";
 "notification.bell.title" = "终端响铃";
 "notification.bell.body" = "%@ 发出了响铃。";
-"notification.command_failed.title" = "命令失败";
-"notification.command_failed.body" = "%@ 中的命令以 %d 退出，耗时 %@。";
-"notification.command_failed.body_with_command" = "%@ 中的命令以 %d 退出，耗时 %@：%@";
+"notification.command_failed.title" = "任务需要查看";
+"notification.command_failed.body" = "%@ 中的任务运行 %@ 后未成功完成，请回到该标签查看详情。";
+"notification.command_failed.body_with_command" = "%@ 中的任务运行 %@ 后未成功完成：%@";
 "notification.command_completed.title" = "长任务完成";
 "notification.command_completed.body" = "%@ 中的命令已完成，耗时 %@。";
 "notification.command_completed.body_with_command" = "%@ 中的命令已完成，耗时 %@：%@";
@@ -742,6 +742,8 @@
 "settings.tools.state_path" = "本机桥接数据";
 "settings.tools.install_cli" = "安装 CLI";
 "settings.tools.copy_path" = "复制路径";
+"settings.tools.copy_path_success" = "已复制 CLI 路径：%@";
+"settings.tools.copy_path_failed" = "无法复制 CLI 路径，请重试。";
 "settings.tools.installed" = "已安装";
 "settings.tools.not_installed" = "未安装";
 "settings.tools.install_success" = "已安装 qterm 到 %@。如果 shell 找不到它，请把 ~/.local/bin 加入 PATH。";
@@ -891,6 +893,7 @@
 "settings.ai_command.activation.disabled" = "关闭";
 "ai_command.title" = "AI 助手";
 "ai_command.input.placeholder" = "描述你想让终端做什么";
+"ai_command.input.keyboard_help" = "按 Enter 生成，按 Shift-Enter 换行。";
 "ai_command.generate" = "生成命令";
 "ai_command.close_help" = "关闭并结束本轮 AI 辅助";
 "ai_command.close_ends_session" = "关闭将取消生成并结束本轮 AI 辅助。";

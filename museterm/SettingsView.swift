@@ -654,7 +654,13 @@ struct SettingsView: View {
 
                 Button {
                     NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(MuseTermCLIInstaller.installPath, forType: .string)
+                    let didCopy = NSPasteboard.general.setString(
+                        MuseTermCLIInstaller.installPath,
+                        forType: .string
+                    )
+                    cliInstallMessage = didCopy
+                        ? L10n.format("settings.tools.copy_path_success", MuseTermCLIInstaller.installPath)
+                        : L10n.string("settings.tools.copy_path_failed")
                 } label: {
                     Label(L10n.string("settings.tools.copy_path"), systemImage: "doc.on.doc")
                 }

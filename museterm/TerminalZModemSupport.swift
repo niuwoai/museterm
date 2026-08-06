@@ -126,6 +126,32 @@ final class PendingZModemProbe {
     }
 }
 
+final class AutomaticZModemUploadDetector {
+    private static let binaryReceiveMarker: [UInt8] = [0x2A, 0x2A, 0x18, 0x42, 0x30, 0x31]
+    private static let escapedReceiveMarker = Array("**B01000000".utf8)
+    private let maxBufferSize = 256
+    private var buffer: [UInt8] = []
+
+    func accept(_ bytes: [UInt8]) -> [UInt8]? {
+        buffer.append(contentsOf: bytes)
+        if buffer.count > maxBufferSize {
+            buffer.removeFirst(buffer.count - maxBufferSize)
+        }
+
+        for marker in [Self.binaryReceiveMarker, Self.escapedReceiveMarker] {
+            if let range = buffer.firstRange(of: marker) {
+                let markerStart = range.lowerBound
+                return Array(buffer[markerStart...])
+            }
+        }
+        return nil
+    }
+
+    func reset() {
+        buffer.removeAll(keepingCapacity: true)
+    }
+}
+
 extension Array where Element == UInt8 {
     func firstRange(of marker: [UInt8]) -> Range<Int>? {
         guard !marker.isEmpty, marker.count <= count else { return nil }

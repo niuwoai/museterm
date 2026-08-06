@@ -437,44 +437,175 @@ struct AICommandAssistantLayer: View {
     }
 }
 
+enum AICommandComposerLayout {
+    static let maximumInputLines = 5
+    static let minimumBarHeight: CGFloat = 46
+    static let contextRowSpacing: CGFloat = 4
+    static let bottomRowSpacing: CGFloat = 10
+}
+
+nonisolated enum AICommandComposerKeyAction: Equatable {
+    case submit
+    case insertNewline
+    case passthrough
+}
+
+nonisolated enum AICommandComposerKeyResolver {
+    private static let returnKeyCodes: Set<UInt16> = [36, 76]
+
+    static func action(
+        keyCode: UInt16,
+        modifierFlags: NSEvent.ModifierFlags
+    ) -> AICommandComposerKeyAction {
+        guard returnKeyCodes.contains(keyCode) else { return .passthrough }
+
+        let modifiers = modifierFlags.intersection(.deviceIndependentFlagsMask)
+            .subtracting(.capsLock)
+        if modifiers == .shift { return .insertNewline }
+        if modifiers.isEmpty { return .submit }
+        return .passthrough
+    }
+}
+
+private struct AICommandComposerKeyMonitor: NSViewRepresentable {
+    let isFocused: Bool
+    let onSubmit: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(isFocused: isFocused, onSubmit: onSubmit)
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        context.coordinator.installMonitor()
+        DispatchQueue.main.async { context.coordinator.window = view.window }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.isFocused = isFocused
+        context.coordinator.onSubmit = onSubmit
+        DispatchQueue.main.async { context.coordinator.window = nsView.window }
+    }
+
+    static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
+        coordinator.removeMonitor()
+    }
+
+    @MainActor
+    final class Coordinator {
+        weak var window: NSWindow?
+        var isFocused: Bool
+        var onSubmit: () -> Void
+        private var monitor: Any?
+
+        init(isFocused: Bool, onSubmit: @escaping () -> Void) {
+            self.isFocused = isFocused
+            self.onSubmit = onSubmit
+        }
+
+        func installMonitor() {
+            guard monitor == nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self,
+                      isFocused,
+                      event.window === window else {
+                    return event
+                }
+
+                switch AICommandComposerKeyResolver.action(
+                    keyCode: event.keyCode,
+                    modifierFlags: event.modifierFlags
+                ) {
+                case .submit:
+                    onSubmit()
+                    return nil
+                case .insertNewline:
+                    guard let editor = event.window?.firstResponder as? NSTextView else {
+                        return event
+                    }
+                    editor.insertText("\n", replacementRange: editor.selectedRange())
+                    return nil
+                case .passthrough:
+                    return event
+                }
+            }
+        }
+
+        func removeMonitor() {
+            guard let monitor else { return }
+            NSEvent.removeMonitor(monitor)
+            self.monitor = nil
+        }
+
+        deinit {
+            if let monitor { NSEvent.removeMonitor(monitor) }
+        }
+    }
+}
+
 private struct AICommandComposerBar: View {
     @ObservedObject var model: AICommandAssistantModel
     @ObservedObject var preferences: TerminalPreferences
     @FocusState private var focused: Bool
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(alignment: .top, spacing: 10) {
             Image(systemName: "sparkles")
                 .foregroundStyle(preferences.skin.accent)
-            TextField(L10n.string("ai_command.input.placeholder"), text: $model.query)
-                .textFieldStyle(.plain)
-                .focused($focused)
-                .onSubmit { model.generate(preferences: preferences) }
-            if let context = model.context {
-                Text(context.displaySummary)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                .padding(.top, 2)
+            VStack(alignment: .leading, spacing: AICommandComposerLayout.contextRowSpacing) {
+                TextField(
+                    L10n.string("ai_command.input.placeholder"),
+                    text: $model.query,
+                    axis: .vertical
+                )
+                    .textFieldStyle(.plain)
+                    .lineLimit(1...AICommandComposerLayout.maximumInputLines)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .focused($focused)
+                    .background {
+                        AICommandComposerKeyMonitor(isFocused: focused) {
+                            model.generate(preferences: preferences)
+                        }
+                    }
+                    .help(L10n.string("ai_command.input.keyboard_help"))
+                HStack(spacing: AICommandComposerLayout.bottomRowSpacing) {
+                    if let context = model.context {
+                        Text(context.displaySummary)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .help(context.displaySummary)
+                    } else {
+                        Spacer(minLength: 0)
+                    }
+                    Button {
+                        model.generate(preferences: preferences)
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.title3)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .help(L10n.string("ai_command.generate"))
+                    Button {
+                        model.dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .buttonStyle(.plain)
+                    .help(L10n.string("ai_command.close_help"))
+                }
             }
-            Button {
-                model.generate(preferences: preferences)
-            } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.title3)
-            }
-            .buttonStyle(.plain)
-            .disabled(model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            .help(L10n.string("ai_command.generate"))
-            Button {
-                model.dismiss()
-            } label: {
-                Image(systemName: "xmark")
-            }
-            .buttonStyle(.plain)
-            .help(L10n.string("ai_command.close_help"))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .layoutPriority(1)
         }
         .padding(.horizontal, 14)
-        .frame(height: 46)
+        .padding(.vertical, 10)
+        .frame(minHeight: AICommandComposerLayout.minimumBarHeight)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(
