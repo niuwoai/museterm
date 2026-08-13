@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.240.0-rc3] - 2026-08-13
+
+### Fixed
+- 修复 `qterm mcp` 无法被 Claude Code 等标准 MCP 客户端连接的问题：桥接此前只识别 LSP 风格的 `Content-Length` 分帧，而 MCP stdio 传输规范使用换行分隔的 JSON，握手消息读不到即静默退出。现在自动识别两种分帧，并按客户端使用的格式回复。
+- 修复 MCP 宿主以裸环境（无 `LANG`）拉起 `qterm` 时 Ruby 回落到 US-ASCII，任何非 ASCII 标签标题或路径都会抛 `"\xE2" on US-ASCII` 的问题；脚本启动时显式将编码固定为 UTF-8。
+
+### Tests
+- 新增 MCP 传输分帧回归：换行分帧请求得到换行分帧回复（不带 `Content-Length` 头）、`Content-Length` 客户端保持向后兼容、以及无 `LANG` 环境下含中文标题的 `list_tabs` 调用完整回传。
+
+### Changed
+- 修复版本升级至 `1.240.0-rc3`，构建号升级至 `295`。
+
+## [1.240.0-rc2] - 2026-08-11
+
+### Added
+- 会话隧道会自动保存最近 12 组名称、远端主机/端口和本机端口；创建面板展示可横向浏览的最近使用项，点击即可完整回填。
+- MCP 新增 `list_session_tunnel_presets`，`start_session_tunnel` 新增 `preset` 参数，可按预设完整 ID、ID 前缀或名称启动；CLI 同步新增 `qterm tunnel presets` / `history`。
+- 新增可重复执行的真实 ZMODEM 测试脚本，基于 `ssh root@h1.niuwoai.com` 对 `rz` 上传和 `sz` 下载执行 256 KiB 随机文件双向传输与 SHA-256 校验，并生成 JSON、Markdown 报告。
+
+### Tests
+- 新增隧道历史去重、最近使用排序、12 项上限、MCP 预设发现和按预设启动测试。
+- 在 `root@h1.niuwoai.com` 上验证 GNU lrzsz `0.12.21rc` 的 `rz`/`sz` 双向传输，本机和远端进程均以 0 退出且 SHA-256 完全一致。
+- 回归通过现有会话隧道静态助手、交互式 PTY 上传、真实 TCP 转发、MCP 启停与状态读取测试。
+- 新增 8 MiB ZMODEM stdout 突发输出回归，验证本地桥接完整排空且按时结束。
+
+### Fixed
+- 修复 ZMODEM 本地进程 stdout 未在可读回调内立即排空，导致快速上传/下载期间重复触发通知、堆积异步任务并引发 CPU/内存异常升高的问题。
+
+### Changed
+- 功能版本升级至 `1.240.0-rc2`，构建号升级至 `294`。
+
 ## [1.239.0-rc13] - 2026-08-06
 
 ### Fixed

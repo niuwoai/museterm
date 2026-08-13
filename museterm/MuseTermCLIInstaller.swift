@@ -36,6 +36,14 @@ require "shellwords"
 require "timeout"
 require "open3"
 
+# MCP hosts spawn us with a bare environment, so LANG is often unset and Ruby falls back to
+# US-ASCII. Any non-ASCII tab title or path then raises before we get a chance to answer.
+Encoding.default_external = Encoding::UTF_8
+Encoding.default_internal = nil
+STDIN.set_encoding(Encoding::UTF_8)
+STDOUT.set_encoding(Encoding::UTF_8)
+ARGV.map! { |arg| arg.dup.force_encoding(Encoding::UTF_8) }
+
 ROOT = File.expand_path("~/Library/Application Support/QTerm/Tools")
 STATE = File.join(ROOT, "state.json")
 REQUESTS = File.join(ROOT, "requests")
@@ -488,6 +496,26 @@ def command_tunnels(args)
   print_json(session_tunnels_payload(read_state))
 end
 
+def session_tunnel_presets_payload(state)
+  {
+    "schemaVersion" => state["schemaVersion"],
+    "snapshotSequence" => state["snapshotSequence"],
+    "app" => state["app"],
+    "version" => state["version"],
+    "sessionTunnelPresets" => state.fetch("sessionTunnelPresets", [])
+  }
+end
+
+def resolve_session_tunnel_preset(state, selector)
+  value = selector.to_s.strip
+  return nil if value.empty?
+  presets = state.fetch("sessionTunnelPresets", [])
+  presets.find { |preset| preset["id"] == value } ||
+    presets.find { |preset| preset["id"].to_s.start_with?(value) } ||
+    presets.find { |preset| preset["name"] == value } ||
+    presets.find { |preset| preset["name"].to_s.casecmp?(value) }
+end
+
 def command_tunnel(args)
   tab_selector, _chars, json, rest, timeout = parse_common(args)
   subcommand = rest.shift
@@ -542,6 +570,8 @@ def command_tunnel(args)
     response["ok"] ? puts(response["message"] || "ok") : abort(response["error"] || "request failed")
   when "list", nil
     command_tunnels(args)
+  when "presets", "history"
+    print_json(session_tunnel_presets_payload(read_state))
   else
     raise "unknown tunnel subcommand: #{subcommand}"
   end
@@ -553,23 +583,46 @@ class Hash
   end
 end
 
+# The MCP stdio transport delimits messages with newlines, but LSP-style Content-Length
+# framing is common enough that we accept either and answer in whichever the client opened with.
+MCP_FRAMING = { mode: nil }
+
 def read_mcp_message
-  headers = {}
   while (line = STDIN.gets)
-    line = line.chomp
-    break if line.empty?
+    line = line.strip
+    next if line.empty?
+
+    if line.start_with?("{")
+      MCP_FRAMING[:mode] ||= :ndjson
+      return JSON.parse(line)
+    end
+
+    headers = {}
     key, value = line.split(":", 2)
     headers[key.downcase] = value.strip if key && value
+    while (header = STDIN.gets)
+      header = header.strip
+      break if header.empty?
+      key, value = header.split(":", 2)
+      headers[key.downcase] = value.strip if key && value
+    end
+    length = headers["content-length"].to_i
+    return nil if length <= 0
+    body = STDIN.read(length)
+    return nil if body.nil?
+    MCP_FRAMING[:mode] ||= :content_length
+    return JSON.parse(body.force_encoding(Encoding::UTF_8))
   end
-  return nil if headers.empty?
-  length = headers["content-length"].to_i
-  return nil if length <= 0
-  JSON.parse(STDIN.read(length))
+  nil
 end
 
 def write_mcp_message(payload)
   body = JSON.generate(payload)
-  STDOUT.write("Content-Length: #{body.bytesize}\r\n\r\n#{body}")
+  if MCP_FRAMING[:mode] == :content_length
+    STDOUT.write("Content-Length: #{body.bytesize}\r\n\r\n#{body}")
+  else
+    STDOUT.write("#{body}\n")
+  end
   STDOUT.flush
 end
 
@@ -660,12 +713,12 @@ def mcp_tools
     },
     {
       "name" => "start_session_tunnel",
-      "description" => "Start a QTerm session tunnel through a tab that is already logged into the deepest reachable server. The local listener binds to 127.0.0.1 only.",
+      "description" => "Start a QTerm session tunnel through a tab that is already logged into the deepest reachable server. Supply preset with a saved preset id/name, or supply targetHost, targetPort, and localPort. The local listener binds to 127.0.0.1 only.",
       "inputSchema" => {
         "type" => "object",
-        "required" => ["targetHost", "targetPort", "localPort"],
         "properties" => {
           "tab" => { "type" => "string", "description" => "selected, 1-based index, id prefix, or title" },
+          "preset" => { "type" => "string", "description" => "saved preset id, id prefix, or exact name" },
           "name" => { "type" => "string", "description" => "optional tunnel display name" },
           "targetHost" => { "type" => "string", "description" => "host reachable from the deepest logged-in server" },
           "targetPort" => { "type" => "integer", "description" => "remote target TCP port" },
@@ -673,6 +726,14 @@ def mcp_tools
           "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to accept the request" },
           "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
         }
+      }
+    },
+    {
+      "name" => "list_session_tunnel_presets",
+      "description" => "List recently used QTerm session tunnel presets, including id, name, target host/port, local port, last-used time, and use count.",
+      "inputSchema" => {
+        "type" => "object",
+        "properties" => {}
       }
     },
     {
@@ -788,14 +849,26 @@ def call_tool(name, args)
   when "list_session_tunnels"
     state = read_state
     tool_result_text(JSON.pretty_generate(session_tunnels_payload(state)))
+  when "list_session_tunnel_presets"
+    state = read_state
+    tool_result_text(JSON.pretty_generate(session_tunnel_presets_payload(state)))
   when "start_session_tunnel"
+    preset = resolve_session_tunnel_preset(read_state, args["preset"])
+    raise "Session tunnel preset not found: #{args["preset"]}" if args["preset"] && preset.nil?
+    target_host = preset ? preset["targetHost"] : args["targetHost"]
+    target_port = preset ? preset["targetPort"] : args["targetPort"]
+    local_port = preset ? preset["localPort"] : args["localPort"]
+    tunnel_name = args.key?("name") ? args["name"] : preset&.fetch("name", nil)
+    raise "start_session_tunnel requires preset or targetHost." if target_host.to_s.empty?
+    raise "start_session_tunnel requires preset or targetPort." if target_port.to_i <= 0
+    raise "start_session_tunnel requires preset or localPort." if local_port.to_i <= 0
     response = send_request(
       action: "start_session_tunnel",
       tab: args["tab"],
-      tunnel_name: args["name"],
-      target_host: args.fetch("targetHost"),
-      target_port: args.fetch("targetPort").to_i,
-      local_port: args.fetch("localPort").to_i,
+      tunnel_name: tunnel_name,
+      target_host: target_host,
+      target_port: target_port.to_i,
+      local_port: local_port.to_i,
       timeout_seconds: args["timeout"] || 3.0
     )
     raise(response["error"] || "request failed") unless response["ok"]
@@ -886,6 +959,7 @@ def command_help
       qterm tab [--timeout SECONDS] [--json] [DIRECTORY]
       qterm ssh [--timeout SECONDS] [--json] PROFILE_NAME
       qterm tunnels
+      qterm tunnel presets
       qterm tunnel start [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] --target-host HOST --target-port PORT --local-port PORT [--name NAME]
       qterm tunnel stop [--tab selected|INDEX|ID] [--timeout SECONDS] [--json]
       qterm shortcuts [--timeout SECONDS] [--json]
