@@ -384,9 +384,13 @@ final class ZModemBridgeProcess {
 
         stdoutPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             guard let self else { return }
+            // Drain the pipe while handling the readability notification.
+            // Deferring `availableData` to another queue leaves the descriptor
+            // readable, so DispatchIO repeatedly invokes this handler and can
+            // enqueue thousands of empty jobs during a fast transfer.
+            let data = handle.availableData
+            guard !data.isEmpty else { return }
             self.outputQueue.async {
-                let data = handle.availableData
-                guard !data.isEmpty else { return }
                 self.touchActivity()
                 self.onOutput(Array(data))
             }

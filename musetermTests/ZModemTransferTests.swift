@@ -149,6 +149,43 @@ final class ZModemTransferTests: XCTestCase {
         XCTAssertEqual(finalCountAtExit, payload.count)
     }
 
+    func testBridgeDrainsLargeBurstWithoutStalling() throws {
+        let payloadSize = 8 * 1_024 * 1_024
+        let payload = Data(repeating: 0xA5, count: payloadSize)
+        let payloadURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("zmodem-large-burst-\(UUID().uuidString).bin")
+        try payload.write(to: payloadURL)
+        defer { try? FileManager.default.removeItem(at: payloadURL) }
+
+        let exitExpectation = expectation(description: "large burst exit")
+        let lock = NSLock()
+        var receivedByteCount = 0
+        let bridge = try ZModemBridgeProcess(
+            executableURL: URL(fileURLWithPath: "/bin/cat"),
+            arguments: [payloadURL.path],
+            currentDirectory: nil,
+            idleTimeout: 5,
+            onOutput: { bytes in
+                lock.lock()
+                receivedByteCount += bytes.count
+                lock.unlock()
+            },
+            onProgress: { _ in },
+            onExit: { exitCode, reason in
+                XCTAssertEqual(exitCode, 0)
+                XCTAssertEqual(reason, .none)
+                exitExpectation.fulfill()
+            }
+        )
+        _ = bridge
+
+        wait(for: [exitExpectation], timeout: 10)
+        lock.lock()
+        let finalByteCount = receivedByteCount
+        lock.unlock()
+        XCTAssertEqual(finalByteCount, payloadSize)
+    }
+
     func testBridgeIdleWatchdogCancelsStalledTransferAndNotifiesRemote() throws {
         let exitExpectation = expectation(description: "onExit")
         let lock = NSLock()
