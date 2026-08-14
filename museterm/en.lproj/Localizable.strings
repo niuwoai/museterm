@@ -1271,6 +1271,7 @@
 "session_tunnel.port" = "Port";
 "session_tunnel.name" = "Name";
 "session_tunnel.name.placeholder" = "For example, MySQL";
+"session_tunnel.recent_presets" = "Recently used";
 "session_tunnel.default_name" = "TCP Service";
 "session_tunnel.loopback_only" = "Only apps on this Mac can connect";
 "session_tunnel.create.terminal_notice" = "After startup, this tab enters tunnel mode and terminal input is paused until the tunnel stops.";

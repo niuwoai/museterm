@@ -42,6 +42,7 @@ struct TerminalToolState: Codable {
     let snapshotSequence: Int
     let updatedAt: Date
     let selectedTabID: String?
+    let sessionTunnelPresets: [SessionTunnelPreset]
     let tabs: [TerminalToolTabSnapshot]
 
     init(
@@ -51,6 +52,7 @@ struct TerminalToolState: Codable {
         snapshotSequence: Int = 0,
         updatedAt: Date,
         selectedTabID: String?,
+        sessionTunnelPresets: [SessionTunnelPreset] = [],
         tabs: [TerminalToolTabSnapshot]
     ) {
         self.schemaVersion = schemaVersion
@@ -59,6 +61,7 @@ struct TerminalToolState: Codable {
         self.snapshotSequence = snapshotSequence
         self.updatedAt = updatedAt
         self.selectedTabID = selectedTabID
+        self.sessionTunnelPresets = sessionTunnelPresets
         self.tabs = tabs
     }
 }
@@ -597,6 +600,7 @@ final class TerminalToolBridge {
     private func stateSignature(workspace: TerminalWorkspace) -> Int {
         var hasher = Hasher()
         hasher.combine(workspace.selectedTab?.id)
+        hasher.combine(workspace.sessionTunnelPresets)
         for tab in workspace.tabs {
             hasher.combine(tab.id)
             hasher.combine(tab.controller.contentRevision)
@@ -616,6 +620,7 @@ final class TerminalToolBridge {
             snapshotSequence: snapshotSequence,
             updatedAt: Date(),
             selectedTabID: workspace.selectedTab?.id.uuidString,
+            sessionTunnelPresets: workspace.sessionTunnelPresets,
             tabs: workspace.toolSnapshots(maxHistoryCharacters: maxHistoryCharacters)
         )
         let data: Data

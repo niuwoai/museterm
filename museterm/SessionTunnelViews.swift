@@ -3,6 +3,7 @@ import SwiftUI
 
 struct SessionTunnelCreateSheet: View {
     @ObservedObject var tab: TerminalSession
+    let presets: [SessionTunnelPreset]
     @Binding var isPresented: Bool
     let onStart: (SessionTunnelConfiguration) throws -> Void
 
@@ -57,6 +58,9 @@ struct SessionTunnelCreateSheet: View {
 
     private var endpointFields: some View {
         VStack(alignment: .leading, spacing: 14) {
+            if !presets.isEmpty {
+                recentPresets
+            }
             endpointRow(
                 titleKey: "session_tunnel.remote_target",
                 host: $targetHost,
@@ -88,6 +92,43 @@ struct SessionTunnelCreateSheet: View {
                     .accessibilityIdentifier("sessionTunnelName")
             }
         }
+    }
+
+    private var recentPresets: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(L10n.string("session_tunnel.recent_presets"))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(presets) { preset in
+                        Button {
+                            apply(preset)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(preset.name.isEmpty ? L10n.string("session_tunnel.default_name") : preset.name)
+                                    .font(.caption.weight(.semibold))
+                                Text("\(preset.targetHost):\(preset.targetPort) → 127.0.0.1:\(preset.localPort)")
+                                    .font(.caption2.monospaced())
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 7)
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("sessionTunnelPreset-\(preset.id.uuidString)")
+                    }
+                }
+            }
+        }
+    }
+
+    private func apply(_ preset: SessionTunnelPreset) {
+        name = preset.name
+        targetHost = preset.targetHost
+        targetPort = preset.targetPort
+        localPort = preset.localPort
+        errorMessage = ""
     }
 
     private func endpointRow(

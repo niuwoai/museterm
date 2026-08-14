@@ -98,11 +98,13 @@ struct ContentView: View {
             if let selectedTab = workspace.selectedTab {
                 SessionTunnelCreateSheet(
                     tab: selectedTab,
+                    presets: workspace.sessionTunnelPresets,
                     isPresented: $isSessionTunnelSheetPresented,
                     onStart: { configuration in
                         aiCommandAssistant.dismiss(showNotice: false)
                         commandPalettePresentation.dismiss()
                         try selectedTab.startSessionTunnel(configuration: configuration)
+                        workspace.recordSessionTunnelPreset(configuration)
                         rightPanel = .sessionTunnel
                     }
                 )

@@ -1271,6 +1271,7 @@
 "session_tunnel.port" = "端口";
 "session_tunnel.name" = "名称";
 "session_tunnel.name.placeholder" = "例如 MySQL";
+"session_tunnel.recent_presets" = "最近使用";
 "session_tunnel.default_name" = "TCP 服务";
 "session_tunnel.loopback_only" = "仅允许本机应用访问";
 "session_tunnel.create.terminal_notice" = "启动后，此标签页将进入隧道模式；停止隧道前，终端输入会保持暂停。";

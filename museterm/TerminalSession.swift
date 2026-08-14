@@ -1098,6 +1098,7 @@ final class TerminalWorkspace: ObservableObject {
     @Published private(set) var shortcuts: [TerminalShortcut] = TerminalShortcutStore.load()
     @Published private(set) var quickPathRecords: [TerminalQuickPathRecord] = TerminalQuickPathStore.load()
     @Published private(set) var learnedCommands: [LearnedCommandRecord] = []
+    @Published private(set) var sessionTunnelPresets: [SessionTunnelPreset] = SessionTunnelPresetStore.load()
     // 被「拉黑」的路径 / 命令：进不了最近·常用列表，也不再被自动记录/学习。
     @Published private(set) var blacklistedQuickPaths: Set<String> = TerminalQuickPathBlacklistStore.load()
     @Published private(set) var blacklistedCommands: Set<String> = LearnedCommandBlacklistStore.load()
@@ -1668,9 +1669,14 @@ final class TerminalWorkspace: ObservableObject {
     ) throws -> TerminalSession {
         let tab = try toolTab(matching: selector)
         try tab.startSessionTunnel(configuration: configuration)
+        sessionTunnelPresets = SessionTunnelPresetStore.record(configuration)
         selectedID = tab.id
         objectWillChange.send()
         return tab
+    }
+
+    func recordSessionTunnelPreset(_ configuration: SessionTunnelConfiguration) {
+        sessionTunnelPresets = SessionTunnelPresetStore.record(configuration)
     }
 
     func stopToolSessionTunnel(in selector: String?) throws -> TerminalSession {
