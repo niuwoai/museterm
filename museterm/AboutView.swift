@@ -16,7 +16,7 @@ struct AboutView: View {
 
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            Text("MuseTerm")
+                            Text(L10n.string("app.name"))
                                 .font(.title2.weight(.semibold))
                             Text(AppVersion.displayValue)
                                 .font(.caption.monospacedDigit())
@@ -88,7 +88,6 @@ private enum AboutRecommendedApp: String, CaseIterable, Identifiable {
     case willDeep
     case timeBill
     case museUploader
-    case museSnip
     case markReader
     case museType
     case museMail
@@ -109,7 +108,6 @@ private enum AboutRecommendedApp: String, CaseIterable, Identifiable {
         case .willDeep: return "AboutAppWillDeepIcon"
         case .timeBill: return "AboutAppTimeBillIcon"
         case .museUploader: return "AboutAppMuseUploaderIcon"
-        case .museSnip: return "AboutAppMuseSnipIcon"
         case .markReader: return "AboutAppMarkReaderIcon"
         case .museType: return "AboutAppMuseTypeIcon"
         case .museMail: return "AboutAppMuseMailIcon"
@@ -125,12 +123,11 @@ private enum AboutRecommendedApp: String, CaseIterable, Identifiable {
         switch self {
         case .willDeep: return "veilwriter"
         case .timeBill: return "timebill"
-        case .museUploader: return "qingtu"
-        case .museSnip: return "jiantu"
-        case .markReader: return "markreader"
-        case .museType: return "typecho"
-        case .museMail: return "musemail"
-        case .museMate: return "musemate"
+        case .museUploader: return "qpic"
+        case .markReader: return "qmarkview"
+        case .museType: return "qecho"
+        case .museMail: return "qmailmate"
+        case .museMate: return "qnote"
         }
     }
 }

@@ -225,6 +225,31 @@ struct TerminalShortcutEvent: Codable, Equatable, Identifiable {
         cache[protectedBytesReference] = bytes
         return bytes
     }
+
+    static func terminalPlaybackBytes(from bytes: [UInt8]) -> [UInt8] {
+        var result: [UInt8] = []
+        result.reserveCapacity(bytes.count)
+        var index = 0
+        while index < bytes.count {
+            let byte = bytes[index]
+            if byte == 0x0D {
+                result.append(0x0D)
+                if index + 1 < bytes.count, bytes[index + 1] == 0x0A {
+                    index += 2
+                } else {
+                    index += 1
+                }
+                continue
+            }
+            if byte == 0x0A {
+                result.append(0x0D)
+            } else {
+                result.append(byte)
+            }
+            index += 1
+        }
+        return result
+    }
 }
 
 struct TerminalShortcut: Codable, Equatable, Identifiable {
@@ -235,6 +260,7 @@ struct TerminalShortcut: Codable, Equatable, Identifiable {
     var durationMilliseconds: Int
     var events: [TerminalShortcutEvent]
     var hasProtectedInput: Bool
+    var executionContext: TerminalExecutionContext? = nil
 
     var eventCount: Int { events.count }
     var isPlayable: Bool { !events.isEmpty }
@@ -247,6 +273,22 @@ struct TerminalShortcut: Codable, Equatable, Identifiable {
         copy.events = events.filter(\.isPlayable)
         copy.hasProtectedInput = copy.events.contains(where: \.requiresEchoOff)
         return copy
+    }
+}
+
+struct TerminalShortcutProtectedInput: Equatable, Identifiable {
+    let shortcutID: UUID
+    let shortcutTitle: String
+    let eventID: UUID
+    let eventIndex: Int
+    let account: String
+
+    var id: String {
+        "\(shortcutID.uuidString):\(eventID.uuidString):\(account)"
+    }
+
+    var usesDefaultAccount: Bool {
+        account.hasPrefix("terminal-shortcut/\(shortcutID.uuidString)/")
     }
 }
 
@@ -324,7 +366,12 @@ final class TerminalShortcutRecorder {
         lastRecordedInputAt = anchor ?? now
     }
 
-    func finish(title: String, id: UUID = UUID(), finishedAt: Date = Date()) -> TerminalShortcut? {
+    func finish(
+        title: String,
+        id: UUID = UUID(),
+        executionContext: TerminalExecutionContext? = nil,
+        finishedAt: Date = Date()
+    ) -> TerminalShortcut? {
         flushPendingInput(now: finishedAt)
         guard !events.isEmpty else { return nil }
         return TerminalShortcut(
@@ -334,7 +381,8 @@ final class TerminalShortcutRecorder {
             updatedAt: finishedAt,
             durationMilliseconds: max(0, Int(finishedAt.timeIntervalSince(startedAt) * 1000)),
             events: events,
-            hasProtectedInput: hasProtectedInput
+            hasProtectedInput: hasProtectedInput,
+            executionContext: executionContext
         ).normalized
     }
 }
@@ -417,16 +465,64 @@ enum TerminalShortcutStore {
         return normalized(try decoder.decode([TerminalShortcut].self, from: data))
     }
 
-    nonisolated static func deleteProtectedInputs(for shortcut: TerminalShortcut) {
-        for event in shortcut.events {
-            if let account = event.protectedBytesReference, !account.isEmpty {
-                TerminalShortcutProtectedVault.delete(account: account)
-                MuseTermKeychain.delete(account: account)
-            } else if event.requiresEchoOff {
-                let account = protectedInputAccount(shortcutID: shortcut.id, eventID: event.id)
-                TerminalShortcutProtectedVault.delete(account: account)
-                MuseTermKeychain.delete(account: account)
+    static func protectedInputs(fromEditableText text: String) throws -> [TerminalShortcutProtectedInput] {
+        try protectedInputs(in: decodeEditableText(text))
+    }
+
+    static func protectedInputs(in shortcuts: [TerminalShortcut]) -> [TerminalShortcutProtectedInput] {
+        normalized(shortcuts).flatMap { shortcut in
+            shortcut.events.enumerated().compactMap { offset, event in
+                guard event.requiresEchoOff else { return nil }
+                let account = protectedInputAccount(for: event, shortcutID: shortcut.id)
+                guard !account.isEmpty else { return nil }
+                return TerminalShortcutProtectedInput(
+                    shortcutID: shortcut.id,
+                    shortcutTitle: shortcut.title,
+                    eventID: event.id,
+                    eventIndex: offset,
+                    account: account
+                )
             }
+        }
+    }
+
+    @discardableResult
+    static func saveProtectedInput(_ secret: String, account: String, appendingReturn: Bool) -> Bool {
+        guard !account.isEmpty else { return false }
+        guard !secret.isEmpty else {
+            deleteProtectedInput(account: account)
+            return true
+        }
+        var bytes = Array(secret.utf8)
+        if appendingReturn {
+            bytes.append(0x0D)
+        }
+        TerminalShortcutProtectedVault.save(bytes, account: account)
+        return true
+    }
+
+    static func protectedInputHasValue(account: String) -> Bool {
+        if TerminalShortcutProtectedVault.load(account: account)?.isEmpty == false {
+            return true
+        }
+        return MuseTermKeychain.load(account: account).isEmpty == false
+    }
+
+    static func deleteProtectedInput(account: String) {
+        TerminalShortcutProtectedVault.delete(account: account)
+        MuseTermKeychain.delete(account: account)
+    }
+
+    static func deleteProtectedInputs(removedFrom oldShortcuts: [TerminalShortcut], keeping newShortcuts: [TerminalShortcut]) {
+        let keptAccounts = Set(protectedInputAccounts(in: newShortcuts))
+        for account in protectedInputAccounts(in: oldShortcuts) where !keptAccounts.contains(account) {
+            deleteProtectedInput(account: account)
+        }
+    }
+
+    static func deleteProtectedInputs(for shortcut: TerminalShortcut) {
+        for account in protectedInputAccounts(in: [shortcut]) {
+            deleteProtectedInput(account: account)
         }
     }
 
@@ -455,6 +551,23 @@ enum TerminalShortcutStore {
             return prepared
         }
         return copy
+    }
+
+    private static func protectedInputAccounts(in shortcuts: [TerminalShortcut]) -> [String] {
+        shortcuts.flatMap { shortcut in
+            shortcut.events.compactMap { event in
+                guard event.requiresEchoOff else { return nil }
+                return protectedInputAccount(for: event, shortcutID: shortcut.id)
+            }
+        }
+    }
+
+    private static func protectedInputAccount(for event: TerminalShortcutEvent, shortcutID: UUID) -> String {
+        if let account = event.protectedBytesReference?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !account.isEmpty {
+            return account
+        }
+        return protectedInputAccount(shortcutID: shortcutID, eventID: event.id)
     }
 
     nonisolated private static func protectedInputAccount(shortcutID: UUID, eventID: UUID) -> String {
@@ -611,25 +724,31 @@ enum MuseTermKeychain {
         testStorage = enabled ? [:] : nil
     }
 
-    nonisolated static func save(_ secret: String, account: String) {
+    @discardableResult
+    nonisolated static func save(_ secret: String, account: String) -> Bool {
+        save(secret, account: account, serviceName: service)
+    }
+
+    @discardableResult
+    nonisolated static func save(_ secret: String, account: String, serviceName: String) -> Bool {
         let trimmed = secret.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else {
-            delete(account: account)
-            return
+            delete(account: account, serviceName: serviceName)
+            return true
         }
 
         if testStorage != nil {
-            testStorage?[account] = trimmed
-            return
+            testStorage?[storageKey(serviceName: serviceName, account: account)] = trimmed
+            return true
         }
         if isRunningUnderXCTest {
-            xctestStorage[account] = trimmed
-            return
+            xctestStorage[storageKey(serviceName: serviceName, account: account)] = trimmed
+            return true
         }
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
+            kSecAttrService as String: serviceName,
             kSecAttrAccount as String: account
         ]
         let update: [String: Any] = [
@@ -637,7 +756,10 @@ enum MuseTermKeychain {
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
         ]
         let status = SecItemUpdate(query as CFDictionary, update as CFDictionary)
-        if status == errSecSuccess { return }
+        if status == errSecSuccess,
+           load(account: account, serviceName: serviceName) == trimmed {
+            return true
+        }
         if status != errSecItemNotFound {
             SecItemDelete(query as CFDictionary)
         }
@@ -645,20 +767,25 @@ enum MuseTermKeychain {
         var add = query
         add[kSecValueData as String] = data
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        SecItemAdd(add as CFDictionary, nil)
+        guard SecItemAdd(add as CFDictionary, nil) == errSecSuccess else { return false }
+        return load(account: account, serviceName: serviceName) == trimmed
     }
 
     nonisolated static func load(account: String) -> String {
+        load(account: account, serviceName: service)
+    }
+
+    nonisolated static func load(account: String, serviceName: String) -> String {
         if let testStorage {
-            return testStorage[account] ?? ""
+            return testStorage[storageKey(serviceName: serviceName, account: account)] ?? ""
         }
         if isRunningUnderXCTest {
-            return xctestStorage[account] ?? ""
+            return xctestStorage[storageKey(serviceName: serviceName, account: account)] ?? ""
         }
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
+            kSecAttrService as String: serviceName,
             kSecAttrAccount as String: account,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
@@ -673,20 +800,28 @@ enum MuseTermKeychain {
     }
 
     nonisolated static func delete(account: String) {
+        delete(account: account, serviceName: service)
+    }
+
+    nonisolated static func delete(account: String, serviceName: String) {
         if testStorage != nil {
-            testStorage?.removeValue(forKey: account)
+            testStorage?.removeValue(forKey: storageKey(serviceName: serviceName, account: account))
             return
         }
         if isRunningUnderXCTest {
-            xctestStorage.removeValue(forKey: account)
+            xctestStorage.removeValue(forKey: storageKey(serviceName: serviceName, account: account))
             return
         }
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
+            kSecAttrService as String: serviceName,
             kSecAttrAccount as String: account
         ]
         SecItemDelete(query as CFDictionary)
+    }
+
+    nonisolated private static func storageKey(serviceName: String, account: String) -> String {
+        "\(serviceName)\u{1F}\(account)"
     }
 }

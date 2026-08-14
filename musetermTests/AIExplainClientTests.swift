@@ -2,6 +2,36 @@ import XCTest
 @testable import museterm
 
 final class AIExplainClientTests: XCTestCase {
+    func testSettingsWindowSessionSavesPendingAPIKeyBeforeClosing() throws {
+        MuseTermKeychain._useTestStorage(true)
+        defer { MuseTermKeychain._useTestStorage(false) }
+        let preferences = try isolatedPreferences()
+        preferences.aiProvider = .someIM
+        let session = SettingsWindowSession()
+        session.aiAPIKeyDraft = "  pending-api-key  "
+
+        XCTAssertTrue(session.savePendingAIAPIKey(preferences: preferences))
+        XCTAssertEqual(session.aiAPIKeyDraft, "")
+        XCTAssertEqual(preferences.loadAIAPIKey(), "pending-api-key")
+        XCTAssertEqual(
+            session.aiStatusMessage,
+            L10n.string("settings.ai.api_key.save_success")
+        )
+    }
+
+    func testLegacyAIKeychainEntryMigratesToDedicatedService() throws {
+        MuseTermKeychain._useTestStorage(true)
+        defer { MuseTermKeychain._useTestStorage(false) }
+        let preferences = try isolatedPreferences()
+        preferences.aiProvider = .someIM
+        let account = "ai-provider/someIM/api-key"
+        XCTAssertTrue(MuseTermKeychain.save("legacy-api-key", account: account))
+
+        XCTAssertEqual(preferences.loadAIAPIKey(), "legacy-api-key")
+        XCTAssertEqual(MuseTermKeychain.load(account: account), "")
+        XCTAssertEqual(preferences.loadAIAPIKey(), "legacy-api-key")
+    }
+
     func testConfigurationRequiresModelBeforeNetworkUse() throws {
         let preferences = try isolatedPreferences()
         preferences.aiProvider = .ollama
@@ -54,6 +84,71 @@ final class AIExplainClientTests: XCTestCase {
         XCTAssertEqual(configuration.model, "local-model")
         XCTAssertEqual(configuration.baseURL, "http://127.0.0.1:8080/v1")
         XCTAssertEqual(configuration.apiKey, "")
+    }
+
+    func testCustomConfigurationUsesSavedAPIKey() throws {
+        let preferences = try isolatedPreferences()
+        preferences.aiProvider = .custom
+        preferences.aiCustomProviderName = "some.im"
+        preferences.aiModel = "deepseek-v4-flash"
+        preferences.aiBaseURL = "https://api.example.test/v1"
+
+        XCTAssertTrue(preferences.saveAIAPIKey("  test-api-key  "))
+
+        let configuration = try AIExplainClient.Configuration(preferences: preferences)
+
+        XCTAssertEqual(configuration.provider, .custom)
+        XCTAssertEqual(configuration.providerName, "some.im")
+        XCTAssertEqual(configuration.apiKey, "test-api-key")
+    }
+
+    func testSomeIMUsesChinaNodeByDefaultAndSavedAPIKey() throws {
+        let preferences = try isolatedPreferences()
+        preferences.aiProvider = .someIM
+
+        XCTAssertEqual(preferences.aiBaseURL, "https://api.niuwoai.com/v1")
+        XCTAssertEqual(preferences.aiModel, AIProviderKind.someIM.defaultModel)
+        XCTAssertTrue(preferences.saveAIAPIKey("test-api-key"))
+
+        let configuration = try AIExplainClient.Configuration(preferences: preferences)
+
+        XCTAssertEqual(configuration.provider, .someIM)
+        XCTAssertEqual(configuration.providerName, "some.im")
+        XCTAssertEqual(configuration.baseURL, "https://api.niuwoai.com/v1")
+        XCTAssertEqual(configuration.apiKey, "test-api-key")
+    }
+
+    func testSomeIMCanKeepGlobalNodeSelectionAfterReload() throws {
+        let suiteName = "museterm.ai-client.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        defaults.set(AIProviderKind.someIM.rawValue, forKey: "ai.provider")
+        defaults.set("https://some.im/v1", forKey: "ai.baseURL")
+        defaults.set(AIProviderKind.someIM.defaultModel, forKey: "ai.model")
+
+        let preferences = TerminalPreferences(defaults: defaults)
+
+        XCTAssertEqual(preferences.aiProvider, .someIM)
+        XCTAssertEqual(preferences.aiBaseURL, "https://some.im/v1")
+        XCTAssertEqual(preferences.aiModel, AIProviderKind.someIM.defaultModel)
+    }
+
+    func testSomeIMBrowserLoginUsesSomeIMOriginAndWillDeepDeviceCode() throws {
+        let request = try SomeIMBrowserLoginConnector.makeRequest()
+        let components = try XCTUnwrap(URLComponents(url: request.url, resolvingAgainstBaseURL: false))
+        let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).compactMap { item in
+            item.value.map { (item.name, $0) }
+        })
+
+        XCTAssertEqual(components.scheme, "https")
+        XCTAssertEqual(components.host, "some.im")
+        XCTAssertEqual(components.path, "/customer/login")
+        XCTAssertEqual(query["client_id"], "willdeep")
+        XCTAssertEqual(query["willdeep_device_code"], request.code)
+        XCTAssertTrue(request.code.range(of: #"^WD-[A-Z2-9]{4}-[A-Z2-9]{4}$"#, options: .regularExpression) != nil)
+        XCTAssertEqual(query["willdeep_pair_token"], request.pairToken)
+        XCTAssertEqual(request.pairToken.count, 64)
     }
 
     func testSwitchingProviderReplacesBuiltInDefaultBaseURL() throws {

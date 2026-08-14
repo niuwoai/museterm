@@ -126,6 +126,69 @@ final class SSHConnectionProfileTests: XCTestCase {
         XCTAssertTrue(config.contains("  ServerAliveCountMax 6"))
     }
 
+    func testSSHConfigAddsKeepAliveOptionsToJumpHosts() {
+        let profile = SSHConnectionProfile(
+            id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
+            host: "target.internal",
+            user: "deploy",
+            jumpHosts: [
+                SSHJumpHost(name: "bastion", host: "bastion.internal", user: "ops", port: 22),
+                SSHJumpHost(name: "relay", host: "relay.internal", user: "ops", port: 2222)
+            ],
+            keepAliveEnabled: true,
+            keepAliveIntervalSeconds: 20,
+            keepAliveCountMax: 4
+        )
+
+        let config = SSHConfigMaterializer.renderConfig(profile: profile)
+
+        XCTAssertTrue(config.contains("""
+Host museterm-22222222-2222-2222-2222-222222222222-jump-1
+  HostName bastion.internal
+  Port 22
+  User ops
+  ServerAliveInterval 20
+  ServerAliveCountMax 4
+"""))
+        XCTAssertTrue(config.contains("""
+Host museterm-22222222-2222-2222-2222-222222222222-jump-2
+  HostName relay.internal
+  Port 2222
+  User ops
+  ProxyJump museterm-22222222-2222-2222-2222-222222222222-jump-1
+  ServerAliveInterval 20
+  ServerAliveCountMax 4
+"""))
+    }
+
+    func testSSHConfigUsesManualKeepAliveOptionsForJumpHosts() {
+        let profile = SSHConnectionProfile(
+            id: UUID(uuidString: "33333333-3333-3333-3333-333333333333")!,
+            host: "target.internal",
+            user: "deploy",
+            jumpHosts: [
+                SSHJumpHost(name: "bastion", host: "bastion.internal", user: "ops", port: 22)
+            ],
+            extraOptions: [
+                "ServerAliveInterval 12"
+            ],
+            keepAliveEnabled: true,
+            keepAliveIntervalSeconds: 30,
+            keepAliveCountMax: 5
+        )
+
+        let config = SSHConfigMaterializer.renderConfig(profile: profile)
+
+        XCTAssertTrue(config.contains("""
+Host museterm-33333333-3333-3333-3333-333333333333-jump-1
+  HostName bastion.internal
+  Port 22
+  User ops
+  ServerAliveInterval 12
+  ServerAliveCountMax 5
+"""))
+    }
+
     func testSSHConfigDoesNotDuplicateManualKeepAliveOptions() {
         let profile = SSHConnectionProfile(
             host: "example.com",
@@ -859,6 +922,9 @@ final class SSHConnectionProfileTests: XCTestCase {
 
         sshSession.state = .exited(255)
         XCTAssertTrue(sshSession.canManuallyReconnectSSH)
+
+        sshSession.state = .running
+        XCTAssertFalse(sshSession.canManuallyReconnectSSH)
 
         let localSession = TerminalSession(sequence: 2)
         localSession.state = .exited(0)

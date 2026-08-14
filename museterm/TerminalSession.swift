@@ -4,7 +4,7 @@ import Darwin
 import Foundation
 
 enum TerminalLaunchConfiguration: Equatable {
-    case localShell(startDirectory: String? = nil)
+    case localShell(startDirectory: String? = nil, profile: TerminalProfile? = nil)
     case ssh(SSHConnectionProfile)
 
     var connectionLabel: String? {
@@ -48,8 +48,13 @@ enum TerminalLaunchConfiguration: Equatable {
     }
 
     var localStartDirectory: String? {
-        guard case .localShell(let startDirectory) = self else { return nil }
+        guard case .localShell(let startDirectory, _) = self else { return nil }
         return startDirectory
+    }
+
+    var localProfile: TerminalProfile? {
+        guard case .localShell(_, let profile) = self else { return nil }
+        return profile
     }
 }
 
@@ -147,6 +152,7 @@ struct TerminalCommandBlock: Codable, Equatable, Identifiable {
     var isInteractive: Bool
     var commandStartSource: TerminalCommandStartSource?
     var completionSource: TerminalCommandCompletionSource?
+    var executionContext: TerminalExecutionContext? = nil
 
     var durationMilliseconds: Int? {
         guard let endedAt else { return nil }
@@ -310,9 +316,11 @@ final class TerminalSession: ObservableObject, Identifiable {
     @Published private(set) var activeRecordingStartedAt: Date?
     @Published private(set) var isPlayingShortcut = false
     @Published private(set) var fileTransferStatus: TerminalFileTransferStatus?
+    @Published private(set) var sessionTunnelStatus: SessionTunnelStatus?
     @Published private(set) var commandBlocks: [TerminalCommandBlock] = []
     @Published private(set) var historySearchSnapshot = ""
     @Published private(set) var hasUnreadAttention = false
+    @Published private(set) var executionContext: TerminalExecutionContext
 
     private var didCreateController = false
     lazy var controller: TerminalHostController = {
@@ -327,13 +335,22 @@ final class TerminalSession: ObservableObject, Identifiable {
     private let maxCommandOutputTailCharacters = 12_000
     private let maxOutputSummaryScanCharacters = 65_536
     private let maxHistorySearchCharacters = 240_000
+    private var latestReportedContext: TerminalShellReportedContext?
+    private var didFinishStartupCommands = false
+    private var pendingContextAction: PendingContextAction?
     weak var attentionReporter: TerminalAttentionReporting?
+    var commandCompletionHandler: ((TerminalSession, TerminalCommandBlock) -> Void)?
 
     init(sequence: Int, launchConfiguration: TerminalLaunchConfiguration = .localShell()) {
         self.sequence = sequence
         self.launchConfiguration = launchConfiguration
         title = launchConfiguration.connectionLabel ?? L10n.format("tab.default_title", sequence)
         currentDirectory = launchConfiguration.localStartDirectory
+        executionContext = TerminalExecutionContext.inferred(
+            launchConfiguration: launchConfiguration,
+            currentDirectory: launchConfiguration.localStartDirectory,
+            shellName: nil
+        )
     }
 
     var environment: TerminalEnvironmentKind {
@@ -346,6 +363,17 @@ final class TerminalSession: ObservableObject, Identifiable {
 
     func prepareController() {
         _ = controller
+    }
+
+    /// 后台预热：让 shell 进程在离屏窗口里先跑起来，跑完 rc。仅本地 shell 适用。
+    func prewarm(preferences: TerminalPreferences?) {
+        guard case .localShell = launchConfiguration else { return }
+        controller.prewarm(preferences: preferences)
+    }
+
+    /// 从预热态取用：把容器交还给真窗口领养。
+    func adoptFromPrewarm() {
+        controller.adoptFromPrewarm()
     }
 
     func startProcessIfNeeded() {
@@ -413,7 +441,11 @@ final class TerminalSession: ObservableObject, Identifiable {
             "shortcut.generated_title",
             Self.shortcutTitleFormatter.string(from: finishedAt)
         )
-        return recorder?.finish(title: title, finishedAt: finishedAt)
+        return recorder?.finish(
+            title: title,
+            executionContext: executionContext,
+            finishedAt: finishedAt
+        )
     }
 
     func cancelRecording() {
@@ -496,6 +528,47 @@ final class TerminalSession: ObservableObject, Identifiable {
 
     func updateShellName(_ rawShellName: String?) {
         shellName = Self.normalizedShellName(rawShellName)
+        refreshExecutionContext()
+    }
+
+    func markStartupCommandsStarted() {
+        didFinishStartupCommands = false
+    }
+
+    func markStartupCommandsFinished() {
+        didFinishStartupCommands = true
+        attemptPendingContextAction()
+    }
+
+    func updateExecutionContext(_ report: TerminalShellReportedContext) {
+        guard !report.isEmpty else { return }
+        latestReportedContext = report
+        if let directory = report.workingDirectory?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !directory.isEmpty {
+            currentDirectory = directory
+        }
+        if let reportedShell = report.shell {
+            shellName = Self.normalizedShellName(reportedShell)
+        }
+        executionContext = TerminalExecutionContext.observed(
+            launchConfiguration: launchConfiguration,
+            currentDirectory: currentDirectory,
+            shellName: shellName,
+            report: report
+        )
+        attemptPendingContextAction()
+    }
+
+    func execute(command: String, in expectedContext: TerminalExecutionContext) {
+        pendingContextAction = .command(command: command, context: expectedContext, didRequestDirectory: false)
+        startProcessIfNeeded()
+        attemptPendingContextAction()
+    }
+
+    func execute(shortcut: TerminalShortcut, in expectedContext: TerminalExecutionContext) {
+        pendingContextAction = .shortcut(shortcut: shortcut, context: expectedContext, didRequestDirectory: false)
+        startProcessIfNeeded()
+        attemptPendingContextAction()
     }
 
     func playShortcut(_ shortcut: TerminalShortcut) {
@@ -519,7 +592,9 @@ final class TerminalSession: ObservableObject, Identifiable {
                 }
                 if !shouldContinue { break }
 
-                let bytes = event.resolvedBytes(cache: &protectedBytesCache)
+                let bytes = TerminalShortcutEvent.terminalPlaybackBytes(
+                    from: event.resolvedBytes(cache: &protectedBytesCache)
+                )
                 guard !bytes.isEmpty else { continue }
                 await MainActor.run {
                     self?.controller.sendProcessInput(bytes: bytes)
@@ -543,6 +618,41 @@ final class TerminalSession: ObservableObject, Identifiable {
         controller.startZModemDownload(remotePath: remotePath, destinationFile: destinationFile)
     }
 
+    func cancelFileTransfer() {
+        controller.requestUserCancelZModemTransfer()
+    }
+
+    var canStartSessionTunnel: Bool {
+        guard case .running = state,
+              sessionTunnelStatus?.occupiesTerminal != true,
+              fileTransferStatus?.isActive != true else {
+            return false
+        }
+        return true
+    }
+
+    func startSessionTunnel(configuration: SessionTunnelConfiguration) throws {
+        guard canStartSessionTunnel else {
+            if sessionTunnelStatus?.occupiesTerminal == true {
+                throw SessionTunnelStartError.tunnelAlreadyActive
+            }
+            if fileTransferStatus?.isActive == true {
+                throw SessionTunnelStartError.fileTransferActive
+            }
+            throw SessionTunnelStartError.processUnavailable
+        }
+        startProcessIfNeeded()
+        try controller.startSessionTunnel(configuration: configuration.validated())
+    }
+
+    func stopSessionTunnel() {
+        controller.stopSessionTunnel()
+    }
+
+    func updateSessionTunnelStatus(_ status: SessionTunnelStatus?) {
+        sessionTunnelStatus = status
+    }
+
     func updateFileTransferStatus(_ status: TerminalFileTransferStatus?) {
         fileTransferStatus = status
     }
@@ -564,6 +674,7 @@ final class TerminalSession: ObservableObject, Identifiable {
         self.activeCommandBlockID = nil
         activeCommandOutputStartIndex = historySnapshot.count
         attentionReporter?.terminalSession(self, didProduceAttentionEvent: .commandFinished(finishedBlock))
+        commandCompletionHandler?(self, finishedBlock)
     }
 
     var displayTitle: String {
@@ -773,7 +884,8 @@ final class TerminalSession: ObservableObject, Identifiable {
             outputSummary: nil,
             isInteractive: false,
             commandStartSource: startSource,
-            completionSource: nil
+            completionSource: nil,
+            executionContext: executionContext
         )
         commandBlocks.append(block)
         if commandBlocks.count > maxCommandBlocks {
@@ -781,6 +893,11 @@ final class TerminalSession: ObservableObject, Identifiable {
         }
         activeCommandBlockID = block.id
         activeCommandOutputStartIndex = historySnapshot.count
+
+        if Self.entersUnobservedExecutionContext(cleanCommand) {
+            latestReportedContext = nil
+            refreshExecutionContext()
+        }
     }
 
     private var activeCommandBlockIndex: Int? {
@@ -792,6 +909,17 @@ final class TerminalSession: ObservableObject, Identifiable {
         command
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+    }
+
+    private static func entersUnobservedExecutionContext(_ command: String) -> Bool {
+        let tokens = command
+            .split(whereSeparator: { $0.isWhitespace })
+            .map { String($0).lowercased() }
+        guard let first = tokens.first else { return false }
+        let executable = URL(fileURLWithPath: first).lastPathComponent
+        if ["ssh", "mosh", "su"].contains(executable) { return true }
+        guard executable == "sudo" else { return false }
+        return tokens.dropFirst().contains { ["-i", "--login", "-s", "--shell"].contains($0) }
     }
 
     private func historySuffix(from startIndex: Int, in historySnapshot: String) -> String {
@@ -812,6 +940,96 @@ final class TerminalSession: ObservableObject, Identifiable {
         guard historySearchSnapshot != nextSnapshot else { return }
         historySearchSnapshot = nextSnapshot
     }
+
+    private enum PendingContextAction {
+        case command(command: String, context: TerminalExecutionContext, didRequestDirectory: Bool)
+        case shortcut(shortcut: TerminalShortcut, context: TerminalExecutionContext, didRequestDirectory: Bool)
+
+        var context: TerminalExecutionContext {
+            switch self {
+            case .command(_, let context, _), .shortcut(_, let context, _): return context
+            }
+        }
+
+        var didRequestDirectory: Bool {
+            switch self {
+            case .command(_, _, let value), .shortcut(_, _, let value): return value
+            }
+        }
+
+        func requestingDirectory() -> PendingContextAction {
+            switch self {
+            case .command(let command, let context, _): return .command(command: command, context: context, didRequestDirectory: true)
+            case .shortcut(let shortcut, let context, _): return .shortcut(shortcut: shortcut, context: context, didRequestDirectory: true)
+            }
+        }
+    }
+
+    private func refreshExecutionContext() {
+        if let latestReportedContext {
+            executionContext = TerminalExecutionContext.observed(
+                launchConfiguration: launchConfiguration,
+                currentDirectory: currentDirectory,
+                shellName: shellName,
+                report: latestReportedContext
+            )
+        } else {
+            executionContext = TerminalExecutionContext.inferred(
+                launchConfiguration: launchConfiguration,
+                currentDirectory: currentDirectory,
+                shellName: shellName
+            )
+        }
+    }
+
+    private func attemptPendingContextAction() {
+        guard didFinishStartupCommands,
+              let report = latestReportedContext,
+              let action = pendingContextAction,
+              action.context.matchesTarget(of: launchConfiguration) else { return }
+
+        let expected = action.context
+        let reportedUser = report.user?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let expectedUser = expected.normalizedUser,
+           let reportedUser,
+           expectedUser != reportedUser {
+            guard case .command(let command, _, _) = action else {
+                pendingContextAction = nil
+                NSSound.beep()
+                return
+            }
+            pendingContextAction = nil
+            controller.sendProcessInput(bytes: Array(Self.privilegedCommand(command, context: expected).utf8))
+            return
+        }
+
+        if !expected.matchesReportedContext(report),
+           let directory = expected.normalizedDirectory,
+           !action.didRequestDirectory {
+            pendingContextAction = action.requestingDirectory()
+            controller.sendProcessInput(bytes: Array("cd -- \(Self.shellQuoted(directory))\r".utf8))
+            return
+        }
+        guard expected.matchesReportedContext(report) else { return }
+
+        pendingContextAction = nil
+        switch action {
+        case .command(let command, _, _):
+            controller.sendProcessInput(bytes: Array((command + "\r").utf8))
+        case .shortcut(let shortcut, _, _):
+            playShortcut(shortcut)
+        }
+    }
+
+    static func privilegedCommand(_ command: String, context: TerminalExecutionContext) -> String {
+        let directoryCommand = context.normalizedDirectory.map { "cd -- \(Self.shellQuoted($0)) && " } ?? ""
+        let payload = directoryCommand + command
+        return "sudo -iu \(Self.shellQuoted(context.normalizedUser ?? "root")) sh -lc \(Self.shellQuoted(payload))\r"
+    }
+
+    private static func shellQuoted(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
 }
 
 protocol TerminalTabCloseConfirming {
@@ -819,7 +1037,8 @@ protocol TerminalTabCloseConfirming {
 }
 
 struct SystemTerminalTabCloseConfirmer: TerminalTabCloseConfirming {
-    private static let skipRunningTabCloseConfirmationKey = "terminal.skipRunningTabCloseConfirmation"
+    // 「关闭仍在运行的标签」时的「不再询问」开关。分离面板关闭共用同一把钥匙，保证两处一致。
+    static let skipRunningTabCloseConfirmationKey = "terminal.skipRunningTabCloseConfirmation"
 
     private let defaults: UserDefaults
 
@@ -850,10 +1069,38 @@ struct SystemTerminalTabCloseConfirmer: TerminalTabCloseConfirming {
     }
 }
 
+enum TerminalContextExecutionError: LocalizedError {
+    case directoryUnavailable(String)
+    case localProfileUnavailable(String)
+    case sshProfileUnavailable(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .directoryUnavailable(let directory):
+            return L10n.format("learned_command.error.directory_unavailable", directory)
+        case .localProfileUnavailable(let profile):
+            return L10n.format("learned_command.error.local_profile_unavailable", profile)
+        case .sshProfileUnavailable(let profile):
+            return L10n.format("learned_command.error.ssh_profile_unavailable", profile)
+        }
+    }
+}
+
 final class TerminalWorkspace: ObservableObject {
     @Published private(set) var tabs: [TerminalSession] = []
-    @Published var selectedID: TerminalSession.ID?
+    @Published var selectedID: TerminalSession.ID? {
+        didSet {
+            guard oldValue != selectedID else { return }
+            // 切换选中标签 → 新标签的继承目录变化，按新目录重排预热会话。
+            refreshPrewarmIfStale()
+        }
+    }
     @Published private(set) var shortcuts: [TerminalShortcut] = TerminalShortcutStore.load()
+    @Published private(set) var quickPathRecords: [TerminalQuickPathRecord] = TerminalQuickPathStore.load()
+    @Published private(set) var learnedCommands: [LearnedCommandRecord] = []
+    // 被「拉黑」的路径 / 命令：进不了最近·常用列表，也不再被自动记录/学习。
+    @Published private(set) var blacklistedQuickPaths: Set<String> = TerminalQuickPathBlacklistStore.load()
+    @Published private(set) var blacklistedCommands: Set<String> = LearnedCommandBlacklistStore.load()
     weak var attentionReporter: TerminalAttentionReporting? {
         didSet {
             tabs.forEach { $0.attentionReporter = attentionReporter }
@@ -862,28 +1109,75 @@ final class TerminalWorkspace: ObservableObject {
     }
     // 最后一个标签被关闭后触发；宿主窗口据此关闭自身，未绑定时工作区保持空标签状态。
     var onAllTabsClosed: (() -> Void)?
+    // 本地终端 Profile 存储；由 ContentView 注入。未注入时「+」等入口回落系统默认行为。
+    weak var profileStore: TerminalProfileStore? {
+        didSet {
+            // Profile 列表变化（尤其是默认 Profile 被切换）后，预热会话可能烘焙的是旧默认
+            // 的 shell：订阅变更（跳过订阅时的首帧当前值），按新默认重排预热。
+            profileStoreCancellable = profileStore?.$profiles
+                .dropFirst()
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    self?.refreshPrewarmIfStale()
+                }
+        }
+    }
+    // 终端偏好；由 ContentView 注入。预热离屏 shell 时用它确定字体/列数等几何，未注入则用默认。
+    weak var preferences: TerminalPreferences?
 
     private let automaticallyStartProcesses: Bool
     private let tabCloseConfirmer: TerminalTabCloseConfirming
     private var nextSequence = 1
     private var preparedTab: TerminalSession?
+    // 预热会话已在此目录 spawn 了 shell（rc 已在该目录下跑过）。开标签时只有继承目录与之
+    // 完全一致才复用，保证工作目录/rc 副作用（direnv 等）正确，绝不靠事后 cd 兜底。
+    private var preparedTabWarmDirectory: String?
+    // 预热会话按此 Profile spawn（nil = 系统默认 shell）。开标签时只有请求的 effective
+    // profile 与之同一（id 相等）才复用，保证 fish/zsh 等 shell 与 rc 副作用一致。
+    private var preparedTabWarmProfile: TerminalProfile?
+    private var prewarmRearmWorkItem: DispatchWorkItem?
+    private var profileStoreCancellable: AnyCancellable?
     private var isPreparingNextTab = false
     private var lastShortcutNewTabUptime: TimeInterval = -.infinity
     private var lastShortcutNewTabEventTimestamp: TimeInterval?
     private var lastShortcutCloseTabUptime: TimeInterval = -.infinity
     private var lastShortcutCloseTabEventTimestamp: TimeInterval?
+    private var quickPathCancellables: [TerminalSession.ID: AnyCancellable] = [:]
+    private var lastRecordedQuickPathByTab: [TerminalSession.ID: String] = [:]
+    private var pendingQuickPathSaveWorkItem: DispatchWorkItem?
+    private var pendingLearnedCommandSaveWorkItem: DispatchWorkItem?
+    private var learnedCommandIndex: LearnedCommandIndex
+    private var blacklistNotificationCancellable: AnyCancellable?
     private var isClosingTab = false
 
     init(
         automaticallyStartProcesses: Bool = true,
-        tabCloseConfirmer: TerminalTabCloseConfirming = SystemTerminalTabCloseConfirmer()
+        tabCloseConfirmer: TerminalTabCloseConfirming = SystemTerminalTabCloseConfirmer(),
+        profileStore: TerminalProfileStore? = .shared
     ) {
+        let loadedLearnedCommands = LearnedCommandStore.load()
+        learnedCommandIndex = LearnedCommandIndex(records: loadedLearnedCommands)
+        learnedCommands = learnedCommandIndex.records
         self.automaticallyStartProcesses = automaticallyStartProcesses
         self.tabCloseConfirmer = tabCloseConfirmer
+        // 设置页撤销拉黑后广播，运行中的工作区据此重载黑名单并刷新最近/常用列表。
+        blacklistNotificationCancellable = NotificationCenter.default
+            .publisher(for: .recommendationBlacklistChanged)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.blacklistedQuickPaths = TerminalQuickPathBlacklistStore.load()
+                self?.blacklistedCommands = LearnedCommandBlacklistStore.load()
+            }
+        // 必须在首个 newTab() 之前注入 store：否则启动首个标签读不到默认 Profile，
+        // 只能回落系统登录 shell（zsh），而 ContentView 的 onAppear 注入来得太晚。
+        // 默认取共享单例（与 ContentView 注入的是同一实例）；测试可显式传 nil。
+        self.profileStore = profileStore
         newTab()
     }
 
     deinit {
+        flushPendingQuickPathSave()
+        flushPendingLearnedCommandSave()
         preparedTab?.terminate()
     }
 
@@ -892,12 +1186,31 @@ final class TerminalWorkspace: ObservableObject {
         return tabs.first { $0.id == selectedID } ?? tabs.first
     }
 
-    func newTab(startDirectory: String? = nil) {
-        let tab = startDirectory == nil
-            ? takePreparedTab()
-            : makeTab(launchConfiguration: .localShell(startDirectory: startDirectory))
+    @discardableResult
+    func newTab(startDirectory: String? = nil, profile: TerminalProfile? = nil) -> TerminalSession {
+        // profile 显式传入时用它，否则回落默认 profile（未注入 store 时为 nil = 系统默认）。
+        let effectiveProfile = (profile ?? profileStore?.defaultProfile)?.normalized
+        let resolvedStartDirectory = resolvedNewLocalTabStartDirectory(
+            explicitStartDirectory: startDirectory,
+            profile: effectiveProfile
+        )
+        // 预热快路径：继承目录与请求 Profile 都与预热会话一致才复用已就绪的 warm shell
+        // （近似秒开）；任一对不上则老实冷建，绝不靠事后 cd / 换 shell 兜底。
+        let tab: TerminalSession
+        if let warmTab = takePreparedTabIfMatches(
+            directory: canonicalNewTabDirectory(resolvedStartDirectory),
+            profile: effectiveProfile
+        ) {
+            tab = warmTab
+        } else {
+            let profileForConfig = (effectiveProfile?.isSystemEquivalent ?? true) ? nil : effectiveProfile
+            tab = makeTab(
+                launchConfiguration: .localShell(startDirectory: resolvedStartDirectory, profile: profileForConfig)
+            )
+        }
         tab.attentionReporter = attentionReporter
         tabs.append(tab)
+        trackQuickPaths(for: tab)
         selectedID = tab.id
         tab.clearUnreadAttention()
         if automaticallyStartProcesses {
@@ -906,12 +1219,38 @@ final class TerminalWorkspace: ObservableObject {
             }
         }
         schedulePrepareNextTab()
+        return tab
     }
 
-    func openSSH(profile: SSHConnectionProfile) {
+    private func resolvedNewLocalTabStartDirectory(
+        explicitStartDirectory: String?,
+        profile: TerminalProfile?
+    ) -> String? {
+        if explicitStartDirectory != nil {
+            return TerminalWorkingDirectory.normalizedExistingDirectory(explicitStartDirectory)
+        }
+
+        // profile 指定了默认工作目录时优先使用，其次继承当前本地标签目录。
+        if let directory = profile?.workingDirectory, !directory.isEmpty,
+           let normalized = TerminalWorkingDirectory.normalizedExistingDirectory(directory) {
+            return normalized
+        }
+
+        guard let selectedTab,
+              case .localShell(let launchStartDirectory, _) = selectedTab.launchConfiguration else {
+            return nil
+        }
+
+        return TerminalWorkingDirectory.normalizedExistingDirectory(selectedTab.currentDirectory)
+            ?? TerminalWorkingDirectory.normalizedExistingDirectory(launchStartDirectory)
+    }
+
+    @discardableResult
+    func openSSH(profile: SSHConnectionProfile) -> TerminalSession {
         let tab = makeTab(launchConfiguration: .ssh(profile))
         tab.attentionReporter = attentionReporter
         tabs.append(tab)
+        trackQuickPaths(for: tab)
         selectedID = tab.id
         tab.clearUnreadAttention()
         if automaticallyStartProcesses {
@@ -919,13 +1258,14 @@ final class TerminalWorkspace: ObservableObject {
                 tab.startProcessIfNeeded()
             }
         }
+        return tab
     }
 
     func saveSnapshot() throws {
         let snapshotTabs = tabs.map { tab -> TerminalWorkspaceSnapshot.Tab in
             switch tab.launchConfiguration {
-            case .localShell(let startDirectory):
-                return .local(directory: tab.currentDirectory ?? startDirectory)
+            case .localShell(let startDirectory, let profile):
+                return .local(directory: tab.currentDirectory ?? startDirectory, profile: profile)
             case .ssh(let profile):
                 return .ssh(profile: profile)
             }
@@ -955,9 +1295,13 @@ final class TerminalWorkspace: ObservableObject {
         let restoredTabs = try snapshot.tabs.map { tabSnapshot -> TerminalSession in
             switch tabSnapshot.kind {
             case .local:
+                // 恢复时优先按 id 取回最新 profile（用户可能已改），取不到再用快照内嵌副本。
+                let snapshotProfile = tabSnapshot.localProfile?.normalized
+                let resolvedProfile = snapshotProfile.flatMap { profileStore?.profile(id: $0.id)?.normalized } ?? snapshotProfile
                 return makeTab(
                     launchConfiguration: .localShell(
-                        startDirectory: TerminalWorkingDirectory.normalizedExistingDirectory(tabSnapshot.localDirectory)
+                        startDirectory: TerminalWorkingDirectory.normalizedExistingDirectory(tabSnapshot.localDirectory),
+                        profile: (resolvedProfile?.isSystemEquivalent ?? true) ? nil : resolvedProfile
                     )
                 )
             case .ssh:
@@ -970,10 +1314,16 @@ final class TerminalWorkspace: ObservableObject {
 
         preparedTab?.terminate()
         preparedTab = nil
+        preparedTabWarmDirectory = nil
+        preparedTabWarmProfile = nil
+        prewarmRearmWorkItem?.cancel()
         isPreparingNextTab = false
         tabs.forEach { $0.terminate() }
+        quickPathCancellables.removeAll()
+        lastRecordedQuickPathByTab.removeAll()
         tabs = restoredTabs
         tabs.forEach { $0.attentionReporter = attentionReporter }
+        tabs.forEach(trackQuickPaths)
 
         let selectedIndex = min(max(snapshot.selectedIndex, 0), tabs.count - 1)
         selectedID = tabs[selectedIndex].id
@@ -1001,6 +1351,53 @@ final class TerminalWorkspace: ObservableObject {
         guard now - lastShortcutNewTabUptime > 0.2 else { return }
         lastShortcutNewTabUptime = now
         newTab()
+    }
+
+    func openQuickPath(_ record: TerminalQuickPathRecord) {
+        openQuickPath(record.path)
+    }
+
+    @discardableResult
+    func addQuickPath(_ path: String) -> TerminalQuickPathRecord? {
+        guard let normalizedPath = TerminalWorkingDirectory.normalizedExistingDirectory(path) else {
+            return nil
+        }
+        quickPathRecords = TerminalQuickPathStore.record(directory: normalizedPath, in: quickPathRecords)
+        flushPendingQuickPathSave()
+        return quickPathRecords.first { $0.path == normalizedPath }
+    }
+
+    func openQuickPath(_ path: String) {
+        guard let normalizedPath = TerminalWorkingDirectory.normalizedExistingDirectory(path) else {
+            removeQuickPath(path)
+            return
+        }
+        newTab(startDirectory: normalizedPath)
+    }
+
+    var recentQuickPaths: [TerminalQuickPathRecord] {
+        TerminalQuickPathStore.recent(
+            quickPathRecords.filter { !blacklistedQuickPaths.contains($0.path) },
+            limit: 3
+        )
+    }
+
+    func frequentQuickPaths(limit: Int, excludingPaths: Set<String> = []) -> [TerminalQuickPathRecord] {
+        TerminalQuickPathStore.frequent(
+            quickPathRecords,
+            limit: limit,
+            excludingPaths: excludingPaths.union(blacklistedQuickPaths)
+        )
+    }
+
+    /// 拉黑路径：加入黑名单并从记录中移除。之后无论访问多频繁都不再出现在最近/常用里。
+    func blacklistQuickPath(_ path: String) {
+        guard let normalizedPath = TerminalWorkingDirectory.normalizedExistingDirectory(path)
+            ?? path.nonEmptyTrimmed else { return }
+        blacklistedQuickPaths.insert(normalizedPath)
+        TerminalQuickPathBlacklistStore.save(blacklistedQuickPaths)
+        quickPathRecords.removeAll { $0.path == normalizedPath }
+        scheduleQuickPathSave()
     }
 
     @discardableResult
@@ -1036,16 +1433,18 @@ final class TerminalWorkspace: ObservableObject {
     }
 
     @discardableResult
-    func close(_ tab: TerminalSession) -> Bool {
+    func close(_ tab: TerminalSession, skipConfirmation: Bool = false) -> Bool {
         guard !isClosingTab else { return false }
         guard let index = tabs.firstIndex(where: { $0.id == tab.id }) else { return false }
         isClosingTab = true
         defer { isClosingTab = false }
 
-        guard tabCloseConfirmer.shouldClose(tab: tab) else { return false }
+        guard skipConfirmation || tabCloseConfirmer.shouldClose(tab: tab) else { return false }
 
         tab.terminate()
         tabs.remove(at: index)
+        quickPathCancellables[tab.id] = nil
+        lastRecordedQuickPathByTab[tab.id] = nil
 
         guard !tabs.isEmpty else {
             selectedID = nil
@@ -1059,6 +1458,44 @@ final class TerminalWorkspace: ObservableObject {
             tabs[fallbackIndex].clearUnreadAttention()
         }
 
+        return true
+    }
+
+    /// 分离标签：把 session 从工作区摘出，但**不终止**其进程（top / tail -f 继续跑），
+    /// 交给悬浮面板继续托管渲染。若摘出后主窗口会一个标签不剩，则补一个新标签避免空窗关窗。
+    /// 返回被摘出的 session；未找到或正处于关闭流程中返回 nil。
+    @discardableResult
+    func detachTab(_ tab: TerminalSession) -> TerminalSession? {
+        guard !isClosingTab else { return nil }
+        guard let index = tabs.firstIndex(where: { $0.id == tab.id }) else { return nil }
+        isClosingTab = true
+        defer { isClosingTab = false }
+
+        tabs.remove(at: index)
+        quickPathCancellables[tab.id] = nil
+        lastRecordedQuickPathByTab[tab.id] = nil
+
+        if tabs.isEmpty {
+            // 主窗口不能空着（空标签会触发 onAllTabsClosed 关窗），补一个新标签；
+            // 被分离的 session 已交给面板，绝不在此终止。
+            newTab()
+        } else if selectedID == tab.id {
+            let fallbackIndex = min(index, tabs.count - 1)
+            selectedID = tabs[fallbackIndex].id
+            tabs[fallbackIndex].clearUnreadAttention()
+        }
+        return tab
+    }
+
+    /// 收回分离标签：把悬浮面板托管的 session 塞回工作区并选中。已在工作区中则忽略。
+    @discardableResult
+    func reattachTab(_ tab: TerminalSession) -> Bool {
+        guard !tabs.contains(where: { $0.id == tab.id }) else { return false }
+        tab.attentionReporter = attentionReporter
+        tabs.append(tab)
+        trackQuickPaths(for: tab)
+        selectedID = tab.id
+        tab.clearUnreadAttention()
         return true
     }
 
@@ -1103,6 +1540,55 @@ final class TerminalWorkspace: ObservableObject {
         objectWillChange.send()
     }
 
+    var discoverableLearnedCommands: [LearnedCommandRecord] {
+        learnedCommands.filter { $0.isDiscoverable && !blacklistedCommands.contains($0.command) }
+    }
+
+    /// 拉黑命令：加入黑名单并移除该记录。之后无论执行多少次都不再作为常用命令建议。
+    func blacklistLearnedCommand(id: String) {
+        guard let record = learnedCommands.first(where: { $0.id == id }) else { return }
+        blacklistedCommands.insert(record.command)
+        LearnedCommandBlacklistStore.save(blacklistedCommands)
+        removeLearnedCommand(id: id)
+    }
+
+    func executeLearnedCommand(
+        _ record: LearnedCommandRecord,
+        sshProfiles: [SSHConnectionProfile]
+    ) throws {
+        let tab = try newTab(for: record.context, sshProfiles: sshProfiles)
+        learnedCommandIndex.markExecuted(id: record.id)
+        publishLearnedCommands()
+        tab.execute(command: record.command, in: record.context)
+    }
+
+    func playShortcutInRecordedContext(
+        _ shortcut: TerminalShortcut,
+        sshProfiles: [SSHConnectionProfile]
+    ) throws {
+        guard let context = shortcut.executionContext else {
+            playShortcut(shortcut)
+            return
+        }
+        let tab = try newTab(for: context, sshProfiles: sshProfiles)
+        tab.execute(shortcut: shortcut, in: context)
+    }
+
+    func setLearnedCommandPinned(_ pinned: Bool, id: String) {
+        learnedCommandIndex.setPinned(pinned, id: id)
+        publishLearnedCommands()
+    }
+
+    func dismissLearnedCommand(id: String) {
+        learnedCommandIndex.dismiss(id: id)
+        publishLearnedCommands()
+    }
+
+    func removeLearnedCommand(id: String) {
+        learnedCommandIndex.remove(id: id)
+        publishLearnedCommands()
+    }
+
     func startZModemUpload(fileURLs: [URL]) {
         selectedTab?.startZModemUpload(fileURLs: fileURLs)
         objectWillChange.send()
@@ -1110,6 +1596,11 @@ final class TerminalWorkspace: ObservableObject {
 
     func startZModemDownload(remotePath: String, destinationFile: URL) {
         selectedTab?.startZModemDownload(remotePath: remotePath, destinationFile: destinationFile)
+        objectWillChange.send()
+    }
+
+    func cancelFileTransfer() {
+        selectedTab?.cancelFileTransfer()
         objectWillChange.send()
     }
 
@@ -1123,7 +1614,9 @@ final class TerminalWorkspace: ObservableObject {
     }
 
     func deleteShortcut(id: UUID) {
-        shortcuts.filter { $0.id == id }.forEach(TerminalShortcutStore.deleteProtectedInputs)
+        for shortcut in shortcuts where shortcut.id == id {
+            TerminalShortcutStore.deleteProtectedInputs(for: shortcut)
+        }
         shortcuts.removeAll { $0.id == id }
         persistShortcuts()
     }
@@ -1134,9 +1627,7 @@ final class TerminalWorkspace: ObservableObject {
 
     func saveEditableShortcutsText(_ text: String) throws {
         let edited = try TerminalShortcutStore.decodeEditableText(text)
-        for shortcut in shortcuts where edited.contains(where: { $0.id == shortcut.id }) == false {
-            TerminalShortcutStore.deleteProtectedInputs(for: shortcut)
-        }
+        TerminalShortcutStore.deleteProtectedInputs(removedFrom: shortcuts, keeping: edited)
         shortcuts = edited
         TerminalShortcutStore.save(shortcuts)
     }
@@ -1171,6 +1662,37 @@ final class TerminalWorkspace: ObservableObject {
         return tab
     }
 
+    func startToolSessionTunnel(
+        configuration: SessionTunnelConfiguration,
+        in selector: String?
+    ) throws -> TerminalSession {
+        let tab = try toolTab(matching: selector)
+        try tab.startSessionTunnel(configuration: configuration)
+        selectedID = tab.id
+        objectWillChange.send()
+        return tab
+    }
+
+    func stopToolSessionTunnel(in selector: String?) throws -> TerminalSession {
+        let tab = try toolTab(matching: selector)
+        guard tab.sessionTunnelStatus != nil else {
+            throw TerminalToolError.sessionTunnelNotActive
+        }
+        tab.stopSessionTunnel()
+        selectedID = tab.id
+        objectWillChange.send()
+        return tab
+    }
+
+    func playToolShortcut(_ shortcut: TerminalShortcut, in selector: String?) throws -> TerminalSession {
+        let tab = try toolTab(matching: selector)
+        tab.startProcessIfNeeded()
+        selectedID = tab.id
+        tab.playShortcut(shortcut)
+        objectWillChange.send()
+        return tab
+    }
+
     private func toolTab(matching selector: String?) throws -> TerminalSession {
         let cleaned = selector?.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let cleaned, !cleaned.isEmpty, cleaned != "selected" else {
@@ -1198,21 +1720,88 @@ final class TerminalWorkspace: ObservableObject {
         throw TerminalToolError.tabNotFound(cleaned)
     }
 
-    private func takePreparedTab() -> TerminalSession {
-        if let preparedTab {
-            self.preparedTab = nil
-            preparedTab.attentionReporter = attentionReporter
-            return preparedTab
-        }
+    private var canonicalHomeDirectory: String {
+        FileManager.default.homeDirectoryForCurrentUser.path
+    }
 
-        return makeTab()
+    // 一个默认新标签实际会落到的目录：解析后的继承目录，为 nil 时 shell 回落到 home。
+    private func canonicalNewTabDirectory(_ resolvedStartDirectory: String?) -> String {
+        resolvedStartDirectory ?? canonicalHomeDirectory
+    }
+
+    /// 仅当预热会话正是在 `directory` 里、且用同一 `profile` spawn 的才取用；否则返回 nil 让调用方冷建。
+    private func takePreparedTabIfMatches(directory: String, profile: TerminalProfile?) -> TerminalSession? {
+        guard let preparedTab,
+              preparedTabWarmDirectory == directory,
+              preparedTabWarmProfile?.id == profile?.id else { return nil }
+        self.preparedTab = nil
+        preparedTabWarmDirectory = nil
+        preparedTabWarmProfile = nil
+        preparedTab.attentionReporter = attentionReporter
+        preparedTab.adoptFromPrewarm()
+        return preparedTab
     }
 
     private func makeTab(launchConfiguration: TerminalLaunchConfiguration = .localShell()) -> TerminalSession {
         let tab = TerminalSession(sequence: nextSequence, launchConfiguration: launchConfiguration)
         tab.attentionReporter = attentionReporter
+        tab.commandCompletionHandler = { [weak self] session, block in
+            self?.observeCompletedCommand(block, in: session)
+        }
         nextSequence += 1
         return tab
+    }
+
+    private func newTab(
+        for context: TerminalExecutionContext,
+        sshProfiles: [SSHConnectionProfile]
+    ) throws -> TerminalSession {
+        switch context.targetKind {
+        case .local:
+            if let directory = context.normalizedDirectory,
+               TerminalWorkingDirectory.normalizedExistingDirectory(directory) == nil {
+                throw TerminalContextExecutionError.directoryUnavailable(directory)
+            }
+            let profile = context.targetID.flatMap { profileStore?.profile(id: $0) }
+            if context.targetID != nil, profile == nil {
+                throw TerminalContextExecutionError.localProfileUnavailable(context.displayTarget)
+            }
+            return newTab(startDirectory: context.normalizedDirectory, profile: profile)
+        case .ssh:
+            guard let profile = sshProfiles.first(where: {
+                context.targetID == $0.id
+                    && context.targetFingerprint == TerminalExecutionContext.sshFingerprint($0)
+            }) else {
+                throw TerminalContextExecutionError.sshProfileUnavailable(context.displayTarget)
+            }
+            var executionProfile = profile
+            executionProfile.remoteShellIntegrationEnabled = true
+            return openSSH(profile: executionProfile)
+        }
+    }
+
+    private func observeCompletedCommand(_ block: TerminalCommandBlock, in session: TerminalSession) {
+        let context = block.executionContext ?? session.executionContext
+        // 已拉黑的命令不再学习/记录（与 record.command 同源的归一化形式比对）。
+        guard !blacklistedCommands.contains(LearnedCommandEligibility.normalizedCommand(block.command)) else { return }
+        guard learnedCommandIndex.observe(block: block, context: context) != nil else { return }
+        publishLearnedCommands()
+    }
+
+    private func publishLearnedCommands() {
+        learnedCommands = learnedCommandIndex.records
+        pendingLearnedCommandSaveWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.flushPendingLearnedCommandSave()
+        }
+        pendingLearnedCommandSaveWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7, execute: workItem)
+    }
+
+    private func flushPendingLearnedCommandSave() {
+        pendingLearnedCommandSaveWorkItem?.cancel()
+        pendingLearnedCommandSaveWorkItem = nil
+        LearnedCommandStore.saveAsync(learnedCommands)
     }
 
     private func schedulePrepareNextTab() {
@@ -1229,13 +1818,53 @@ final class TerminalWorkspace: ObservableObject {
         defer { isPreparingNextTab = false }
         guard preparedTab == nil else { return }
 
-        let tab = makeTab()
-        tab.prepareController()
+        // 预热跟随默认 Profile：默认是 fish 就预热 fish、是系统默认就预热登录 shell，
+        // 让「点 + / 快捷键开默认标签」这条最高频路径无论用哪种 shell 都能秒开。
+        let warmProfile = profileStore?.defaultProfile.normalized
+        // 把「此刻一个默认新标签会继承到的目录」烘焙进预热会话（含 Profile 自带 workingDirectory），
+        // 令 warm shell 直接在该目录起。
+        let warmDirectory = canonicalNewTabDirectory(
+            resolvedNewLocalTabStartDirectory(explicitStartDirectory: nil, profile: warmProfile)
+        )
+        let profileForConfig = (warmProfile?.isSystemEquivalent ?? true) ? nil : warmProfile
+        let tab = makeTab(launchConfiguration: .localShell(startDirectory: warmDirectory, profile: profileForConfig))
+        tab.prewarm(preferences: preferences)
         preparedTab = tab
+        preparedTabWarmDirectory = warmDirectory
+        preparedTabWarmProfile = warmProfile
+    }
+
+    /// 当前选中标签的目录变化后，预热会话烘焙的目录可能已过期：丢弃并按新目录重排一个。
+    /// 防抖，避免用户连续 cd 时反复 spawn shell。
+    func refreshPrewarmIfStale() {
+        guard automaticallyStartProcesses else { return }
+        prewarmRearmWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            let warmProfile = self.profileStore?.defaultProfile.normalized
+            let desired = self.canonicalNewTabDirectory(
+                self.resolvedNewLocalTabStartDirectory(explicitStartDirectory: nil, profile: warmProfile)
+            )
+            // 已有预热且目录、默认 Profile 都仍匹配：无需动作。
+            if self.preparedTab != nil,
+               self.preparedTabWarmDirectory == desired,
+               self.preparedTabWarmProfile?.id == warmProfile?.id { return }
+            // 目录或默认 Profile 过期：拆掉旧预热，重新按新目录 / Profile 预热。
+            self.preparedTab?.terminate()
+            self.preparedTab = nil
+            self.preparedTabWarmDirectory = nil
+            self.preparedTabWarmProfile = nil
+            self.isPreparingNextTab = false
+            self.schedulePrepareNextTab()
+        }
+        prewarmRearmWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2, execute: workItem)
     }
 
     private func upsertShortcut(_ shortcut: TerminalShortcut) {
-        shortcuts.filter { $0.id == shortcut.id }.forEach(TerminalShortcutStore.deleteProtectedInputs)
+        for existingShortcut in shortcuts where existingShortcut.id == shortcut.id {
+            TerminalShortcutStore.deleteProtectedInputs(for: existingShortcut)
+        }
         shortcuts.removeAll { $0.id == shortcut.id }
         shortcuts.insert(shortcut.normalized, at: 0)
         persistShortcuts()
@@ -1244,5 +1873,65 @@ final class TerminalWorkspace: ObservableObject {
     private func persistShortcuts() {
         shortcuts = Array(shortcuts.map(\.normalized).filter(\.isPlayable).prefix(24))
         TerminalShortcutStore.save(shortcuts)
+    }
+
+    private func trackQuickPaths(for tab: TerminalSession) {
+        guard case .localShell = tab.launchConfiguration else { return }
+        recordQuickPath(tab.currentDirectory, for: tab)
+        quickPathCancellables[tab.id] = tab.$currentDirectory
+            .dropFirst()
+            .sink { [weak self, weak tab] directory in
+                guard let self, let tab else { return }
+                self.recordQuickPath(directory, for: tab)
+                // 选中标签的目录变了 → 新标签的继承目录随之改变，按新目录重排预热会话。
+                if tab.id == self.selectedID {
+                    self.refreshPrewarmIfStale()
+                }
+            }
+    }
+
+    private func recordQuickPath(_ directory: String?, for tab: TerminalSession) {
+        guard let path = TerminalWorkingDirectory.normalizedExistingDirectory(directory) else { return }
+        // 已拉黑的路径不再自动记录，杜绝「删了又因为再次 cd 冒出来」。
+        guard !blacklistedQuickPaths.contains(path) else { return }
+        guard lastRecordedQuickPathByTab[tab.id] != path else { return }
+        lastRecordedQuickPathByTab[tab.id] = path
+        quickPathRecords = TerminalQuickPathStore.record(directory: path, in: quickPathRecords)
+        scheduleQuickPathSave()
+    }
+
+    func removeQuickPath(_ path: String) {
+        guard let normalizedPath = TerminalWorkingDirectory.normalizedExistingDirectory(path) ?? path.nonEmptyTrimmed else {
+            return
+        }
+        quickPathRecords.removeAll { $0.path == normalizedPath }
+        scheduleQuickPathSave()
+    }
+
+    func flushQuickPathRecordsForTests() {
+        flushPendingQuickPathSave()
+    }
+
+    private func scheduleQuickPathSave() {
+        pendingQuickPathSaveWorkItem?.cancel()
+        let records = quickPathRecords
+        let workItem = DispatchWorkItem {
+            TerminalQuickPathStore.saveAsync(records)
+        }
+        pendingQuickPathSaveWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.75, execute: workItem)
+    }
+
+    private func flushPendingQuickPathSave() {
+        pendingQuickPathSaveWorkItem?.cancel()
+        pendingQuickPathSaveWorkItem = nil
+        TerminalQuickPathStore.save(quickPathRecords)
+    }
+}
+
+private extension String {
+    var nonEmptyTrimmed: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }

@@ -1,7 +1,7 @@
 # MuseTerm Feature Roadmap
 
-> 最后更新：2026-07-02
-> 当前版本基线：v1.210.0
+> 最后更新：2026-07-15
+> 当前版本基线：v1.231.0-rc1
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 
 ## 目标
@@ -29,6 +29,24 @@ MuseTerm 已具备多标签终端、SSH profile、终端录制、rz/sz 文件传
 | P3 | 成就、统计与轻娱乐系统 | v4 | 高 | 增加记忆点，但不能干扰主流程 |
 
 ## 当前落地状态
+
+v1.231.0-rc1 已完成自然语言 AI 命令辅助：
+
+- 默认双击 `Control` 唤起终端内自然语言输入，也可在设置里切换为双击 `Shift` 或关闭。
+- AI 复用现有 Provider，并携带已确认的本地/SSH、主机、目录、用户、shell 与环境上下文生成最多两条单行候选；候选继续经过本地风险分析，不直接相信模型自报风险。
+- 生成和解释使用终端右上方浮层，不挤压终端；关闭按钮、`Esc` 或切换标签都会取消并结束本轮辅助。
+- 最终操作只把所选命令填入原终端，不发送回车；生产环境额外提醒复核，保证 AI 无法绕过用户执行确认。
+
+v1.230.0-rc1 已完成主要快捷键配置：
+
+- 命令面板默认快捷键调整为 `Cmd+Shift+P`。
+- 设置 › 行为可修改新建/关闭标签、命令面板、命令搜索和前后标签切换快捷键，菜单与本地事件分发共用实时配置；重复绑定自动解除，系统与标签数字键等保留组合不可覆盖。
+
+v1.229.0-rc1 已完成上下文命令面板与高频命令学习：
+
+- `Cmd+P` 改为全局命令面板，统一搜索应用操作、命令、终端录制、路径、SSH 主机与标签页，任务/端口面板保留为可搜索操作但不再占用快捷键。
+- 命令学习采用可解释的精确上下文分桶、频次阈值、成功次数和时间/质量评分，不使用 Isolation Forest；同一条命令在已确认的完整上下文中达到 3 次且至少成功 2 次后才展示，并过滤敏感、高危、交互式和纯上下文切换命令。进入嵌套 SSH 或提权 shell 后，在上下文重新确认前暂停学习。
+- 本地与 SSH shell integration 会回传目录、用户、UID、主机和 shell；快捷命令与录制回放默认新开标签并验证上下文后执行，用户身份不同时使用一次性提权命令。
 
 v1.209.0-rc1 已修复一项紧凑侧栏体验问题：
 
@@ -220,7 +238,7 @@ v1.164.1-rc1 已完成关闭标签回归修复：
 
 v1.164.0 已完成一百六十五条纵向切片：
 
-- CLI/MCP 命令查询契约：`museterm commands --query` 与 MCP `read_commands.query` 支持和 App 命令搜索一致的 `risk:`、`lifecycle:` / `state:`、`boundary:` 与普通全文词组合过滤，并返回 `filteredCommandCount` 与 `commandQuery`，让外部工具可直接请求目标命令块。
+- CLI/MCP 命令查询契约：`qterm commands --query` 与 MCP `read_commands.query` 支持和 App 命令搜索一致的 `risk:`、`lifecycle:` / `state:`、`boundary:` 与普通全文词组合过滤，并返回 `filteredCommandCount` 与 `commandQuery`，让外部工具可直接请求目标命令块。
 
 v1.163.0 已完成一百六十四条纵向切片：
 
@@ -412,19 +430,19 @@ v1.121.0 已完成一百一十七条纵向切片：
 - 最近失败统计：任务与端口面板的本次会话统计已展示最近失败诊断行，并在统计模型层统一脱敏，让“失败了几次”进一步变成“最近卡在哪”。
 - 连续失败提醒：统计面板会在最近连续 3 次以上同一诊断失败时显示重复提醒；最新命令成功或诊断变化时不提示，保持克制。
 - 诊断摘要复用：Runbook 导出与 AI Explain 当前过滤上下文会复用同一套 `CommandBlockDiagnostics`，记录最近失败和连续同类失败摘要，并沿用脱敏策略。
-- CLI/MCP 诊断摘要：工具状态文件为每个 tab 增加 `commandDiagnostics`，`museterm commands` 与 MCP `read_commands` 返回 `diagnostics` + `commands`，外部工具可直接读取最近失败和连续同类失败线索。
+- CLI/MCP 诊断摘要：工具状态文件为每个 tab 增加 `commandDiagnostics`，`qterm commands` 与 MCP `read_commands` 返回 `diagnostics` + `commands`，外部工具可直接读取最近失败和连续同类失败线索。
 - 诊断动作契约拆分：`CommandDiagnosticAction` 及其稳定 action code 枚举已从 `TaskPortPanel.swift` 拆分到独立 `CommandDiagnosticAction.swift`，让结构化建议排查动作可以继续深化而不拖大面板实现文件。
 - 工具快照序列号：工具状态快照新增单调递增的 `snapshotSequence`，并透传到 CLI/MCP 元数据响应，外部工具轮询时可判断是否读到新快照，不必只比较时间字符串。
 - 工具请求响应元数据：输入/按键请求 response 文件会返回 `schemaVersion`、App 名称、版本、`snapshotSequence`、`action` 和成功目标 `tabID`，让外部工具能定位请求由哪版 App、哪次快照附近处理。
-- CLI 输入响应 JSON 输出：`museterm input --json` 与 `museterm key --json` 会输出完整工具 response 元数据，默认短消息输出保持兼容，便于脚本直接消费请求处理结果。
-- CLI 请求等待时间：`museterm input` 与 `museterm key` 支持 `--timeout SECONDS`，脚本可按场景调整等待 App response 文件的时长，超时时间必须为正数。
+- CLI 输入响应 JSON 输出：`qterm input --json` 与 `qterm key --json` 会输出完整工具 response 元数据，默认短消息输出保持兼容，便于脚本直接消费请求处理结果。
+- CLI 请求等待时间：`qterm input` 与 `qterm key` 支持 `--timeout SECONDS`，脚本可按场景调整等待 App response 文件的时长，超时时间必须为正数。
 - MCP 写入响应元数据：MCP `send_text` 与 `send_key` 支持 `timeout` 和 `metadata` 参数，默认返回短消息，`metadata: true` 时返回完整工具 response 元数据。
-- CLI/MCP 命令列表顶层元数据：`museterm commands` 与 MCP `read_commands` 会返回 `tabID`、`selectedTabID`、`commandCount`、`returnedCommandCount` 和 `outputTailLimit`，外部工具读取命令块时无需自行推断标签来源、命令总量和 tail 截断参数。
+- CLI/MCP 命令列表顶层元数据：`qterm commands` 与 MCP `read_commands` 会返回 `tabID`、`selectedTabID`、`commandCount`、`returnedCommandCount` 和 `outputTailLimit`，外部工具读取命令块时无需自行推断标签来源、命令总量和 tail 截断参数。
 - MCP 标签列表元数据：MCP `list_tabs` 默认保持数组输出兼容，传入 `metadata: true` 时返回 `schemaVersion`、App 名称、版本、选中标签 ID 和标签数组，让外部工具读取标签列表时也能稳定判断契约版本。
-- CLI/MCP 契约版本：工具状态快照顶层、命令诊断快照、`museterm tabs`、`museterm commands` 和 MCP `read_commands` 均暴露 `schemaVersion`，让外部工具可按 JSON 契约版本做兼容判断。
-- CLI/MCP 屏幕与历史截断元数据：`museterm screen --json`、`museterm history --json` 和 MCP `read_screen` / `read_history` 的 `metadata: true` 会返回文本、字符数、返回字符数、截断上限和截断状态，同时保留默认纯文本输出兼容性。
+- CLI/MCP 契约版本：工具状态快照顶层、命令诊断快照、`qterm tabs`、`qterm commands` 和 MCP `read_commands` 均暴露 `schemaVersion`，让外部工具可按 JSON 契约版本做兼容判断。
+- CLI/MCP 屏幕与历史截断元数据：`qterm screen --json`、`qterm history --json` 和 MCP `read_screen` / `read_history` 的 `metadata: true` 会返回文本、字符数、返回字符数、截断上限和截断状态，同时保留默认纯文本输出兼容性。
 - MCP 屏幕元数据端到端验证：测试会启动生成的 Ruby MCP 脚本，发送真实 JSON-RPC `tools/call read_screen` 请求，并验证 `metadata: true` 返回的截断元数据。
-- CLI/MCP 输出截断元数据：`museterm commands --chars N` 和 MCP `read_commands` 会为每个命令块标注 `outputTailCharacters`、`outputTailReturnedCharacters`、数字或 `null` 类型的 `outputTailLimit`、`outputTailTruncated` 与 `outputTailStoredTruncated`，并用真实 Ruby CLI 端到端测试覆盖，避免外部工具把 App 内部 tail 或二次截断 tail 当成完整输出。
+- CLI/MCP 输出截断元数据：`qterm commands --chars N` 和 MCP `read_commands` 会为每个命令块标注 `outputTailCharacters`、`outputTailReturnedCharacters`、数字或 `null` 类型的 `outputTailLimit`、`outputTailTruncated` 与 `outputTailStoredTruncated`，并用真实 Ruby CLI 端到端测试覆盖，避免外部工具把 App 内部 tail 或二次截断 tail 当成完整输出。
 - 诊断摘要可操作化：`CommandBlockDiagnostics` 新增失败命令数、最近失败命令和建议下一步查看项，并同步进入 Runbook、AI 当前过滤上下文与 CLI/MCP `diagnostics`。
 - 最近失败退出码：`CommandBlockDiagnostics` 新增 `latestFailedExitCode`，Runbook、AI 上下文和 CLI/MCP `commandDiagnostics` 可直接消费最近失败命令退出码。
 - 最近失败耗时：`CommandBlockDiagnostics` 新增 `latestFailedDurationMilliseconds`，Runbook、AI 上下文和 CLI/MCP `commandDiagnostics` 可直接消费最近失败命令耗时，区分快速失败、慢失败和疑似超时。
@@ -474,7 +492,7 @@ v1.121.0 已完成一百一十七条纵向切片：
 - 连续失败持续时长：`RepeatedFailureDiagnostic` 新增 `durationMilliseconds`，Runbook、AI 上下文和 CLI/MCP `diagnostics` 可直接消费这波失败的持续时间，后续做排序和趋势统计不必重复计算。
 - 连续失败匹配方式：`RepeatedFailureDiagnostic` 新增 `matchKind`，区分 `exact` 完全重复和 `normalized` 归一化指纹命中，帮助 Runbook、AI 和外部工具判断同类失败聚合的可信度。
 - 建议排查命令：`CommandBlockDiagnostics` 新增 `suggestedNextCommand`，按端口占用、权限、缺文件、git fatal 和连续失败等常见场景生成保守的只读排查命令，并同步给 Runbook、AI 上下文和 CLI/MCP `diagnostics`，继续保持由用户确认后执行。
-- CLI/MCP 命令块读取：已新增 `museterm commands` 和 MCP `read_commands`。
+- CLI/MCP 命令块读取：已新增 `qterm commands` 和 MCP `read_commands`。
 - 命令搜索 UI：已提供右侧命令搜索面板，可按命令、目录和输出搜索，并支持失败过滤。
 - 滚屏历史搜索：命令搜索面板会同时搜索当前标签原始滚屏历史，展示脱敏后的命中片段和命中数量，覆盖尚未形成结构化命令块的输出。
 - 输出洞察第一版：命令块会轻量识别错误、警告、URL、文件路径、JSON、YAML、堆栈和 commit hash，并可复制按类型整理的输出摘要；JSON 输出摘要会附带格式化后的 pretty JSON，不改变终端原始渲染。

@@ -6,5 +6,15 @@
 	<true/>
 	<key>OSAScriptingDefinition</key>
 	<string>museterm.sdef</string>
+	<key>SUAutomaticallyUpdate</key>
+	<true/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://some.im/api/v1/public/app-updates/appcast.xml?app_id=qterm&amp;platform=macos&amp;channel=stable</string>
+	<key>SUPublicEDKey</key>
+	<string>3QVMPCYo42ORmq8uUHqUdW8ayy5nw8Hs5uq9DLKDp0A=</string>
+	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
 </dict>
 </plist>

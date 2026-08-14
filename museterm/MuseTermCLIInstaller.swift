@@ -3,7 +3,7 @@ import Foundation
 enum MuseTermCLIInstaller {
     static let installDirectory = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".local/bin", isDirectory: true)
-    static let installURL = installDirectory.appendingPathComponent("museterm")
+    static let installURL = installDirectory.appendingPathComponent("qterm")
 
     static var installPath: String {
         installURL.path
@@ -25,8 +25,8 @@ enum MuseTermCLIInstaller {
 
     static let script = #"""
 #!/usr/bin/env ruby
-# MuseTerm CLI and MCP bridge.
-# Installed by MuseTerm. Safe to replace on app updates.
+# QTerm CLI and MCP bridge.
+# Installed by QTerm. Safe to replace on app updates.
 
 require "json"
 require "securerandom"
@@ -34,19 +34,41 @@ require "fileutils"
 require "time"
 require "shellwords"
 require "timeout"
+require "open3"
 
-ROOT = File.expand_path("~/Library/Application Support/MuseTerm/Tools")
+# MCP hosts spawn us with a bare environment, so LANG is often unset and Ruby falls back to
+# US-ASCII. Any non-ASCII tab title or path then raises before we get a chance to answer.
+Encoding.default_external = Encoding::UTF_8
+Encoding.default_internal = nil
+STDIN.set_encoding(Encoding::UTF_8)
+STDOUT.set_encoding(Encoding::UTF_8)
+ARGV.map! { |arg| arg.dup.force_encoding(Encoding::UTF_8) }
+
+ROOT = File.expand_path("~/Library/Application Support/QTerm/Tools")
 STATE = File.join(ROOT, "state.json")
 REQUESTS = File.join(ROOT, "requests")
 RESPONSES = File.join(ROOT, "responses")
+CLIENT_ID = "qterm-cli"
+KEYCHAIN_SERVICE = "im.some.museterm.tool-access"
 
 def ensure_dirs
   FileUtils.mkdir_p(REQUESTS)
   FileUtils.mkdir_p(RESPONSES)
+  FileUtils.chmod(0o700, [ROOT, REQUESTS, RESPONSES])
+end
+
+def access_token
+  output, _error, status = Open3.capture3(
+    "security", "find-generic-password",
+    "-s", KEYCHAIN_SERVICE,
+    "-a", CLIENT_ID,
+    "-w"
+  )
+  status.success? ? output.strip : nil
 end
 
 def read_state
-  raise "MuseTerm is not publishing tool state yet. Open MuseTerm first." unless File.file?(STATE)
+  raise "QTerm is not publishing tool state yet. Open QTerm first." unless File.file?(STATE)
   JSON.parse(File.read(STATE))
 end
 
@@ -129,9 +151,13 @@ def text_payload(state, tab, field, chars)
   }
 end
 
+def tab_summary_keys
+  ["id", "index", "title", "subtitle", "currentDirectory", "shellName", "sessionTunnelStatus", "isSelected", "state", "columns", "rows", "updatedAt"]
+end
+
 def tab_summaries(state)
   state.fetch("tabs", []).map { |tab|
-    tab.slice("id", "index", "title", "subtitle", "currentDirectory", "shellName", "isSelected", "state", "columns", "rows", "updatedAt")
+    tab.slice(*tab_summary_keys)
   }
 end
 
@@ -146,7 +172,28 @@ def tabs_payload(state)
   }
 end
 
-def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, timeout_seconds: 3.0)
+def session_tunnels_payload(state)
+  tunnels = state.fetch("tabs", []).each_with_object([]) { |tab, out|
+    tunnel = tab["sessionTunnelStatus"]
+    next unless tunnel
+    out << tunnel.merge(
+      "tabID" => tab["id"],
+      "tabIndex" => tab["index"],
+      "tabTitle" => tab["title"],
+      "tabShellName" => tab["shellName"]
+    )
+  }
+  {
+    "schemaVersion" => state["schemaVersion"],
+    "app" => state["app"],
+    "version" => state["version"],
+    "snapshotSequence" => state["snapshotSequence"],
+    "selectedTabID" => state["selectedTabID"],
+    "sessionTunnels" => tunnels
+  }
+end
+
+def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: nil, profile: nil, shortcut: nil, tunnel_name: nil, target_host: nil, target_port: nil, local_port: nil, timeout_seconds: 3.0)
   timeout_seconds = timeout_seconds.to_f
   raise "timeout must be positive." if timeout_seconds <= 0
 
@@ -158,9 +205,20 @@ def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, timeout_sec
     "tab" => tab,
     "text" => text,
     "key" => key,
-    "bytes" => bytes
+    "bytes" => bytes,
+    "directory" => directory,
+    "profile" => profile,
+    "shortcut" => shortcut,
+    "tunnelName" => tunnel_name,
+    "targetHost" => target_host,
+    "targetPort" => target_port,
+    "localPort" => local_port,
+    "clientID" => CLIENT_ID,
+    "authToken" => access_token
   }.compact
-  File.write(File.join(REQUESTS, "#{id}.json"), JSON.generate(request))
+  request_path = File.join(REQUESTS, "#{id}.json")
+  File.write(request_path, JSON.generate(request))
+  FileUtils.chmod(0o600, request_path)
   response_path = File.join(RESPONSES, "#{id}.json")
 
   Timeout.timeout(timeout_seconds) do
@@ -174,12 +232,12 @@ def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, timeout_sec
     end
   end
 rescue Timeout::Error
-  raise "MuseTerm did not answer the tool request in time."
+  raise "QTerm did not answer the tool request in time."
 end
 
 def require_tab(state, selector)
   tab = selected_tab(state, selector)
-  raise "No MuseTerm tab matched #{selector.inspect}." unless tab
+  raise "No QTerm tab matched #{selector.inspect}." unless tab
   tab
 end
 
@@ -373,29 +431,198 @@ def command_key(args)
   response["ok"] ? puts(response["message"] || "ok") : abort(response["error"] || "request failed")
 end
 
+def command_create_tab(args)
+  _tab_selector, _chars, json, rest, timeout = parse_common(args)
+  directory = rest.join(" ")
+  response = send_request(
+    action: "create_tab",
+    directory: directory.empty? ? nil : directory,
+    timeout_seconds: timeout || 3.0
+  )
+  if json
+    print_json(response)
+    return
+  end
+  response["ok"] ? puts(response["message"] || "ok") : abort(response["error"] || "request failed")
+end
+
+def command_ssh_profile(args)
+  _tab_selector, _chars, json, rest, timeout = parse_common(args)
+  profile = rest.join(" ")
+  raise "ssh requires a saved SSH profile name." if profile.empty?
+  response = send_request(action: "open_ssh_profile", profile: profile, timeout_seconds: timeout || 3.0)
+  if json
+    print_json(response)
+    return
+  end
+  response["ok"] ? puts(response["message"] || "ok") : abort(response["error"] || "request failed")
+end
+
+def command_shortcuts(args)
+  _tab_selector, _chars, json, _rest, timeout = parse_common(args)
+  response = send_request(action: "list_shortcuts", timeout_seconds: timeout || 3.0)
+  unless response["ok"]
+    abort(response["error"] || "request failed")
+  end
+  if json
+    print_json(response)
+    return
+  end
+  response.fetch("shortcuts", []).each do |shortcut|
+    marker = shortcut["canPlay"] ? "playable" : "blocked"
+    puts "#{shortcut["title"]}\t#{shortcut["id"]}\t#{marker}"
+  end
+end
+
+def command_shortcut(args)
+  tab_selector, _chars, json, rest, timeout = parse_common(args)
+  shortcut = rest.join(" ")
+  raise "shortcut requires a recorded shortcut title." if shortcut.empty?
+  response = send_request(
+    action: "play_shortcut",
+    tab: tab_selector,
+    shortcut: shortcut,
+    timeout_seconds: timeout || 3.0
+  )
+  if json
+    print_json(response)
+    return
+  end
+  response["ok"] ? puts(response["message"] || "ok") : abort(response["error"] || "request failed")
+end
+
+def command_tunnels(args)
+  _tab_selector, _chars, _json, _rest, _timeout = parse_common(args)
+  print_json(session_tunnels_payload(read_state))
+end
+
+def session_tunnel_presets_payload(state)
+  {
+    "schemaVersion" => state["schemaVersion"],
+    "snapshotSequence" => state["snapshotSequence"],
+    "app" => state["app"],
+    "version" => state["version"],
+    "sessionTunnelPresets" => state.fetch("sessionTunnelPresets", [])
+  }
+end
+
+def resolve_session_tunnel_preset(state, selector)
+  value = selector.to_s.strip
+  return nil if value.empty?
+  presets = state.fetch("sessionTunnelPresets", [])
+  presets.find { |preset| preset["id"] == value } ||
+    presets.find { |preset| preset["id"].to_s.start_with?(value) } ||
+    presets.find { |preset| preset["name"] == value } ||
+    presets.find { |preset| preset["name"].to_s.casecmp?(value) }
+end
+
+def command_tunnel(args)
+  tab_selector, _chars, json, rest, timeout = parse_common(args)
+  subcommand = rest.shift
+  case subcommand
+  when "start"
+    target_host = nil
+    target_port = nil
+    local_port = nil
+    tunnel_name = nil
+    until rest.empty?
+      item = rest.shift
+      case item
+      when "--target-host"
+        target_host = rest.shift
+      when "--target-port"
+        target_port = rest.shift&.to_i
+      when "--local-port"
+        local_port = rest.shift&.to_i
+      when "--name"
+        tunnel_name = rest.shift
+      else
+        raise "unknown tunnel start option: #{item}"
+      end
+    end
+    raise "tunnel start requires --target-host." if target_host.to_s.empty?
+    raise "tunnel start requires --target-port." if target_port.nil? || target_port <= 0
+    raise "tunnel start requires --local-port." if local_port.nil? || local_port <= 0
+    response = send_request(
+      action: "start_session_tunnel",
+      tab: tab_selector,
+      tunnel_name: tunnel_name,
+      target_host: target_host,
+      target_port: target_port,
+      local_port: local_port,
+      timeout_seconds: timeout || 3.0
+    )
+    if json
+      print_json(response)
+      return
+    end
+    response["ok"] ? puts(response["message"] || "ok") : abort(response["error"] || "request failed")
+  when "stop"
+    response = send_request(
+      action: "stop_session_tunnel",
+      tab: tab_selector,
+      timeout_seconds: timeout || 3.0
+    )
+    if json
+      print_json(response)
+      return
+    end
+    response["ok"] ? puts(response["message"] || "ok") : abort(response["error"] || "request failed")
+  when "list", nil
+    command_tunnels(args)
+  when "presets", "history"
+    print_json(session_tunnel_presets_payload(read_state))
+  else
+    raise "unknown tunnel subcommand: #{subcommand}"
+  end
+end
+
 class Hash
   def slice(*keys)
     keys.each_with_object({}) { |key, out| out[key] = self[key] if key?(key) }
   end
 end
 
+# The MCP stdio transport delimits messages with newlines, but LSP-style Content-Length
+# framing is common enough that we accept either and answer in whichever the client opened with.
+MCP_FRAMING = { mode: nil }
+
 def read_mcp_message
-  headers = {}
   while (line = STDIN.gets)
-    line = line.chomp
-    break if line.empty?
+    line = line.strip
+    next if line.empty?
+
+    if line.start_with?("{")
+      MCP_FRAMING[:mode] ||= :ndjson
+      return JSON.parse(line)
+    end
+
+    headers = {}
     key, value = line.split(":", 2)
     headers[key.downcase] = value.strip if key && value
+    while (header = STDIN.gets)
+      header = header.strip
+      break if header.empty?
+      key, value = header.split(":", 2)
+      headers[key.downcase] = value.strip if key && value
+    end
+    length = headers["content-length"].to_i
+    return nil if length <= 0
+    body = STDIN.read(length)
+    return nil if body.nil?
+    MCP_FRAMING[:mode] ||= :content_length
+    return JSON.parse(body.force_encoding(Encoding::UTF_8))
   end
-  return nil if headers.empty?
-  length = headers["content-length"].to_i
-  return nil if length <= 0
-  JSON.parse(STDIN.read(length))
+  nil
 end
 
 def write_mcp_message(payload)
   body = JSON.generate(payload)
-  STDOUT.write("Content-Length: #{body.bytesize}\r\n\r\n#{body}")
+  if MCP_FRAMING[:mode] == :content_length
+    STDOUT.write("Content-Length: #{body.bytesize}\r\n\r\n#{body}")
+  else
+    STDOUT.write("#{body}\n")
+  end
   STDOUT.flush
 end
 
@@ -407,7 +634,7 @@ def mcp_tools
   [
     {
       "name" => "list_tabs",
-      "description" => "List MuseTerm tabs and their ids, titles, selection state, size, working directory, and detected shell name.",
+      "description" => "List QTerm tabs and their ids, titles, selection state, size, working directory, and detected shell name.",
       "inputSchema" => {
         "type" => "object",
         "properties" => {
@@ -417,7 +644,7 @@ def mcp_tools
     },
     {
       "name" => "read_screen",
-      "description" => "Read the latest visible screen from a MuseTerm tab.",
+      "description" => "Read the latest visible screen from a QTerm tab.",
       "inputSchema" => {
         "type" => "object",
         "properties" => {
@@ -429,7 +656,7 @@ def mcp_tools
     },
     {
       "name" => "read_history",
-      "description" => "Read terminal scrollback/history from a MuseTerm tab.",
+      "description" => "Read terminal scrollback/history from a QTerm tab.",
       "inputSchema" => {
         "type" => "object",
         "properties" => {
@@ -441,7 +668,7 @@ def mcp_tools
     },
     {
       "name" => "read_commands",
-      "description" => "Read recent structured command blocks from a MuseTerm tab. Query supports risk:, lifecycle:/state:, boundary:, and text terms.",
+      "description" => "Read recent structured command blocks from a QTerm tab. Query supports risk:, lifecycle:/state:, boundary:, and text terms.",
       "inputSchema" => {
         "type" => "object",
         "properties" => {
@@ -452,15 +679,109 @@ def mcp_tools
       }
     },
     {
+      "name" => "create_tab",
+      "description" => "Create a new local QTerm tab, optionally starting in an existing directory.",
+      "inputSchema" => {
+        "type" => "object",
+        "properties" => {
+          "directory" => { "type" => "string", "description" => "optional start directory" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to answer" },
+          "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
+        }
+      }
+    },
+    {
+      "name" => "open_ssh_profile",
+      "description" => "Open a saved QTerm SSH profile in a new tab by display name.",
+      "inputSchema" => {
+        "type" => "object",
+        "required" => ["profile"],
+        "properties" => {
+          "profile" => { "type" => "string", "description" => "saved SSH profile display name" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to answer" },
+          "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
+        }
+      }
+    },
+    {
+      "name" => "list_session_tunnels",
+      "description" => "List active or recently failed QTerm session tunnels with local and remote endpoints.",
+      "inputSchema" => {
+        "type" => "object",
+        "properties" => {}
+      }
+    },
+    {
+      "name" => "start_session_tunnel",
+      "description" => "Start a QTerm session tunnel through a tab that is already logged into the deepest reachable server. Supply preset with a saved preset id/name, or supply targetHost, targetPort, and localPort. The local listener binds to 127.0.0.1 only.",
+      "inputSchema" => {
+        "type" => "object",
+        "properties" => {
+          "tab" => { "type" => "string", "description" => "selected, 1-based index, id prefix, or title" },
+          "preset" => { "type" => "string", "description" => "saved preset id, id prefix, or exact name" },
+          "name" => { "type" => "string", "description" => "optional tunnel display name" },
+          "targetHost" => { "type" => "string", "description" => "host reachable from the deepest logged-in server" },
+          "targetPort" => { "type" => "integer", "description" => "remote target TCP port" },
+          "localPort" => { "type" => "integer", "description" => "local 127.0.0.1 listener port on this Mac" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to accept the request" },
+          "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
+        }
+      }
+    },
+    {
+      "name" => "list_session_tunnel_presets",
+      "description" => "List recently used QTerm session tunnel presets, including id, name, target host/port, local port, last-used time, and use count.",
+      "inputSchema" => {
+        "type" => "object",
+        "properties" => {}
+      }
+    },
+    {
+      "name" => "stop_session_tunnel",
+      "description" => "Stop the session tunnel occupying a QTerm tab.",
+      "inputSchema" => {
+        "type" => "object",
+        "properties" => {
+          "tab" => { "type" => "string", "description" => "selected, 1-based index, id prefix, or title" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to accept the request" },
+          "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
+        }
+      }
+    },
+    {
+      "name" => "list_shortcuts",
+      "description" => "List recorded QTerm terminal shortcuts with ids, titles, event counts, durations, and whether each can be replayed through MCP.",
+      "inputSchema" => {
+        "type" => "object",
+        "properties" => {
+          "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to answer" }
+        }
+      }
+    },
+    {
+      "name" => "play_shortcut",
+      "description" => "Replay a recorded QTerm terminal shortcut in a tab. Shortcuts containing protected echo-off input are refused.",
+      "inputSchema" => {
+        "type" => "object",
+        "required" => ["shortcut"],
+        "properties" => {
+          "tab" => { "type" => "string", "description" => "selected, 1-based index, id prefix, or title" },
+          "shortcut" => { "type" => "string", "description" => "recorded shortcut title" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to answer" },
+          "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
+        }
+      }
+    },
+    {
       "name" => "send_text",
-      "description" => "Send text to a MuseTerm tab.",
+      "description" => "Send text to a QTerm tab.",
       "inputSchema" => {
         "type" => "object",
         "required" => ["text"],
         "properties" => {
           "tab" => { "type" => "string" },
           "text" => { "type" => "string" },
-          "timeout" => { "type" => "number", "description" => "seconds to wait for MuseTerm to answer" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to answer" },
           "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
         }
       }
@@ -474,7 +795,7 @@ def mcp_tools
         "properties" => {
           "tab" => { "type" => "string" },
           "key" => { "type" => "string" },
-          "timeout" => { "type" => "number", "description" => "seconds to wait for MuseTerm to answer" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to answer" },
           "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
         }
       }
@@ -509,6 +830,73 @@ def call_tool(name, args)
     state = read_state
     tab = require_tab(state, args["tab"])
     tool_result_text(JSON.pretty_generate(commands_payload(state, tab, args["chars"], args["query"])))
+  when "create_tab"
+    response = send_request(
+      action: "create_tab",
+      directory: args["directory"],
+      timeout_seconds: args["timeout"] || 3.0
+    )
+    raise(response["error"] || "request failed") unless response["ok"]
+    tool_result_text(args["metadata"] ? JSON.pretty_generate(response) : (response["message"] || "ok"))
+  when "open_ssh_profile"
+    response = send_request(
+      action: "open_ssh_profile",
+      profile: args.fetch("profile"),
+      timeout_seconds: args["timeout"] || 3.0
+    )
+    raise(response["error"] || "request failed") unless response["ok"]
+    tool_result_text(args["metadata"] ? JSON.pretty_generate(response) : (response["message"] || "ok"))
+  when "list_session_tunnels"
+    state = read_state
+    tool_result_text(JSON.pretty_generate(session_tunnels_payload(state)))
+  when "list_session_tunnel_presets"
+    state = read_state
+    tool_result_text(JSON.pretty_generate(session_tunnel_presets_payload(state)))
+  when "start_session_tunnel"
+    preset = resolve_session_tunnel_preset(read_state, args["preset"])
+    raise "Session tunnel preset not found: #{args["preset"]}" if args["preset"] && preset.nil?
+    target_host = preset ? preset["targetHost"] : args["targetHost"]
+    target_port = preset ? preset["targetPort"] : args["targetPort"]
+    local_port = preset ? preset["localPort"] : args["localPort"]
+    tunnel_name = args.key?("name") ? args["name"] : preset&.fetch("name", nil)
+    raise "start_session_tunnel requires preset or targetHost." if target_host.to_s.empty?
+    raise "start_session_tunnel requires preset or targetPort." if target_port.to_i <= 0
+    raise "start_session_tunnel requires preset or localPort." if local_port.to_i <= 0
+    response = send_request(
+      action: "start_session_tunnel",
+      tab: args["tab"],
+      tunnel_name: tunnel_name,
+      target_host: target_host,
+      target_port: target_port.to_i,
+      local_port: local_port.to_i,
+      timeout_seconds: args["timeout"] || 3.0
+    )
+    raise(response["error"] || "request failed") unless response["ok"]
+    tool_result_text(args["metadata"] ? JSON.pretty_generate(response) : (response["message"] || "ok"))
+  when "stop_session_tunnel"
+    response = send_request(
+      action: "stop_session_tunnel",
+      tab: args["tab"],
+      timeout_seconds: args["timeout"] || 3.0
+    )
+    raise(response["error"] || "request failed") unless response["ok"]
+    tool_result_text(args["metadata"] ? JSON.pretty_generate(response) : (response["message"] || "ok"))
+  when "list_shortcuts"
+    response = send_request(
+      action: "list_shortcuts",
+      timeout_seconds: args["timeout"] || 3.0
+    )
+    raise(response["error"] || "request failed") unless response["ok"]
+    tool_result_text(JSON.pretty_generate(response))
+  when "play_shortcut"
+    response = send_request(
+      action: "play_shortcut",
+      tab: args["tab"],
+      shortcut: args.fetch("shortcut"),
+      timeout_seconds: args["timeout"] || 3.0
+    )
+    raise(response["error"] || "request failed") unless response["ok"]
+    tool_result_text(args["metadata"] ? JSON.pretty_generate(response) : (response["message"] || "ok"))
   when "send_text"
     response = send_request(action: "input", tab: args["tab"], text: args.fetch("text"), timeout_seconds: args["timeout"] || 3.0)
     raise(response["error"] || "request failed") unless response["ok"]
@@ -536,7 +924,7 @@ def command_mcp
       when "initialize"
         {
           "protocolVersion" => "2024-11-05",
-          "serverInfo" => { "name" => "museterm", "version" => "\#(AppVersion.value)" },
+          "serverInfo" => { "name" => "qterm", "version" => "\#(AppVersion.value)" },
           "capabilities" => { "tools" => {} }
         }
       when "tools/list"
@@ -559,19 +947,27 @@ end
 
 def command_help
   puts <<~HELP
-    MuseTerm CLI
+    QTerm CLI
 
     Commands:
-      museterm tabs
-      museterm screen [--tab selected|INDEX|ID] [--chars N] [--json]
-      museterm history [--tab selected|INDEX|ID] [--chars N] [--json]
-      museterm commands [--tab selected|INDEX|ID] [--chars N] [--query QUERY]
-      museterm input [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] TEXT
-      museterm key [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] enter|ctrl-c|tab|escape|up|down|left|right
-      museterm mcp
+      qterm tabs
+      qterm screen [--tab selected|INDEX|ID] [--chars N] [--json]
+      qterm history [--tab selected|INDEX|ID] [--chars N] [--json]
+      qterm commands [--tab selected|INDEX|ID] [--chars N] [--query QUERY]
+      qterm input [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] TEXT
+      qterm key [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] enter|ctrl-c|tab|escape|up|down|left|right
+      qterm tab [--timeout SECONDS] [--json] [DIRECTORY]
+      qterm ssh [--timeout SECONDS] [--json] PROFILE_NAME
+      qterm tunnels
+      qterm tunnel presets
+      qterm tunnel start [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] --target-host HOST --target-port PORT --local-port PORT [--name NAME]
+      qterm tunnel stop [--tab selected|INDEX|ID] [--timeout SECONDS] [--json]
+      qterm shortcuts [--timeout SECONDS] [--json]
+      qterm shortcut [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] SHORTCUT_TITLE
+      qterm mcp
 
     MCP config example:
-      {"mcpServers":{"museterm":{"command":"museterm","args":["mcp"]}}}
+      {"mcpServers":{"qterm":{"command":"qterm","args":["mcp"]}}}
   HELP
 end
 
@@ -584,6 +980,12 @@ begin
   when "commands" then command_commands(ARGV)
   when "input" then command_input(ARGV)
   when "key" then command_key(ARGV)
+  when "tab" then command_create_tab(ARGV)
+  when "ssh" then command_ssh_profile(ARGV)
+  when "tunnels" then command_tunnels(ARGV)
+  when "tunnel" then command_tunnel(ARGV)
+  when "shortcuts" then command_shortcuts(ARGV)
+  when "shortcut" then command_shortcut(ARGV)
   when "mcp" then command_mcp
   when nil, "help", "--help", "-h" then command_help
   else

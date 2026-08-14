@@ -20,7 +20,7 @@ final class musetermTests: XCTestCase {
             arguments: ["input", "--json", "--timeout", "1.5", "--tab", "tab-1", "echo ok"],
             response: [
                 "schemaVersion": 1,
-                "app": "MuseTerm",
+                "app": "QTerm",
                 "version": "test",
                 "ok": true,
                 "snapshotSequence": 43,
@@ -43,17 +43,26 @@ final class musetermTests: XCTestCase {
     func testCliInstallerScriptExposesMCPAndTerminalCommands() {
         let script = MuseTermCLIInstaller.script
 
-        XCTAssertTrue(script.contains("museterm tabs"))
-        XCTAssertTrue(script.contains("museterm screen"))
-        XCTAssertTrue(script.contains("museterm history"))
+        XCTAssertEqual(MuseTermCLIInstaller.installURL.lastPathComponent, "qterm")
+        XCTAssertTrue(MuseTermCLIInstaller.supportPath.hasSuffix("/QTerm/Tools"))
+        XCTAssertTrue(script.contains("qterm tabs"))
+        XCTAssertTrue(script.contains("qterm screen"))
+        XCTAssertTrue(script.contains("qterm history"))
         XCTAssertTrue(script.contains("[--json]"))
         XCTAssertTrue(script.contains("\"metadata\" => { \"type\" => \"boolean\""))
         XCTAssertTrue(script.contains("text_payload(state, tab, \"screen\", args[\"chars\"])"))
         XCTAssertTrue(script.contains("text_payload(state, tab, \"history\", args[\"chars\"])"))
-        XCTAssertTrue(script.contains("museterm input"))
-        XCTAssertTrue(script.contains("museterm key"))
+        XCTAssertTrue(script.contains("qterm input"))
+        XCTAssertTrue(script.contains("qterm key"))
+        XCTAssertTrue(script.contains("qterm tab"))
+        XCTAssertTrue(script.contains("qterm ssh"))
+        XCTAssertTrue(script.contains("qterm shortcuts"))
+        XCTAssertTrue(script.contains("qterm shortcut"))
+        XCTAssertTrue(script.contains("\"name\" => \"qterm\""))
+        XCTAssertFalse(script.contains("museterm tabs"))
         XCTAssertTrue(script.contains("print_json(response)"))
         XCTAssertTrue(script.contains("--timeout SECONDS"))
+        XCTAssertTrue(script.contains("FileUtils.chmod(0o700, [ROOT, REQUESTS, RESPONSES])"))
         XCTAssertTrue(script.contains("timeout must be positive."))
         XCTAssertTrue(script.contains("return JSON response metadata"))
         XCTAssertTrue(script.contains("commands_payload"))
@@ -75,7 +84,100 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(script.contains("\"diagnostics\" => tab.fetch(\"commandDiagnostics\", {})"))
         XCTAssertTrue(script.contains("\"tools/call\""))
         XCTAssertTrue(script.contains("read_screen"))
+        XCTAssertTrue(script.contains("create_tab"))
+        XCTAssertTrue(script.contains("open_ssh_profile"))
+        XCTAssertTrue(script.contains("list_session_tunnels"))
+        XCTAssertTrue(script.contains("start_session_tunnel"))
+        XCTAssertTrue(script.contains("stop_session_tunnel"))
+        XCTAssertTrue(script.contains("list_shortcuts"))
+        XCTAssertTrue(script.contains("play_shortcut"))
         XCTAssertTrue(script.contains("send_key"))
+    }
+
+    func testMCPInitializeUsesQTermServerName() throws {
+        let fixture = try makeMuseTermCLITestFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let response = try runMuseTermMCPRequest(
+            fixture.scriptURL,
+            home: fixture.root,
+            request: [
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": [:]
+            ]
+        )
+        let result = try XCTUnwrap(response["result"] as? [String: Any])
+        let serverInfo = try XCTUnwrap(result["serverInfo"] as? [String: Any])
+
+        XCTAssertEqual(serverInfo["name"] as? String, "qterm")
+        XCTAssertEqual(serverInfo["version"] as? String, AppVersion.value)
+    }
+
+    func testCliCreateTabJsonReturnsResponseMetadata() throws {
+        let fixture = try makeMuseTermCLITestFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let result = try runMuseTermCLIRequestScript(
+            fixture.scriptURL,
+            home: fixture.root,
+            arguments: ["tab", "--json", "--timeout", "1.5", "/tmp/project"],
+            response: [
+                "schemaVersion": 1,
+                "app": "QTerm",
+                "version": "test",
+                "ok": true,
+                "snapshotSequence": 45,
+                "action": "create_tab",
+                "tabID": "tab-2",
+                "message": "created"
+            ]
+        )
+
+        XCTAssertEqual(result.request["action"] as? String, "create_tab")
+        XCTAssertEqual(result.request["directory"] as? String, "/tmp/project")
+        XCTAssertEqual(result.output["snapshotSequence"] as? Int, 45)
+        XCTAssertEqual(result.output["action"] as? String, "create_tab")
+        XCTAssertEqual(result.output["tabID"] as? String, "tab-2")
+    }
+
+    func testCliShortcutsJsonReturnsShortcutSummaries() throws {
+        let fixture = try makeMuseTermCLITestFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let result = try runMuseTermCLIRequestScript(
+            fixture.scriptURL,
+            home: fixture.root,
+            arguments: ["shortcuts", "--json", "--timeout", "1.5"],
+            response: [
+                "schemaVersion": 1,
+                "app": "QTerm",
+                "version": "test",
+                "ok": true,
+                "snapshotSequence": 47,
+                "action": "list_shortcuts",
+                "message": "listed",
+                "shortcuts": [
+                    [
+                        "id": "shortcut-1",
+                        "title": "Deploy SSH",
+                        "eventCount": 3,
+                        "durationMilliseconds": 1200,
+                        "hasProtectedInput": false,
+                        "canPlay": true
+                    ]
+                ]
+            ]
+        )
+        let shortcuts = try XCTUnwrap(result.output["shortcuts"] as? [[String: Any]])
+        let shortcut = try XCTUnwrap(shortcuts.first)
+
+        XCTAssertEqual(result.request["action"] as? String, "list_shortcuts")
+        XCTAssertEqual(result.output["snapshotSequence"] as? Int, 47)
+        XCTAssertEqual(result.output["action"] as? String, "list_shortcuts")
+        XCTAssertEqual(shortcut["title"] as? String, "Deploy SSH")
+        XCTAssertEqual(shortcut["canPlay"] as? Bool, true)
     }
 
     func testCliCommandsReportsOutputTailTruncationMetadata() throws {
@@ -85,7 +187,7 @@ final class musetermTests: XCTestCase {
         let limited = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["commands", "--chars", "3"])
         let limitedCommand = try XCTUnwrap((limited["commands"] as? [[String: Any]])?.first)
         XCTAssertEqual(limited["schemaVersion"] as? Int, 1)
-        XCTAssertEqual(limited["app"] as? String, "MuseTerm")
+        XCTAssertEqual(limited["app"] as? String, "QTerm")
         XCTAssertEqual(limited["version"] as? String, "test")
         XCTAssertEqual(limited["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(limited["tabID"] as? String, "tab-1")
@@ -122,7 +224,7 @@ final class musetermTests: XCTestCase {
 
         let screen = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["screen", "--chars", "4", "--json"])
         XCTAssertEqual(screen["schemaVersion"] as? Int, 1)
-        XCTAssertEqual(screen["app"] as? String, "MuseTerm")
+        XCTAssertEqual(screen["app"] as? String, "QTerm")
         XCTAssertEqual(screen["version"] as? String, "test")
         XCTAssertEqual(screen["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(screen["shellName"] as? String, "zsh")
@@ -136,7 +238,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(screen["truncated"] as? Bool, true)
 
         let history = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["history", "--json"])
-        XCTAssertEqual(history["app"] as? String, "MuseTerm")
+        XCTAssertEqual(history["app"] as? String, "QTerm")
         XCTAssertEqual(history["version"] as? String, "test")
         XCTAssertEqual(history["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(history["shellName"] as? String, "zsh")
@@ -301,7 +403,7 @@ final class musetermTests: XCTestCase {
         let command = try XCTUnwrap(commands.first)
 
         XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
-        XCTAssertEqual(payload["app"] as? String, "MuseTerm")
+        XCTAssertEqual(payload["app"] as? String, "QTerm")
         XCTAssertEqual(payload["version"] as? String, "test")
         XCTAssertEqual(payload["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(payload["tabID"] as? String, "tab-1")
@@ -340,7 +442,7 @@ final class musetermTests: XCTestCase {
             ],
             response: [
                 "schemaVersion": 1,
-                "app": "MuseTerm",
+                "app": "QTerm",
                 "version": "test",
                 "ok": true,
                 "snapshotSequence": 44,
@@ -364,6 +466,112 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
         XCTAssertEqual(payload["snapshotSequence"] as? Int, 44)
         XCTAssertEqual(payload["action"] as? String, "input")
+        XCTAssertEqual(payload["tabID"] as? String, "tab-1")
+    }
+
+    func testMCPListShortcutsReturnsShortcutSummaries() throws {
+        let fixture = try makeMuseTermCLITestFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let result = try runMuseTermMCPRequestWithToolResponse(
+            fixture.scriptURL,
+            home: fixture.root,
+            request: [
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": [
+                    "name": "list_shortcuts",
+                    "arguments": [
+                        "timeout": 1.5
+                    ]
+                ]
+            ],
+            response: [
+                "schemaVersion": 1,
+                "app": "QTerm",
+                "version": "test",
+                "ok": true,
+                "snapshotSequence": 48,
+                "action": "list_shortcuts",
+                "message": "listed",
+                "shortcuts": [
+                    [
+                        "id": "shortcut-1",
+                        "title": "Deploy SSH",
+                        "eventCount": 3,
+                        "durationMilliseconds": 1200,
+                        "hasProtectedInput": false,
+                        "canPlay": true
+                    ]
+                ]
+            ]
+        )
+        let response = result.response
+        let request = result.toolRequest
+        let resultObject = try XCTUnwrap(response["result"] as? [String: Any])
+        let content = try XCTUnwrap(resultObject["content"] as? [[String: Any]])
+        let text = try XCTUnwrap(content.first?["text"] as? String)
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]
+        )
+        let shortcuts = try XCTUnwrap(payload["shortcuts"] as? [[String: Any]])
+        let shortcut = try XCTUnwrap(shortcuts.first)
+
+        XCTAssertEqual(request["action"] as? String, "list_shortcuts")
+        XCTAssertEqual(payload["snapshotSequence"] as? Int, 48)
+        XCTAssertEqual(payload["action"] as? String, "list_shortcuts")
+        XCTAssertEqual(shortcut["title"] as? String, "Deploy SSH")
+        XCTAssertEqual(shortcut["hasProtectedInput"] as? Bool, false)
+        XCTAssertEqual(shortcut["canPlay"] as? Bool, true)
+    }
+
+    func testMCPPlayShortcutSendsToolRequest() throws {
+        let fixture = try makeMuseTermCLITestFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let result = try runMuseTermMCPRequestWithToolResponse(
+            fixture.scriptURL,
+            home: fixture.root,
+            request: [
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": [
+                    "name": "play_shortcut",
+                    "arguments": [
+                        "tab": "tab-1",
+                        "shortcut": "Deploy SSH",
+                        "timeout": 1.5,
+                        "metadata": true
+                    ]
+                ]
+            ],
+            response: [
+                "schemaVersion": 1,
+                "app": "QTerm",
+                "version": "test",
+                "ok": true,
+                "snapshotSequence": 46,
+                "action": "play_shortcut",
+                "tabID": "tab-1",
+                "message": "played"
+            ]
+        )
+        let response = result.response
+        let request = result.toolRequest
+        let resultObject = try XCTUnwrap(response["result"] as? [String: Any])
+        let content = try XCTUnwrap(resultObject["content"] as? [[String: Any]])
+        let text = try XCTUnwrap(content.first?["text"] as? String)
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]
+        )
+
+        XCTAssertEqual(request["action"] as? String, "play_shortcut")
+        XCTAssertEqual(request["tab"] as? String, "tab-1")
+        XCTAssertEqual(request["shortcut"] as? String, "Deploy SSH")
+        XCTAssertEqual(payload["snapshotSequence"] as? Int, 46)
+        XCTAssertEqual(payload["action"] as? String, "play_shortcut")
         XCTAssertEqual(payload["tabID"] as? String, "tab-1")
     }
 
@@ -395,7 +603,7 @@ final class musetermTests: XCTestCase {
         )
 
         XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
-        XCTAssertEqual(payload["app"] as? String, "MuseTerm")
+        XCTAssertEqual(payload["app"] as? String, "QTerm")
         XCTAssertEqual(payload["version"] as? String, "test")
         XCTAssertEqual(payload["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(payload["shellName"] as? String, "zsh")
@@ -436,7 +644,7 @@ final class musetermTests: XCTestCase {
         )
 
         XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
-        XCTAssertEqual(payload["app"] as? String, "MuseTerm")
+        XCTAssertEqual(payload["app"] as? String, "QTerm")
         XCTAssertEqual(payload["version"] as? String, "test")
         XCTAssertEqual(payload["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(payload["shellName"] as? String, "zsh")
@@ -480,13 +688,180 @@ final class musetermTests: XCTestCase {
 
         XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
         XCTAssertEqual(payload["snapshotSequence"] as? Int, 42)
-        XCTAssertEqual(payload["app"] as? String, "MuseTerm")
+        XCTAssertEqual(payload["app"] as? String, "QTerm")
         XCTAssertEqual(payload["version"] as? String, "test")
         XCTAssertEqual(payload["selectedTabID"] as? String, "tab-1")
         XCTAssertEqual(tab["id"] as? String, "tab-1")
         XCTAssertEqual(tab["title"] as? String, "project")
         XCTAssertEqual(tab["shellName"] as? String, "zsh")
         XCTAssertEqual(tab["isSelected"] as? Bool, true)
+    }
+
+    func testMCPListSessionTunnelsReportsActiveTunnelMetadata() throws {
+        let fixture = try makeMuseTermCLITestFixture(
+            sessionTunnelStatus: [
+                "phase": "running",
+                "name": "MySQL",
+                "localEndpoint": "127.0.0.1:13306",
+                "remoteEndpoint": "10.0.3.12:3306",
+                "targetHost": "10.0.3.12",
+                "targetPort": 3306,
+                "localPort": 13306,
+                "uploadedBytes": 128,
+                "downloadedBytes": 256,
+                "totalTransferredBytes": 384,
+                "clientCount": 1,
+                "clients": [],
+                "occupiesTerminal": true
+            ]
+        )
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let response = try runMuseTermMCPRequest(
+            fixture.scriptURL,
+            home: fixture.root,
+            request: [
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": [
+                    "name": "list_session_tunnels",
+                    "arguments": [:]
+                ]
+            ]
+        )
+        let result = try XCTUnwrap(response["result"] as? [String: Any])
+        let content = try XCTUnwrap(result["content"] as? [[String: Any]])
+        let text = try XCTUnwrap(content.first?["text"] as? String)
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]
+        )
+        let tunnels = try XCTUnwrap(payload["sessionTunnels"] as? [[String: Any]])
+        let tunnel = try XCTUnwrap(tunnels.first)
+
+        XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(payload["snapshotSequence"] as? Int, 42)
+        XCTAssertEqual(tunnel["tabID"] as? String, "tab-1")
+        XCTAssertEqual(tunnel["tabTitle"] as? String, "project")
+        XCTAssertEqual(tunnel["phase"] as? String, "running")
+        XCTAssertEqual(tunnel["localEndpoint"] as? String, "127.0.0.1:13306")
+        XCTAssertEqual(tunnel["remoteEndpoint"] as? String, "10.0.3.12:3306")
+        XCTAssertEqual(tunnel["clientCount"] as? Int, 1)
+    }
+
+    func testMCPStartSessionTunnelSendsToolRequest() throws {
+        let fixture = try makeMuseTermCLITestFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let result = try runMuseTermMCPRequestWithToolResponse(
+            fixture.scriptURL,
+            home: fixture.root,
+            request: [
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": [
+                    "name": "start_session_tunnel",
+                    "arguments": [
+                        "tab": "tab-1",
+                        "name": "Postgres",
+                        "targetHost": "10.0.3.12",
+                        "targetPort": 5432,
+                        "localPort": 15432,
+                        "timeout": 1.5,
+                        "metadata": true
+                    ]
+                ]
+            ],
+            response: [
+                "schemaVersion": 1,
+                "app": "QTerm",
+                "version": "test",
+                "ok": true,
+                "snapshotSequence": 49,
+                "action": "start_session_tunnel",
+                "tabID": "tab-1",
+                "message": "starting",
+                "sessionTunnel": [
+                    "phase": "starting",
+                    "name": "Postgres",
+                    "localEndpoint": "127.0.0.1:15432",
+                    "remoteEndpoint": "10.0.3.12:5432",
+                    "targetHost": "10.0.3.12",
+                    "targetPort": 5432,
+                    "localPort": 15432,
+                    "uploadedBytes": 0,
+                    "downloadedBytes": 0,
+                    "totalTransferredBytes": 0,
+                    "clientCount": 0,
+                    "clients": [],
+                    "occupiesTerminal": true
+                ]
+            ]
+        )
+        let request = result.toolRequest
+        let resultObject = try XCTUnwrap(result.response["result"] as? [String: Any])
+        let content = try XCTUnwrap(resultObject["content"] as? [[String: Any]])
+        let text = try XCTUnwrap(content.first?["text"] as? String)
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]
+        )
+        let tunnel = try XCTUnwrap(payload["sessionTunnel"] as? [String: Any])
+
+        XCTAssertEqual(request["action"] as? String, "start_session_tunnel")
+        XCTAssertEqual(request["tab"] as? String, "tab-1")
+        XCTAssertEqual(request["tunnelName"] as? String, "Postgres")
+        XCTAssertEqual(request["targetHost"] as? String, "10.0.3.12")
+        XCTAssertEqual(request["targetPort"] as? Int, 5432)
+        XCTAssertEqual(request["localPort"] as? Int, 15432)
+        XCTAssertEqual(payload["snapshotSequence"] as? Int, 49)
+        XCTAssertEqual(payload["action"] as? String, "start_session_tunnel")
+        XCTAssertEqual(tunnel["localEndpoint"] as? String, "127.0.0.1:15432")
+    }
+
+    func testMCPStopSessionTunnelSendsToolRequest() throws {
+        let fixture = try makeMuseTermCLITestFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let result = try runMuseTermMCPRequestWithToolResponse(
+            fixture.scriptURL,
+            home: fixture.root,
+            request: [
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": [
+                    "name": "stop_session_tunnel",
+                    "arguments": [
+                        "tab": "tab-1",
+                        "timeout": 1.5,
+                        "metadata": true
+                    ]
+                ]
+            ],
+            response: [
+                "schemaVersion": 1,
+                "app": "QTerm",
+                "version": "test",
+                "ok": true,
+                "snapshotSequence": 50,
+                "action": "stop_session_tunnel",
+                "tabID": "tab-1",
+                "message": "stopping"
+            ]
+        )
+        let request = result.toolRequest
+        let resultObject = try XCTUnwrap(result.response["result"] as? [String: Any])
+        let content = try XCTUnwrap(resultObject["content"] as? [[String: Any]])
+        let text = try XCTUnwrap(content.first?["text"] as? String)
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]
+        )
+
+        XCTAssertEqual(request["action"] as? String, "stop_session_tunnel")
+        XCTAssertEqual(request["tab"] as? String, "tab-1")
+        XCTAssertEqual(payload["snapshotSequence"] as? Int, 50)
+        XCTAssertEqual(payload["action"] as? String, "stop_session_tunnel")
     }
 
     @MainActor
@@ -534,6 +909,7 @@ final class musetermTests: XCTestCase {
             subtitle: nil,
             currentDirectory: "/tmp/project",
             shellName: "zsh",
+            sessionTunnelStatus: nil,
             isSelected: true,
             state: "running",
             columns: 80,
@@ -553,7 +929,7 @@ final class musetermTests: XCTestCase {
         let suggestedNextAction = try XCTUnwrap(encodedDiagnostics["suggestedNextAction"] as? [String: Any])
         let priorityFactors = try XCTUnwrap(encodedDiagnostics["diagnosticPriorityFactors"] as? [String])
         let state = TerminalToolState(
-            app: "MuseTerm",
+            app: "QTerm",
             version: "test",
             snapshotSequence: 7,
             updatedAt: Date(timeIntervalSince1970: 130),
@@ -2580,7 +2956,7 @@ final class musetermTests: XCTestCase {
 
     private func answerNextToolRequest(home: URL, response: [String: Any]) throws -> [String: Any] {
         let tools = home
-            .appendingPathComponent("Library/Application Support/MuseTerm/Tools", isDirectory: true)
+            .appendingPathComponent("Library/Application Support/QTerm/Tools", isDirectory: true)
         let requests = tools.appendingPathComponent("requests", isDirectory: true)
         let responses = tools.appendingPathComponent("responses", isDirectory: true)
         let deadline = Date().addingTimeInterval(2)
@@ -2620,16 +2996,17 @@ final class musetermTests: XCTestCase {
     }
 
     private func makeMuseTermCLITestFixture(
-        commandBlocks: [[String: Any]]? = nil
+        commandBlocks: [[String: Any]]? = nil,
+        sessionTunnelStatus: [String: Any]? = nil
     ) throws -> (root: URL, scriptURL: URL) {
         let manager = FileManager.default
         let root = manager.temporaryDirectory
             .appendingPathComponent("museterm-cli-tests-\(UUID().uuidString)", isDirectory: true)
         let tools = root
-            .appendingPathComponent("Library/Application Support/MuseTerm/Tools", isDirectory: true)
+            .appendingPathComponent("Library/Application Support/QTerm/Tools", isDirectory: true)
         try manager.createDirectory(at: tools, withIntermediateDirectories: true)
 
-        let scriptURL = root.appendingPathComponent("museterm")
+        let scriptURL = root.appendingPathComponent("qterm")
         try MuseTermCLIInstaller.script.write(to: scriptURL, atomically: true, encoding: .utf8)
 
         let defaultCommandBlocks: [[String: Any]] = [
@@ -2653,30 +3030,33 @@ final class musetermTests: XCTestCase {
             ]
         ]
 
+        var tab: [String: Any] = [
+            "id": "tab-1",
+            "index": 1,
+            "title": "project",
+            "currentDirectory": "/tmp/project",
+            "shellName": "zsh",
+            "isSelected": true,
+            "state": "running",
+            "screen": "screen-abcdef",
+            "history": "history-abcdef",
+            "commandDiagnostics": [
+                "schemaVersion": 1,
+                "failedCommandCount": 0
+            ],
+            "commandBlocks": commandBlocks ?? defaultCommandBlocks
+        ]
+        if let sessionTunnelStatus {
+            tab["sessionTunnelStatus"] = sessionTunnelStatus
+        }
+
         let state: [String: Any] = [
             "schemaVersion": 1,
-            "app": "MuseTerm",
+            "app": "QTerm",
             "version": "test",
             "snapshotSequence": 42,
             "selectedTabID": "tab-1",
-            "tabs": [
-                [
-                    "id": "tab-1",
-                    "index": 1,
-                    "title": "project",
-                    "currentDirectory": "/tmp/project",
-                    "shellName": "zsh",
-                    "isSelected": true,
-                    "state": "running",
-                    "screen": "screen-abcdef",
-                    "history": "history-abcdef",
-                    "commandDiagnostics": [
-                        "schemaVersion": 1,
-                        "failedCommandCount": 0
-                    ],
-                    "commandBlocks": commandBlocks ?? defaultCommandBlocks
-                ]
-            ]
+            "tabs": [tab]
         ]
         let stateData = try JSONSerialization.data(withJSONObject: state, options: [.prettyPrinted])
         try stateData.write(to: tools.appendingPathComponent("state.json"))

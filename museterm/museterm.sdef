@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
-<dictionary title="MuseTerm Terminology" xmlns:xi="http://www.w3.org/2001/XInclude">
+<dictionary title="QTerm Terminology" xmlns:xi="http://www.w3.org/2001/XInclude">
 
   <!-- 标准套件提供 get / set / count / exists / close 等基础动词。 -->
   <xi:include href="file:///System/Library/ScriptingDefinitions/CocoaStandard.sdef" xpointer="xpointer(/dictionary/suite)"/>
 
-  <suite name="MuseTerm Suite" code="MTrm" description="Control MuseTerm terminal tabs.">
+  <suite name="QTerm Suite" code="MTrm" description="Control QTerm terminal tabs.">
 
     <command name="select" code="miscslct" description="Bring a tab to the front.">
       <direct-parameter type="tab" description="The tab to select."/>
@@ -17,6 +17,14 @@
         <cocoa key="directory"/>
       </parameter>
       <result type="tab" description="The newly created tab."/>
+    </command>
+
+    <command name="close tab" code="MTrmCltb" description="Close a terminal tab, optionally bypassing the running-process confirmation.">
+      <cocoa class="MuseTermCloseTabScriptCommand"/>
+      <direct-parameter type="any" description="The 1-based tab index, tab object, or tab ID to close."/>
+      <parameter name="skipping confirmation" code="Cskp" type="boolean" optional="yes" description="Bypass the running-process confirmation (default: false).">
+        <cocoa key="skipConfirmation"/>
+      </parameter>
     </command>
 
     <command name="open ssh profile" code="MTrmOssh" description="Open a saved SSH profile in a new tab.">
@@ -80,7 +88,7 @@
       </property>
     </record-type>
 
-    <class-extension extends="application" description="The MuseTerm application.">
+    <class-extension extends="application" description="The QTerm application.">
       <element type="tab" access="r">
         <cocoa key="scriptTabs"/>
       </element>
