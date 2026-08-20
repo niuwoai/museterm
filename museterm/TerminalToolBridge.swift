@@ -539,15 +539,20 @@ enum TerminalToolInput {
 final class TerminalToolBridge {
     static let shared = TerminalToolBridge()
 
+    private static let requestPollingInterval: TimeInterval = 0.35
+    private static let minimumStateWriteInterval: TimeInterval = 2
+
     private weak var workspace: TerminalWorkspace?
     private var timer: Timer?
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
     private let maxHistoryCharacters = 240_000
     private var snapshotSequence = 0
-    // 状态文件写盘的脏检查：内容签名没变就跳过整个“快照 + JSON 编码 + 写盘”，
-    // 空闲时 tick 只剩一次目录轮询。写盘在串行后台队列执行，不占主线程。
-    private var lastWrittenSignature: Int?
+    // 状态发布同时做脏检查与合并：内容没变时跳过；持续输出时最多每 2 秒生成一次
+    // “快照 + JSON + 写盘”。请求仍可强制立即刷新，文件 IO 继续放在后台队列。
+    private var stateWriteThrottle = TerminalToolStateWriteThrottle(
+        minimumInterval: minimumStateWriteInterval
+    )
     private let stateWriteQueue = DispatchQueue(
         label: "im.some.museterm.toolbridge.state-write",
         qos: .utility
@@ -567,13 +572,16 @@ final class TerminalToolBridge {
     func start() {
         do {
             try TerminalToolPaths.ensureDirectories()
-            writeState()
+            writeStateIfNeeded(force: true)
         } catch {
             NSLog("QTerm tool bridge failed to prepare directories: \(error.localizedDescription)")
         }
 
         guard timer == nil else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(
+            withTimeInterval: Self.requestPollingInterval,
+            repeats: true
+        ) { [weak self] _ in
             guard let bridge = self else { return }
             Task { @MainActor in
                 bridge.tick()
@@ -589,8 +597,11 @@ final class TerminalToolBridge {
     private func writeStateIfNeeded(force: Bool) {
         guard let workspace else { return }
         let signature = stateSignature(workspace: workspace)
-        guard force || signature != lastWrittenSignature else { return }
-        lastWrittenSignature = signature
+        guard stateWriteThrottle.shouldWrite(
+            signature: signature,
+            force: force,
+            now: Date()
+        ) else { return }
         writeState()
     }
 
@@ -990,6 +1001,31 @@ final class TerminalToolBridge {
         "start_session_tunnel",
         "stop_session_tunnel"
     ]
+}
+
+struct TerminalToolStateWriteThrottle {
+    let minimumInterval: TimeInterval
+
+    private var lastWrittenSignature: Int?
+    private var lastWriteDate: Date?
+
+    init(minimumInterval: TimeInterval) {
+        self.minimumInterval = minimumInterval
+    }
+
+    mutating func shouldWrite(signature: Int, force: Bool, now: Date) -> Bool {
+        guard force || signature != lastWrittenSignature else { return false }
+
+        if !force,
+           let lastWriteDate,
+           now.timeIntervalSince(lastWriteDate) < minimumInterval {
+            return false
+        }
+
+        lastWrittenSignature = signature
+        lastWriteDate = now
+        return true
+    }
 }
 
 enum TerminalToolError: LocalizedError {

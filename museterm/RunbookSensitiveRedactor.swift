@@ -19,13 +19,20 @@ enum RunbookSensitiveRedactor {
         (#"(?i)\b(xox[baprs]-[A-Za-z0-9-]{20,})\b"#, replacement),
         (#"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"#, replacement)
     ]
+    nonisolated private static let compiledPatterns: [(NSRegularExpression, String)] =
+        patterns.map { pattern, replacement in
+            guard let expression = try? NSRegularExpression(pattern: pattern) else {
+                preconditionFailure("Invalid built-in redaction pattern")
+            }
+            return (expression, replacement)
+        }
 
     nonisolated static func redact(_ text: String) -> String {
-        patterns.reduce(text) { current, rule in
-            current.replacingOccurrences(
-                of: rule.0,
-                with: rule.1,
-                options: .regularExpression
+        compiledPatterns.reduce(text) { current, rule in
+            rule.0.stringByReplacingMatches(
+                in: current,
+                range: NSRange(current.startIndex..., in: current),
+                withTemplate: rule.1
             )
         }
     }
