@@ -60,4 +60,39 @@ final class TerminalToolAccessTests: XCTestCase {
 
         XCTAssertFalse(preferences.toolBridgeWritesEnabled)
     }
+
+    func testStateWriteThrottleCoalescesRapidContentChanges() {
+        let start = Date(timeIntervalSinceReferenceDate: 1_000)
+        var throttle = TerminalToolStateWriteThrottle(minimumInterval: 2)
+
+        XCTAssertTrue(throttle.shouldWrite(signature: 1, force: false, now: start))
+        XCTAssertFalse(
+            throttle.shouldWrite(
+                signature: 2,
+                force: false,
+                now: start.addingTimeInterval(0.35)
+            )
+        )
+        XCTAssertTrue(
+            throttle.shouldWrite(
+                signature: 3,
+                force: false,
+                now: start.addingTimeInterval(2)
+            )
+        )
+    }
+
+    func testStateWriteThrottleLetsRequestsForceImmediateRefresh() {
+        let start = Date(timeIntervalSinceReferenceDate: 1_000)
+        var throttle = TerminalToolStateWriteThrottle(minimumInterval: 2)
+
+        XCTAssertTrue(throttle.shouldWrite(signature: 1, force: false, now: start))
+        XCTAssertTrue(
+            throttle.shouldWrite(
+                signature: 1,
+                force: true,
+                now: start.addingTimeInterval(0.1)
+            )
+        )
+    }
 }
