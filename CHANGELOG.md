@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.242.0-rc1] - 2026-09-02
+
+### Added
+- 设置 › 毛玻璃新增独立的窗口底色不透明度，可在不降低文字清晰度的前提下让桌面内容透入应用界面。
+
+### Fixed
+- 修正主窗口背景与终端面板底色覆盖毛玻璃的问题；毛玻璃开关现在明确切换模糊/清晰透视，窗口底色、终端底色与玻璃强度分别独立生效。
+- 终端底色不透明度下限由 45% 放宽至 10%，便于需要高透明度终端的用户配置。
+- 半透明终端自动切换到支持 alpha 合成的 Core Graphics 渲染；恢复 100% 不透明时重新启用 Metal，避免透明设置被不透明 drawable 吃掉。
+
+### Tests
+- 新增窗口底色、终端底色、玻璃开关与玻璃强度独立持久化回归。
+
+### Changed
+- 功能版本升级至 `1.242.0-rc1`，构建号升级至 `299`。
+
+## [1.241.0-rc1] - 2026-08-27
+
+### Added
+- 原生内联图片正式支持 Kitty Graphics Protocol、iTerm2 Inline Images 与 Sixel；本地命令和 SSH 远端程序输出的图片可直接进入 SwiftTerm/Metal 渲染链路。
+- 设置 › 行为新增每标签图片缓存预算，范围为 32–512 MB，默认 128 MB；超出预算时由终端内核淘汰较旧且未使用的 Kitty 图片。
+- 新增三种真实控制序列的协议回归，以及图片能力声明、缓存边界和偏好持久化测试；Ruby 冒烟脚本会同时生成 JSON 与 Markdown 报告。
+
+### Changed
+- 终端子进程新增 `TERM_PROGRAM`、`TERM_PROGRAM_VERSION`、`LC_TERMINAL`、`LC_TERMINAL_VERSION`、`COLORTERM` 和 `MUSETERM_GRAPHICS_PROTOCOLS` 环境声明，便于本地及 SSH 工具识别 MuseTerm 的图形能力。
+- 显式开启 Sixel 能力上报，并将 SwiftTerm 默认每标签 320 MB 的 Kitty 图片缓存调整为可配置的 128 MB 默认值。
+- 功能版本升级至 `1.241.0-rc1`，构建号升级至 `298`。
+
+### Tests
+- 覆盖 iTerm2 OSC 1337 PNG、Kitty APC PNG 与 Sixel DCS RGBA 位图的完整解析回调。
+
 ## [1.240.0-rc5] - 2026-08-20
 
 ### Fixed

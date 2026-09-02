@@ -119,6 +119,8 @@ final class AppPolicyTests: XCTestCase {
 
         XCTAssertEqual(preferences.skin, TerminalVisualSkin.seaSalt)
         XCTAssertTrue(preferences.glassEnabled)
+        XCTAssertEqual(preferences.windowOpacity, 0.72)
+        XCTAssertEqual(preferences.terminalOpacity, 0.86)
         XCTAssertTrue(preferences.showsTabList)
         XCTAssertEqual(preferences.sidebarExpandedWidth, 220)
         XCTAssertEqual(preferences.fontSize, 14)
@@ -129,6 +131,24 @@ final class AppPolicyTests: XCTestCase {
         XCTAssertEqual(preferences.appShortcut(for: .searchCommands), "command+char:f")
         XCTAssertEqual(preferences.lineStartShortcut, "command+left")
         XCTAssertEqual(preferences.lineEndShortcut, "command+right")
+    }
+
+    func testTransparencyPreferencesPersistIndependently() throws {
+        let suiteName = "museterm.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let preferences = TerminalPreferences(defaults: defaults)
+        preferences.glassEnabled = false
+        preferences.glassOpacity = 0.35
+        preferences.windowOpacity = 0.48
+        preferences.terminalOpacity = 0.22
+
+        let reloaded = TerminalPreferences(defaults: defaults)
+        XCTAssertFalse(reloaded.glassEnabled)
+        XCTAssertEqual(reloaded.glassOpacity, 0.35)
+        XCTAssertEqual(reloaded.windowOpacity, 0.48)
+        XCTAssertEqual(reloaded.terminalOpacity, 0.22)
     }
 
     private func keyDownEvent(

@@ -20,8 +20,6 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            preferences.skin.windowBackground
-                .ignoresSafeArea()
             if preferences.glassEnabled {
                 VisualEffectBackdrop(
                     material: preferences.glassMaterial.nsMaterial,
@@ -31,7 +29,6 @@ struct ContentView: View {
                 .opacity(preferences.glassOpacity)
                 .ignoresSafeArea()
             }
-
             HStack(spacing: 0) {
                 SidebarView(
                     workspace: workspace,
@@ -314,7 +311,7 @@ private struct SidebarView: View {
             }
         }
         .frame(width: sidebarWidth)
-        .background(preferences.skin.sidebarBackground)
+        .background(preferences.skin.sidebarBackground.opacity(preferences.windowOpacity))
     }
 
     private var sidebarWidth: CGFloat {
@@ -704,7 +701,6 @@ private struct TerminalPaneView: View {
 
     var body: some View {
         ZStack {
-            preferences.skin.panelFill
             ForEach(workspace.tabs) { tab in
                 let isSelected = workspace.selectedID == tab.id
                 TerminalHostView(session: tab, preferences: preferences, isActive: isSelected)
