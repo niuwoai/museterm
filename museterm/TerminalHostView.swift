@@ -1,5 +1,6 @@
 import AppKit
 import Darwin
+import MetalKit
 import SwiftTerm
 import SwiftUI
 
@@ -119,6 +120,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         self.preferences = preferences
         layoutTerminalViews()
         applyScrollbackLines(preferences.scrollbackLines)
+        applyGraphicsPolicy(cacheMegabytes: preferences.imageCacheMegabytes)
         let signature = TerminalPreferenceSignature(preferences: preferences)
         guard signature != lastAppliedPreferences else { return }
         lastAppliedPreferences = signature
@@ -154,9 +156,21 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.antiAliasCustomBlockGlyphs = true
         terminalView.useBrightColors = true
 
-        configureMetalIfNeeded()
+        configureRenderer(terminalOpacity: preferences.terminalOpacity)
+        configureTransparentTerminalSurface()
 
         requestTerminalRepaint()
+    }
+
+    /// 清空终端承载层的兜底底色，让 Core Graphics 的背景 alpha 能继续透到窗口后方。
+    /// 同时兼容已经创建过的 MTKView，避免渲染器切换过程中残留不透明图层。
+    private func configureTransparentTerminalSurface() {
+        terminalView.layer?.isOpaque = false
+        terminalView.layer?.backgroundColor = NSColor.clear.cgColor
+        for metalView in terminalView.subviews.compactMap({ $0 as? MTKView }) {
+            metalView.layer?.isOpaque = false
+            metalView.layer?.backgroundColor = NSColor.clear.cgColor
+        }
     }
 
     private func applyScrollbackLines(_ lines: Int) {
@@ -164,6 +178,11 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         let normalized = TerminalPreferences.clampedScrollbackLines(lines)
         guard terminal.options.scrollback != normalized else { return }
         terminal.changeScrollback(normalized)
+    }
+
+    private func applyGraphicsPolicy(cacheMegabytes: Int) {
+        guard let terminal = terminalView.terminal else { return }
+        TerminalGraphicsPolicy.apply(to: terminal, cacheMegabytes: cacheMegabytes)
     }
 
     func layoutTerminalViews() {
@@ -1163,6 +1182,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         didStart = true
         session?.markStartupCommandsStarted()
         applyScrollbackLines(preferences?.scrollbackLines ?? TerminalPreferences.defaultScrollbackLines)
+        applyGraphicsPolicy(
+            cacheMegabytes: preferences?.imageCacheMegabytes
+                ?? TerminalPreferences.defaultImageCacheMegabytes
+        )
 
         switch session?.launchConfiguration ?? .localShell() {
         case .localShell(let startDirectory, let profile):
@@ -1510,6 +1533,22 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         }
     }
 
+    /// SwiftTerm 当前的 Metal 承载面会被窗口服务器按不透明 drawable 合成。
+    /// 半透明终端改用 Core Graphics，确保背景 alpha 真正透到窗口后方；恢复到
+    /// 100% 不透明时自动重新启用 Metal，不让常规不透明场景承担性能损失。
+    private func configureRenderer(terminalOpacity: Double) {
+        guard terminalOpacity < 0.999 else {
+            configureMetalIfNeeded()
+            return
+        }
+        guard terminalView.isUsingMetalRenderer else {
+            didConfigureMetal = false
+            return
+        }
+        try? terminalView.setUseMetal(false)
+        didConfigureMetal = false
+    }
+
     func visibleScreenText() -> String {
         guard let terminal = terminalView.terminal else { return "" }
         return (0..<terminal.rows)
@@ -1629,6 +1668,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         environment["TERM"] = "xterm-256color"
         environment["LANG"] = environment["LANG"] ?? "en_US.UTF-8"
         environment["MUSETERM_TERMINAL"] = "1"
+        for (key, value) in TerminalGraphicsPolicy.environmentVariables(appVersion: AppVersion.value) {
+            environment[key] = value
+        }
         environment["POWERLEVEL9K_INSTANT_PROMPT"] = environment["POWERLEVEL9K_INSTANT_PROMPT"] ?? "off"
         environment["MUSETERM_ORIGINAL_XDG_CACHE_HOME"] = environment["XDG_CACHE_HOME"] ?? ""
         environment["XDG_CACHE_HOME"] = museTermShellCacheDirectory()
@@ -1961,11 +2003,13 @@ private struct TerminalPreferenceSignature: Equatable {
     let glassEnabled: Bool
     let glassMaterial: GlassMaterial
     let glassOpacity: Double
+    let windowOpacity: Double
     let terminalOpacity: Double
     let tintOpacity: Double
     let optionAsMeta: Bool
     let mouseReporting: Bool
     let scrollbackLines: Int
+    let imageCacheMegabytes: Int
     let cursorShape: TerminalCursorShape
     let cursorBlink: Bool
 
@@ -1978,11 +2022,13 @@ private struct TerminalPreferenceSignature: Equatable {
         glassEnabled = preferences.glassEnabled
         glassMaterial = preferences.glassMaterial
         glassOpacity = preferences.glassOpacity
+        windowOpacity = preferences.windowOpacity
         terminalOpacity = preferences.terminalOpacity
         tintOpacity = preferences.tintOpacity
         optionAsMeta = preferences.optionAsMeta
         mouseReporting = preferences.mouseReporting
         scrollbackLines = preferences.scrollbackLines
+        imageCacheMegabytes = preferences.imageCacheMegabytes
         cursorShape = preferences.cursorShape
         cursorBlink = preferences.cursorBlink
     }

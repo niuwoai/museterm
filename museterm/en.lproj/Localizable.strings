@@ -592,9 +592,11 @@
 "settings.font_size" = "Font size";
 "settings.line_height" = "Line height";
 "settings.glass_enabled" = "Glass effect";
+"settings.transparency_help" = "Window and terminal opacity control clear background color. Glass adds blur independently; turn it off to keep the desktop sharp behind the window.";
 "settings.glass_material" = "Material";
 "settings.glass_opacity" = "Glass strength";
-"settings.terminal_opacity" = "Terminal opacity";
+"settings.window_opacity" = "Window background opacity";
+"settings.terminal_opacity" = "Terminal background opacity";
 "settings.tint_opacity" = "Tint";
 "settings.glow" = "Glow";
 "settings.behavior" = "Behavior";
@@ -610,6 +612,10 @@
 "settings.blacklist.remove" = "Remove from blacklist";
 "settings.option_as_meta" = "Use Option as Meta";
 "settings.mouse_reporting" = "Forward mouse reporting";
+"settings.inline_images" = "Native inline images";
+"settings.inline_images.protocols" = "Kitty · iTerm2 · Sixel";
+"settings.inline_images.cache_value" = "%d MB per tab";
+"settings.inline_images.help" = "Displays high-resolution images emitted by terminal programs locally or over SSH. The per-tab Kitty image cache defaults to %d MB and is capped at %d MB; older unused images are evicted automatically.";
 "settings.scrollback_lines" = "Scrollback history";
 "settings.scrollback_lines.value" = "%d lines";
 "settings.scrollback_lines.help" = "Defaults to %d lines and keeps at most %d lines. Higher values make long output easier to revisit but use more memory.";

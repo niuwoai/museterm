@@ -592,9 +592,11 @@
 "settings.font_size" = "字号";
 "settings.line_height" = "行高";
 "settings.glass_enabled" = "毛玻璃效果";
+"settings.transparency_help" = "窗口和终端不透明度控制底色透出程度；毛玻璃只负责模糊，关闭后桌面内容会以清晰的半透明效果透入。";
 "settings.glass_material" = "材质";
 "settings.glass_opacity" = "玻璃强度";
-"settings.terminal_opacity" = "终端底色透明度";
+"settings.window_opacity" = "窗口底色不透明度";
+"settings.terminal_opacity" = "终端底色不透明度";
 "settings.tint_opacity" = "染色强度";
 "settings.glow" = "柔光";
 "settings.behavior" = "行为";
@@ -610,6 +612,10 @@
 "settings.blacklist.remove" = "移出黑名单";
 "settings.option_as_meta" = "Option 作为 Meta 键";
 "settings.mouse_reporting" = "转发鼠标上报";
+"settings.inline_images" = "原生内联图片";
+"settings.inline_images.protocols" = "Kitty · iTerm2 · Sixel";
+"settings.inline_images.cache_value" = "每标签 %d MB";
+"settings.inline_images.help" = "显示本地或 SSH 远端终端程序输出的高清图片。Kitty 图片缓存默认每标签 %d MB，最高 %d MB；超出预算时会自动淘汰较旧且未使用的图片。";
 "settings.scrollback_lines" = "回滚历史行数";
 "settings.scrollback_lines.value" = "%d 行";
 "settings.scrollback_lines.help" = "默认 %d 行，最多保留 %d 行。调高后长输出更容易回看，但会占用更多内存。";

@@ -188,6 +188,27 @@ struct SettingsView: View {
             Toggle(L10n.string("settings.glass_enabled"), isOn: $preferences.glassEnabled)
                 .font(.headline)
 
+            Text(L10n.string("settings.transparency_help"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            SliderRow(
+                title: L10n.string("settings.window_opacity"),
+                value: $preferences.windowOpacity,
+                range: 0.2...1,
+                format: "%.0f%%",
+                multiplier: 100
+            )
+
+            SliderRow(
+                title: L10n.string("settings.terminal_opacity"),
+                value: $preferences.terminalOpacity,
+                range: 0.1...1,
+                format: "%.0f%%",
+                multiplier: 100
+            )
+
             Picker(L10n.string("settings.glass_material"), selection: $preferences.glassMaterial) {
                 ForEach(GlassMaterial.allCases) { material in
                     Text(material.name).tag(material)
@@ -204,14 +225,6 @@ struct SettingsView: View {
                 multiplier: 100
             )
             .disabled(!preferences.glassEnabled)
-
-            SliderRow(
-                title: L10n.string("settings.terminal_opacity"),
-                value: $preferences.terminalOpacity,
-                range: 0.45...1,
-                format: "%.0f%%",
-                multiplier: 100
-            )
 
             SliderRow(
                 title: L10n.string("settings.tint_opacity"),
@@ -256,6 +269,7 @@ struct SettingsView: View {
             Toggle(L10n.string("settings.show_tab_list"), isOn: $preferences.showsTabList)
             Toggle(L10n.string("settings.option_as_meta"), isOn: $preferences.optionAsMeta)
             Toggle(L10n.string("settings.mouse_reporting"), isOn: $preferences.mouseReporting)
+            inlineImagesRow
             scrollbackLinesRow
             primaryShortcutSection
             lineNavigationShortcutSection
@@ -320,6 +334,41 @@ struct SettingsView: View {
                 "settings.scrollback_lines.help",
                 TerminalPreferences.defaultScrollbackLines,
                 TerminalPreferences.maximumScrollbackLines
+            ))
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var inlineImagesRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.string("settings.inline_images"))
+                    Text(L10n.string("settings.inline_images.protocols"))
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Stepper(
+                    value: $preferences.imageCacheMegabytes,
+                    in: TerminalPreferences.minimumImageCacheMegabytes...TerminalPreferences.maximumImageCacheMegabytes,
+                    step: TerminalPreferences.imageCacheStepMegabytes
+                ) {
+                    Text(L10n.format(
+                        "settings.inline_images.cache_value",
+                        preferences.imageCacheMegabytes
+                    ))
+                    .font(.body.monospacedDigit())
+                }
+                .frame(width: 190)
+            }
+            Text(L10n.format(
+                "settings.inline_images.help",
+                TerminalPreferences.defaultImageCacheMegabytes,
+                TerminalPreferences.maximumImageCacheMegabytes
             ))
             .font(.caption2)
             .foregroundStyle(.secondary)

@@ -153,12 +153,14 @@ final class TerminalPreferences: ObservableObject {
         static let glassEnabled = "terminal.glassEnabled"
         static let glassMaterial = "terminal.glassMaterial"
         static let glassOpacity = "terminal.glassOpacity"
+        static let windowOpacity = "terminal.windowOpacity"
         static let terminalOpacity = "terminal.terminalOpacity"
         static let tintOpacity = "terminal.tintOpacity"
         static let glow = "terminal.glow"
         static let optionAsMeta = "terminal.optionAsMeta"
         static let mouseReporting = "terminal.mouseReporting"
         static let scrollbackLines = "terminal.scrollbackLines"
+        static let imageCacheMegabytes = "terminal.imageCacheMegabytes"
         static let showsTabList = "terminal.showsTabList"
         static let sidebarExpandedWidth = "terminal.sidebarExpandedWidth"
         static let cursorShape = "terminal.cursorShape"
@@ -194,6 +196,10 @@ final class TerminalPreferences: ObservableObject {
     static let minimumScrollbackLines = 500
     static let defaultScrollbackLines = 3_000
     static let maximumScrollbackLines = 20_000
+    static let minimumImageCacheMegabytes = TerminalGraphicsPolicy.minimumCacheMegabytes
+    static let defaultImageCacheMegabytes = TerminalGraphicsPolicy.defaultCacheMegabytes
+    static let maximumImageCacheMegabytes = TerminalGraphicsPolicy.maximumCacheMegabytes
+    static let imageCacheStepMegabytes = TerminalGraphicsPolicy.cacheStepMegabytes
     static let minimumSidebarExpandedWidth = 220.0
     static let defaultSidebarExpandedWidth = 220.0
     static let maximumSidebarExpandedWidth = 420.0
@@ -206,6 +212,7 @@ final class TerminalPreferences: ObservableObject {
     @Published var glassEnabled: Bool { didSet { defaults.set(glassEnabled, forKey: Keys.glassEnabled) } }
     @Published var glassMaterial: GlassMaterial { didSet { defaults.set(glassMaterial.rawValue, forKey: Keys.glassMaterial) } }
     @Published var glassOpacity: Double { didSet { defaults.set(glassOpacity, forKey: Keys.glassOpacity) } }
+    @Published var windowOpacity: Double { didSet { defaults.set(windowOpacity, forKey: Keys.windowOpacity) } }
     @Published var terminalOpacity: Double { didSet { defaults.set(terminalOpacity, forKey: Keys.terminalOpacity) } }
     @Published var tintOpacity: Double { didSet { defaults.set(tintOpacity, forKey: Keys.tintOpacity) } }
     @Published var glow: Double { didSet { defaults.set(glow, forKey: Keys.glow) } }
@@ -219,6 +226,16 @@ final class TerminalPreferences: ObservableObject {
                 return
             }
             defaults.set(scrollbackLines, forKey: Keys.scrollbackLines)
+        }
+    }
+    @Published var imageCacheMegabytes: Int {
+        didSet {
+            let normalized = Self.clampedImageCacheMegabytes(imageCacheMegabytes)
+            guard imageCacheMegabytes == normalized else {
+                imageCacheMegabytes = normalized
+                return
+            }
+            defaults.set(imageCacheMegabytes, forKey: Keys.imageCacheMegabytes)
         }
     }
     @Published var showsTabList: Bool { didSet { defaults.set(showsTabList, forKey: Keys.showsTabList) } }
@@ -293,6 +310,7 @@ final class TerminalPreferences: ObservableObject {
         glassEnabled = defaults.object(forKey: Keys.glassEnabled) as? Bool ?? true
         glassMaterial = GlassMaterial(rawValue: defaults.string(forKey: Keys.glassMaterial) ?? "") ?? .underWindow
         glassOpacity = defaults.object(forKey: Keys.glassOpacity) as? Double ?? 0.72
+        windowOpacity = defaults.object(forKey: Keys.windowOpacity) as? Double ?? 0.72
         terminalOpacity = defaults.object(forKey: Keys.terminalOpacity) as? Double ?? 0.86
         tintOpacity = defaults.object(forKey: Keys.tintOpacity) as? Double ?? 0.20
         glow = defaults.object(forKey: Keys.glow) as? Double ?? 0.24
@@ -300,6 +318,9 @@ final class TerminalPreferences: ObservableObject {
         mouseReporting = defaults.object(forKey: Keys.mouseReporting) as? Bool ?? true
         scrollbackLines = Self.clampedScrollbackLines(
             defaults.object(forKey: Keys.scrollbackLines) as? Int ?? Self.defaultScrollbackLines
+        )
+        imageCacheMegabytes = Self.clampedImageCacheMegabytes(
+            defaults.object(forKey: Keys.imageCacheMegabytes) as? Int ?? Self.defaultImageCacheMegabytes
         )
         showsTabList = defaults.object(forKey: Keys.showsTabList) as? Bool ?? true
         sidebarExpandedWidth = Self.clampedSidebarExpandedWidth(
@@ -344,6 +365,10 @@ final class TerminalPreferences: ObservableObject {
 
     static func clampedScrollbackLines(_ value: Int) -> Int {
         min(max(value, minimumScrollbackLines), maximumScrollbackLines)
+    }
+
+    static func clampedImageCacheMegabytes(_ value: Int) -> Int {
+        TerminalGraphicsPolicy.clampedCacheMegabytes(value)
     }
 
     static func clampedSidebarExpandedWidth(_ value: Double) -> Double {

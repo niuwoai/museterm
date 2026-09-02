@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-02T17:38:20+08:00",
+  "duration_seconds": 21.166,
+  "command": [
+    "xcodebuild",
+    "test",
+    "-project",
+    "museterm.xcodeproj",
+    "-scheme",
+    "museterm",
+    "-destination",
+    "platform=macOS",
+    "-only-testing:musetermTests/TerminalGraphicsPolicyTests"
+  ],
+  "success": true,
+  "exit_status": 0,
+  "protocols": [
+    "kitty",
+    "iterm2",
+    "sixel"
+  ],
+  "checks": [
+    {
+      "name": "testDefaultGraphicsPolicyAdvertisesSixelAndCapsKittyCache",
+      "passed": true
+    },
+    {
+      "name": "testGraphicsCacheClampsToSupportedRange",
+      "passed": true
+    },
+    {
+      "name": "testGraphicsEnvironmentAdvertisesAppAndProtocols",
+      "passed": true
+    },
+    {
+      "name": "testImageCachePreferencePersistsAndClamps",
+      "passed": true
+    },
+    {
+      "name": "testITerm2InlineImageSequenceDeliversEncodedImage",
+      "passed": true
+    },
+    {
+      "name": "testKittyInlinePNGSequenceDeliversEncodedImage",
+      "passed": true
+    },
+    {
+      "name": "testSixelSequenceDeliversRGBABitmap",
+      "passed": true
+    }
+  ],
+  "output_tail": "** TEST SUCCEEDED **\nTest suite 'TerminalGraphicsPolicyTests' started on 'My Mac - QTerm (54696)'\nTest case 'TerminalGraphicsPolicyTests.testDefaultGraphicsPolicyAdvertisesSixelAndCapsKittyCache()' passed on 'My Mac - QTerm (54696)' (0.002 seconds)\nTest case 'TerminalGraphicsPolicyTests.testGraphicsCacheClampsToSupportedRange()' passed on 'My Mac - QTerm (54696)' (0.001 seconds)\nTest case 'TerminalGraphicsPolicyTests.testGraphicsEnvironmentAdvertisesAppAndProtocols()' passed on 'My Mac - QTerm (54696)' (0.000 seconds)\nTest case 'TerminalGraphicsPolicyTests.testImageCachePreferencePersistsAndClamps()' passed on 'My Mac - QTerm (54696)' (0.217 seconds)\nTest case 'TerminalGraphicsPolicyTests.testITerm2InlineImageSequenceDeliversEncodedImage()' passed on 'My Mac - QTerm (54696)' (0.002 seconds)\nTest case 'TerminalGraphicsPolicyTests.testKittyInlinePNGSequenceDeliversEncodedImage()' passed on 'My Mac - QTerm (54696)' (0.002 seconds)\nTest case 'TerminalGraphicsPolicyTests.testSixelSequenceDeliversRGBABitmap()' passed on 'My Mac - QTerm (54696)' (0.002 seconds)\n"
+}

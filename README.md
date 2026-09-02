@@ -7,11 +7,12 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 ## 核心能力
 
 - 多标签终端，支持快捷键新建、切换和关闭标签。
+- 原生内联图片，支持 Kitty Graphics Protocol、iTerm2 Inline Images 与 Sixel，并可配置每标签图片缓存预算。
 - SSH 主机管理，支持多跳、独立密钥和连接后启动命令。
 - 会话隧道：手工进入二跳、三跳服务器后，把本机 `127.0.0.1` 端口临时转发到深层内网 TCP 服务；优先自动上传匹配 Linux/macOS amd64/arm64 的 Go 静态助手，Python 3 仅作为旧环境回退，并用蒙版和右侧检查器明确提示终端已被占用；CLI/MCP 可启动、停止和查询会话隧道。
 - 终端录制捷径，可录制输入并在当前标签回放。
 - rz/sz 文件传输，支持上传、下载、远端依赖检查和进度展示。
-- 主题、字体、光标、ANSI 配色和毛玻璃设置。
+- 主题、字体、光标、ANSI 配色，以及相互独立的窗口/终端透明度和毛玻璃设置。
 - CLI/MCP 工具桥默认只读；写入需在设置中开启，并使用逐客户端 Keychain 授权。
 
 ## 运行
@@ -30,4 +31,4 @@ defaults delete im.some.museterm terminal.skipRunningTabCloseConfirmation
 
 ## 版本
 
-当前版本：`v1.239.0-rc6`
+当前版本：`v1.242.0-rc1`
