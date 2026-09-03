@@ -3,6 +3,54 @@ import XCTest
 @testable import museterm
 
 final class AppPolicyTests: XCTestCase {
+    func testIMECommitForwardsPlainReturnAfterCompositionEnds() {
+        for keyCode: UInt16 in [36, 76] {
+            XCTAssertTrue(
+                TerminalIMECommitPolicy.shouldForwardReturnAfterCommit(
+                    keyCode: keyCode,
+                    modifiers: [],
+                    hadMarkedText: true,
+                    hasMarkedText: false
+                )
+            )
+        }
+    }
+
+    func testIMECommitDoesNotDuplicateUnrelatedKeysOrIncompleteComposition() {
+        XCTAssertFalse(
+            TerminalIMECommitPolicy.shouldForwardReturnAfterCommit(
+                keyCode: 36,
+                modifiers: [],
+                hadMarkedText: false,
+                hasMarkedText: false
+            )
+        )
+        XCTAssertFalse(
+            TerminalIMECommitPolicy.shouldForwardReturnAfterCommit(
+                keyCode: 36,
+                modifiers: [],
+                hadMarkedText: true,
+                hasMarkedText: true
+            )
+        )
+        XCTAssertFalse(
+            TerminalIMECommitPolicy.shouldForwardReturnAfterCommit(
+                keyCode: 0,
+                modifiers: [],
+                hadMarkedText: true,
+                hasMarkedText: false
+            )
+        )
+        XCTAssertFalse(
+            TerminalIMECommitPolicy.shouldForwardReturnAfterCommit(
+                keyCode: 36,
+                modifiers: [.shift],
+                hadMarkedText: true,
+                hasMarkedText: false
+            )
+        )
+    }
+
     func testRepeatedCommandPalettePresentationKeepsPaletteVisible() {
         var presentation = CommandPalettePresentationState()
 
