@@ -2034,6 +2034,23 @@ private struct TerminalPreferenceSignature: Equatable {
     }
 }
 
+enum TerminalIMECommitPolicy {
+    private static let returnKeyCodes: Set<UInt16> = [36, 76]
+    private static let disallowedModifiers: NSEvent.ModifierFlags = [.command, .control, .option, .shift]
+
+    static func shouldForwardReturnAfterCommit(
+        keyCode: UInt16,
+        modifiers: NSEvent.ModifierFlags,
+        hadMarkedText: Bool,
+        hasMarkedText: Bool
+    ) -> Bool {
+        hadMarkedText
+            && !hasMarkedText
+            && returnKeyCodes.contains(keyCode)
+            && modifiers.intersection(disallowedModifiers).isEmpty
+    }
+}
+
 private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     var onNeedsFocus: (() -> Void)?
     var onReadyForProcessStart: (() -> Void)?
@@ -2048,6 +2065,7 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
     var onProcessOutputCommitted: (() -> Void)?
     private var terminalDelegateRouter: TerminalDelegateRouter?
     private var pendingResizeWorkItem: DispatchWorkItem?
+    private var imeReturnMonitor: Any?
     private var cachedEchoEnabled: Bool?
     private var cachedEchoCheckedAt: TimeInterval = 0
     private var pendingEchoBytes: [UInt8] = []
@@ -2071,15 +2089,43 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
     override init(frame: CGRect) {
         super.init(frame: frame)
         installTerminalDelegateRouter()
+        installIMEReturnMonitor()
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         installTerminalDelegateRouter()
+        installIMEReturnMonitor()
     }
 
     deinit {
+        if let imeReturnMonitor {
+            NSEvent.removeMonitor(imeReturnMonitor)
+        }
         stopSelectionAutoscroll()
+    }
+
+    private func installIMEReturnMonitor() {
+        imeReturnMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self,
+                  event.window === self.window,
+                  self.window?.firstResponder === self,
+                  TerminalIMECommitPolicy.shouldForwardReturnAfterCommit(
+                      keyCode: event.keyCode,
+                      modifiers: event.modifierFlags,
+                      hadMarkedText: self.hasMarkedText(),
+                      hasMarkedText: false
+                  ) else { return event }
+
+            // The monitor runs before SwiftTerm's NSTextInputClient handles the
+            // key. Check on the next main-loop turn whether Return really ended
+            // composition, then forward the consumed Return to the PTY.
+            DispatchQueue.main.async { [weak self] in
+                guard let self, !self.hasMarkedText() else { return }
+                self.send(txt: "\r")
+            }
+            return event
+        }
     }
 
     private func installTerminalDelegateRouter() {

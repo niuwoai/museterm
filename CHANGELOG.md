@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.243.0-rc2] - 2026-09-03
+
+### Fixed
+- **中文输入法下，WillDeep 等终端 TUI 需要按两次回车才能提交。** SwiftTerm 的 `NSTextInputClient` 路径在 Return 结束 marked text 时只把最终文字写入 PTY，这次 Return 本身被输入法消耗，下游 TUI 收不到提交键。现在仅当普通 Return 确实把 IME 组合态从有变无时，在已提交文字之后向 PTY 补发一次 Return；普通回车、其他按键、未结束的组合态和带修饰键的 Return 都不会重复发送。
+
+### Tests
+- 新增 IME Return 转发策略测试，覆盖主回车、小键盘回车和各类不应补发的边界。
+- Bugfix 预发布版本从 **1.243.0-rc1** 递增为 **1.243.0-rc2**，构建号从 **300** 递增为 **301**。
+
 ## [1.243.0-rc1] - 2026-09-03
 
 ### Added
