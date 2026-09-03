@@ -147,7 +147,9 @@ final class TerminalPreferences: ObservableObject {
     private enum Keys {
         static let skin = "terminal.skin"
         static let fontFamily = "terminal.fontFamily"
+        // 旧版单回退字体键，仅用于迁移与回滚兼容
         static let fallbackFontFamily = "terminal.fallbackFontFamily"
+        static let fallbackFontFamilies = "terminal.fallbackFontFamilies"
         static let fontSize = "terminal.fontSize"
         static let lineHeight = "terminal.lineHeight"
         static let glassEnabled = "terminal.glassEnabled"
@@ -206,7 +208,19 @@ final class TerminalPreferences: ObservableObject {
 
     @Published var skin: TerminalVisualSkin { didSet { defaults.set(skin.rawValue, forKey: Keys.skin) } }
     @Published var fontFamily: String { didSet { defaults.set(fontFamily, forKey: Keys.fontFamily) } }
-    @Published var fallbackFontFamily: String { didSet { defaults.set(fallbackFontFamily, forKey: Keys.fallbackFontFamily) } }
+    /// 按顺序生效的回退字体；靠前的字体先被 Core Text 级联命中。
+    @Published var fallbackFontFamilies: [String] {
+        didSet {
+            let sanitized = TerminalFontResolver.sanitizedFallbackFamilies(fallbackFontFamilies)
+            // 在 didSet 内赋值不会再次触发 didSet，这里只是把内存值收敛到规范形式
+            if sanitized != fallbackFontFamilies {
+                fallbackFontFamilies = sanitized
+            }
+            defaults.set(sanitized, forKey: Keys.fallbackFontFamilies)
+            // 旧版本只认单个回退字体，回写首项以便降级安装时仍有合理表现
+            defaults.set(sanitized.first ?? "", forKey: Keys.fallbackFontFamily)
+        }
+    }
     @Published var fontSize: Double { didSet { defaults.set(fontSize, forKey: Keys.fontSize) } }
     @Published var lineHeight: Double { didSet { defaults.set(lineHeight, forKey: Keys.lineHeight) } }
     @Published var glassEnabled: Bool { didSet { defaults.set(glassEnabled, forKey: Keys.glassEnabled) } }
@@ -304,7 +318,7 @@ final class TerminalPreferences: ObservableObject {
         self.defaults = defaults
         skin = TerminalVisualSkin(rawValue: defaults.string(forKey: Keys.skin) ?? "") ?? .seaSalt
         fontFamily = defaults.string(forKey: Keys.fontFamily) ?? "SF Mono"
-        fallbackFontFamily = defaults.string(forKey: Keys.fallbackFontFamily) ?? "PingFang SC"
+        fallbackFontFamilies = TerminalPreferences.loadFallbackFontFamilies(from: defaults)
         fontSize = defaults.object(forKey: Keys.fontSize) as? Double ?? 14
         lineHeight = defaults.object(forKey: Keys.lineHeight) as? Double ?? 1.08
         glassEnabled = defaults.object(forKey: Keys.glassEnabled) as? Bool ?? true
@@ -426,9 +440,23 @@ final class TerminalPreferences: ObservableObject {
     var terminalFont: NSFont {
         TerminalFontResolver.font(
             primaryFamily: fontFamily,
-            fallbackFamily: fallbackFontFamily,
+            fallbackFamilies: fallbackFontFamilies,
             size: CGFloat(fontSize)
         )
+    }
+
+    static let defaultFallbackFontFamilies = ["PingFang SC"]
+
+    /// 读取回退字体列表：优先新版数组键，其次迁移旧版单字符串键，最后落到默认值。
+    /// 数组键存在但为空表示用户主动清空，需要如实保留。
+    static func loadFallbackFontFamilies(from defaults: UserDefaults) -> [String] {
+        if let stored = defaults.array(forKey: Keys.fallbackFontFamilies) as? [String] {
+            return TerminalFontResolver.sanitizedFallbackFamilies(stored)
+        }
+        if let legacy = defaults.string(forKey: Keys.fallbackFontFamily) {
+            return TerminalFontResolver.sanitizedFallbackFamilies([legacy])
+        }
+        return defaultFallbackFontFamilies
     }
 
     var aiDisplayProviderName: String {
@@ -505,16 +533,35 @@ enum TerminalFontResolver {
         }
     }
 
-    static func font(primaryFamily: String, fallbackFamily: String, size: CGFloat) -> NSFont {
+    /// 回退字体数量上限，避免级联链过长拖慢字形查找。
+    static let maximumFallbackFamilies = 8
+
+    /// 规范化回退字体列表：去空白、去空项、按大小写不敏感去重并保序，最后截断到上限。
+    static func sanitizedFallbackFamilies(_ families: [String]) -> [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for family in families {
+            let trimmed = family.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            guard seen.insert(trimmed.lowercased()).inserted else { continue }
+            result.append(trimmed)
+            if result.count == maximumFallbackFamilies { break }
+        }
+        return result
+    }
+
+    /// 按列表顺序构建 Core Text 级联字体；未安装的字体会被跳过而不是中断整条链。
+    static func font(primaryFamily: String, fallbackFamilies: [String], size: CGFloat) -> NSFont {
         let base = font(named: primaryFamily, size: size)
             ?? NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
 
-        guard let fallback = font(named: fallbackFamily, size: size) else {
-            return base
-        }
+        let descriptors = sanitizedFallbackFamilies(fallbackFamilies)
+            .compactMap { font(named: $0, size: size)?.fontDescriptor }
+
+        guard !descriptors.isEmpty else { return base }
 
         let descriptor = base.fontDescriptor.addingAttributes([
-            .cascadeList: [fallback.fontDescriptor]
+            .cascadeList: descriptors
         ])
         return NSFont(descriptor: descriptor, size: size) ?? base
     }

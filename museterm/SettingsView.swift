@@ -160,9 +160,9 @@ struct SettingsView: View {
                 title: L10n.string("settings.primary_font"),
                 selection: $preferences.fontFamily
             )
-            FontFamilyPicker(
+            FallbackFontListEditor(
                 title: L10n.string("settings.fallback_font"),
-                selection: $preferences.fallbackFontFamily
+                families: $preferences.fallbackFontFamilies
             )
             SliderRow(
                 title: L10n.string("settings.font_size"),
@@ -1936,6 +1936,120 @@ private struct FontFamilyPicker: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
+    }
+}
+
+/// 有序回退字体编辑器：靠前的字体先被 Core Text 级联命中，
+/// 因此中文字体与图标字体可以同时生效，互不挤占。
+private struct FallbackFontListEditor: View {
+    let title: String
+    @Binding var families: [String]
+
+    private var canAddMore: Bool {
+        families.count < TerminalFontResolver.maximumFallbackFamilies
+            && !availableFamilies(excludingIndex: nil).isEmpty
+    }
+
+    /// 排除其他行已占用的字体，避免选重后被去重逻辑悄悄吞掉一行。
+    private func availableFamilies(excludingIndex index: Int?) -> [String] {
+        var used = Set(families.map { $0.lowercased() })
+        if let index, index < families.count {
+            used.remove(families[index].lowercased())
+        }
+        return TerminalFontResolver.installedFamilies.filter { !used.contains($0.lowercased()) }
+    }
+
+    private func options(for index: Int) -> [String] {
+        let current = families[index]
+        var result = availableFamilies(excludingIndex: index)
+        if !current.isEmpty, !result.contains(where: { $0.caseInsensitiveCompare(current) == .orderedSame }) {
+            result.insert(current, at: 0)
+        }
+        return result
+    }
+
+    private func move(from index: Int, offset: Int) {
+        let target = index + offset
+        guard families.indices.contains(index), families.indices.contains(target) else { return }
+        families.swapAt(index, target)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.subheadline.weight(.medium))
+
+            if families.isEmpty {
+                Text(L10n.string("settings.fallback_font.empty"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            ForEach(Array(families.enumerated()), id: \.element) { index, family in
+                HStack(spacing: 8) {
+                    Text("\(index + 1)")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .frame(width: 16, alignment: .trailing)
+
+                    Picker(family, selection: familyBinding(at: index)) {
+                        ForEach(options(for: index), id: \.self) { option in
+                            Text(option).tag(option)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Button {
+                        move(from: index, offset: -1)
+                    } label: {
+                        Image(systemName: "chevron.up")
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(index == 0)
+                    .help(L10n.string("settings.fallback_font.move_up"))
+
+                    Button {
+                        move(from: index, offset: 1)
+                    } label: {
+                        Image(systemName: "chevron.down")
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(index == families.count - 1)
+                    .help(L10n.string("settings.fallback_font.move_down"))
+
+                    Button {
+                        guard families.indices.contains(index) else { return }
+                        families.remove(at: index)
+                    } label: {
+                        Image(systemName: "minus.circle")
+                    }
+                    .buttonStyle(.borderless)
+                    .help(L10n.string("settings.fallback_font.remove"))
+                }
+            }
+
+            Button {
+                guard let next = availableFamilies(excludingIndex: nil).first else { return }
+                families.append(next)
+            } label: {
+                Label(L10n.string("settings.fallback_font.add"), systemImage: "plus")
+            }
+            .buttonStyle(.borderless)
+            .disabled(!canAddMore)
+        }
+    }
+
+    private func familyBinding(at index: Int) -> Binding<String> {
+        Binding(
+            get: { families.indices.contains(index) ? families[index] : "" },
+            set: { newValue in
+                guard families.indices.contains(index) else { return }
+                families[index] = newValue
+            }
+        )
     }
 }
 
