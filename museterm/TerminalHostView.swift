@@ -1997,7 +1997,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
 private struct TerminalPreferenceSignature: Equatable {
     let skin: TerminalVisualSkin
     let fontFamily: String
-    let fallbackFontFamily: String
+    let fallbackFontFamilies: [String]
     let fontSize: Double
     let lineHeight: Double
     let glassEnabled: Bool
@@ -2016,7 +2016,7 @@ private struct TerminalPreferenceSignature: Equatable {
     init(preferences: TerminalPreferences) {
         skin = preferences.skin
         fontFamily = preferences.fontFamily
-        fallbackFontFamily = preferences.fallbackFontFamily
+        fallbackFontFamilies = preferences.fallbackFontFamilies
         fontSize = preferences.fontSize
         lineHeight = preferences.lineHeight
         glassEnabled = preferences.glassEnabled

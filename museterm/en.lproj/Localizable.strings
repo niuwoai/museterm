@@ -588,7 +588,12 @@
 "settings.app_icon.footer" = "Choose the Dock icon used while QTerm is running. The choice is restored on launch.";
 "settings.fonts" = "Fonts";
 "settings.primary_font" = "Primary font";
-"settings.fallback_font" = "Fallback font";
+"settings.fallback_font" = "Fallback fonts (cascade order)";
+"settings.fallback_font.empty" = "No fallback fonts. Characters the primary font cannot draw are left to the system default.";
+"settings.fallback_font.add" = "Add fallback font";
+"settings.fallback_font.move_up" = "Move up";
+"settings.fallback_font.move_down" = "Move down";
+"settings.fallback_font.remove" = "Remove this fallback font";
 "settings.font_size" = "Font size";
 "settings.line_height" = "Line height";
 "settings.glass_enabled" = "Glass effect";
@@ -702,7 +707,7 @@
 "cursor.shape.bar" = "Bar";
 "cursor.shape.underline" = "Underline";
 "settings.show_tab_list" = "Show tab list in sidebar";
-"settings.footer" = "Fonts are loaded from installed macOS families. The fallback font is added to the Core Text cascade list for characters the primary font cannot draw.";
+"settings.footer" = "Fonts are loaded from installed macOS families. Fallback fonts join the Core Text cascade list in order, so a character the primary font cannot draw is looked up down the list. That lets a CJK font and an icon font both take effect. Up to 8 entries.";
 "settings.ai" = "AI Provider";
 "settings.ai.summary" = "Configure the AI service used for command explanation, failure analysis, and suggestions. API keys are stored only in local Keychain, not preferences or MCP state.";
 "settings.ai.custom_name" = "Custom provider name";

@@ -588,7 +588,12 @@
 "settings.app_icon.footer" = "选择 轻连 运行时显示的 Dock 图标，重启后会自动恢复。";
 "settings.fonts" = "字体";
 "settings.primary_font" = "主字体";
-"settings.fallback_font" = "回退字体";
+"settings.fallback_font" = "回退字体（按顺序级联）";
+"settings.fallback_font.empty" = "未设置回退字体；主字体画不出的字符将交给系统默认回退。";
+"settings.fallback_font.add" = "添加回退字体";
+"settings.fallback_font.move_up" = "上移一位";
+"settings.fallback_font.move_down" = "下移一位";
+"settings.fallback_font.remove" = "移除这个回退字体";
 "settings.font_size" = "字号";
 "settings.line_height" = "行高";
 "settings.glass_enabled" = "毛玻璃效果";
@@ -702,7 +707,7 @@
 "cursor.shape.bar" = "竖线";
 "cursor.shape.underline" = "下划线";
 "settings.show_tab_list" = "在侧栏显示标签列表";
-"settings.footer" = "字体列表来自 macOS 已安装字体。回退字体会加入 Core Text 级联列表，用于主字体无法显示的字符。";
+"settings.footer" = "字体列表来自 macOS 已安装字体。回退字体按列表顺序加入 Core Text 级联列表，靠前的先命中；主字体画不出的字符会依次向后查找，因此中文字体与图标字体可以同时生效。最多 8 个。";
 "settings.ai" = "AI Provider";
 "settings.ai.summary" = "配置用于解释命令、分析失败和生成建议的 AI 服务。API Key 只保存到本机 Keychain，不会写入偏好或 MCP 状态。";
 "settings.ai.custom_name" = "自定义 Provider 名称";
