@@ -144,7 +144,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.nativeForegroundColor = preferences.skin.terminalForeground
         terminalView.nativeBackgroundColor = background
         terminalView.layer?.backgroundColor = background.cgColor
-        terminalView.selectedTextBackgroundColor = preferences.skin.caret.withOpacity(0.22)
+        terminalView.selectedTextBackgroundColor = preferences.skin.terminalSelectionBackground(
+            opacity: CGFloat(preferences.terminalOpacity)
+        )
         terminalView.caretColor = preferences.skin.caret
         terminalView.font = preferences.terminalFont
         terminalView.installColors(preferences.skin.ansiSwiftTermColors)

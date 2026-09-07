@@ -94,6 +94,14 @@ enum TerminalVisualSkin: String, CaseIterable, Identifiable {
 
     var caret: NSColor { NSColor(hex: spec.caretHex) }
 
+    func terminalSelectionBackground(opacity: CGFloat) -> NSColor {
+        let highlightFraction: CGFloat = 0.22
+        // SwiftTerm replaces the cell background with this color instead of overlaying it.
+        let highlighted = terminalBackground.blended(withFraction: highlightFraction, of: caret)
+            ?? terminalBackground
+        return highlighted.withAlphaComponent(opacity)
+    }
+
     /// ANSI 16 色（用于设置界面的色块预览）。
     var ansiColors: [NSColor] { spec.ansi.map { NSColor(hex: $0) } }
 

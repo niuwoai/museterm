@@ -3,6 +3,16 @@ import XCTest
 @testable import museterm
 
 final class TerminalVisualSkinTests: XCTestCase {
+    func testSelectionPreservesTerminalOpacityForEverySkin() {
+        for skin in TerminalVisualSkin.allCases {
+            for opacity: CGFloat in [0.1, 0.5, 0.85, 1] {
+                let selection = skin.terminalSelectionBackground(opacity: opacity)
+                XCTAssertEqual(selection.alphaComponent, opacity, accuracy: 0.0001)
+                XCTAssertNotEqual(selection.withAlphaComponent(1), skin.terminalBackground)
+            }
+        }
+    }
+
     func testEverySkinPreviewUsesReadableTerminalForegroundAndBackground() throws {
         for skin in TerminalVisualSkin.allCases {
             let contrast = try contrastRatio(
