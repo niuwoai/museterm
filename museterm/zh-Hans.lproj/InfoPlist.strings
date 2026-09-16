@@ -1,0 +1,6 @@
+/* macOS 文件夹访问授权弹窗中显示的隐私用途说明。 */
+"NSDesktopFolderUsageDescription" = "轻连需要访问“桌面”文件夹，以便你在终端中运行的命令读写其中的文件。";
+"NSDocumentsFolderUsageDescription" = "轻连需要访问“文稿”文件夹，以便你在终端中运行的命令读写其中的文件。";
+"NSDownloadsFolderUsageDescription" = "轻连需要访问“下载”文件夹，以便你在终端中运行的命令读写其中的文件。";
+"NSNetworkVolumesUsageDescription" = "轻连需要访问网络宗卷，以便你在终端中运行的命令读写其中的文件。";
+"NSRemovableVolumesUsageDescription" = "轻连需要访问可移除宗卷，以便你在终端中运行的命令读写其中的文件。";
