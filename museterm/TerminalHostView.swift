@@ -1618,6 +1618,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         let shellPath = resolveShellExecutable(kind: clean?.shell ?? .login, customPath: clean?.customShellPath ?? "")
         let shellName = URL(fileURLWithPath: shellPath).lastPathComponent
         var environment = environmentDictionary(shellPath: shellPath)
+        // App 进程继承的 SHELL 是系统登录 shell；profile 选了别的 shell（如 fish）时必须改成
+        // 实际启动的那个，否则集成脚本按 $SHELL 上报，标签会误显示成 zsh。
+        environment["SHELL"] = shellPath
         applyProfileEnvironment(clean, into: &environment)
         var args: [String] = []
         var execName = "-" + shellName
