@@ -32,12 +32,16 @@ struct TerminalHostView: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         session.controller.layoutTerminalViews()
         session.controller.apply(preferences: preferences)
-        session.controller.setActive(isActive)
+        let didBecomeActive = session.controller.setActive(isActive)
         DispatchQueue.main.async {
             session.controller.ensureProcessStarted()
             if isActive {
                 session.controller.focusTerminal()
-                session.controller.invalidateDisplay()
+                // 只在切到前台时整屏重绘；打字时 session 频繁发布变更也会走到这里，
+                // 每次都全量重绘会白白吃 CPU。
+                if didBecomeActive {
+                    session.controller.invalidateDisplay()
+                }
             }
         }
     }
@@ -74,6 +78,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private var didRunStartupPromptRedraw = false
     private var didReceiveProcessInput = false
     private var didConfigureMetal = false
+    private weak var lastActiveWindow: NSWindow?
     private var lastAppliedPreferences: TerminalPreferenceSignature?
     private var pendingZModemProbe: PendingZModemProbe?
     private var activeZModemTransfer: ZModemBridgeProcess?
@@ -188,28 +193,40 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func layoutTerminalViews() {
-        visualEffectView.frame = container.bounds
-        tintView.frame = container.bounds
+        let bounds = container.bounds
+        setFrameIfNeeded(visualEffectView, bounds)
+        setFrameIfNeeded(tintView, bounds)
         let horizontalInset = max(4, ceil(terminalView.font.pointSize * 0.36))
-        let marginWidth = min(horizontalInset, container.bounds.width / 2)
-        terminalLeadingMarginView.frame = CGRect(
+        let marginWidth = min(horizontalInset, bounds.width / 2)
+        setFrameIfNeeded(terminalLeadingMarginView, CGRect(
             x: 0,
             y: 0,
             width: marginWidth,
-            height: container.bounds.height
-        )
-        terminalTrailingMarginView.frame = CGRect(
-            x: max(0, container.bounds.width - marginWidth),
+            height: bounds.height
+        ))
+        setFrameIfNeeded(terminalTrailingMarginView, CGRect(
+            x: max(0, bounds.width - marginWidth),
             y: 0,
             width: marginWidth,
-            height: container.bounds.height
-        )
-        terminalView.frame = container.bounds
-        terminalView.frame.origin.x += marginWidth
-        terminalView.frame.size.width = max(0, terminalView.frame.width - marginWidth * 2)
-        startupCoverView.frame = container.bounds
+            height: bounds.height
+        ))
+        // 必须一次性算好终端 frame 再赋值：SwiftTerm 的 setFrameSize 每次都会 resize 终端并向
+        // PTY 发 SIGWINCH。若先设成全宽再缩回，打字触发的每次 updateNSView 都会让列数来回跳，
+        // 表现为画面抖动、CPU 升高，zsh 右提示符（RPROMPT）按错误列宽折行。
+        setFrameIfNeeded(terminalView, CGRect(
+            x: bounds.minX + marginWidth,
+            y: bounds.minY,
+            width: max(0, bounds.width - marginWidth * 2),
+            height: bounds.height
+        ))
+        setFrameIfNeeded(startupCoverView, bounds)
         handleAttachToLiveWindowIfNeeded()
         schedulePendingProcessStartIfReady()
+    }
+
+    private func setFrameIfNeeded(_ view: NSView, _ frame: CGRect) {
+        guard view.frame != frame else { return }
+        view.frame = frame
     }
 
     // 预热会话首次落到真窗口时，容器尺寸从离屏默认值跳到实际大小，会触发一次 SIGWINCH 重绘，
@@ -301,11 +318,18 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.requestFocus()
     }
 
-    func setActive(_ isActive: Bool) {
+    /// 返回本次调用是否让终端变为可见（从隐藏切回，或刚挂到新窗口）。
+    @discardableResult
+    func setActive(_ isActive: Bool) -> Bool {
+        let window = container.window
+        let movedToNewWindow = window !== lastActiveWindow
+        let didBecomeActive = isActive && (container.isHidden || movedToNewWindow)
+        if isActive { lastActiveWindow = window }
         container.alphaValue = 1
         container.isHidden = !isActive
         terminalView.isHidden = !isActive
         terminalView.layer?.isHidden = !isActive
+        return didBecomeActive
     }
 
     func invalidateDisplay() {
