@@ -617,6 +617,8 @@
 "settings.blacklist.remove" = "移出黑名单";
 "settings.option_as_meta" = "Option 作为 Meta 键";
 "settings.mouse_reporting" = "转发鼠标上报";
+"settings.copy_on_select" = "选中即复制";
+"settings.copy_on_select.help" = "在终端里用鼠标选中文字后，自动复制到剪贴板。";
 "settings.inline_images" = "原生内联图片";
 "settings.inline_images.protocols" = "Kitty · iTerm2 · Sixel";
 "settings.inline_images.cache_value" = "每标签 %d MB";

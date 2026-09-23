@@ -696,6 +696,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             guard let session = self?.session else { return false }
             return session.isRecording && !session.isPlayingShortcut
         }
+        terminalView.shouldCopyOnSelect = { [weak self] in
+            self?.preferences?.copyOnSelect ?? false
+        }
         terminalView.onSendToProcess = { [weak self] data, echoEnabled in
             guard let self else { return true }
             guard self.activeSessionTunnel == nil else { return false }
@@ -2089,6 +2092,7 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
     var onTerminalTitle: ((_ title: String) -> Void)?
     var onCurrentDirectory: ((_ directory: String?) -> Void)?
     var shouldRecordInput: (() -> Bool)?
+    var shouldCopyOnSelect: (() -> Bool)?
     var onSendToProcess: ((_ data: [UInt8], _ echoEnabled: Bool) -> Bool)?
     var onReceivedProcessData: ((_ data: ArraySlice<UInt8>) -> Bool)?
     var onProcessOutputCommitted: (() -> Void)?
@@ -2101,6 +2105,8 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
     private var selectionAutoscrollTimer: Timer?
     private var selectionAutoscrollAction: TerminalSelectionAutoscroll?
     private var lastSelectionDragEvent: NSEvent?
+    private var isTrackingMouseSelection = false
+    private var selectionChangedDuringMouseGesture = false
     private let maxEchoCacheAge: TimeInterval = 1.0
     private let maxPendingEchoBytes = 2_048
     private let selectionAutoscrollInterval: TimeInterval = 0.08
@@ -2190,6 +2196,8 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
         stopSelectionAutoscroll()
         requestFocus()
         onNeedsFocus?()
+        isTrackingMouseSelection = true
+        selectionChangedDuringMouseGesture = false
         super.mouseDown(with: event)
     }
 
@@ -2202,6 +2210,29 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
     override func mouseUp(with event: NSEvent) {
         stopSelectionAutoscroll()
         super.mouseUp(with: event)
+        finishMouseSelectionGesture()
+    }
+
+    override func selectionChanged(source: Terminal) {
+        super.selectionChanged(source: source)
+        if isTrackingMouseSelection {
+            selectionChangedDuringMouseGesture = true
+        }
+    }
+
+    private func finishMouseSelectionGesture() {
+        defer {
+            isTrackingMouseSelection = false
+            selectionChangedDuringMouseGesture = false
+        }
+        guard let text = TerminalCopyOnSelectPolicy.textToCopy(
+            isEnabled: shouldCopyOnSelect?() ?? false,
+            selectionChangedDuringGesture: selectionChangedDuringMouseGesture,
+            selection: getSelection()
+        ) else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
     }
 
     override func rightMouseDown(with event: NSEvent) {

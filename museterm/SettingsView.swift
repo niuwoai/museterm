@@ -269,6 +269,8 @@ struct SettingsView: View {
             Toggle(L10n.string("settings.show_tab_list"), isOn: $preferences.showsTabList)
             Toggle(L10n.string("settings.option_as_meta"), isOn: $preferences.optionAsMeta)
             Toggle(L10n.string("settings.mouse_reporting"), isOn: $preferences.mouseReporting)
+            Toggle(L10n.string("settings.copy_on_select"), isOn: $preferences.copyOnSelect)
+                .help(L10n.string("settings.copy_on_select.help"))
             inlineImagesRow
             scrollbackLinesRow
             primaryShortcutSection
