@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.244.0-rc2] - 2026-09-24
+
+### Tests
+- **修复机器负载高时必挂的 3 个单元测试**：`testMCPSendTextReportsResponseMetadata`、`SessionTunnelTests.testBootstrapCommandRunsThroughInteractivePTY` 和 `testBridgeForwardsTCPThroughRemoteHelper`。原因是等待上限太紧，产品逻辑没有问题：测试进程里第一个拉起 `/usr/bin/ruby` CLI 的用例要承担冷启动（约 0.8 秒，加上 require 和 MCP 解析约 1.2 秒），负载高时会超过 2 秒的请求等待；隧道用例通过 `python3` 起助手，冷启动叠加负载会超过 5 秒。挂的并不固定是 SendText，而是当次第一个跑到的 CLI 用例。
+- CLI tool request 的等待上限改为具名常量 `cliToolRequestTimeout`（15 秒）；隧道测试里等 PTY / python3 子进程就绪、退出的上限改为 `subprocessTimeout`（30 秒）。这些只是轮询或期望的最长等待时间，满足条件立即返回，正常情况下不会拖慢测试。
+- Bugfix 预发布版本从 **1.244.0-rc1** 递增为 **1.244.0-rc2**，构建号从 **306** 递增为 **307**。
+
 ## [1.244.0-rc1] - 2026-09-24
 
 ### Added

@@ -10,6 +10,10 @@ import XCTest
 @testable import museterm
 
 final class musetermTests: XCTestCase {
+    /// 等待 CLI 写出 tool request 的上限。首个用例要承担 /usr/bin/ruby 冷启动，
+    /// 机器负载高时会超过 2 秒；轮询一出现请求就返回，放宽上限不会拖慢正常用例。
+    private static let cliToolRequestTimeout: TimeInterval = 15
+
     func testCliInputJsonReturnsResponseMetadata() throws {
         let fixture = try makeMuseTermCLITestFixture()
         defer { try? FileManager.default.removeItem(at: fixture.root) }
@@ -2959,7 +2963,7 @@ final class musetermTests: XCTestCase {
             .appendingPathComponent("Library/Application Support/QTerm/Tools", isDirectory: true)
         let requests = tools.appendingPathComponent("requests", isDirectory: true)
         let responses = tools.appendingPathComponent("responses", isDirectory: true)
-        let deadline = Date().addingTimeInterval(2)
+        let deadline = Date().addingTimeInterval(Self.cliToolRequestTimeout)
         var requestURL: URL?
 
         while Date() < deadline {

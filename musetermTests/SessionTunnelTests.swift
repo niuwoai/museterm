@@ -49,6 +49,9 @@ private final class SessionTunnelTestOutputBuffer: @unchecked Sendable {
 
 final class SessionTunnelTests: XCTestCase {
     private static let canonicalPTYInputByteLimit = 1_024
+    /// 等待 PTY / python3 子进程就绪或退出的上限。python3 冷启动叠加高负载会超过 5 秒；
+    /// 期望一满足就返回，放宽上限不会拖慢正常用例。
+    private static let subprocessTimeout: TimeInterval = 30
 
     func testHelperPlatformDetectionAndResourceNames() {
         let cases: [(String, String, SessionTunnelHelperPlatform)] = [
@@ -318,7 +321,7 @@ final class SessionTunnelTests: XCTestCase {
                 )
             )
         )
-        let loaderResult = XCTWaiter.wait(for: [loaderReady], timeout: 5)
+        let loaderResult = XCTWaiter.wait(for: [loaderReady], timeout: Self.subprocessTimeout)
         guard loaderResult == .completed else {
             process.terminate()
             process.waitUntilExit()
@@ -333,7 +336,7 @@ final class SessionTunnelTests: XCTestCase {
         )
         input.fileHandleForWriting.write(Data("exit\r".utf8))
         input.fileHandleForWriting.closeFile()
-        let waitResult = XCTWaiter.wait(for: [terminated], timeout: 5)
+        let waitResult = XCTWaiter.wait(for: [terminated], timeout: Self.subprocessTimeout)
         if waitResult == .timedOut {
             process.terminate()
             process.waitUntilExit()
@@ -417,7 +420,7 @@ final class SessionTunnelTests: XCTestCase {
         )
         XCTAssertLessThan(loaderInput.count, Self.canonicalPTYInputByteLimit)
         input.fileHandleForWriting.write(Data(loaderInput))
-        guard XCTWaiter.wait(for: [loaderReady], timeout: 5) == .completed else {
+        guard XCTWaiter.wait(for: [loaderReady], timeout: Self.subprocessTimeout) == .completed else {
             process.terminate()
             process.waitUntilExit()
             output.fileHandleForReading.readabilityHandler = nil
@@ -443,7 +446,7 @@ final class SessionTunnelTests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [shellReady], timeout: 45), .completed)
         input.fileHandleForWriting.write(Data("exit\r".utf8))
         input.fileHandleForWriting.closeFile()
-        let waitResult = XCTWaiter.wait(for: [terminated], timeout: 5)
+        let waitResult = XCTWaiter.wait(for: [terminated], timeout: Self.subprocessTimeout)
         if waitResult == .timedOut {
             process.terminate()
             process.waitUntilExit()
@@ -666,7 +669,7 @@ final class SessionTunnelTests: XCTestCase {
 
         try helper.run()
         bridge.start()
-        wait(for: [running], timeout: 5)
+        wait(for: [running], timeout: Self.subprocessTimeout)
 
         let responseReceived = expectation(description: "Echo response crosses the tunnel")
         let client = NWConnection(
@@ -688,11 +691,11 @@ final class SessionTunnelTests: XCTestCase {
             })
         }
         client.start(queue: networkQueue)
-        wait(for: [responseReceived], timeout: 5)
+        wait(for: [responseReceived], timeout: Self.subprocessTimeout)
 
         client.cancel()
         bridge.stop()
-        wait(for: [finished], timeout: 5)
+        wait(for: [finished], timeout: Self.subprocessTimeout)
         helperOutput.fileHandleForReading.readabilityHandler = nil
         if helper.isRunning { helper.terminate() }
         helper.waitUntilExit()
