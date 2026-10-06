@@ -619,6 +619,14 @@
 "settings.mouse_reporting" = "转发鼠标上报";
 "settings.copy_on_select" = "选中即复制";
 "settings.copy_on_select.help" = "在终端里用鼠标选中文字后，自动复制到剪贴板。";
+"settings.open_web_images_in_viewer" = "图片链接用看图 App 打开";
+"settings.open_web_images_in_viewer.help" = "按住 Command 点击图片链接（.png、.jpg 等）时，先下载图片（最大 20 MB），再用默认看图 App（如\"预览\"）打开。关闭后图片链接用浏览器打开。";
+"terminal.link.downloading_image" = "正在下载图片…";
+"terminal.link.image_fallback_browser" = "图片下载失败，已改用浏览器打开。";
+"terminal.link.remote_path" = "这是远端服务器上的文件，无法在本机打开。";
+"terminal.link.not_found" = "找不到文件：%@";
+"terminal.link.invalid" = "无法打开这个链接。";
+"terminal.link.revealed_in_finder" = "已在 Finder 中显示。可执行文件不会被直接打开。";
 "settings.inline_images" = "原生内联图片";
 "settings.inline_images.protocols" = "Kitty · iTerm2 · Sixel";
 "settings.inline_images.cache_value" = "每标签 %d MB";

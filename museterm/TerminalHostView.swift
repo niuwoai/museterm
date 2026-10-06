@@ -699,6 +699,15 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.shouldCopyOnSelect = { [weak self] in
             self?.preferences?.copyOnSelect ?? false
         }
+        terminalView.linkContext = { [weak self] in
+            TerminalLinkContext(
+                currentDirectory: self?.session?.currentDirectory,
+                isRemoteSession: self?.session?.executionContext.targetKind == .ssh
+            )
+        }
+        terminalView.shouldOpenWebImagesInViewer = { [weak self] in
+            self?.preferences?.openWebImagesInViewer ?? true
+        }
         terminalView.onSendToProcess = { [weak self] data, echoEnabled in
             guard let self else { return true }
             guard self.activeSessionTunnel == nil else { return false }
@@ -2093,6 +2102,8 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
     var onCurrentDirectory: ((_ directory: String?) -> Void)?
     var shouldRecordInput: (() -> Bool)?
     var shouldCopyOnSelect: (() -> Bool)?
+    var linkContext: (() -> TerminalLinkContext)?
+    var shouldOpenWebImagesInViewer: (() -> Bool)?
     var onSendToProcess: ((_ data: [UInt8], _ echoEnabled: Bool) -> Bool)?
     var onReceivedProcessData: ((_ data: ArraySlice<UInt8>) -> Bool)?
     var onProcessOutputCommitted: (() -> Void)?
@@ -2107,6 +2118,13 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
     private var lastSelectionDragEvent: NSEvent?
     private var isTrackingMouseSelection = false
     private var selectionChangedDuringMouseGesture = false
+    private var lastMouseUpLocation: NSPoint?
+    private var didRequestOpenLinkDuringMouseUp = false
+    private var linkNoticeView: NSView?
+    private var linkNoticeWorkItem: DispatchWorkItem?
+    private let linkNoticeDuration: TimeInterval = 2.4
+    private let linkNoticeFadeDuration: TimeInterval = 0.25
+    private let linkNoticeOffset: CGFloat = 14
     private let maxEchoCacheAge: TimeInterval = 1.0
     private let maxPendingEchoBytes = 2_048
     private let selectionAutoscrollInterval: TimeInterval = 0.08
@@ -2209,7 +2227,12 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
 
     override func mouseUp(with event: NSEvent) {
         stopSelectionAutoscroll()
+        lastMouseUpLocation = convert(event.locationInWindow, from: nil)
+        didRequestOpenLinkDuringMouseUp = false
         super.mouseUp(with: event)
+        if shouldTryBareFileNameLink(for: event) {
+            openBareFileNameLink(at: event)
+        }
         finishMouseSelectionGesture()
     }
 
@@ -2583,8 +2606,158 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
     }
 
     fileprivate func terminalDidRequestOpenLink(_ link: String) {
-        guard let url = URL(string: link) else { return }
-        NSWorkspace.shared.open(url)
+        didRequestOpenLinkDuringMouseUp = true
+        let context = linkContext?() ?? TerminalLinkContext(currentDirectory: nil, isRemoteSession: false)
+        switch TerminalLinkResolver.resolve(link, context: context) {
+        case .success(.webPage(let url)), .success(.otherScheme(let url)):
+            NSWorkspace.shared.open(url)
+        case .success(.webImage(let url)):
+            openWebImage(url)
+        case .success(.localItem(let url)):
+            NSWorkspace.shared.open(url)
+        case .success(.revealInFinder(let url)):
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+            showLinkNotice(L10n.string("terminal.link.revealed_in_finder"))
+        case .failure(.remotePath):
+            NSSound.beep()
+            showLinkNotice(L10n.string("terminal.link.remote_path"))
+        case .failure(.notFound(let path)):
+            NSSound.beep()
+            showLinkNotice(L10n.format("terminal.link.not_found", path))
+        case .failure(.invalid):
+            NSSound.beep()
+            showLinkNotice(L10n.string("terminal.link.invalid"))
+        }
+    }
+
+    /// 只处理"⌘+单击、SwiftTerm 没识别出链接、也没拖出选区"的情况
+    private func shouldTryBareFileNameLink(for event: NSEvent) -> Bool {
+        event.modifierFlags.contains(.command)
+            && event.clickCount == 1
+            && !didRequestOpenLinkDuringMouseUp
+            && !selectionChangedDuringMouseGesture
+    }
+
+    /// 裸文件名兜底：只有本机确实存在该文件时才打开；找不到就安静地什么都不做，
+    /// 免得 ⌘+点到普通单词时也弹"找不到文件"
+    private func openBareFileNameLink(at event: NSEvent) {
+        guard let (column, row) = screenCell(for: event),
+              let cells = screenRowCharacters(row: row),
+              let word = TerminalLinkWordExtractor.candidate(in: cells, at: column) else { return }
+        let context = linkContext?() ?? TerminalLinkContext(currentDirectory: nil, isRemoteSession: false)
+        guard case .success(let target) = TerminalLinkResolver.resolve(word, context: context) else { return }
+        switch target {
+        case .localItem(let url):
+            NSWorkspace.shared.open(url)
+        case .revealInFinder(let url):
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+            showLinkNotice(L10n.string("terminal.link.revealed_in_finder"))
+        case .webPage, .webImage, .otherScheme:
+            // 带 scheme 的链接 SwiftTerm 已经识别过；走到这里说明不是完整链接，不处理
+            break
+        }
+    }
+
+    /// 点击位置对应的可见区域（列, 行）。SwiftTerm 的格子尺寸不公开：行高由
+    /// getOptimalFrameSize 反推，列宽按 SwiftTerm 同样的"W 字宽 + 像素对齐"规则计算
+    private func screenCell(for event: NSEvent) -> (column: Int, row: Int)? {
+        let terminal = getTerminal()
+        guard terminal.cols > 0, terminal.rows > 0 else { return nil }
+        let cellHeight = getOptimalFrameSize().height / CGFloat(terminal.rows)
+        let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+        let glyph = font.glyph(withName: "W")
+        let cellWidth = ceil(font.advancement(forGlyph: glyph).width * scale) / scale
+        guard cellWidth > 0, cellHeight > 0 else { return nil }
+        let point = convert(event.locationInWindow, from: nil)
+        let column = Int(point.x / cellWidth)
+        let row = Int((frame.height - point.y) / cellHeight)
+        guard (0..<terminal.cols).contains(column), (0..<terminal.rows).contains(row) else { return nil }
+        return (column, row)
+    }
+
+    /// 一格一个字符，下标与列号对齐；空格子和宽字符的占位格是 NUL，按分隔符处理
+    private func screenRowCharacters(row: Int) -> [Character]? {
+        let terminal = getTerminal()
+        guard let line = terminal.getLine(row: row) else { return nil }
+        let count = min(terminal.cols, line.count)
+        return (0..<count).map { terminal.getCharacter(for: line[$0]) }
+    }
+
+    private func openWebImage(_ url: URL) {
+        guard shouldOpenWebImagesInViewer?() ?? true else {
+            NSWorkspace.shared.open(url)
+            return
+        }
+        showLinkNotice(L10n.string("terminal.link.downloading_image"))
+        TerminalLinkImageDownloader.download(url) { [weak self] result in
+            switch result {
+            case .success(let fileURL):
+                self?.hideLinkNotice()
+                NSWorkspace.shared.open(fileURL)
+            case .failure(let error):
+                // 只记 host + path，query 里可能带 token
+                NSLog("QTerm image link download failed host=%@ path=%@ error=%@", url.host ?? "", url.path, String(describing: error))
+                NSWorkspace.shared.open(url)
+                self?.showLinkNotice(L10n.string("terminal.link.image_fallback_browser"))
+            }
+        }
+    }
+
+    /// 在点击位置附近浮一个小提示，几秒后淡出；不往终端里写字，避免污染输出
+    private func showLinkNotice(_ text: String) {
+        hideLinkNotice()
+        let label = NSTextField(labelWithString: text)
+        label.font = .systemFont(ofSize: NSFont.smallSystemFontSize, weight: .medium)
+        label.textColor = .white
+        label.lineBreakMode = .byTruncatingMiddle
+        label.maximumNumberOfLines = 1
+
+        let container = NSView()
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.78).cgColor
+        container.layer?.cornerRadius = 6
+        container.addSubview(label)
+
+        let horizontalPadding: CGFloat = 10
+        let verticalPadding: CGFloat = 5
+        let maxWidth = max(bounds.width - linkNoticeOffset * 2, 120)
+        let labelSize = label.fittingSize
+        let width = min(labelSize.width + horizontalPadding * 2, maxWidth)
+        let height = labelSize.height + verticalPadding * 2
+        label.frame = NSRect(x: horizontalPadding, y: verticalPadding, width: width - horizontalPadding * 2, height: labelSize.height)
+
+        let anchor = lastMouseUpLocation ?? NSPoint(x: bounds.midX, y: bounds.midY)
+        let y = isFlipped ? anchor.y + linkNoticeOffset : anchor.y - linkNoticeOffset - height
+        let x = min(max(anchor.x - width / 2, linkNoticeOffset), max(bounds.width - width - linkNoticeOffset, linkNoticeOffset))
+        container.frame = NSRect(
+            x: x,
+            y: min(max(y, 0), max(bounds.height - height, 0)),
+            width: width,
+            height: height
+        )
+        addSubview(container)
+        linkNoticeView = container
+
+        let workItem = DispatchWorkItem { [weak self] in self?.hideLinkNotice(animated: true) }
+        linkNoticeWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + linkNoticeDuration, execute: workItem)
+    }
+
+    private func hideLinkNotice(animated: Bool = false) {
+        linkNoticeWorkItem?.cancel()
+        linkNoticeWorkItem = nil
+        guard let view = linkNoticeView else { return }
+        linkNoticeView = nil
+        guard animated else {
+            view.removeFromSuperview()
+            return
+        }
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = linkNoticeFadeDuration
+            view.animator().alphaValue = 0
+        }, completionHandler: {
+            view.removeFromSuperview()
+        })
     }
 
     fileprivate func terminalDidBell() {

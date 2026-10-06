@@ -162,6 +162,7 @@ final class TerminalPreferences: ObservableObject {
         static let optionAsMeta = "terminal.optionAsMeta"
         static let mouseReporting = "terminal.mouseReporting"
         static let copyOnSelect = "terminal.copyOnSelect"
+        static let openWebImagesInViewer = "terminal.openWebImagesInViewer"
         static let scrollbackLines = "terminal.scrollbackLines"
         static let imageCacheMegabytes = "terminal.imageCacheMegabytes"
         static let showsTabList = "terminal.showsTabList"
@@ -234,6 +235,9 @@ final class TerminalPreferences: ObservableObject {
     @Published var optionAsMeta: Bool { didSet { defaults.set(optionAsMeta, forKey: Keys.optionAsMeta) } }
     @Published var mouseReporting: Bool { didSet { defaults.set(mouseReporting, forKey: Keys.mouseReporting) } }
     @Published var copyOnSelect: Bool { didSet { defaults.set(copyOnSelect, forKey: Keys.copyOnSelect) } }
+    @Published var openWebImagesInViewer: Bool {
+        didSet { defaults.set(openWebImagesInViewer, forKey: Keys.openWebImagesInViewer) }
+    }
     @Published var scrollbackLines: Int {
         didSet {
             let normalized = Self.clampedScrollbackLines(scrollbackLines)
@@ -333,6 +337,7 @@ final class TerminalPreferences: ObservableObject {
         optionAsMeta = defaults.object(forKey: Keys.optionAsMeta) as? Bool ?? true
         mouseReporting = defaults.object(forKey: Keys.mouseReporting) as? Bool ?? true
         copyOnSelect = defaults.object(forKey: Keys.copyOnSelect) as? Bool ?? true
+        openWebImagesInViewer = defaults.object(forKey: Keys.openWebImagesInViewer) as? Bool ?? true
         scrollbackLines = Self.clampedScrollbackLines(
             defaults.object(forKey: Keys.scrollbackLines) as? Int ?? Self.defaultScrollbackLines
         )
