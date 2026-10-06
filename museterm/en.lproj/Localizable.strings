@@ -619,6 +619,14 @@
 "settings.mouse_reporting" = "Forward mouse reporting";
 "settings.copy_on_select" = "Copy on select";
 "settings.copy_on_select.help" = "Copies text to the clipboard as soon as you select it with the mouse in the terminal.";
+"settings.open_web_images_in_viewer" = "Open image links in image viewer";
+"settings.open_web_images_in_viewer.help" = "When you Command-click an image link (.png, .jpg, …), MuseTerm downloads it (up to 20 MB) and opens it in your default image viewer, such as Preview. When off, image links open in your browser.";
+"terminal.link.downloading_image" = "Downloading image…";
+"terminal.link.image_fallback_browser" = "Couldn't load the image. Opened it in your browser instead.";
+"terminal.link.remote_path" = "This file is on the remote server and can't be opened on this Mac.";
+"terminal.link.not_found" = "File not found: %@";
+"terminal.link.invalid" = "Can't open this link.";
+"terminal.link.revealed_in_finder" = "Shown in Finder. Executable files aren't opened directly.";
 "settings.inline_images" = "Native inline images";
 "settings.inline_images.protocols" = "Kitty · iTerm2 · Sixel";
 "settings.inline_images.cache_value" = "%d MB per tab";

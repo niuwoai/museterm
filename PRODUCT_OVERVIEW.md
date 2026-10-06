@@ -1,6 +1,6 @@
 # Product Overview
 
-> 最后更新：2026-09-24 | 当前版本：v1.244.0-rc2
+> 最后更新：2026-10-06 | 当前版本：v1.245.0-rc1
 
 ## 项目简介
 
@@ -34,6 +34,7 @@
 - 终端状态：自动同步终端标题、当前目录和进程退出状态。
 - 通知提醒：设置页提供通知分组，可开启终端响铃、明显命令失败和长任务完成提醒；当前标签保持静默，App 前台时非当前标签只在侧栏显示小圆点，App 不活跃时才发送系统通知；失败提醒会结合耗时阈值和错误输出信号，长任务完成、单标签冷却时间和通知中是否包含脱敏命令文本均可配置；通知 payload、单标签冷却 key 和命令隐私开关有独立契约测试，减少通知疲劳和后续改动跑偏。
 - 多屏选区与滚屏历史：在终端中拖拽选择文本时，鼠标靠近视图顶部或底部会自动滚动 scrollback，并持续延伸当前选区，支持一次选中跨多屏输出；默认开启选中即复制，拖选、双击选词、三击选行或 Shift 点击扩展选区后松开鼠标即写入剪贴板，鼠标上报模式（tmux、vim）下的普通点击和纯空白选区不会覆盖剪贴板，可在设置 › 行为关闭；设置 › 行为可配置每个终端标签的回滚历史行数，默认 3000 行，最高 20000 行。
+- ⌘+点击打开链接：按住 Command 悬停在终端输出里的 URL 或文件路径上会出现下划线，点击即打开。`http/https` 网页用默认浏览器；图片地址（png、jpg、gif、webp、heic 等）先下载到临时目录（最大 20 MB、须为 `image/*`），再用默认看图 App（如"预览"）打开，失败自动改用浏览器，可在设置 › 行为关闭改为一律用浏览器；本地 Markdown 等文件按当前标签工作目录解析相对路径、`~/` 和 `file://`，并自动去掉 `:行号:列号` 后缀，交给默认 App 打开；`ls` 输出里不带 `/` 的裸文件名同样可以 ⌘+单击打开（悬停无下划线，找不到时不提示），目录在 Finder 中打开；脚本、无扩展名可执行文件和 `.app` 等只在 Finder 中显示，不直接运行；SSH 远端会话里的路径不会在本机打开，会在点击处给出提示。
 - 结构化命令块：旁路记录用户提交的命令、工作目录、时间、输出尾部、紧凑输出摘要、命令生命周期状态、命令风险画像、命令开始来源、退出/中断状态、完成来源、命令边界可信度和边界原因码，可区分 shell hook、用户输入推断、进程退出兜底、用户中断与覆盖结束，并用 `running`、`succeeded`、`failed`、`interrupted`、`superseded`、`completed_unknown_status` 稳定描述生命周期，用 `read_only`、`mutating`、`dangerous`、`unknown` 和稳定 reason code 描述命令是否只读、会修改状态、高危或无法可靠判断，用 `high`、`medium`、`low` 标明边界质量，用 `shell_integration_start`、`process_exit_completion`、`command_still_running` 等稳定 reason code 解释边界判断来源，为历史搜索、Runbook 和 AI Explain 提供基础数据。
 - Shell integration：本地 zsh 和 fish 会加载 QTerm 专用 preexec/postexec hook 以回传命令开始和真实退出码，本地 bash 通过生成 rcfile 挂载 `PROMPT_COMMAND` 回传退出码；本地会话会记录登录 shell 名，SSH 启动时会先发送轻量 shell 探测 marker，把 `$SHELL` 归一化为 `zsh` / `bash` / `fish` 等稳定 shell 名；SSH profile 可为远端 zsh 回传命令开始和退出码，为远端 bash 回传退出码，不写入远端启动文件；其他 shell 暂时使用保守识别。
 - 命令搜索面板：右侧检查面板可搜索当前标签的命令、目录、命令块输出和原始滚屏历史，支持仅看失败命令，并支持 `risk:dangerous`、`risk:mutating`、`risk:unknown`、`lifecycle:failed`、`boundary:low` 等结构化查询 token 与普通全文词组合过滤；顶部选项使用紧凑两列排布，控制区间距、Runbook 变量卡片和操作按钮采用更低占高，给下方命令块列表留出更多可浏览空间；命令块会轻量识别错误、警告、URL、文件路径、JSON/YAML、堆栈和 commit hash，失败命令卡片会直接展示首条关键诊断行，并可复制命令、输出尾部、输出摘要、滚屏片段或 AI 上下文；每个命令块底部图标都带有较详细的悬停说明，解释复制、摘要、填入终端和 AI Explain 等动作的影响范围；JSON 输出摘要会自动带上格式化后的 pretty JSON。

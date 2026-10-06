@@ -271,6 +271,8 @@ struct SettingsView: View {
             Toggle(L10n.string("settings.mouse_reporting"), isOn: $preferences.mouseReporting)
             Toggle(L10n.string("settings.copy_on_select"), isOn: $preferences.copyOnSelect)
                 .help(L10n.string("settings.copy_on_select.help"))
+            Toggle(L10n.string("settings.open_web_images_in_viewer"), isOn: $preferences.openWebImagesInViewer)
+                .help(L10n.string("settings.open_web_images_in_viewer.help"))
             inlineImagesRow
             scrollbackLinesRow
             primaryShortcutSection
