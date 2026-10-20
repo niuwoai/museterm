@@ -3,6 +3,41 @@ import XCTest
 @testable import museterm
 
 final class TerminalVisualSkinTests: XCTestCase {
+    func testEverySkinHasCompleteValidANSIPalette() {
+        for skin in TerminalVisualSkin.allCases {
+            XCTAssertEqual(skin.ansiHexColors.count, 16, skin.rawValue)
+            XCTAssertTrue(skin.ansiHexColors.allSatisfy { (0...0xFFFFFF).contains($0) }, skin.rawValue)
+            XCTAssertEqual(TerminalVisualSkin(rawValue: skin.rawValue), skin)
+        }
+    }
+
+    func testAppearanceFiltersPartitionTheCatalog() {
+        let all = TerminalVisualSkin.allCases
+        let light = all.filter(SkinAppearanceFilter.light.includes)
+        let dark = all.filter(SkinAppearanceFilter.dark.includes)
+        XCTAssertEqual(all.count, 40)
+        XCTAssertEqual(light.count, 15)
+        XCTAssertEqual(dark.count, 25)
+        XCTAssertEqual(all.filter(SkinAppearanceFilter.all.includes), all)
+        XCTAssertTrue(Set(light).isDisjoint(with: Set(dark)))
+        XCTAssertEqual(Set(light + dark), Set(all))
+    }
+
+    func testEverySkinHasEnglishAndChineseResources() throws {
+        for language in ["en", "zh-Hans"] {
+            let path = try XCTUnwrap(Bundle.main.path(forResource: language, ofType: "lproj"))
+            let bundle = try XCTUnwrap(Bundle(path: path))
+            for skin in TerminalVisualSkin.allCases {
+                for suffix in ["name", "summary"] {
+                    let key = "skin.\(skin.rawValue).\(suffix)"
+                    let value = bundle.localizedString(forKey: key, value: nil, table: nil)
+                    XCTAssertNotEqual(value, key, "\(language): \(key)")
+                    XCTAssertFalse(value.isEmpty, "\(language): \(key)")
+                }
+            }
+        }
+    }
+
     func testSelectionPreservesTerminalOpacityForEverySkin() {
         for skin in TerminalVisualSkin.allCases {
             for opacity: CGFloat in [0.1, 0.5, 0.85, 1] {

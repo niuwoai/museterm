@@ -1,0 +1,194 @@
+{
+  "version": "1.246.0-rc1",
+  "build": 309,
+  "date": "2026-10-20",
+  "total_skins": 40,
+  "light_skins": 15,
+  "dark_skins": 25,
+  "tests": {
+    "devicesAndConfigurations": [
+      {
+        "device": {
+          "architecture": "arm64",
+          "deviceName": "My Mac",
+          "modelName": "MacBook Pro",
+          "osBuildNumber": "26A434",
+          "osVersion": "27.0.1",
+          "platform": "macOS"
+        },
+        "expectedFailures": 0,
+        "failedTests": 0,
+        "passedTests": 5,
+        "skippedTests": 0,
+        "testPlanConfiguration": {
+          "configurationId": "1",
+          "configurationName": "Test Scheme Action"
+        }
+      }
+    ],
+    "environmentDescription": "museterm · Built with macOS 27.0.1",
+    "expectedFailures": 0,
+    "failedTests": 0,
+    "finishTime": 1792478922.973,
+    "passedTests": 5,
+    "result": "Passed",
+    "runtimeWarnings": [],
+    "skippedTests": 0,
+    "startTime": 1792478847.497,
+    "statistics": [],
+    "testFailures": [],
+    "title": "Test - museterm",
+    "topInsights": [],
+    "totalTestCount": 5
+  },
+  "upstream_palettes": [
+    {
+      "id": "catppuccinLatte",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/catppuccin/alacritty/f6cb5a5c2b404cdaceaff193b9c52317f62c62f7/catppuccin-latte.toml"
+    },
+    {
+      "id": "catppuccinFrappe",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/catppuccin/alacritty/f6cb5a5c2b404cdaceaff193b9c52317f62c62f7/catppuccin-frappe.toml"
+    },
+    {
+      "id": "catppuccinMacchiato",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/catppuccin/alacritty/f6cb5a5c2b404cdaceaff193b9c52317f62c62f7/catppuccin-macchiato.toml"
+    },
+    {
+      "id": "catppuccinMocha",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/catppuccin/alacritty/f6cb5a5c2b404cdaceaff193b9c52317f62c62f7/catppuccin-mocha.toml"
+    },
+    {
+      "id": "tokyoDay",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/folke/tokyonight.nvim/cdc07ac78467a233fd62c493de29a17e0cf2b2b6/extras/alacritty/tokyonight_day.toml"
+    },
+    {
+      "id": "tokyoNight",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/folke/tokyonight.nvim/cdc07ac78467a233fd62c493de29a17e0cf2b2b6/extras/alacritty/tokyonight_night.toml"
+    },
+    {
+      "id": "tokyoStorm",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/folke/tokyonight.nvim/cdc07ac78467a233fd62c493de29a17e0cf2b2b6/extras/alacritty/tokyonight_storm.toml"
+    },
+    {
+      "id": "tokyoMoon",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/folke/tokyonight.nvim/cdc07ac78467a233fd62c493de29a17e0cf2b2b6/extras/alacritty/tokyonight_moon.toml"
+    },
+    {
+      "id": "rosePine",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/rose-pine/alacritty/a6f7c8245e5bba639befe52e1e025f84ba8b3ee5/dist/rose-pine.toml"
+    },
+    {
+      "id": "roseMoon",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/rose-pine/alacritty/a6f7c8245e5bba639befe52e1e025f84ba8b3ee5/dist/rose-pine-moon.toml"
+    },
+    {
+      "id": "roseDawn",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/rose-pine/alacritty/a6f7c8245e5bba639befe52e1e025f84ba8b3ee5/dist/rose-pine-dawn.toml"
+    },
+    {
+      "id": "gruvboxDark",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/alacritty/alacritty-theme/ab88d5a80d676b5dc6157e91aba8067f2078dc94/themes/gruvbox_dark.toml"
+    },
+    {
+      "id": "gruvboxLight",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/alacritty/alacritty-theme/ab88d5a80d676b5dc6157e91aba8067f2078dc94/themes/gruvbox_light.toml"
+    },
+    {
+      "id": "everforestDark",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/alacritty/alacritty-theme/ab88d5a80d676b5dc6157e91aba8067f2078dc94/themes/everforest_dark.toml"
+    },
+    {
+      "id": "everforestLight",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/alacritty/alacritty-theme/ab88d5a80d676b5dc6157e91aba8067f2078dc94/themes/everforest_light.toml"
+    },
+    {
+      "id": "kanagawaWave",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/alacritty/alacritty-theme/ab88d5a80d676b5dc6157e91aba8067f2078dc94/themes/kanagawa_wave.toml"
+    },
+    {
+      "id": "kanagawaDragon",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/alacritty/alacritty-theme/ab88d5a80d676b5dc6157e91aba8067f2078dc94/themes/kanagawa_dragon.toml"
+    },
+    {
+      "id": "ayuDark",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/alacritty/alacritty-theme/ab88d5a80d676b5dc6157e91aba8067f2078dc94/themes/ayu_dark.toml"
+    },
+    {
+      "id": "ayuLight",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/alacritty/alacritty-theme/ab88d5a80d676b5dc6157e91aba8067f2078dc94/themes/ayu_light.toml"
+    },
+    {
+      "id": "ayuMirage",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/alacritty/alacritty-theme/ab88d5a80d676b5dc6157e91aba8067f2078dc94/themes/ayu_mirage.toml"
+    },
+    {
+      "id": "monokai",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/alacritty/alacritty-theme/ab88d5a80d676b5dc6157e91aba8067f2078dc94/themes/monokai.toml"
+    },
+    {
+      "id": "solarizedDark",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/alacritty/alacritty-theme/ab88d5a80d676b5dc6157e91aba8067f2078dc94/themes/solarized_dark.toml"
+    },
+    {
+      "id": "tomorrow",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/alacritty/alacritty-theme/ab88d5a80d676b5dc6157e91aba8067f2078dc94/themes/tomorrow.toml"
+    },
+    {
+      "id": "tomorrowNight",
+      "matches_upstream": true,
+      "source": "https://raw.githubusercontent.com/alacritty/alacritty-theme/ab88d5a80d676b5dc6157e91aba8067f2078dc94/themes/tomorrow_night.toml"
+    }
+  ],
+  "bundled_licenses": [
+    {
+      "name": "Terminal-Skin-Attribution.txt",
+      "bundled": true,
+      "sha256": "319662a1a6864e31e365711e56c739f9dadada55db83c1c02646dd2077413bd0"
+    },
+    {
+      "name": "alacritty-alacritty-theme-LICENSE.txt",
+      "bundled": true,
+      "sha256": "55713aa5d21868b2aca6da5d6fff02369569811cb035f1ab19bf8ffdd670780f"
+    },
+    {
+      "name": "catppuccin-alacritty-LICENSE.txt",
+      "bundled": true,
+      "sha256": "814096d2c34cc216c624738a49356f32b7237733b4f7edb0685f4e50ef5074ba"
+    },
+    {
+      "name": "folke-tokyonight.nvim-LICENSE.txt",
+      "bundled": true,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    {
+      "name": "rose-pine-alacritty-LICENSE.txt",
+      "bundled": true,
+      "sha256": "b2ec9e48689252be5807d35d80689bbc40481c54d1f228c94dde8ffad1bdc824"
+    }
+  ],
+  "scope": "macOS arm64 Debug 构建和皮肤定向测试；未发布或安装。"
+}

@@ -47,6 +47,31 @@ enum TerminalVisualSkin: String, CaseIterable, Identifiable {
     case carbon
     case abyss
     case garnet
+    // 经典开源配色；稳定 rawValue 用于保存用户偏好。
+    case catppuccinLatte
+    case catppuccinFrappe
+    case catppuccinMacchiato
+    case catppuccinMocha
+    case tokyoDay
+    case tokyoNight
+    case tokyoStorm
+    case tokyoMoon
+    case rosePine
+    case roseMoon
+    case roseDawn
+    case gruvboxDark
+    case gruvboxLight
+    case everforestDark
+    case everforestLight
+    case kanagawaWave
+    case kanagawaDragon
+    case ayuDark
+    case ayuLight
+    case ayuMirage
+    case monokai
+    case solarizedDark
+    case tomorrow
+    case tomorrowNight
 
     var id: String { rawValue }
 
@@ -111,6 +136,54 @@ enum TerminalVisualSkin: String, CaseIterable, Identifiable {
     // swiftlint:disable:next function_body_length
     var spec: TerminalSkinSpec {
         switch self {
+        case .catppuccinLatte:
+            return Self.classicCatppuccinLatte
+        case .catppuccinFrappe:
+            return Self.classicCatppuccinFrappe
+        case .catppuccinMacchiato:
+            return Self.classicCatppuccinMacchiato
+        case .catppuccinMocha:
+            return Self.classicCatppuccinMocha
+        case .tokyoDay:
+            return Self.classicTokyoDay
+        case .tokyoNight:
+            return Self.classicTokyoNight
+        case .tokyoStorm:
+            return Self.classicTokyoStorm
+        case .tokyoMoon:
+            return Self.classicTokyoMoon
+        case .rosePine:
+            return Self.classicRosePine
+        case .roseMoon:
+            return Self.classicRoseMoon
+        case .roseDawn:
+            return Self.classicRoseDawn
+        case .gruvboxDark:
+            return Self.classicGruvboxDark
+        case .gruvboxLight:
+            return Self.classicGruvboxLight
+        case .everforestDark:
+            return Self.classicEverforestDark
+        case .everforestLight:
+            return Self.classicEverforestLight
+        case .kanagawaWave:
+            return Self.classicKanagawaWave
+        case .kanagawaDragon:
+            return Self.classicKanagawaDragon
+        case .ayuDark:
+            return Self.classicAyuDark
+        case .ayuLight:
+            return Self.classicAyuLight
+        case .ayuMirage:
+            return Self.classicAyuMirage
+        case .monokai:
+            return Self.classicMonokai
+        case .solarizedDark:
+            return Self.classicSolarizedDark
+        case .tomorrow:
+            return Self.classicTomorrow
+        case .tomorrowNight:
+            return Self.classicTomorrowNight
         case .seaSalt:
             return TerminalSkinSpec(
                 symbolName: "water.waves",
