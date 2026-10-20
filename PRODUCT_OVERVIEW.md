@@ -1,6 +1,6 @@
 # Product Overview
 
-> 最后更新：2026-10-06 | 当前版本：v1.245.0-rc1
+> 最后更新：2026-10-20 | 当前版本：v1.246.0-rc1
 
 ## 项目简介
 
@@ -50,7 +50,7 @@
 - CLI/MCP 命令查询：`qterm commands --query` 与 MCP `read_commands.query` 支持 `risk:`、`lifecycle:` / `state:`、`boundary:` 和普通全文词组合过滤，过滤先于输出尾部截断执行，并在顶层返回 `filteredCommandCount`、`commandQuery` 与 `commandQueryFilters`，便于外部 AI 工具直接读取目标命令块，并解释查询 token 如何被解析。
 - AI Provider 设置：设置页支持 OpenAI、Anthropic、Google Gemini、Azure OpenAI、OpenRouter、some.im、Ollama、llama-server 和自定义端点；切换 Provider 时会把仍停留在内置默认值的 Base URL / 模型同步切换到新 Provider 默认值，避免 Ollama 等本地服务继续沿用 Gemini URL；some.im 推理默认 `https://api.niuwoai.com/v1` 国内节点，并可切换到 `https://some.im/v1` 国外节点；some.im 浏览器登录入口始终使用 `https://some.im` 主站，避免把国内推理节点误当作客户控制台页面；Ollama 默认 `http://127.0.0.1:11434/v1`，llama-server 默认 `http://127.0.0.1:8080/v1`；设置页可从 `/models`、Gemini `/models`、Anthropic `/v1/models` 或 Ollama `/api/tags` 自动读取模型候选，用户点击候选即可填入模型；API Key 仅保存到本机 Keychain，保存后会立即读回校验，输入框在已保存时用掩码占位提示。
 - 终端 Profile：支持定义多个本地 Profile，每个可自定义 shell（跟随系统/zsh/bash/fish/自定义路径）、提示符风格（系统默认/精简/路径/Git 分支/双行/自定义）、环境变量、启动命令与默认工作目录；侧栏「终端 Profile」区可增删改与设为默认，「+」旁的下拉图标可先选 Profile 再开标签。默认 Profile 不可删除、决定「+」的行为，且随工作区快照持久化恢复。提示符预设通过环境变量驱动共享 shell 集成脚本实现，系统默认 Profile 不改动用户既有 PS1。
-- 皮肤系统：从 MuseMail 的视觉体系迁移，针对终端场景提供 16 种皮肤（浅色 8 种：海盐晨蓝、淡雅雾林、水墨宣纸、樱色微光、素笺本白、晴空天蓝、抹茶浅野、暖沙落日；深色 8 种：午夜岩蓝、极光暗夜、焰火石墨、暮山紫霭、极地深蓝、玄铁石墨、深海靛蓝、石榴暗红）。设置卡片使用每款皮肤自己的 sRGB 终端前景色和背景色预览，全部主题保持至少 4.5:1 的文字对比度。
+- 皮肤系统：提供 40 款皮肤，保留原有 16 款，新增 Catppuccin 四款、Tokyo Night 四款、Rosé Pine 三款、Gruvbox 两款、Everforest 两款、Kanagawa 两款、Ayu 三款、Monokai、Solarized Dark、Tomorrow 与 Tomorrow Night；共 15 款浅色、25 款深色，设置中可按明暗筛选。每款同时应用窗口、侧栏、控件与终端 ANSI 16 色；卡片使用方案自身的 sRGB 前景与背景预览。色值与许可见 [配色来源](docs/terminal-skin-sources.md)。
 - 字符配色：ANSI 16 色已并入皮肤，不再单独选择。每个皮肤内置一份与其底色最匹配的 ANSI 调色板（浅色皮肤用高对比深色字，深色皮肤沿用 Dracula / Nord / One Dark / Solarized 等成熟方案），随皮肤切换自动生效，设置卡片下方直接预览。
 - 透明与毛玻璃配置：支持独立调整窗口底色不透明度、终端底色不透明度、毛玻璃开关、材质和玻璃强度；关闭毛玻璃后仍可保留清晰透视，开启后显示桌面模糊，且不会降低文字不透明度。
 - 字体配置：设置页直接用下拉菜单从 macOS 已安装字体族中选择主字体；回退字体是一份有序列表（最多 8 个，可增删和上下调序），按顺序加入 Core Text 级联，主字体画不出的字符依次向后查找，因此中文字体与图标字体（如 icons-in-terminal）可以同时生效。未安装的回退字体会被跳过而不中断整条链。

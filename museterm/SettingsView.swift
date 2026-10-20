@@ -31,6 +31,7 @@ struct SettingsView: View {
     @ObservedObject private var notificationCoordinator = TerminalNotificationCoordinator.shared
     @State private var selectedSettingsTab: SettingsTab = .appearance
     @State private var settingsSearchQuery = ""
+    @State private var skinFilter: SkinAppearanceFilter = .all
     @State private var cliInstallMessage = ""
     @State private var toolBridgeAccessMessage = ""
     @State private var isBuiltInToolClientPaired = TerminalToolAccess.isPaired()
@@ -112,10 +113,23 @@ struct SettingsView: View {
 
     private var skinSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(L10n.string("settings.skin"))
-                .font(.headline)
+            HStack {
+                Text(L10n.string("settings.skin"))
+                    .font(.headline)
+                Spacer()
+                Text(L10n.format("settings.skin.count", TerminalVisualSkin.allCases.count))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Picker(L10n.string("settings.skin.filter"), selection: $skinFilter) {
+                ForEach(SkinAppearanceFilter.allCases) { filter in
+                    Text(L10n.string("settings.skin.filter.\(filter.rawValue)"))
+                        .tag(filter)
+                }
+            }
+            .pickerStyle(.segmented)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], spacing: 10) {
-                ForEach(TerminalVisualSkin.allCases) { skin in
+                ForEach(TerminalVisualSkin.allCases.filter(skinFilter.includes)) { skin in
                     Button {
                         preferences.skin = skin
                     } label: {

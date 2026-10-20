@@ -1,0 +1,27 @@
+MuseTerm classic terminal palettes
+
+Imported 2026-10-20. Original terminal foreground, background, cursor and ANSI
+colors are retained. When no cursor color is specified, foreground is used.
+MuseTerm derives its window, sidebar and control colors from these palettes.
+This is an adaptation for MuseTerm, not an official theme-author endorsement.
+
+Catppuccin Alacritty (MIT)
+https://github.com/catppuccin/alacritty
+Revision: f6cb5a5c2b404cdaceaff193b9c52317f62c62f7
+See catppuccin-alacritty-LICENSE.txt.
+
+Tokyo Night (Apache-2.0)
+https://github.com/folke/tokyonight.nvim
+See folke-tokyonight.nvim-LICENSE.txt.
+
+Rose Pine Alacritty (MIT)
+https://github.com/rose-pine/alacritty
+See rose-pine-alacritty-LICENSE.txt.
+
+Alacritty theme collection (Apache-2.0)
+https://github.com/alacritty/alacritty-theme
+Includes community terminal adaptations of Gruvbox, Everforest, Kanagawa, Ayu,
+Monokai, Solarized and Tomorrow. See alacritty-alacritty-theme-LICENSE.txt.
+
+Exact per-theme source files and revisions are documented in the repository:
+docs/terminal-skin-sources.md

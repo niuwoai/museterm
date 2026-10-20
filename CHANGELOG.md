@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.246.0-rc1] - 2026-10-20
+
+### Added
+- 皮肤从 16 款扩充至 40 款：新增 Catppuccin 四款、Tokyo Night 四款、Rosé Pine 三款、Gruvbox 两款、Everforest 两款、Kanagawa 两款、Ayu 三款，以及 Monokai、Solarized Dark、Tomorrow、Tomorrow Night。
+- 新方案保留上游前景、背景、光标及 ANSI 16 色，并同步派生窗口、侧栏和控件配色；配色来源固定到具体提交，保留上游许可证，运行时无需联网。
+- 外观设置展示皮肤总数，支持全部／浅色／深色筛选；名称、描述与筛选文案均提供中英文资源，原有皮肤标识和用户选择保持兼容。
+- 功能版本升级至 `1.246.0-rc1`，构建号升级至 `309`。
+
 ## [1.245.0-rc1] - 2026-10-06
 
 ### Added
