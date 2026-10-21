@@ -1176,20 +1176,12 @@
 "ai.provider.someIM.summary" = "some.im OpenAI-compatible endpoint. Uses the China node by default.";
 "ai.provider.someIM.base_url.china" = "China node";
 "ai.provider.someIM.base_url.global" = "Global node";
-"settings.ai.someim.connect.title" = "Connect some.im";
-"settings.ai.someim.connect.subtitle" = "Use browser sign-in for some.im, then return to QTerm. A successful connection switches AI to some.im with someim-auto-flash; you can still use your own provider, Base URL, model, and API key below.";
-"settings.ai.someim.connect.open" = "Open in Browser";
-"settings.ai.someim.connect.waiting" = "Waiting";
-"settings.ai.someim.connect.ready" = "some.im browser sign-in is ready.";
-"settings.ai.someim.connect.waiting_detail" = "Waiting for some.im sign-in to finish in the browser.";
-"settings.ai.someim.connect.connected" = "some.im is connected. The default model is now someim-auto-flash.";
-"settings.ai.someim.connect.expired" = "The some.im sign-in request expired. Open the browser sign-in again.";
-"settings.ai.someim.connect.missing_credentials" = "some.im finished sign-in but did not return an API key for QTerm.";
-"settings.ai.someim.connect.failed" = "some.im connection failed: %@";
 "ai.provider.ollama.name" = "Ollama";
 "ai.provider.ollama.summary" = "Local or LAN model service.";
 "ai.provider.llamaServer.name" = "llama-server";
 "ai.provider.llamaServer.summary" = "Local llama.cpp OpenAI-compatible server.";
+"ai.provider.magpie.name" = "Magpie Local Gateway";
+"ai.provider.magpie.summary" = "Detect the local Magpie gateway and load its available models.";
 "ai.provider.custom.name" = "Custom";
 "ai.provider.custom.summary" = "Custom OpenAI-style compatible endpoint.";
 

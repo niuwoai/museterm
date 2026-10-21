@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.247.0-rc2] - 2026-10-21
+
+### Changed
+- 移除 AI 设置中的 some.im 浏览器登录卡片、设备码轮询和自动切换 Provider 流程；保留常规 Provider、Base URL、模型及 Keychain API Key 配置。
+- 删除对应登录流程测试和中英文界面文案，AI 设置保持为轻量的手动配置页。
+- Bugfix 预发布版本从 `1.247.0-rc1` 递增为 `1.247.0-rc2`，构建号递增至 `311`。
+
+## [1.247.0-rc1] - 2026-10-21
+
+### Added
+- AI Provider 新增 Magpie 本地网关，并在用户尚未保存 AI 配置时自动识别本机 `127.0.0.1:3425` 的 Magpie 服务、读取可用模型；已保存的 Provider 配置保持优先。Magpie 通过 OpenAI 兼容 Chat Completions 接口服务 AI Explain 和自然语言命令辅助。
+- Magpie 可在设置中手动选择并读取模型；本机默认使用 `magpie-museterm` 标识，配置 API Key 后也支持需要密钥的兼容网关。
+- 功能版本升级至 `1.247.0-rc1`，构建号升级至 `310`。
+
 ## [1.246.0-rc1] - 2026-10-20
 
 ### Added

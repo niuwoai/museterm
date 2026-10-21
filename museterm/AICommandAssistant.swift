@@ -284,7 +284,7 @@ final class AICommandAssistantModel: ObservableObject {
         generationTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let configuration = try AIExplainClient.Configuration(preferences: preferences)
+                let configuration = try await AIExplainClient.Configuration.resolving(preferences: preferences)
                 let response = try await AIExplainClient(configuration: configuration).stream(
                     systemPrompt: L10n.string("ai_command.system_prompt"),
                     userPrompt: Self.userPrompt(request: request, context: context)
