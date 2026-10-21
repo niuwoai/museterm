@@ -1176,20 +1176,12 @@
 "ai.provider.someIM.summary" = "some.im OpenAI 兼容接口，默认使用国内节点。";
 "ai.provider.someIM.base_url.china" = "国内节点";
 "ai.provider.someIM.base_url.global" = "国外节点";
-"settings.ai.someim.connect.title" = "连接 some.im";
-"settings.ai.someim.connect.subtitle" = "推荐用浏览器登录 some.im，完成后回到 轻连。连接成功会自动切到 some.im，并使用 someim-auto-flash；下面仍可改成自己的 Provider、Base URL、模型和 API Key。";
-"settings.ai.someim.connect.open" = "在浏览器打开";
-"settings.ai.someim.connect.waiting" = "等待登录";
-"settings.ai.someim.connect.ready" = "已准备好 some.im 浏览器登录。";
-"settings.ai.someim.connect.waiting_detail" = "正在等待浏览器完成 some.im 登录。";
-"settings.ai.someim.connect.connected" = "some.im 已连接，默认模型已设为 someim-auto-flash。";
-"settings.ai.someim.connect.expired" = "some.im 登录请求已过期，请重新打开浏览器登录。";
-"settings.ai.someim.connect.missing_credentials" = "some.im 已登录，但没有返回可用于 轻连 的 API Key。";
-"settings.ai.someim.connect.failed" = "some.im 连接失败：%@";
 "ai.provider.ollama.name" = "Ollama";
 "ai.provider.ollama.summary" = "本机或局域网模型服务。";
 "ai.provider.llamaServer.name" = "llama-server";
 "ai.provider.llamaServer.summary" = "llama.cpp 本机 OpenAI 兼容服务。";
+"ai.provider.magpie.name" = "Magpie 本地网关";
+"ai.provider.magpie.summary" = "自动发现本机 Magpie 网关，并读取可用模型。";
 "ai.provider.custom.name" = "自定义";
 "ai.provider.custom.summary" = "兼容 OpenAI 风格的自定义端点。";
 

@@ -1,6 +1,5 @@
 import AppKit
 import Combine
-import Security
 import SwiftUI
 
 final class SettingsWindowSession: ObservableObject {
@@ -1033,6 +1032,7 @@ private struct AIProviderChoiceView: View {
         case .someIM: return "globe.asia.australia"
         case .ollama: return "desktopcomputer"
         case .llamaServer: return "server.rack"
+        case .magpie: return "bird"
         case .custom: return "slider.horizontal.3"
         }
     }
@@ -1148,10 +1148,6 @@ private struct AIProviderSettingsSection: View {
     @State private var modelCandidates: [String] = []
     @State private var modelDiscoveryMessage = ""
     @State private var isLoadingModels = false
-    @State private var someIMLoginRequest: SomeIMBrowserLoginConnector.LoginRequest?
-    @State private var someIMLoginTask: Task<Void, Never>?
-    @State private var someIMLoginMessage = ""
-    @State private var isWatchingSomeIMLogin = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -1162,7 +1158,6 @@ private struct AIProviderSettingsSection: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            someIMConnectionCard
             providerGrid
             customNameField
             connectionFields
@@ -1175,57 +1170,6 @@ private struct AIProviderSettingsSection: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .onAppear {
-            ensureSomeIMBrowserLoginRequest()
-        }
-        .onDisappear {
-            stopSomeIMBrowserLoginWatcher()
-        }
-    }
-
-    private var someIMConnectionCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: isWatchingSomeIMLogin ? "person.badge.clock" : "safari")
-                    .font(.title3)
-                    .foregroundStyle(preferences.skin.accent)
-                    .frame(width: 24)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(L10n.string("settings.ai.someim.connect.title"))
-                        .font(.subheadline.weight(.semibold))
-                    Text(L10n.string("settings.ai.someim.connect.subtitle"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer()
-                Button {
-                    openSomeIMBrowserLogin()
-                } label: {
-                    Label(
-                        isWatchingSomeIMLogin
-                            ? L10n.string("settings.ai.someim.connect.waiting")
-                            : L10n.string("settings.ai.someim.connect.open"),
-                        systemImage: "arrow.up.right.square"
-                    )
-                }
-                .disabled(isWatchingSomeIMLogin && someIMLoginRequest == nil)
-            }
-
-            if !someIMLoginMessage.isEmpty {
-                Text(someIMLoginMessage)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(10)
-        .background(preferences.skin.controlFill)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(preferences.skin.hairline, lineWidth: 1)
-        )
     }
 
     private var providerGrid: some View {
@@ -1447,8 +1391,9 @@ private struct AIProviderSettingsSection: View {
             modelDiscoveryMessage = L10n.string("settings.ai.models.azure_unavailable")
             return
         }
+        let savedKey = preferences.loadAIAPIKey()
         let key = apiKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? preferences.loadAIAPIKey()
+            ? (savedKey.isEmpty && preferences.aiProvider == .magpie ? AIProviderKind.magpieLocalGatewayAPIKey : savedKey)
             : apiKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         if !preferences.aiProvider.isLocalProvider, key.isEmpty {
             if force {
@@ -1494,324 +1439,6 @@ private struct AIProviderSettingsSection: View {
         }
     }
 
-    private func ensureSomeIMBrowserLoginRequest() {
-        guard someIMLoginRequest == nil else {
-            if !isWatchingSomeIMLogin, let request = someIMLoginRequest {
-                startSomeIMBrowserLoginWatcher(for: request)
-            }
-            return
-        }
-        do {
-            let request = try SomeIMBrowserLoginConnector.makeRequest()
-            someIMLoginRequest = request
-            someIMLoginMessage = L10n.string("settings.ai.someim.connect.ready")
-            startSomeIMBrowserLoginWatcher(for: request)
-        } catch {
-            someIMLoginMessage = L10n.format("settings.ai.someim.connect.failed", error.localizedDescription)
-        }
-    }
-
-    private func openSomeIMBrowserLogin() {
-        ensureSomeIMBrowserLoginRequest()
-        guard let request = someIMLoginRequest else { return }
-        NSWorkspace.shared.open(request.url)
-        if !isWatchingSomeIMLogin {
-            startSomeIMBrowserLoginWatcher(for: request)
-        }
-    }
-
-    private func startSomeIMBrowserLoginWatcher(for request: SomeIMBrowserLoginConnector.LoginRequest) {
-        stopSomeIMBrowserLoginWatcher(clearState: false)
-        isWatchingSomeIMLogin = true
-        someIMLoginMessage = L10n.string("settings.ai.someim.connect.waiting_detail")
-        someIMLoginTask = Task {
-            let deadline = Date().addingTimeInterval(600)
-            while !Task.isCancelled && Date() < deadline {
-                do {
-                    let status = try await SomeIMBrowserLoginConnector.checkStatus(request: request)
-                    await MainActor.run {
-                        switch status.state {
-                        case .pending, .unknown:
-                            break
-                        case .connected:
-                            if let apiKey = status.apiKey, !apiKey.isEmpty {
-                                handleConnectedSomeIM(apiKey: apiKey)
-                            } else {
-                                someIMLoginMessage = L10n.string("settings.ai.someim.connect.missing_credentials")
-                                stopSomeIMBrowserLoginWatcher()
-                            }
-                        case .expired:
-                            someIMLoginMessage = L10n.string("settings.ai.someim.connect.expired")
-                            stopSomeIMBrowserLoginWatcher()
-                        }
-                    }
-                    if status.state == .connected || status.state == .expired { return }
-                } catch {
-                    await MainActor.run {
-                        someIMLoginMessage = L10n.format("settings.ai.someim.connect.failed", error.localizedDescription)
-                    }
-                }
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
-            }
-            await MainActor.run {
-                someIMLoginMessage = L10n.string("settings.ai.someim.connect.expired")
-                stopSomeIMBrowserLoginWatcher()
-            }
-        }
-    }
-
-    private func handleConnectedSomeIM(apiKey: String) {
-        preferences.aiProvider = .someIM
-        preferences.aiBaseURL = AIProviderKind.someIM.defaultBaseURL
-        preferences.aiModel = AIProviderKind.someIM.defaultModel
-        if preferences.saveAIAPIKey(apiKey) {
-            apiKeyDraft = ""
-            modelCandidates = []
-            modelDiscoveryMessage = ""
-            statusMessage = L10n.string("settings.ai.api_key.save_success")
-            someIMLoginMessage = L10n.string("settings.ai.someim.connect.connected")
-            stopSomeIMBrowserLoginWatcher()
-        } else {
-            someIMLoginMessage = L10n.string("settings.ai.api_key.save_failed")
-        }
-    }
-
-    private func stopSomeIMBrowserLoginWatcher(clearState: Bool = true) {
-        someIMLoginTask?.cancel()
-        someIMLoginTask = nil
-        isWatchingSomeIMLogin = false
-        if clearState {
-            someIMLoginRequest = nil
-        }
-    }
-}
-
-enum SomeIMBrowserLoginConnector {
-    private static let clientID = "willdeep"
-    private static let browserLoginOrigin = "https://some.im"
-    private static let browserAPIOrigin = "https://some.im"
-
-    struct LoginRequest: Equatable {
-        var code: String
-        var pairToken: String
-        var url: URL
-    }
-
-    struct LoginStatus: Equatable {
-        enum State: String {
-            case pending
-            case connected
-            case expired
-            case unknown
-        }
-
-        var state: State
-        var apiKey: String?
-    }
-
-    static func makeRequest() throws -> LoginRequest {
-        let code = try randomDeviceCode()
-        let pairToken = try randomPairToken()
-        let url = try browserLoginURL(code: code, pairToken: pairToken)
-        return LoginRequest(code: code, pairToken: pairToken, url: url)
-    }
-
-    static func checkStatus(request loginRequest: LoginRequest) async throws -> LoginStatus {
-        let endpoint = try browserStatusEndpoint(code: loginRequest.code)
-        var request = URLRequest(url: endpoint)
-        request.httpMethod = "GET"
-        request.timeoutInterval = 12
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("Bearer \(loginRequest.pairToken)", forHTTPHeaderField: "Authorization")
-        let data = try await send(request)
-        let decoded = try decodeEnvelope(StatusData.self, from: data)
-        let state = LoginStatus.State(rawValue: decoded.status.lowercased()) ?? .unknown
-        return LoginStatus(state: state, apiKey: decoded.apiKey)
-    }
-
-    private static func browserStatusEndpoint(code: String) throws -> URL {
-        guard var components = URLComponents(url: try publicAPIEndpoint(baseURL: browserAPIOrigin, suffix: "public/client-login/browser-status"), resolvingAgainstBaseURL: false) else {
-            throw SomeIMBrowserLoginError.invalidURL
-        }
-        components.queryItems = [
-            URLQueryItem(name: "client_id", value: clientID),
-            URLQueryItem(name: "willdeep_device_code", value: code)
-        ]
-        guard let url = components.url else { throw SomeIMBrowserLoginError.invalidURL }
-        return url
-    }
-
-    private static func browserLoginURL(code: String, pairToken: String) throws -> URL {
-        guard var components = URLComponents(string: browserLoginOrigin) else {
-            throw SomeIMBrowserLoginError.invalidURL
-        }
-        components.path = "/customer/login"
-        components.queryItems = [
-            URLQueryItem(name: "client_id", value: clientID),
-            URLQueryItem(name: "willdeep_device_code", value: code),
-            URLQueryItem(name: "willdeep_pair_token", value: pairToken),
-            URLQueryItem(name: "return_to", value: "MuseTerm"),
-            URLQueryItem(name: "next", value: "/customer?willdeep_return=1&willdeep_device_code=\(code)&willdeep_pair_token=\(pairToken)")
-        ]
-        guard let url = components.url else { throw SomeIMBrowserLoginError.invalidURL }
-        return url
-    }
-
-    private static func publicAPIEndpoint(baseURL: String, suffix: String) throws -> URL {
-        guard var components = URLComponents(string: baseURL.trimmingCharacters(in: .whitespacesAndNewlines)) else {
-            throw SomeIMBrowserLoginError.invalidURL
-        }
-        let cleaned = suffix.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        components.path = "/api/v1/\(cleaned)"
-        components.query = nil
-        guard let url = components.url else { throw SomeIMBrowserLoginError.invalidURL }
-        return url
-    }
-
-    private static func randomDeviceCode() throws -> String {
-        var bytes = [UInt8](repeating: 0, count: 8)
-        let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
-        guard status == errSecSuccess else { throw SomeIMBrowserLoginError.randomFailed }
-        let alphabet = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
-        let raw = bytes.map { alphabet[Int($0) % alphabet.count] }
-        return "WD-\(String(raw.prefix(4)))-\(String(raw.suffix(4)))"
-    }
-
-    private static func randomPairToken() throws -> String {
-        var bytes = [UInt8](repeating: 0, count: 32)
-        let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
-        guard status == errSecSuccess else { throw SomeIMBrowserLoginError.randomFailed }
-        return bytes.map { String(format: "%02x", $0) }.joined()
-    }
-
-    private static func send(_ request: URLRequest) async throws -> Data {
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            throw SomeIMBrowserLoginError.invalidResponse
-        }
-        guard (200..<300).contains(http.statusCode) else {
-            throw SomeIMBrowserLoginError.httpFailed(http.statusCode)
-        }
-        return data
-    }
-
-    private static func decodeEnvelope<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
-        if let envelope = try? JSONDecoder().decode(APIEnvelope<T>.self, from: data) {
-            return envelope.data
-        }
-        return try JSONDecoder().decode(T.self, from: data)
-    }
-
-    private struct APIEnvelope<T: Decodable>: Decodable {
-        let data: T
-    }
-
-    private struct StatusData: Decodable {
-        let status: String
-        let apiKey: String?
-
-        private enum CodingKeys: String, CodingKey {
-            case status
-            case state
-            case loginStatus = "login_status"
-            case apiKey = "api_key"
-            case apiKeyCamel = "apiKey"
-            case appAPIKey = "app_api_key"
-            case appAPIKeyCamel = "appApiKey"
-            case willDeepAPIKey = "willdeep_api_key"
-            case willDeepAPIKeyCamel = "willdeepApiKey"
-            case credentials
-            case credential
-        }
-
-        init(from decoder: Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            status = try container.decodeFirstSomeIMString(for: [.status, .state, .loginStatus]) ?? "unknown"
-            let directAPIKey = try container.decodeFirstSomeIMString(for: [
-                .apiKey,
-                .apiKeyCamel,
-                .appAPIKey,
-                .appAPIKeyCamel,
-                .willDeepAPIKey,
-                .willDeepAPIKeyCamel
-            ])
-            let credentials = try container.decodeFirstSomeIMCredentials(for: [.credentials, .credential])
-            apiKey = directAPIKey ?? credentials?.apiKey
-        }
-    }
-
-    struct Credentials: Decodable {
-        let apiKey: String?
-
-        private enum CodingKeys: String, CodingKey {
-            case apiKey = "api_key"
-            case apiKeyCamel = "apiKey"
-            case appAPIKey = "app_api_key"
-            case appAPIKeyCamel = "appApiKey"
-            case willDeepAPIKey = "willdeep_api_key"
-            case willDeepAPIKeyCamel = "willdeepApiKey"
-        }
-
-        init(from decoder: Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            apiKey = try container.decodeFirstSomeIMString(for: [
-                .apiKey,
-                .apiKeyCamel,
-                .appAPIKey,
-                .appAPIKeyCamel,
-                .willDeepAPIKey,
-                .willDeepAPIKeyCamel
-            ])
-        }
-    }
-}
-
-fileprivate enum SomeIMBrowserLoginError: LocalizedError {
-    case invalidURL
-    case invalidResponse
-    case httpFailed(Int)
-    case randomFailed
-
-    var errorDescription: String? {
-        switch self {
-        case .invalidURL:
-            return "Invalid some.im URL."
-        case .invalidResponse:
-            return "Invalid some.im response."
-        case .httpFailed(let status):
-            return "some.im request failed with HTTP \(status)."
-        case .randomFailed:
-            return "Unable to create a secure some.im login request."
-        }
-    }
-}
-
-private extension KeyedDecodingContainer {
-    func decodeFirstSomeIMString(for keys: [Key]) throws -> String? {
-        for key in keys {
-            if let value = try? decodeIfPresent(String.self, forKey: key)?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-               !value.isEmpty {
-                return value
-            }
-            if let value = try? decodeIfPresent(Int.self, forKey: key) {
-                return String(value)
-            }
-            if let value = try? decodeIfPresent(Double.self, forKey: key) {
-                return String(value)
-            }
-        }
-        return nil
-    }
-
-    func decodeFirstSomeIMCredentials(for keys: [Key]) throws -> SomeIMBrowserLoginConnector.Credentials? {
-        for key in keys {
-            if let value = try? decodeIfPresent(SomeIMBrowserLoginConnector.Credentials.self, forKey: key) {
-                return value
-            }
-        }
-        return nil
-    }
 }
 
 private struct AppIconChoiceView: View {

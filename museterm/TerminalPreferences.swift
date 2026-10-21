@@ -49,6 +49,8 @@ struct AIProviderBaseURLPreset: Identifiable, Hashable {
 }
 
 enum AIProviderKind: String, CaseIterable, Identifiable {
+    static let magpieLocalGatewayAPIKey = "magpie-museterm"
+
     case openAI
     case anthropic
     case google
@@ -57,6 +59,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable {
     case someIM
     case ollama
     case llamaServer
+    case magpie
     case custom
 
     var id: String { rawValue }
@@ -79,6 +82,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable {
         case .someIM: return "someim-auto-flash"
         case .ollama: return "llama3.1"
         case .llamaServer: return ""
+        case .magpie: return ""
         case .custom: return ""
         }
     }
@@ -93,6 +97,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable {
         case .someIM: return "https://api.niuwoai.com/v1"
         case .ollama: return "http://127.0.0.1:11434/v1"
         case .llamaServer: return "http://127.0.0.1:8080/v1"
+        case .magpie: return "http://127.0.0.1:3425/v1"
         case .custom: return ""
         }
     }
@@ -119,7 +124,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable {
 
     var isLocalProvider: Bool {
         switch self {
-        case .ollama, .llamaServer: return true
+        case .ollama, .llamaServer, .magpie: return true
         default: return false
         }
     }
@@ -477,6 +482,13 @@ final class TerminalPreferences: ObservableObject {
 
     var hasAIAPIKey: Bool {
         !loadAIAPIKey().isEmpty
+    }
+
+    var hasExplicitAIConfiguration: Bool {
+        defaults.object(forKey: Keys.aiProvider) != nil
+            || defaults.object(forKey: Keys.aiModel) != nil
+            || defaults.object(forKey: Keys.aiBaseURL) != nil
+            || hasAIAPIKey
     }
 
     func loadAIAPIKey() -> String {

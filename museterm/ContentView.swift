@@ -1411,7 +1411,7 @@ private struct CommandInspectorView: View {
         defer { explainingBlockID = nil }
 
         do {
-            let configuration = try AIExplainClient.Configuration(preferences: preferences)
+            let configuration = try await AIExplainClient.Configuration.resolving(preferences: preferences)
             let text = try await AIExplainClient(configuration: configuration).explain(
                 contextText: commandContext(for: block)
             ) { chunk in

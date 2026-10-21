@@ -8,6 +8,60 @@ struct AIExplainClient {
         let baseURL: String
         let apiKey: String
 
+        init(provider: AIProviderKind, providerName: String, model: String, baseURL: String, apiKey: String) {
+            self.provider = provider
+            self.providerName = providerName
+            self.model = model
+            self.baseURL = baseURL
+            self.apiKey = apiKey
+        }
+
+        static func resolving(preferences: TerminalPreferences) async throws -> Configuration {
+            let savedAPIKey = preferences.loadAIAPIKey()
+            let apiKey = savedAPIKey.isEmpty ? magpieApplicationKey : savedAPIKey
+            if preferences.aiProvider == .magpie {
+                let model = preferences.aiModel.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !model.isEmpty {
+                    let configuration = try Configuration(preferences: preferences)
+                    guard configuration.apiKey.isEmpty else { return configuration }
+                    return Configuration(
+                        provider: .magpie,
+                        providerName: configuration.providerName,
+                        model: configuration.model,
+                        baseURL: configuration.baseURL,
+                        apiKey: magpieApplicationKey
+                    )
+                }
+                let models = try await AIModelDiscovery(
+                    provider: .magpie,
+                    baseURL: preferences.aiBaseURL,
+                    apiKey: apiKey
+                ).fetch()
+                guard let model = models.first else { throw AIExplainError.missingModel }
+                return Configuration(
+                    provider: .magpie,
+                    providerName: AIProviderKind.magpie.name,
+                    model: model,
+                    baseURL: preferences.aiBaseURL.trimmingCharacters(in: .whitespacesAndNewlines),
+                    apiKey: apiKey
+                )
+            }
+
+            guard !preferences.hasExplicitAIConfiguration,
+                  let discovered = await MagpieLocalGateway.discover() else {
+                return try Configuration(preferences: preferences)
+            }
+            return Configuration(
+                provider: .magpie,
+                providerName: AIProviderKind.magpie.name,
+                model: discovered.model,
+                baseURL: discovered.baseURL,
+                apiKey: magpieApplicationKey
+            )
+        }
+
+        private static let magpieApplicationKey = AIProviderKind.magpieLocalGatewayAPIKey
+
         init(preferences: TerminalPreferences) throws {
             provider = preferences.aiProvider
             providerName = preferences.aiDisplayProviderName
@@ -65,7 +119,7 @@ struct AIExplainClient {
                 azure: true,
                 onChunk: onChunk
             )
-        case .openAI, .openRouter, .someIM, .ollama, .llamaServer, .custom:
+        case .openAI, .openRouter, .someIM, .ollama, .llamaServer, .magpie, .custom:
             return try await openAICompatibleStream(
                 systemPrompt: systemPrompt,
                 prompt: userPrompt,
@@ -316,6 +370,37 @@ struct AIExplainClient {
     }
 }
 
+private struct MagpieLocalGateway {
+    private struct Hello: Decodable {
+        let name: String
+    }
+
+    private static let baseURL = "http://127.0.0.1:3425/v1"
+
+    static func discover() async -> (baseURL: String, model: String)? {
+        guard let helloURL = URL(string: "http://127.0.0.1:3425/api/hello") else { return nil }
+        var request = URLRequest(url: helloURL)
+        request.timeoutInterval = 0.8
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let httpResponse = response as? HTTPURLResponse,
+              (200..<300).contains(httpResponse.statusCode),
+              let hello = try? JSONDecoder().decode(Hello.self, from: data),
+              hello.name.lowercased() == "magpie" else { return nil }
+
+        do {
+            let models = try await AIModelDiscovery(
+                provider: .magpie,
+                baseURL: baseURL,
+                apiKey: AIProviderKind.magpieLocalGatewayAPIKey
+            ).fetch()
+            guard let model = models.first else { return nil }
+            return (baseURL, model)
+        } catch {
+            return nil
+        }
+    }
+}
+
 struct AIModelDiscovery {
     let provider: AIProviderKind
     let baseURL: String
@@ -337,7 +422,7 @@ struct AIModelDiscovery {
             return try await anthropicModels()
         case .azureOpenAI:
             return []
-        case .openAI, .openRouter, .someIM, .ollama, .llamaServer, .custom:
+        case .openAI, .openRouter, .someIM, .ollama, .llamaServer, .magpie, .custom:
             do {
                 return try await openAICompatibleModels()
             } catch {
@@ -350,6 +435,7 @@ struct AIModelDiscovery {
     private func openAICompatibleModels() async throws -> [String] {
         var request = URLRequest(url: try endpoint(path: "/models"))
         request.httpMethod = "GET"
+        request.timeoutInterval = 2
         if !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         }
