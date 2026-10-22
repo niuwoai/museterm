@@ -114,6 +114,34 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     // contentRevision 随每次快照刷新递增，供外部做“内容没变就跳过”的脏检查。
     private var cachedHistoryText: String?
     private(set) var contentRevision = 0
+    private var agentForegroundPID: pid_t?
+    private var agentForegroundRunID = UUID()
+    private var lastAgentSampleUptime: TimeInterval = -.infinity
+
+    func sampleAgentForeground(now: Date = Date()) {
+        guard case .localShell = session?.launchConfiguration else { return }
+        let uptime = ProcessInfo.processInfo.systemUptime
+        guard uptime - lastAgentSampleUptime >= 1 else { return }
+        lastAgentSampleUptime = uptime
+        guard didStart, terminalView.process.running else { return }
+        let pid = tcgetpgrp(terminalView.process.childfd)
+        if agentForegroundPID != pid {
+            agentForegroundPID = pid
+            agentForegroundRunID = UUID()
+        }
+        var name = [CChar](repeating: 0, count: 1_024)
+        let length = pid > 0 ? proc_name(pid, &name, UInt32(name.count)) : 0
+        let executable = length > 0 ? String(cString: name) : ""
+        let kind = TerminalAgentScreenRules.kind(executable: executable)
+        let runID = kind.flatMap { session?.observedAgentCommandID(kind: $0) } ?? agentForegroundRunID
+        session?.observeAgentForeground(kind: kind, processRunID: runID,
+            screen: kind == nil ? "" : liveAgentScreenText(), now: now)
+    }
+
+    private func liveAgentScreenText() -> String {
+        guard let terminal = terminalView.terminal else { return "" }
+        return TerminalAgentScreenReader.liveTail(terminal)
+    }
 
     init(session: TerminalSession) {
         self.session = session
@@ -374,6 +402,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     ) -> TerminalToolTabSnapshot {
         let recentCommandBlocks = Array(session?.commandBlocks.suffix(50) ?? [])
         return TerminalToolTabSnapshot(
+            agent: session?.agentStatus,
             aiControlled: session?.aiLease != nil,
             aiLeaseExpiresAt: session?.aiLease?.expiresAt,
             aiRequiresTakeover: session?.aiRequiresTakeover,
@@ -964,6 +993,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         let historySnapshot = refreshHistoryTextCache()
         flushPendingShellIntegrationEvents(historySnapshot: historySnapshot)
         session?.observeProcessOutput(historySnapshot: historySnapshot)
+        session?.recordOutputRevision(contentRevision)
+        sampleAgentForeground()
     }
 
     func latestHistoryText() -> String {

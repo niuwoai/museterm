@@ -25,6 +25,13 @@ final class DetachedTerminalPanelManager {
 
     var hasPanels: Bool { !controllers.isEmpty }
 
+    @discardableResult
+    func focus(_ id: TerminalSession.ID) -> Bool {
+        guard let controller = controllers[id] else { return false }
+        controller.bringToFront()
+        return true
+    }
+
     func isDetached(_ id: TerminalSession.ID) -> Bool {
         controllers[id] != nil
     }

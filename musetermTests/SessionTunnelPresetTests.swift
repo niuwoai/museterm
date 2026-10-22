@@ -118,6 +118,13 @@ final class SessionTunnelPresetTests: XCTestCase {
         let names = Set(tools.compactMap { $0["name"] as? String })
         XCTAssertEqual(names, [
             "help",
+            "bind_agent",
+            "list_attention",
+            "acknowledge_attention",
+            "wait_session",
+            "report_agent_state",
+            "get_agent_state",
+            "read_session_events",
             "takeover_tab",
             "renew_tab_control",
             "release_tab",

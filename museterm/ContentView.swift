@@ -115,6 +115,9 @@ struct ContentView: View {
             workspace.preferences = preferences
             TerminalToolBridge.shared.attach(workspace: workspace)
             notificationCoordinator.attach(workspace: workspace, preferences: preferences)
+            #if DEBUG
+            TerminalAgentUITestFixture.applyIfRequested(workspace: workspace)
+            #endif
             MuseTermScriptingRegistry.attach(
                 workspace: workspace,
                 preferences: preferences,
@@ -212,6 +215,10 @@ private struct SidebarView: View {
                 .padding(.horizontal, 14)
                 .padding(.top, 14)
                 .padding(.bottom, 10)
+
+                TerminalAttentionEntry(store: workspace.sessionRegistry.attention, workspace: workspace,
+                                       compact: !preferences.showsTabList)
+                    .padding(.bottom, 8)
 
                 if preferences.showsTabList {
                     ScrollView {
@@ -524,6 +531,7 @@ private struct TabRowView: View {
                         .font(.caption.weight(.semibold))
                         .lineLimit(1)
                         .layoutPriority(1)
+                    if let status = tab.agentStatus { TerminalAgentBadge(status: status) }
                     if let shortcutNumber {
                         // 稍浅颜色备注 ⌘ 数字，提示 Command+N 可直接切到该标签。
                         Text(verbatim: "⌘\(shortcutNumber)")
@@ -621,6 +629,7 @@ private struct CompactTabRowView: View {
 
     var body: some View {
         HStack(spacing: 5) {
+            if let status = tab.agentStatus { TerminalAgentBadge(status: status, compact: true) }
             if tab.aiLease != nil {
                 Image(systemName: "sparkles")
                     .foregroundStyle(skin.accent)

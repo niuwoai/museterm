@@ -288,6 +288,8 @@ final class TerminalPreferences: ObservableObject {
     @Published var confirmDangerousCommands: Bool { didSet { defaults.set(confirmDangerousCommands, forKey: Keys.confirmDangerousCommands) } }
     @Published var customDangerousCommandRules: String { didSet { defaults.set(customDangerousCommandRules, forKey: Keys.customDangerousCommandRules) } }
     @Published var notificationsEnabled: Bool { didSet { defaults.set(notificationsEnabled, forKey: Keys.notificationsEnabled) } }
+    @Published var agentMonitoringEnabled: Bool { didSet { defaults.set(agentMonitoringEnabled, forKey: "agent.monitoringEnabled") } }
+    @Published var notifyAgentAttention: Bool { didSet { defaults.set(notifyAgentAttention, forKey: "notifications.agentAttention") } }
     @Published var showInactiveTabNotificationBadges: Bool { didSet { defaults.set(showInactiveTabNotificationBadges, forKey: Keys.showInactiveTabNotificationBadges) } }
     @Published var notifyTerminalBell: Bool { didSet { defaults.set(notifyTerminalBell, forKey: Keys.notifyTerminalBell) } }
     @Published var notifyCommandFailures: Bool { didSet { defaults.set(notifyCommandFailures, forKey: Keys.notifyCommandFailures) } }
@@ -368,6 +370,8 @@ final class TerminalPreferences: ObservableObject {
         confirmDangerousCommands = defaults.object(forKey: Keys.confirmDangerousCommands) as? Bool ?? true
         customDangerousCommandRules = defaults.string(forKey: Keys.customDangerousCommandRules) ?? ""
         notificationsEnabled = defaults.object(forKey: Keys.notificationsEnabled) as? Bool ?? true
+        agentMonitoringEnabled = defaults.object(forKey: "agent.monitoringEnabled") as? Bool ?? true
+        notifyAgentAttention = defaults.object(forKey: "notifications.agentAttention") as? Bool ?? true
         showInactiveTabNotificationBadges = defaults.object(forKey: Keys.showInactiveTabNotificationBadges) as? Bool ?? true
         notifyTerminalBell = defaults.object(forKey: Keys.notifyTerminalBell) as? Bool ?? true
         notifyCommandFailures = defaults.object(forKey: Keys.notifyCommandFailures) as? Bool ?? true

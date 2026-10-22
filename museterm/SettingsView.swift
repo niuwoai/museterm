@@ -561,6 +561,8 @@ struct SettingsView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             Toggle(L10n.string("settings.notifications.enabled"), isOn: $preferences.notificationsEnabled)
+            Toggle(L10n.string("settings.agent_monitoring"), isOn: $preferences.agentMonitoringEnabled)
+            Toggle(L10n.string("settings.notifications.agent_attention"), isOn: $preferences.notifyAgentAttention)
             Toggle(L10n.string("settings.notifications.inactive_tab_badges"), isOn: $preferences.showInactiveTabNotificationBadges)
                 .disabled(!preferences.notificationsEnabled)
 

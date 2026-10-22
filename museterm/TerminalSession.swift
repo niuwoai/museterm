@@ -312,7 +312,14 @@ final class TerminalSession: ObservableObject, Identifiable {
     @Published var title: String
     @Published var currentDirectory: String?
     @Published private(set) var shellName: String?
-    @Published var state: State = .running
+    @Published var state: State = .running {
+        didSet {
+            if case .exited = state {
+                updateAgent { $0.exit(now: Date()) }
+                if case .running = oldValue { eventStore?.publish(tabID: id, kind: .processExited) }
+            }
+        }
+    }
     @Published private(set) var activeRecordingStartedAt: Date?
     @Published private(set) var isPlayingShortcut = false
     @Published private(set) var fileTransferStatus: TerminalFileTransferStatus?
@@ -322,6 +329,32 @@ final class TerminalSession: ObservableObject, Identifiable {
     @Published private(set) var hasUnreadAttention = false
     @Published private(set) var executionContext: TerminalExecutionContext
     @Published private(set) var aiLease: TerminalAILease?
+    @Published private(set) var agentStatus: TerminalAgentSnapshot?
+    private var agentMonitor = TerminalAgentMonitor()
+    weak var eventStore: TerminalSessionEventStore?
+    var onSessionClosed: ((UUID) -> Void)?
+    private var sessionWasClosed = false
+    private(set) var lastOutputRevision = 0
+
+    func recordOutputRevision(_ revision: Int) {
+        lastOutputRevision = revision
+        eventStore?.publish(tabID: id, kind: .outputChanged, revision: revision)
+    }
+
+    @discardableResult
+    func updateAgent<T>(_ operation: (inout TerminalAgentMonitor) throws -> T) rethrows -> T {
+        let previous = agentStatus
+        let result = try operation(&agentMonitor)
+        if agentStatus != agentMonitor.snapshot { agentStatus = agentMonitor.snapshot }
+        if !TerminalAgentSnapshot.sameEvidence(previous, agentStatus) {
+            eventStore?.publish(tabID: id, kind: .agentChanged, agent: agentStatus)
+        }
+        return result
+    }
+
+    func sampleAgentIfControllerExists() {
+        if didCreateController, eventStore != nil { controller.sampleAgentForeground() }
+    }
     private var aiArchive: TerminalAIArchive?
     private var aiExpiryTask: DispatchWorkItem?
     private(set) var aiRequiresTakeover = false
@@ -337,6 +370,7 @@ final class TerminalSession: ObservableObject, Identifiable {
         if aiArchive == nil { aiArchive = try TerminalAIArchive(tabID: id, directory: archiveDirectory) }
         aiRequiresTakeover = true
         aiLease = TerminalAILease(owner: owner, expiresAt: now.addingTimeInterval(TerminalAILease.duration))
+        eventStore?.publish(tabID: id, kind: .controlChanged)
         scheduleAIExpiry()
     }
 
@@ -361,6 +395,7 @@ final class TerminalSession: ObservableObject, Identifiable {
     }
 
     func releaseAIControl(reason: String) {
+        let hadLease = aiLease != nil
         aiExpiryTask?.cancel()
         aiExpiryTask = nil
         do {
@@ -371,6 +406,7 @@ final class TerminalSession: ObservableObject, Identifiable {
         }
         aiArchive = nil
         aiLease = nil
+        if hadLease { eventStore?.publish(tabID: id, kind: .controlChanged) }
     }
 
     func expireAIControlIfNeeded(now: Date = Date()) {
@@ -474,9 +510,13 @@ final class TerminalSession: ObservableObject, Identifiable {
     }
 
     func terminate() {
+        guard !sessionWasClosed else { return }
+        sessionWasClosed = true
+        updateAgent { $0.exit(now: Date(), close: true) }
         releaseAIControl(reason: "tab_closed")
         cancelRecording()
         controller.terminate()
+        onSessionClosed?(id)
     }
 
     var hasRunningProcess: Bool {
@@ -736,6 +776,9 @@ final class TerminalSession: ObservableObject, Identifiable {
         commandBlocks[index].exitCode = exitCode
         commandBlocks[index].completionSource = completionSource
         let finishedBlock = commandBlocks[index]
+        updateAgent { $0.endObservedRun(finishedBlock.id, now: Date()) }
+        eventStore?.publish(tabID: id, kind: .commandFinished, commandID: finishedBlock.id,
+                            commandState: finishedBlock.commandLifecycleState)
         self.activeCommandBlockID = nil
         activeCommandOutputStartIndex = historySnapshot.count
         attentionReporter?.terminalSession(self, didProduceAttentionEvent: .commandFinished(finishedBlock))
@@ -927,6 +970,7 @@ final class TerminalSession: ObservableObject, Identifiable {
                 commandBlocks[index].commandStartSource = .shellIntegration
                 activeCommandOutputStartIndex = historySnapshot.count
                 pendingCommandBytes.removeAll(keepingCapacity: true)
+                observeAgentLaunch(command: cleanCommand, runID: commandBlocks[index].id)
                 return
             }
 
@@ -958,6 +1002,8 @@ final class TerminalSession: ObservableObject, Identifiable {
         }
         activeCommandBlockID = block.id
         activeCommandOutputStartIndex = historySnapshot.count
+        eventStore?.publish(tabID: id, kind: .commandStarted, commandID: block.id, commandState: .running)
+        if startSource == .shellIntegration { observeAgentLaunch(command: cleanCommand, runID: block.id) }
 
         if Self.entersUnobservedExecutionContext(cleanCommand) {
             latestReportedContext = nil
@@ -1152,12 +1198,15 @@ enum TerminalContextExecutionError: LocalizedError {
 }
 
 final class TerminalWorkspace: ObservableObject {
+    let sessionRegistry = TerminalSessionRegistry()
+    var suppressAttentionAutoRead = false
     @Published private(set) var tabs: [TerminalSession] = []
     @Published var selectedID: TerminalSession.ID? {
         didSet {
             guard oldValue != selectedID else { return }
             // 切换选中标签 → 新标签的继承目录变化，按新目录重排预热会话。
             refreshPrewarmIfStale()
+            if let selectedID, !suppressAttentionAutoRead { sessionRegistry.attention.markViewed(tabID: selectedID) }
         }
     }
     @Published private(set) var shortcuts: [TerminalShortcut] = TerminalShortcutStore.load()
@@ -1276,6 +1325,7 @@ final class TerminalWorkspace: ObservableObject {
         }
         tab.attentionReporter = attentionReporter
         tabs.append(tab)
+        sessionRegistry.register(tab)
         trackQuickPaths(for: tab)
         selectedID = tab.id
         tab.clearUnreadAttention()
@@ -1316,6 +1366,7 @@ final class TerminalWorkspace: ObservableObject {
         let tab = makeTab(launchConfiguration: .ssh(profile))
         tab.attentionReporter = attentionReporter
         tabs.append(tab)
+        sessionRegistry.register(tab)
         trackQuickPaths(for: tab)
         selectedID = tab.id
         tab.clearUnreadAttention()
@@ -1388,6 +1439,7 @@ final class TerminalWorkspace: ObservableObject {
         quickPathCancellables.removeAll()
         lastRecordedQuickPathByTab.removeAll()
         tabs = restoredTabs
+        tabs.forEach { sessionRegistry.register($0) }
         tabs.forEach { $0.attentionReporter = attentionReporter }
         tabs.forEach(trackQuickPaths)
 
@@ -1538,6 +1590,7 @@ final class TerminalWorkspace: ObservableObject {
         defer { isClosingTab = false }
 
         tabs.remove(at: index)
+        sessionRegistry.move(tab.id, to: .detached)
         quickPathCancellables[tab.id] = nil
         lastRecordedQuickPathByTab[tab.id] = nil
 
@@ -1559,6 +1612,7 @@ final class TerminalWorkspace: ObservableObject {
         guard !tabs.contains(where: { $0.id == tab.id }) else { return false }
         tab.attentionReporter = attentionReporter
         tabs.append(tab)
+        sessionRegistry.register(tab)
         trackQuickPaths(for: tab)
         selectedID = tab.id
         tab.clearUnreadAttention()
@@ -1770,6 +1824,9 @@ final class TerminalWorkspace: ObservableObject {
             if let first = tabs.first { return first }
             throw TerminalToolError.tabNotFound("selected")
         }
+
+        // Detached sessions remain addressable by exact UUID; visible indexes keep their meaning.
+        if let id = UUID(uuidString: cleaned), let session = sessionRegistry.sessions[id] { return session }
 
         if let index = Int(cleaned), tabs.indices.contains(index - 1) {
             return tabs[index - 1]
