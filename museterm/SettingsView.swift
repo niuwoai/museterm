@@ -751,6 +751,21 @@ struct SettingsView: View {
                 .padding(.top, 4)
             SettingsCodeBlock(text: L10n.string("settings.tools.mcp_config"))
 
+            Text(L10n.string("ai_control.archive_description"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Button {
+                do {
+                    try FileManager.default.createDirectory(at: TerminalAIArchive.directory,
+                        withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+                    NSWorkspace.shared.open(TerminalAIArchive.directory)
+                } catch {
+                    cliInstallMessage = error.localizedDescription
+                }
+            } label: {
+                Label(L10n.string("ai_control.open_archives"), systemImage: "folder")
+            }
+
             Divider()
                 .padding(.vertical, 4)
 

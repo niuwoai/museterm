@@ -49,6 +49,8 @@ STATE = File.join(ROOT, "state.json")
 REQUESTS = File.join(ROOT, "requests")
 RESPONSES = File.join(ROOT, "responses")
 CLIENT_ID = "qterm-cli"
+CONTROL_ID = SecureRandom.uuid
+CONTROLLED_TABS = {}
 KEYCHAIN_SERVICE = "im.some.museterm.tool-access"
 
 def ensure_dirs
@@ -152,7 +154,7 @@ def text_payload(state, tab, field, chars)
 end
 
 def tab_summary_keys
-  ["id", "index", "title", "subtitle", "currentDirectory", "shellName", "sessionTunnelStatus", "isSelected", "state", "columns", "rows", "updatedAt"]
+  ["id", "index", "title", "subtitle", "currentDirectory", "shellName", "sessionTunnelStatus", "aiControlled", "aiLeaseExpiresAt", "aiRequiresTakeover", "isSelected", "state", "columns", "rows", "updatedAt"]
 end
 
 def tab_summaries(state)
@@ -214,6 +216,7 @@ def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: 
     "targetPort" => target_port,
     "localPort" => local_port,
     "clientID" => CLIENT_ID,
+    "controlID" => CONTROL_ID,
     "authToken" => access_token
   }.compact
   request_path = File.join(REQUESTS, "#{id}.json")
@@ -633,6 +636,21 @@ end
 def mcp_tools
   [
     {
+      "name" => "help",
+      "description" => "Read QTerm collaboration instructions first: takeover, background input, renewal, unlock, archives and release.",
+      "inputSchema" => { "type" => "object", "properties" => {} }
+    },
+    *["takeover_tab", "renew_tab_control", "release_tab"].map { |name|
+      {
+        "name" => name,
+        "description" => "#{name}: use a tab UUID from list_tabs. Takeover locks human input for a renewable 120-second lease. Read help first; release when finished.",
+        "inputSchema" => {
+          "type" => "object", "required" => ["tab"],
+          "properties" => { "tab" => { "type" => "string" }, "timeout" => { "type" => "number" } }
+        }
+      }
+    },
+    {
       "name" => "list_tabs",
       "description" => "List QTerm tabs and their ids, titles, selection state, size, working directory, and detected shell name.",
       "inputSchema" => {
@@ -806,6 +824,33 @@ end
 def call_tool(name, args)
   args ||= {}
   case name
+  when "help"
+    tool_result_text(JSON.pretty_generate({
+      "version" => "\#(AppVersion.value)",
+      "workflow" => [
+        "Call list_tabs and read_screen/read_history/read_commands to inspect the target. Use its explicit UUID for every subsequent operation.",
+        "Call takeover_tab(tab: UUID) before operating. Requires paired tool write access in QTerm Settings. Each MCP process has a separate owner identity; another process cannot write or release your lease.",
+        "Call send_text or send_key with the same tab UUID. Input does not select the tab or bring QTerm forward. Humans can work in other tabs while observing yours.",
+        "The lease expires after 120 seconds without successful input or renew_tab_control. For long commands, renew every 60 seconds while monitoring output. Reads do not renew. Never resend commands just to renew.",
+        "Call release_tab in your cleanup/finally path. Normal MCP EOF also attempts release. Terminal exit, tab close and lease expiry release automatically.",
+        "Human unlock immediately releases the lease. Delayed input is rejected until explicit new takeover. Stop and coordinate with the human before retaking after unexpected loss of control.",
+        "Read aiControlled, aiLeaseExpiresAt and aiRequiresTakeover from list_tabs. After release or expiry, takeover is required for further tool writes to this tab.",
+        "Input archives are local JSONL, accessible from Settings > Tools > Open AI archives. Password-mode input is omitted and recognized secrets redacted. Avoid secrets in visible commands. Partial input is buffered until Enter, interrupt or release.",
+        "Use a separate tab for tool-driven shortcut playback, file transfer or session tunnels. Controlled tabs support direct send_text/send_key input. Unlock does not interrupt a running shell command."
+      ],
+      "tools" => mcp_tools
+    }))
+  when "takeover_tab", "renew_tab_control", "release_tab"
+    tab = args.fetch("tab")
+    raise "Use an explicit tab UUID from list_tabs." unless tab.match?(/\A[0-9a-fA-F-]{36}\z/)
+    response = send_request(action: name, tab: tab, timeout_seconds: args["timeout"] || 3.0)
+    raise(response["error"] || "request failed") unless response["ok"]
+    if name == "release_tab"
+      CONTROLLED_TABS.delete(tab)
+    else
+      CONTROLLED_TABS[tab] = true
+    end
+    tool_result_text(JSON.pretty_generate(response))
   when "list_tabs"
     state = read_state
     payload = args["metadata"] ? tabs_payload(state) : tab_summaries(state)
@@ -941,6 +986,14 @@ def command_mcp
         "id" => id,
         "error" => { "code" => -32000, "message" => e.message }
       )
+    end
+  end
+ensure
+  CONTROLLED_TABS.keys.each do |tab|
+    begin
+      send_request(action: "release_tab", tab: tab, timeout_seconds: 0.5)
+    rescue StandardError
+      # Lease expiry is the fallback when the app cannot answer. Keep MCP stdout clean.
     end
   end
 end

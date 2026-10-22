@@ -1380,3 +1380,14 @@
 "skin.tomorrow.summary" = "White paper with clean neutral inks.";
 "skin.tomorrowNight.name" = "Tomorrow Night";
 "skin.tomorrowNight.summary" = "Neutral charcoal with restrained clear colors.";
+
+"ai_control.locked" = "AI is controlling this tab";
+"ai_control.description" = "Observe safely. Unlock to take over input; AI writes will stop. Unlock does not stop a running command. The lock expires after 120 seconds without input or renewal.";
+"ai_control.unlock" = "Unlock and take control";
+"ai_control.updated" = "Tab control updated. Use list_tabs to inspect the lease.";
+"ai_control.error.owned" = "This tab is controlled by another MCP session. Wait for release or unlock it in QTerm.";
+"ai_control.error.retake" = "No valid lease. Use an explicit tab UUID and take over again; coordinate with the human after an unexpected release.";
+"ai_control.error.busy" = "AI control cannot overlap shortcut playback, file transfer or a session tunnel. Release control or finish the active operation first.";
+"ai_control.error.input_rejected" = "Input was not sent: control was released or the terminal safety check rejected it.";
+"ai_control.archive_description" = "AI input is archived locally as JSONL. Password-mode input is omitted and recognized secrets are redacted. Partial input is saved on Enter or release. Archives remain until you delete them; redaction cannot identify every secret.";
+"ai_control.open_archives" = "Open AI input archives";

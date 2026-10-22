@@ -70,6 +70,83 @@ final class MCPTransportFramingTests: XCTestCase {
 
     // MARK: - Helpers
 
+    func testMCPHelpExplainsLeaseLifecycleAndListsControlTools() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        let input = newlineFramed([
+            "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+            "params": ["name": "help", "arguments": [:] as [String: Any]]
+        ])
+        let raw = try runMCPRaw(scriptURL: fixture.scriptURL, home: fixture.root, input: input)
+        let response = try firstNewlineFramedResponse(raw)
+        let result = try XCTUnwrap(response["result"] as? [String: Any])
+        let content = try XCTUnwrap(result["content"] as? [[String: Any]])
+        let text = try XCTUnwrap(content.first?["text"] as? String)
+        let help = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any])
+        XCTAssertEqual(help["version"] as? String, AppVersion.value)
+        let tools = try XCTUnwrap(help["tools"] as? [[String: Any]])
+        let names = tools.compactMap { $0["name"] as? String }
+        for name in ["help", "takeover_tab", "renew_tab_control", "release_tab"] {
+            XCTAssertTrue(names.contains(name))
+        }
+        XCTAssertTrue(text.contains("120 seconds"))
+        XCTAssertTrue(text.contains("Human unlock"))
+        XCTAssertTrue(text.contains("does not select"))
+    }
+
+    func testMCPKeepsOwnerIdentityAndReleasesOnEOF() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        let tabID = UUID().uuidString
+        let process = Process()
+        let input = Pipe()
+        let output = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/ruby")
+        process.arguments = [fixture.scriptURL.path, "mcp"]
+        process.environment = ["HOME": fixture.root.path, "PATH": "/usr/bin:/bin:/usr/sbin:/sbin"]
+        process.standardInput = input
+        process.standardOutput = output
+        try process.run()
+        defer { if process.isRunning { process.terminate() } }
+        for (index, name) in ["takeover_tab", "renew_tab_control", "send_text"].enumerated() {
+            input.fileHandleForWriting.write(newlineFramed([
+                "jsonrpc": "2.0", "id": index + 1, "method": "tools/call",
+                "params": ["name": name, "arguments": ["tab": tabID, "text": "pwd\r"]]
+            ]))
+        }
+        try input.fileHandleForWriting.close()
+        let root = fixture.root.appendingPathComponent("Library/Application Support/QTerm/Tools")
+        let requests = root.appendingPathComponent("requests")
+        let responses = root.appendingPathComponent("responses")
+        var actions: [String] = []
+        var owners = Set<String>()
+        let deadline = Date().addingTimeInterval(15)
+        while process.isRunning && Date() < deadline {
+            let files = (try? FileManager.default.contentsOfDirectory(at: requests,
+                includingPropertiesForKeys: nil)) ?? []
+            for file in files where file.pathExtension == "json" {
+                let request = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+                actions.append(try XCTUnwrap(request["action"] as? String))
+                owners.insert(try XCTUnwrap(request["controlID"] as? String))
+                let id = try XCTUnwrap(request["id"] as? String)
+                try JSONSerialization.data(withJSONObject: ["id": id, "ok": true, "tabID": tabID])
+                    .write(to: responses.appendingPathComponent("\(id).json"), options: .atomic)
+                try FileManager.default.removeItem(at: file)
+            }
+            RunLoop.main.run(until: Date().addingTimeInterval(0.01))
+        }
+        XCTAssertFalse(process.isRunning)
+        XCTAssertEqual(actions, ["takeover_tab", "renew_tab_control", "input", "release_tab"])
+        XCTAssertEqual(owners.count, 1)
+        XCTAssertNotNil(owners.first.flatMap(UUID.init(uuidString:)))
+        if !process.isRunning {
+            let raw = String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            let replies = try newlineFramedResponses(raw)
+            XCTAssertEqual(replies.count, 3)
+            XCTAssertTrue(replies.allSatisfy { $0["error"] == nil })
+        }
+    }
+
     private static let nonASCIITabTitle = "生产服务器 · 巡检"
 
     private var initializeMessage: [String: Any] {

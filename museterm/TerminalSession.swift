@@ -321,6 +321,68 @@ final class TerminalSession: ObservableObject, Identifiable {
     @Published private(set) var historySearchSnapshot = ""
     @Published private(set) var hasUnreadAttention = false
     @Published private(set) var executionContext: TerminalExecutionContext
+    @Published private(set) var aiLease: TerminalAILease?
+    private var aiArchive: TerminalAIArchive?
+    private var aiExpiryTask: DispatchWorkItem?
+    private(set) var aiRequiresTakeover = false
+
+    func takeAIControl(owner: String, now: Date = Date(), archiveDirectory: URL = TerminalAIArchive.directory) throws {
+        expireAIControlIfNeeded(now: now)
+        guard aiLease == nil || aiLease?.owner == owner else {
+            throw TerminalAIControlError.owned
+        }
+        guard case .running = state else { throw TerminalToolError.processUnavailable }
+        guard !isPlayingShortcut, sessionTunnelStatus?.occupiesTerminal != true,
+              fileTransferStatus?.isActive != true else { throw TerminalAIControlError.busy }
+        if aiArchive == nil { aiArchive = try TerminalAIArchive(tabID: id, directory: archiveDirectory) }
+        aiRequiresTakeover = true
+        aiLease = TerminalAILease(owner: owner, expiresAt: now.addingTimeInterval(TerminalAILease.duration))
+        scheduleAIExpiry()
+    }
+
+    func renewAIControl(owner: String, now: Date = Date()) throws {
+        expireAIControlIfNeeded(now: now)
+        guard aiLease?.owner == owner else { throw TerminalAIControlError.retake }
+        aiLease?.expiresAt = now.addingTimeInterval(TerminalAILease.duration)
+        scheduleAIExpiry()
+    }
+
+    func authorizeAIInput(owner: String?) throws {
+        expireAIControlIfNeeded()
+        if let aiLease {
+            guard aiLease.owner == owner else { throw TerminalAIControlError.owned }
+        } else if aiRequiresTakeover {
+            throw TerminalAIControlError.retake
+        }
+    }
+
+    func archiveAIInput(_ bytes: [UInt8], echoEnabled: Bool) throws {
+        try aiArchive?.record(bytes, echoEnabled: echoEnabled)
+    }
+
+    func releaseAIControl(reason: String) {
+        aiExpiryTask?.cancel()
+        aiExpiryTask = nil
+        do {
+            try aiArchive?.flush()
+            try aiArchive?.event(reason)
+        } catch {
+            NSLog("QTerm AI archive could not be finalized: %@", error.localizedDescription)
+        }
+        aiArchive = nil
+        aiLease = nil
+    }
+
+    func expireAIControlIfNeeded(now: Date = Date()) {
+        if let aiLease, now >= aiLease.expiresAt { releaseAIControl(reason: "lease_expired") }
+    }
+
+    private func scheduleAIExpiry() {
+        aiExpiryTask?.cancel()
+        let task = DispatchWorkItem { [weak self] in self?.expireAIControlIfNeeded() }
+        aiExpiryTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + TerminalAILease.duration, execute: task)
+    }
 
     private var didCreateController = false
     lazy var controller: TerminalHostController = {
@@ -412,6 +474,7 @@ final class TerminalSession: ObservableObject, Identifiable {
     }
 
     func terminate() {
+        releaseAIControl(reason: "tab_closed")
         cancelRecording()
         controller.terminate()
     }
@@ -572,6 +635,7 @@ final class TerminalSession: ObservableObject, Identifiable {
     }
 
     func playShortcut(_ shortcut: TerminalShortcut) {
+        guard aiLease == nil else { return }
         guard case .running = state else { return }
         guard shortcut.isPlayable, !isRecording, !isPlayingShortcut else { return }
         isPlayingShortcut = true
@@ -632,6 +696,7 @@ final class TerminalSession: ObservableObject, Identifiable {
     }
 
     func startSessionTunnel(configuration: SessionTunnelConfiguration) throws {
+        guard aiLease == nil else { throw TerminalAIControlError.busy }
         guard canStartSessionTunnel else {
             if sessionTunnelStatus?.occupiesTerminal == true {
                 throw SessionTunnelStartError.tunnelAlreadyActive
@@ -1655,11 +1720,12 @@ final class TerminalWorkspace: ObservableObject {
         }
     }
 
-    func sendToolInput(to selector: String?, bytes: [UInt8]) throws -> TerminalSession {
+    func sendToolInput(to selector: String?, bytes: [UInt8], owner: String? = nil) throws -> TerminalSession {
         let tab = try toolTab(matching: selector)
+        try tab.authorizeAIInput(owner: owner)
         tab.startProcessIfNeeded()
-        try tab.controller.sendToolInput(bytes: bytes)
-        selectedID = tab.id
+        try tab.controller.sendToolInput(bytes: bytes, owner: owner)
+        if let owner, tab.aiLease != nil { try tab.renewAIControl(owner: owner) }
         return tab
     }
 
@@ -1668,9 +1734,9 @@ final class TerminalWorkspace: ObservableObject {
         in selector: String?
     ) throws -> TerminalSession {
         let tab = try toolTab(matching: selector)
+        try tab.authorizeAIInput(owner: nil)
         try tab.startSessionTunnel(configuration: configuration)
         sessionTunnelPresets = SessionTunnelPresetStore.record(configuration)
-        selectedID = tab.id
         objectWillChange.send()
         return tab
     }
@@ -1685,7 +1751,6 @@ final class TerminalWorkspace: ObservableObject {
             throw TerminalToolError.sessionTunnelNotActive
         }
         tab.stopSessionTunnel()
-        selectedID = tab.id
         objectWillChange.send()
         return tab
     }
@@ -1693,13 +1758,12 @@ final class TerminalWorkspace: ObservableObject {
     func playToolShortcut(_ shortcut: TerminalShortcut, in selector: String?) throws -> TerminalSession {
         let tab = try toolTab(matching: selector)
         tab.startProcessIfNeeded()
-        selectedID = tab.id
         tab.playShortcut(shortcut)
         objectWillChange.send()
         return tab
     }
 
-    private func toolTab(matching selector: String?) throws -> TerminalSession {
+    func toolTab(matching selector: String?) throws -> TerminalSession {
         let cleaned = selector?.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let cleaned, !cleaned.isEmpty, cleaned != "selected" else {
             if let selectedTab { return selectedTab }

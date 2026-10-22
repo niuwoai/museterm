@@ -1380,3 +1380,14 @@
 "skin.tomorrow.summary" = "纯白纸面，干净中性墨色。";
 "skin.tomorrowNight.name" = "Tomorrow Night";
 "skin.tomorrowNight.summary" = "中性黑灰，克制而清晰。";
+
+"ai_control.locked" = "AI 正在接管此标签";
+"ai_control.description" = "当前仅供观看。点击解锁交还人工输入，AI 将停止写入；解锁不会中断正在运行的命令。120 秒内无输入或续租会自动释放。";
+"ai_control.unlock" = "解锁并接管输入";
+"ai_control.updated" = "标签接管状态已更新，可通过 list_tabs 查看租约。";
+"ai_control.error.owned" = "此标签由另一个 MCP 会话接管，请等待释放或在 QTerm 中手动解锁。";
+"ai_control.error.retake" = "当前没有有效租约，请使用明确的标签 UUID 重新接管；意外释放后请先与用户协调。";
+"ai_control.error.busy" = "AI 接管不能与录制回放、文件传输或会话隧道重叠，请先释放接管或结束当前操作。";
+"ai_control.error.input_rejected" = "输入未发送：接管已释放，或终端安全检查未通过。";
+"ai_control.archive_description" = "AI 输入以 JSONL 存档在本机；密码模式输入不记录，可识别的密钥会脱敏。未提交的输入在回车或释放时保存。存档保留至手动删除，脱敏无法识别所有秘密。";
+"ai_control.open_archives" = "打开 AI 输入存档目录";
