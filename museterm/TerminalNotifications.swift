@@ -198,7 +198,7 @@ enum TerminalNotificationPayloadBuilder {
     }
 }
 
-final class TerminalNotificationCoordinator: NSObject, ObservableObject, TerminalAttentionReporting {
+final class TerminalNotificationCoordinator: NSObject, ObservableObject, TerminalAttentionReporting, UNUserNotificationCenterDelegate {
     static let shared = TerminalNotificationCoordinator()
 
     @Published private(set) var authorizationStatusLabel = L10n.string("notifications.permission.unknown")
@@ -209,6 +209,7 @@ final class TerminalNotificationCoordinator: NSObject, ObservableObject, Termina
     private weak var preferences: TerminalPreferences?
     private var cancellables: Set<AnyCancellable> = []
     private var lastDeliveryDates: [String: Date] = [:]
+    private var agentEventObservation: UUID?
 
     private override init() {
         super.init()
@@ -216,9 +217,15 @@ final class TerminalNotificationCoordinator: NSObject, ObservableObject, Termina
     }
 
     func attach(workspace: TerminalWorkspace, preferences: TerminalPreferences) {
+        if let agentEventObservation { self.workspace?.sessionRegistry.events.removeObserver(agentEventObservation) }
         self.workspace = workspace
         self.preferences = preferences
         workspace.attentionReporter = self
+        UNUserNotificationCenter.current().delegate = self
+        agentEventObservation = workspace.sessionRegistry.events.observe { [weak self] event in
+            guard event.kind == .attentionCreated, let item = event.attention else { return }
+            self?.deliverAgentAttention(item)
+        }
 
         cancellables.removeAll()
         workspace.$selectedID
@@ -230,6 +237,44 @@ final class TerminalNotificationCoordinator: NSObject, ObservableObject, Termina
             .store(in: &cancellables)
 
         refreshAuthorizationStatus()
+    }
+
+    private func deliverAgentAttention(_ item: TerminalAttentionItem) {
+        guard let preferences, let workspace, preferences.notificationsEnabled,
+              preferences.notifyAgentAttention, let session = workspace.sessionRegistry.sessions[item.tabID] else { return }
+        if item.kind == .completed && !preferences.notifyLongCommandCompletion { return }
+        if item.kind == .failed && !preferences.notifyCommandFailures { return }
+        if NSApplication.shared.isActive {
+            if workspace.selectedID != item.tabID && preferences.showInactiveTabNotificationBadges { session.markUnreadAttention() }
+            return
+        }
+        guard isAuthorizedForSystemNotifications else { return }
+        let key = "\(item.tabID):agent-\(item.kind.rawValue)"
+        let now = Date()
+        if let last = lastDeliveryDates[key], now.timeIntervalSince(last) < preferences.notificationCooldownSeconds { return }
+        lastDeliveryDates[key] = now
+        pruneExpiredDeliveryDates(now: now, cooldownSeconds: preferences.notificationCooldownSeconds)
+        let content = UNMutableNotificationContent()
+        content.title = L10n.string("attention.notification.title")
+        content.body = L10n.string("attention.kind.\(item.kind.rawValue)")
+        content.sound = .default
+        content.userInfo = ["tabID": item.tabID.uuidString, "attentionID": item.id.uuidString,
+                            "attentionVersion": item.version]
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "agent-\(item.id)", content: content, trigger: nil))
+    }
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        let info = response.notification.request.content.userInfo
+        let tab = info["tabID"] as? String
+        let item = info["attentionID"] as? String
+        let version = info["attentionVersion"] as? Int
+        Task { @MainActor [weak self] in
+            if let route = TerminalNotificationRoute(tab: tab, item: item, version: version) {
+                self?.workspace?.focusAttention(tabID: route.tabID, itemID: route.itemID, version: route.version)
+            }
+            completionHandler()
+        }
     }
 
     func requestAuthorization() {

@@ -7,6 +7,13 @@ struct TerminalToolPaths {
     static let responseDirectoryName = "responses"
 
     static var rootDirectory: URL {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-ui-testing-agent-state") {
+            let path = ProcessInfo.processInfo.environment["QTERM_AGENT_TEST_TOOL_ROOT"]
+            return path.map { URL(fileURLWithPath: $0, isDirectory: true) }
+                ?? FileManager.default.temporaryDirectory.appendingPathComponent("qterm-agent-ui-\(ProcessInfo.processInfo.processIdentifier)")
+        }
+        #endif
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
         return base.appendingPathComponent(supportDirectoryName, isDirectory: true)
@@ -36,6 +43,10 @@ struct TerminalToolPaths {
 }
 
 struct TerminalToolState: Codable {
+    var attentionItems: [TerminalAttentionItem]? = nil
+    var capabilities: [String]? = nil
+    var eventCursor: TerminalEventCursor? = nil
+    var sessions: [TerminalRegisteredSessionSnapshot]? = nil
     let schemaVersion: Int
     let app: String
     let version: String
@@ -67,6 +78,7 @@ struct TerminalToolState: Codable {
 }
 
 struct TerminalToolTabSnapshot: Codable, Equatable {
+    var agent: TerminalAgentSnapshot? = nil
     var aiControlled: Bool? = nil
     var aiLeaseExpiresAt: Date? = nil
     var aiRequiresTakeover: Bool? = nil
@@ -400,6 +412,15 @@ struct TerminalToolCommandBlockSnapshot: Codable, Equatable {
 }
 
 struct TerminalToolRequest: Codable {
+    var noResponse: Bool? = nil
+    var waitSpec: TerminalWaitSpec? = nil
+    var waitID: String? = nil
+    var attentionID: UUID? = nil
+    var attentionVersion: Int? = nil
+    var agentKind: TerminalAgentKind? = nil
+    var agentReport: TerminalAgentReport? = nil
+    var eventCursor: TerminalEventCursor? = nil
+    var eventLimit: Int? = nil
     var controlID: String? = nil
     let id: String
     let action: String
@@ -441,6 +462,11 @@ struct TerminalToolShortcutSummary: Codable {
 }
 
 struct TerminalToolResponse: Codable {
+    var waitResult: TerminalWaitResult? = nil
+    var attentionItems: [TerminalAttentionItem]? = nil
+    var agentGrant: TerminalAgentGrant? = nil
+    var agent: TerminalAgentSnapshot? = nil
+    var eventBatch: TerminalEventBatch? = nil
     let schemaVersion: Int
     let app: String
     let version: String
@@ -542,6 +568,7 @@ enum TerminalToolInput {
 @MainActor
 final class TerminalToolBridge {
     static let shared = TerminalToolBridge()
+    private let location: TerminalToolLocation
 
     private static let requestPollingInterval: TimeInterval = 0.35
     private static let minimumStateWriteInterval: TimeInterval = 2
@@ -552,6 +579,8 @@ final class TerminalToolBridge {
     private let decoder = JSONDecoder()
     private let maxHistoryCharacters = 240_000
     private var snapshotSequence = 0
+    private var lastResponsePrune = Date.distantPast
+    private var lastRuntimeWrite = Date.distantPast
     // 状态发布同时做脏检查与合并：内容没变时跳过；持续输出时最多每 2 秒生成一次
     // “快照 + JSON + 写盘”。请求仍可强制立即刷新，文件 IO 继续放在后台队列。
     private var stateWriteThrottle = TerminalToolStateWriteThrottle(
@@ -562,7 +591,8 @@ final class TerminalToolBridge {
         qos: .utility
     )
 
-    private init() {
+    init(rootDirectory: URL? = nil) {
+        location = TerminalToolLocation(root: rootDirectory ?? TerminalToolPaths.rootDirectory)
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
         decoder.dateDecodingStrategy = .iso8601
@@ -575,7 +605,7 @@ final class TerminalToolBridge {
 
     func start() {
         do {
-            try TerminalToolPaths.ensureDirectories()
+            try location.prepare()
             writeStateIfNeeded(force: true)
         } catch {
             NSLog("QTerm tool bridge failed to prepare directories: \(error.localizedDescription)")
@@ -593,8 +623,40 @@ final class TerminalToolBridge {
         }
     }
 
+    func stop() {
+        timer?.invalidate()
+        timer = nil
+    }
+
     private func tick() {
+        if let registry = workspace?.sessionRegistry, Date().timeIntervalSince(lastRuntimeWrite) >= 1 {
+            lastRuntimeWrite = Date()
+            let metadata = TerminalToolRuntime(appEpoch: registry.events.appEpoch,
+                pid: ProcessInfo.processInfo.processIdentifier, version: AppVersion.value, cursor: registry.events.cursor)
+            do {
+                let data = try encoder.encode(metadata)
+                let url = location.runtimeFile
+                stateWriteQueue.async {
+                    do { try TerminalToolPrivateWriter.write(data, to: url) }
+                    catch { NSLog("QTerm could not write runtime metadata") }
+                }
+            } catch { NSLog("QTerm could not encode runtime metadata") }
+        }
+        if Date().timeIntervalSince(lastResponsePrune) >= 30 {
+            lastResponsePrune = Date()
+            do { try TerminalToolResponseRetention.prune(directory: location.responseDirectory) }
+            catch { NSLog("QTerm could not prune expired tool responses") }
+        }
+        if let registry = workspace?.sessionRegistry {
+            registry.setAgentMonitoringEnabled(workspace?.preferences?.agentMonitoringEnabled ?? true)
+            registry.refreshAgents()
+            if registry.agentMonitoringEnabled {
+                for session in registry.sessions.values { session.sampleAgentIfControllerExists() }
+            }
+            registry.waits.expire()
+        }
         let handledRequestCount = processRequests()
+        flushWaitResponses()
         writeStateIfNeeded(force: handledRequestCount > 0)
     }
 
@@ -616,6 +678,10 @@ final class TerminalToolBridge {
         var hasher = Hasher()
         hasher.combine(workspace.selectedTab?.id)
         hasher.combine(workspace.sessionTunnelPresets)
+        hasher.combine(workspace.sessionRegistry.events.sequence)
+        for session in workspace.sessionRegistry.sessions.values.sorted(by: { $0.sequence < $1.sequence }) {
+            hasher.combine(session.agentStatus?.updatedAt)
+        }
         for tab in workspace.tabs {
             hasher.combine(tab.id)
             tab.expireAIControlIfNeeded()
@@ -632,7 +698,7 @@ final class TerminalToolBridge {
     private func writeState() {
         guard let workspace else { return }
         snapshotSequence += 1
-        let state = TerminalToolState(
+        var state = TerminalToolState(
             app: "QTerm",
             version: AppVersion.value,
             snapshotSequence: snapshotSequence,
@@ -641,6 +707,10 @@ final class TerminalToolBridge {
             sessionTunnelPresets: workspace.sessionTunnelPresets,
             tabs: workspace.toolSnapshots(maxHistoryCharacters: maxHistoryCharacters)
         )
+        state.eventCursor = workspace.sessionRegistry.events.cursor
+        state.sessions = workspace.sessionRegistry.snapshots
+        state.attentionItems = workspace.sessionRegistry.attention.activeItems
+        state.capabilities = ["agent-state-v1", "session-events-v1", "attention-v1", "wait-v1"]
         let data: Data
         do {
             // JSON 编码依赖默认 MainActor 隔离下生成的 Codable conformance；先在主线程完成，
@@ -653,13 +723,10 @@ final class TerminalToolBridge {
             NSLog("QTerm tool bridge failed to encode state: \(error.localizedDescription)")
             return
         }
+        let destination = location.stateFile
         stateWriteQueue.async {
             do {
-                try data.write(to: TerminalToolPaths.stateFile, options: .atomic)
-                try FileManager.default.setAttributes(
-                    [.posixPermissions: 0o600],
-                    ofItemAtPath: TerminalToolPaths.stateFile.path
-                )
+                try TerminalToolPrivateWriter.write(data, to: destination)
             } catch {
                 NSLog("QTerm tool bridge failed to write state: \(error.localizedDescription)")
             }
@@ -671,33 +738,64 @@ final class TerminalToolBridge {
         let manager = FileManager.default
         guard
             let files = try? manager.contentsOfDirectory(
-                at: TerminalToolPaths.requestDirectory,
+                at: location.requestDirectory,
                 includingPropertiesForKeys: nil
             )
         else { return 0 }
 
         var handledCount = 0
         for file in files where file.pathExtension == "json" {
-            let response: TerminalToolResponse
+            let response: TerminalToolResponse?
+            var suppressResponse = false
             do {
                 let data = try Data(contentsOf: file)
                 let request = try decoder.decode(TerminalToolRequest.self, from: data)
-                response = perform(request: request)
+                suppressResponse = request.noResponse == true && ["cancel_wait", "cancel_all_waits"].contains(request.action)
+                response = try handleWaitRequest(request) ?? (request.action == "wait_session" ? nil : perform(request: request))
             } catch {
                 response = TerminalToolResponse(
                     id: file.deletingPathExtension().lastPathComponent,
                     ok: false,
                     snapshotSequence: snapshotSequence,
                     message: nil,
-                    error: error.localizedDescription
+                    error: (error as? TerminalWaitError)?.rawValue ?? error.localizedDescription
                 )
             }
 
-            write(response: response)
+            if let response, !suppressResponse { write(response: response) }
             try? manager.removeItem(at: file)
             handledCount += 1
         }
         return handledCount
+    }
+
+    private func handleWaitRequest(_ request: TerminalToolRequest) throws -> TerminalToolResponse? {
+        guard let registry = workspace?.sessionRegistry else {
+            if request.action == "wait_session" { throw TerminalWaitError.invalidSpec }
+            return nil
+        }
+        if request.action == "wait_session" {
+            guard let spec = request.waitSpec, let owner = request.controlID else { throw TerminalWaitError.invalidSpec }
+            try registry.waits.begin(id: request.id, owner: owner, spec: spec)
+        } else if request.action == "cancel_wait" || request.action == "cancel_all_waits" {
+            guard let owner = request.controlID else { throw TerminalWaitError.invalidSpec }
+            if request.action == "cancel_all_waits" { registry.waits.cancelAll(owner: owner) }
+            else if let id = request.waitID { _ = registry.waits.cancel(id: id, owner: owner) }
+            else { throw TerminalWaitError.invalidSpec }
+            return TerminalToolResponse(id: request.id, ok: true, snapshotSequence: snapshotSequence,
+                action: request.action, message: nil, error: nil)
+        }
+        return nil
+    }
+
+    private func flushWaitResponses() {
+        guard let registry = workspace?.sessionRegistry else { return }
+        for result in registry.waits.drainCompletions() {
+            var response = TerminalToolResponse(id: result.waitID, ok: true, snapshotSequence: snapshotSequence,
+                action: "wait_session", message: nil, error: nil)
+            response.waitResult = result
+            write(response: response)
+        }
     }
 
     private func perform(request: TerminalToolRequest) -> TerminalToolResponse {
@@ -710,6 +808,27 @@ final class TerminalToolBridge {
                 message: nil,
                 error: L10n.string("tools.error.no_workspace")
             )
+        }
+
+        if TerminalAgentToolService.actions.contains(request.action) {
+            return TerminalAgentToolService.perform(request, registry: workspace.sessionRegistry,
+                snapshotSequence: snapshotSequence,
+                paired: {
+                    let allowed = TerminalToolAccess.authorizes(clientID: request.clientID, token: request.authToken)
+                    TerminalToolAccess.recordAuthorization(clientID: request.clientID,
+                        action: request.action, allowed: allowed)
+                    return allowed
+                })
+        }
+
+        if TerminalAttentionToolService.actions.contains(request.action) {
+            return TerminalAttentionToolService.perform(request, registry: workspace.sessionRegistry,
+                snapshotSequence: snapshotSequence,
+                paired: {
+                    let allowed = TerminalToolAccess.authorizes(clientID: request.clientID, token: request.authToken)
+                    TerminalToolAccess.recordAuthorization(clientID: request.clientID, action: request.action, allowed: allowed)
+                    return allowed
+                })
         }
 
         if Self.writeActions.contains(request.action) {
@@ -1022,9 +1141,8 @@ final class TerminalToolBridge {
     private func write(response: TerminalToolResponse) {
         do {
             let data = try encoder.encode(response)
-            let url = TerminalToolPaths.responseDirectory.appendingPathComponent("\(response.id).json")
-            try data.write(to: url, options: .atomic)
-            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+            let url = location.responseDirectory.appendingPathComponent("\(response.id).json")
+            try TerminalToolPrivateWriter.write(data, to: url)
         } catch {
             NSLog("QTerm tool bridge failed to write response: \(error.localizedDescription)")
         }

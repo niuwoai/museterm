@@ -51,6 +51,7 @@ RESPONSES = File.join(ROOT, "responses")
 CLIENT_ID = "qterm-cli"
 CONTROL_ID = SecureRandom.uuid
 CONTROLLED_TABS = {}
+MCP_WRITE_LOCK = Mutex.new
 KEYCHAIN_SERVICE = "im.some.museterm.tool-access"
 
 def ensure_dirs
@@ -154,7 +155,7 @@ def text_payload(state, tab, field, chars)
 end
 
 def tab_summary_keys
-  ["id", "index", "title", "subtitle", "currentDirectory", "shellName", "sessionTunnelStatus", "aiControlled", "aiLeaseExpiresAt", "aiRequiresTakeover", "isSelected", "state", "columns", "rows", "updatedAt"]
+  ["id", "index", "title", "subtitle", "currentDirectory", "shellName", "sessionTunnelStatus", "aiControlled", "aiLeaseExpiresAt", "aiRequiresTakeover", "agent", "isSelected", "state", "columns", "rows", "updatedAt"]
 end
 
 def tab_summaries(state)
@@ -170,6 +171,8 @@ def tabs_payload(state)
     "version" => state["version"],
     "snapshotSequence" => state["snapshotSequence"],
     "selectedTabID" => state["selectedTabID"],
+    "eventCursor" => state["eventCursor"],
+    "sessions" => state["sessions"],
     "tabs" => tab_summaries(state)
   }
 end
@@ -195,7 +198,8 @@ def session_tunnels_payload(state)
   }
 end
 
-def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: nil, profile: nil, shortcut: nil, tunnel_name: nil, target_host: nil, target_port: nil, local_port: nil, timeout_seconds: 3.0)
+def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: nil, profile: nil, shortcut: nil, tunnel_name: nil, target_host: nil, target_port: nil, local_port: nil, timeout_seconds: 3.0, agent_kind: nil, agent_report: nil, event_cursor: nil, event_limit: nil, wait_spec: nil, attention_id: nil, attention_version: nil)
+  received = false
   timeout_seconds = timeout_seconds.to_f
   raise "timeout must be positive." if timeout_seconds <= 0
 
@@ -217,25 +221,45 @@ def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: 
     "localPort" => local_port,
     "clientID" => CLIENT_ID,
     "controlID" => CONTROL_ID,
-    "authToken" => access_token
+    "authToken" => (["report_agent_state", "wait_session", "list_attention"].include?(action) ? nil : access_token),
+    "waitSpec" => wait_spec, "attentionID" => attention_id, "attentionVersion" => attention_version,
+    "agentKind" => agent_kind, "agentReport" => agent_report,
+    "eventCursor" => event_cursor, "eventLimit" => event_limit
   }.compact
   request_path = File.join(REQUESTS, "#{id}.json")
-  File.write(request_path, JSON.generate(request))
-  FileUtils.chmod(0o600, request_path)
+  private_tool_request(request_path, request)
   response_path = File.join(RESPONSES, "#{id}.json")
+  last_runtime_check = 0
 
   Timeout.timeout(timeout_seconds) do
     loop do
       if File.file?(response_path)
         response = JSON.parse(File.read(response_path))
         FileUtils.rm_f(response_path)
+        received = true
         return response
+      end
+      if action == "wait_session" && Process.clock_gettime(Process::CLOCK_MONOTONIC) - last_runtime_check >= 0.25
+        last_runtime_check = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        runtime_result = wait_runtime_result(id, wait_spec)
+        if runtime_result
+          received = true
+          FileUtils.rm_f(request_path)
+          FileUtils.rm_f(response_path)
+          return runtime_result
+        end
       end
       sleep 0.05
     end
   end
 rescue Timeout::Error
   raise "QTerm did not answer the tool request in time."
+ensure
+  if action == "wait_session" && id && !received
+    abandon_wait(id)
+    FileUtils.rm_f(request_path) if request_path
+    FileUtils.rm_f(response_path) if response_path
+  end
 end
 
 def require_tab(state, selector)
@@ -620,6 +644,7 @@ def read_mcp_message
 end
 
 def write_mcp_message(payload)
+  MCP_WRITE_LOCK.synchronize do
   body = JSON.generate(payload)
   if MCP_FRAMING[:mode] == :content_length
     STDOUT.write("Content-Length: #{body.bytesize}\r\n\r\n#{body}")
@@ -627,6 +652,7 @@ def write_mcp_message(payload)
     STDOUT.write("#{body}\n")
   end
   STDOUT.flush
+  end
 end
 
 def tool_result_text(text)
@@ -635,6 +661,8 @@ end
 
 def mcp_tools
   [
+    *agent_mcp_tools,
+    *wait_mcp_tools,
     {
       "name" => "help",
       "description" => "Read QTerm collaboration instructions first: takeover, background input, renewal, unlock, archives and release.",
@@ -823,6 +851,13 @@ end
 
 def call_tool(name, args)
   args ||= {}
+  return tool_result_text(JSON.pretty_generate(wait_tool(args))) if name == "wait_session"
+  if ["list_attention", "acknowledge_attention"].include?(name)
+    return tool_result_text(JSON.pretty_generate(attention_tool(name, args)))
+  end
+  if agent_mcp_tools.any? { |tool| tool["name"] == name }
+    return tool_result_text(JSON.pretty_generate(agent_request(name, args)))
+  end
   case name
   when "help"
     tool_result_text(JSON.pretty_generate({
@@ -955,48 +990,10 @@ def call_tool(name, args)
   end
 end
 
-def command_mcp
-  ensure_dirs
-  while (message = read_mcp_message)
-    id = message["id"]
-    method = message["method"]
-    params = message["params"] || {}
+\#(TerminalMCPDispatcher.script)
 
-    next if id.nil? && method&.start_with?("notifications/")
-
-    begin
-      result = case method
-      when "initialize"
-        {
-          "protocolVersion" => "2024-11-05",
-          "serverInfo" => { "name" => "qterm", "version" => "\#(AppVersion.value)" },
-          "capabilities" => { "tools" => {} }
-        }
-      when "tools/list"
-        { "tools" => mcp_tools }
-      when "tools/call"
-        call_tool(params.fetch("name"), params["arguments"] || {})
-      else
-        raise "Unsupported MCP method: #{method}"
-      end
-      write_mcp_message("jsonrpc" => "2.0", "id" => id, "result" => result)
-    rescue => e
-      write_mcp_message(
-        "jsonrpc" => "2.0",
-        "id" => id,
-        "error" => { "code" => -32000, "message" => e.message }
-      )
-    end
-  end
-ensure
-  CONTROLLED_TABS.keys.each do |tab|
-    begin
-      send_request(action: "release_tab", tab: tab, timeout_seconds: 0.5)
-    rescue StandardError
-      # Lease expiry is the fallback when the app cannot answer. Keep MCP stdout clean.
-    end
-  end
-end
+\#(TerminalAgentCLI.script)
+\#(TerminalWaitCLI.script)
 
 def command_help
   puts <<~HELP
@@ -1018,6 +1015,12 @@ def command_help
       qterm shortcuts [--timeout SECONDS] [--json]
       qterm shortcut [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] SHORTCUT_TITLE
       qterm mcp
+      qterm attention [read --item UUID --version N] [--tab UUID]
+      qterm wait SPEC_JSON
+      qterm agent bind --tab UUID --kind claude|codex
+      qterm agent report --binding PRIVATE_FILE --activity working|idle|blocked|unknown|exited [--block-reason approval|question|other] [--result completed|failed|interrupted|unknown]
+      qterm agent status --tab UUID
+      qterm agent events [--after CURSOR_JSON] [--limit N]
 
     MCP config example:
       {"mcpServers":{"qterm":{"command":"qterm","args":["mcp"]}}}
@@ -1028,6 +1031,9 @@ command = ARGV.shift
 begin
   case command
   when "tabs" then command_tabs(ARGV)
+  when "agent" then command_agent(ARGV)
+  when "attention" then command_attention(ARGV)
+  when "wait" then command_wait(ARGV)
   when "screen" then command_screen(ARGV)
   when "history" then command_history(ARGV)
   when "commands" then command_commands(ARGV)
