@@ -117,6 +117,10 @@ final class SessionTunnelPresetTests: XCTestCase {
         let tools = try XCTUnwrap(result["tools"] as? [[String: Any]])
         let names = Set(tools.compactMap { $0["name"] as? String })
         XCTAssertEqual(names, [
+            "help",
+            "takeover_tab",
+            "renew_tab_control",
+            "release_tab",
             "list_tabs",
             "read_screen",
             "read_history",

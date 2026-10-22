@@ -557,6 +557,13 @@ private struct TabRowView: View {
                     .accessibilityLabel(L10n.string("session_tunnel.phase.running"))
             }
 
+            if tab.aiLease != nil {
+                Image(systemName: "sparkles")
+                    .foregroundStyle(skin.accent)
+                    .help(L10n.string("ai_control.locked"))
+                    .accessibilityLabel(L10n.string("ai_control.locked"))
+            }
+
             if tab.environment != .local {
                 EnvironmentBadge(environment: tab.environment)
             }
@@ -614,6 +621,12 @@ private struct CompactTabRowView: View {
 
     var body: some View {
         HStack(spacing: 5) {
+            if tab.aiLease != nil {
+                Image(systemName: "sparkles")
+                    .foregroundStyle(skin.accent)
+                    .help(L10n.string("ai_control.locked"))
+                    .accessibilityLabel(L10n.string("ai_control.locked"))
+            }
             Circle()
                 .fill(statusColor)
                 .frame(width: 6, height: 6)
@@ -720,6 +733,8 @@ private struct TerminalPaneView: View {
                 .zIndex(2)
             }
             if let selectedTab = workspace.selectedTab {
+                TerminalAIControlMask(tab: selectedTab, skin: preferences.skin)
+                    .zIndex(35)
                 SessionTunnelMaskContainer(tab: selectedTab, skin: preferences.skin)
                     .zIndex(40)
             }

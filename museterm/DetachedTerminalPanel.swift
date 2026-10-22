@@ -303,6 +303,8 @@ private struct DetachedPanelContentView: View {
 
             TerminalHostView(session: session, preferences: preferences, isActive: true)
 
+            TerminalAIControlMask(tab: session, skin: preferences.skin)
+
             // 顶部拖拽条（始终存在，透明），悬停时叠加控制按钮。
             topChrome
         }

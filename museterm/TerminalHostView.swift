@@ -240,6 +240,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func terminate() {
+        session?.releaseAIControl(reason: "terminal_closed")
         isTerminating = true
         activeSessionTunnel?.forceCancel(error: nil)
         activeSessionTunnel = nil
@@ -373,6 +374,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     ) -> TerminalToolTabSnapshot {
         let recentCommandBlocks = Array(session?.commandBlocks.suffix(50) ?? [])
         return TerminalToolTabSnapshot(
+            aiControlled: session?.aiLease != nil,
+            aiLeaseExpiresAt: session?.aiLease?.expiresAt,
+            aiRequiresTakeover: session?.aiRequiresTakeover,
             id: session?.id.uuidString ?? UUID().uuidString,
             index: index,
             title: session?.tabTitle ?? "",
@@ -415,14 +419,26 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         )
     }
 
-    func sendToolInput(bytes: [UInt8]) throws {
+    private var isSendingToolInput = false
+    private var toolInputOwner: String?
+
+    func sendToolInput(bytes: [UInt8], owner: String? = nil) throws {
+        try session?.authorizeAIInput(owner: owner)
         guard didStart, terminalView.process.running else {
             throw TerminalToolError.processUnavailable
         }
         guard activeSessionTunnel == nil else {
             throw TerminalToolError.sessionTunnelActive
         }
+        try session?.archiveAIInput(bytes, echoEnabled: terminalView.terminalEchoEnabled)
+        isSendingToolInput = true
+        toolInputOwner = owner
+        defer {
+            isSendingToolInput = false
+            toolInputOwner = nil
+        }
         sendProcessInput(bytes: bytes)
+        guard terminalView.didSendLastInput else { throw TerminalAIControlError.inputRejected }
     }
 
     func sendProcessInput(bytes: [UInt8]) {
@@ -434,6 +450,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func startZModemUpload(fileURLs: [URL]) {
+        guard session?.aiLease == nil else { return }
         guard activeSessionTunnel == nil else {
             reportFileTransferFailure(
                 kind: .upload,
@@ -476,6 +493,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func startZModemDownload(remotePath: String, destinationFile: URL) {
+        guard session?.aiLease == nil else { return }
         guard activeSessionTunnel == nil else {
             reportFileTransferFailure(
                 kind: .download,
@@ -617,6 +635,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             session?.state = .running
             return
         }
+        session?.releaseAIControl(reason: "process_exited")
         session?.finishActiveCommand(
             exitCode: exitCode,
             completionSource: .processExit,
@@ -710,9 +729,21 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         }
         terminalView.onSendToProcess = { [weak self] data, echoEnabled in
             guard let self else { return true }
+            let fromTool = self.isSendingToolInput
+            let owner = self.toolInputOwner
+            // Consume before entering any modal safety confirmation, which can run
+            // a nested event loop and receive unrelated human input.
+            self.isSendingToolInput = false
+            self.toolInputOwner = nil
+            self.session?.expireAIControlIfNeeded()
+            guard fromTool || self.session?.aiLease == nil else { return false }
             guard self.activeSessionTunnel == nil else { return false }
             guard self.approveProcessInputIfNeeded(data: data, echoEnabled: echoEnabled) else {
                 return false
+            }
+            if fromTool {
+                do { try self.session?.authorizeAIInput(owner: owner) }
+                catch { return false }
             }
             if self.activeZModemTransfer != nil {
                 // ZMODEM 传输期间键盘输入不得混入协议流；Ctrl+C 双端中止，
@@ -2554,7 +2585,10 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
         super.paste(sender)
     }
 
+    private(set) var didSendLastInput = false
+
     override func send(source: TerminalView, data: ArraySlice<UInt8>) {
+        didSendLastInput = false
         let bytes = Array(data)
         let echoEnabled = cachedTerminalEchoEnabled()
         guard onSendToProcess?(bytes, echoEnabled) ?? true else { return }
@@ -2565,6 +2599,13 @@ private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView 
             }
         }
         super.send(source: source, data: data)
+        didSendLastInput = true
+    }
+
+    // Emulator replies (cursor position, device attributes, etc.) are protocol traffic,
+    // not human input. Keep full-screen programs responsive while input is locked.
+    override func send(source: Terminal, data: ArraySlice<UInt8>) {
+        super.send(source: self, data: data)
     }
 
     fileprivate func terminalDidResize(newCols: Int, newRows: Int) {

@@ -67,6 +67,9 @@ struct TerminalToolState: Codable {
 }
 
 struct TerminalToolTabSnapshot: Codable, Equatable {
+    var aiControlled: Bool? = nil
+    var aiLeaseExpiresAt: Date? = nil
+    var aiRequiresTakeover: Bool? = nil
     let id: String
     let index: Int
     let title: String
@@ -397,6 +400,7 @@ struct TerminalToolCommandBlockSnapshot: Codable, Equatable {
 }
 
 struct TerminalToolRequest: Codable {
+    var controlID: String? = nil
     let id: String
     let action: String
     let tab: String?
@@ -614,6 +618,9 @@ final class TerminalToolBridge {
         hasher.combine(workspace.sessionTunnelPresets)
         for tab in workspace.tabs {
             hasher.combine(tab.id)
+            tab.expireAIControlIfNeeded()
+            hasher.combine(tab.aiLease?.expiresAt)
+            hasher.combine(tab.aiRequiresTakeover)
             hasher.combine(tab.controller.contentRevision)
             hasher.combine(tab.tabTitle)
             hasher.combine(tab.toolStateText)
@@ -726,6 +733,30 @@ final class TerminalToolBridge {
         }
 
         switch request.action {
+        case "takeover_tab", "renew_tab_control", "release_tab":
+            do {
+                guard let owner = request.controlID, !owner.isEmpty, owner.count <= 80,
+                      let selector = request.tab, let tabID = UUID(uuidString: selector) else {
+                    throw TerminalAIControlError.retake
+                }
+                let tab = try workspace.toolTab(matching: tabID.uuidString)
+                switch request.action {
+                case "takeover_tab": try tab.takeAIControl(owner: owner)
+                case "renew_tab_control": try tab.renewAIControl(owner: owner)
+                default:
+                    tab.expireAIControlIfNeeded()
+                    if tab.aiLease != nil {
+                        try tab.authorizeAIInput(owner: owner)
+                        tab.releaseAIControl(reason: "released")
+                    }
+                }
+                return TerminalToolResponse(id: request.id, ok: true, snapshotSequence: snapshotSequence,
+                    action: request.action, tabID: tab.id.uuidString,
+                    message: L10n.string("ai_control.updated"), error: nil)
+            } catch {
+                return TerminalToolResponse(id: request.id, ok: false, snapshotSequence: snapshotSequence,
+                    action: request.action, message: nil, error: error.localizedDescription)
+            }
         case "list_shortcuts":
             let toolWriteAllowed = workspace.preferences?.toolBridgeWritesEnabled == true
                 && TerminalToolAccess.authorizes(clientID: request.clientID, token: request.authToken)
@@ -881,6 +912,14 @@ final class TerminalToolBridge {
                 )
             }
         case "play_shortcut":
+            do {
+                let tab = try workspace.toolTab(matching: request.tab)
+                try tab.authorizeAIInput(owner: request.controlID)
+                if tab.aiLease != nil { throw TerminalAIControlError.busy }
+            } catch {
+                return TerminalToolResponse(id: request.id, ok: false, snapshotSequence: snapshotSequence,
+                    action: request.action, message: nil, error: error.localizedDescription)
+            }
             let title = request.shortcut?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard !title.isEmpty else {
                 return TerminalToolResponse(
@@ -948,7 +987,7 @@ final class TerminalToolBridge {
             }
 
             do {
-                let tab = try workspace.sendToolInput(to: request.tab, bytes: bytes)
+                let tab = try workspace.sendToolInput(to: request.tab, bytes: bytes, owner: request.controlID)
                 return TerminalToolResponse(
                     id: request.id,
                     ok: true,
@@ -992,6 +1031,7 @@ final class TerminalToolBridge {
     }
 
     private static let writeActions: Set<String> = [
+        "takeover_tab", "renew_tab_control", "release_tab",
         "create_tab",
         "open_ssh_profile",
         "play_shortcut",
