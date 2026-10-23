@@ -228,6 +228,7 @@ private struct SidebarView: View {
                                     TabRowView(
                                         tab: tab,
                                         isSelected: workspace.selectedID == tab.id,
+                                        showsUnreadBadge: preferences.notificationsEnabled && preferences.showInactiveTabNotificationBadges,
                                         shortcutNumber: index < 9 ? index + 1 : nil,
                                         skin: preferences.skin,
                                         closeAction: { workspace.close(tab) },
@@ -279,6 +280,7 @@ private struct SidebarView: View {
                                 CompactTabRowView(
                                     tab: tab,
                                     isSelected: workspace.selectedID == tab.id,
+                                    showsUnreadBadge: preferences.notificationsEnabled && preferences.showInactiveTabNotificationBadges,
                                     shortcutNumber: index < 9 ? index + 1 : nil,
                                     skin: preferences.skin,
                                     closeAction: { workspace.close(tab) },
@@ -504,6 +506,7 @@ extension Notification.Name {
 private struct TabRowView: View {
     @ObservedObject var tab: TerminalSession
     let isSelected: Bool
+    let showsUnreadBadge: Bool
     let shortcutNumber: Int?
     let skin: TerminalVisualSkin
     let closeAction: () -> Void
@@ -516,12 +519,13 @@ private struct TabRowView: View {
                 .fill(statusColor)
                 .frame(width: 7, height: 7)
                 .overlay(alignment: .topTrailing) {
-                    if tab.hasUnreadAttention && !isSelected {
+                    if showsUnreadBadge && tab.hasUnreadAttention && !isSelected {
                         Circle()
                             .fill(Color.red)
                             .frame(width: 5, height: 5)
                             .offset(x: 3, y: -3)
                             .accessibilityLabel(L10n.string("tab.notification_unread"))
+                            .accessibilityIdentifier("terminal-unread-\(tab.id)")
                     }
                 }
 
@@ -622,6 +626,7 @@ private struct TabRowView: View {
 private struct CompactTabRowView: View {
     @ObservedObject var tab: TerminalSession
     let isSelected: Bool
+    let showsUnreadBadge: Bool
     let shortcutNumber: Int?
     let skin: TerminalVisualSkin
     let closeAction: () -> Void
@@ -640,12 +645,13 @@ private struct CompactTabRowView: View {
                 .fill(statusColor)
                 .frame(width: 6, height: 6)
                 .overlay(alignment: .topTrailing) {
-                    if tab.hasUnreadAttention && !isSelected {
+                    if showsUnreadBadge && tab.hasUnreadAttention && !isSelected {
                         Circle()
                             .fill(Color.red)
                             .frame(width: 4, height: 4)
                             .offset(x: 2, y: -2)
                             .accessibilityLabel(L10n.string("tab.notification_unread"))
+                            .accessibilityIdentifier("terminal-unread-\(tab.id)")
                     }
                 }
 

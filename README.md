@@ -31,6 +31,6 @@ defaults delete im.some.museterm terminal.skipRunningTabCloseConfirmation
 
 ## 版本
 
-当前版本：`v1.250.0-rc1`
+当前版本：`v1.250.0-rc2`
 
 会话事件、Agent 状态、待处理聚合与 CLI/MCP 条件等待见 [使用说明](docs/AGENT_STATE_EVENTS.md)。

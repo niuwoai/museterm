@@ -1421,7 +1421,7 @@
 "settings.agent_monitoring" = "Agent state and attention tracking";
 "settings.notifications.agent_attention" = "Notify when an Agent needs attention";
 "attention.entry" = "Needs attention (%d)";
-"attention.title" = "Agent attention";
+"attention.title" = "Pending items";
 "attention.empty" = "Nothing needs attention";
 "attention.closed" = "Closed terminal";
 "attention.stale" = "State expired; answer may still be needed";
@@ -1432,3 +1432,8 @@
 "attention.kind.blocked" = "Needs your attention";
 "attention.kind.completed" = "Completed; ready to review";
 "attention.kind.failed" = "Failed; ready to review";
+"attention.kind.bell" = "Terminal bell";
+"attention.kind.commandCompleted" = "Terminal command completed";
+"attention.kind.commandFailed" = "Terminal command failed";
+"attention.kind.processExited" = "Terminal process exited";
+"attention.occurrences" = "%d reminders combined";

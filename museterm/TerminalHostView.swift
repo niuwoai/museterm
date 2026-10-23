@@ -1295,6 +1295,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             session?.updateShellName(descriptor.shellName)
             // 先盖上遮罩，再启动进程：保证 shell 的第一条 PS1 输出抵达前画面已被遮住。
             beginStartupPromptDeduplication()
+            session?.beginProcessRun()
             terminalView.startProcess(
                 executable: descriptor.executable,
                 args: descriptor.args,
@@ -1312,6 +1313,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 resetSSHDiagnosticsForNewAttempt()
                 sshLastStartUptime = ProcessInfo.processInfo.systemUptime
                 let descriptor = try SSHConfigMaterializer.descriptor(for: profile)
+                session?.beginProcessRun()
                 terminalView.startProcess(
                     executable: descriptor.executable,
                     args: descriptor.args,

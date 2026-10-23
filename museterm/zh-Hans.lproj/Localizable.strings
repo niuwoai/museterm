@@ -1421,7 +1421,7 @@
 "settings.agent_monitoring" = "Agent 状态与待处理跟踪";
 "settings.notifications.agent_attention" = "Agent 需要处理时通知";
 "attention.entry" = "待处理（%d）";
-"attention.title" = "Agent 待处理";
+"attention.title" = "待处理事项";
 "attention.empty" = "暂无待处理事项";
 "attention.closed" = "终端已关闭";
 "attention.stale" = "状态已过期，可能仍需回答";
@@ -1432,3 +1432,8 @@
 "attention.kind.blocked" = "需要你处理";
 "attention.kind.completed" = "已完成，等待查看";
 "attention.kind.failed" = "执行失败，等待查看";
+"attention.kind.bell" = "终端响铃";
+"attention.kind.commandCompleted" = "终端命令完成";
+"attention.kind.commandFailed" = "终端命令失败";
+"attention.kind.processExited" = "终端进程退出";
+"attention.occurrences" = "已合并 %d 次提醒";
