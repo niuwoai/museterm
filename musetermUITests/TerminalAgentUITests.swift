@@ -2,6 +2,46 @@ import XCTest
 
 final class TerminalAgentUITests: XCTestCase {
     @MainActor
+    func testOrdinaryReminderUnifiesBadgeListAndCount() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        let tools = FileManager.default.temporaryDirectory.appendingPathComponent("qterm-ordinary-ui-\(UUID())")
+        app.launchEnvironment["QTERM_AGENT_TEST_TOOL_ROOT"] = tools.path
+        app.launchArguments = ["-AppleLanguages", "(en)", "-terminal.showsTabList", "YES",
+            "-notifications.enabled", "YES", "-notifications.showInactiveTabBadges", "YES",
+            "-ui-testing-agent-state", "-ui-testing-terminal-attention"]
+        app.launch()
+        defer { app.terminate(); try? FileManager.default.removeItem(at: tools) }
+        let entry = app.buttons["agent-attention-entry"]
+        XCTAssertTrue(entry.waitForExistence(timeout: 10))
+        XCTAssertTrue(entry.label.contains("1"))
+        let unread = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "terminal-unread-")).firstMatch
+        XCTAssertTrue(unread.waitForExistence(timeout: 5))
+        let expanded = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        expanded.name = "ordinary-attention-count-and-badge"
+        expanded.lifetime = .keepAlways
+        add(expanded)
+        app.buttons["Hide tab list"].click()
+        XCTAssertTrue(entry.label.contains("1"))
+        XCTAssertTrue(unread.waitForExistence(timeout: 5))
+        entry.click()
+        XCTAssertTrue(app.staticTexts["Pending items"].waitForExistence(timeout: 5))
+        let item = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "attention-item-")).firstMatch
+        XCTAssertTrue(item.waitForExistence(timeout: 5))
+        XCTAssertTrue(item.label.contains("Terminal bell"))
+        XCTAssertTrue(item.label.contains("2 reminders combined"))
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screenshot.name = "ordinary-attention-unified"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        item.click()
+        expectation(for: NSPredicate(format: "label CONTAINS %@", "0"), evaluatedWith: entry)
+        waitForExpectations(timeout: 5)
+        XCTAssertFalse(unread.exists)
+        XCTAssertFalse(item.exists)
+    }
+
+    @MainActor
     func testAgentBadgeSurvivesSidebarToggleWithoutInputTakeover() throws {
         let app = XCUIApplication()
         continueAfterFailure = false

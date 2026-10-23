@@ -45,7 +45,7 @@ enum TerminalNotificationPolicy {
         return .systemNotification(markTabBadge: input.showInactiveTabBadges && !input.tabIsSelected)
     }
 
-    private static func isEligible(_ input: TerminalNotificationPolicyInput) -> Bool {
+    static func isEligible(_ input: TerminalNotificationPolicyInput) -> Bool {
         switch input.event {
         case .bell:
             return input.notifyBells
@@ -207,7 +207,6 @@ final class TerminalNotificationCoordinator: NSObject, ObservableObject, Termina
 
     private weak var workspace: TerminalWorkspace?
     private weak var preferences: TerminalPreferences?
-    private var cancellables: Set<AnyCancellable> = []
     private var lastDeliveryDates: [String: Date] = [:]
     private var agentEventObservation: UUID?
 
@@ -223,31 +222,19 @@ final class TerminalNotificationCoordinator: NSObject, ObservableObject, Termina
         workspace.attentionReporter = self
         UNUserNotificationCenter.current().delegate = self
         agentEventObservation = workspace.sessionRegistry.events.observe { [weak self] event in
-            guard event.kind == .attentionCreated, let item = event.attention else { return }
+            guard event.kind == .attentionCreated, let item = event.attention, item.isAgent else { return }
             self?.deliverAgentAttention(item)
         }
-
-        cancellables.removeAll()
-        workspace.$selectedID
-            .sink { [weak workspace] selectedID in
-                guard let selectedID,
-                      let tab = workspace?.tabs.first(where: { $0.id == selectedID }) else { return }
-                tab.clearUnreadAttention()
-            }
-            .store(in: &cancellables)
 
         refreshAuthorizationStatus()
     }
 
     private func deliverAgentAttention(_ item: TerminalAttentionItem) {
         guard let preferences, let workspace, preferences.notificationsEnabled,
-              preferences.notifyAgentAttention, let session = workspace.sessionRegistry.sessions[item.tabID] else { return }
+              preferences.notifyAgentAttention, workspace.sessionRegistry.sessions[item.tabID] != nil else { return }
         if item.kind == .completed && !preferences.notifyLongCommandCompletion { return }
         if item.kind == .failed && !preferences.notifyCommandFailures { return }
-        if NSApplication.shared.isActive {
-            if workspace.selectedID != item.tabID && preferences.showInactiveTabNotificationBadges { session.markUnreadAttention() }
-            return
-        }
+        if NSApplication.shared.isActive { return }
         guard isAuthorizedForSystemNotifications else { return }
         let key = "\(item.tabID):agent-\(item.kind.rawValue)"
         let now = Date()
@@ -314,22 +301,16 @@ final class TerminalNotificationCoordinator: NSObject, ObservableObject, Termina
             failureMinimumDurationSeconds: preferences.failureNotificationMinimumDurationSeconds
         )
 
-        switch TerminalNotificationPolicy.delivery(for: input) {
-        case .none:
-            return
-        case .tabBadge:
-            session.markUnreadAttention()
-        case .systemNotification(let markTabBadge):
-            if markTabBadge {
-                session.markUnreadAttention()
-            }
-            deliverSystemNotification(for: event, session: session, preferences: preferences)
+        guard let item = workspace.sessionRegistry.attention.recordTerminal(event, session: session, input: input) else { return }
+        if case .systemNotification = TerminalNotificationPolicy.delivery(for: input) {
+            deliverSystemNotification(for: event, session: session, item: item, preferences: preferences)
         }
     }
 
     private func deliverSystemNotification(
         for event: TerminalAttentionEventKind,
         session: TerminalSession,
+        item: TerminalAttentionItem,
         preferences: TerminalPreferences
     ) {
         guard isAuthorizedForSystemNotifications else { return }
@@ -351,7 +332,8 @@ final class TerminalNotificationCoordinator: NSObject, ObservableObject, Termina
         content.title = payload.title
         content.body = payload.body
         content.sound = .default
-        content.userInfo = ["tabID": session.id.uuidString]
+        content.userInfo = ["tabID": session.id.uuidString, "attentionID": item.id.uuidString,
+                            "attentionVersion": item.version]
 
         let request = UNNotificationRequest(
             identifier: "museterm-\(key)-\(UUID().uuidString)",

@@ -3,23 +3,26 @@ import Foundation
 
 enum TerminalAttentionKind: String, Codable {
     case approval, question, blocked, completed, failed
+    case bell, commandCompleted, commandFailed, processExited
     var requiresAnswer: Bool { self == .approval || self == .question || self == .blocked }
 }
 
 struct TerminalAttentionItem: Codable, Equatable, Identifiable {
     let id: UUID
     let tabID: UUID
-    let instanceID: UUID
-    let runID: UUID
+    let instanceID: UUID?
+    let runID: UUID?
     let kind: TerminalAttentionKind
     let createdAt: Date
     let createdSequence: UInt64
-    let source: TerminalAgentSource
-    let confidence: TerminalAgentConfidence
+    let source: TerminalAgentSource?
+    let confidence: TerminalAgentConfidence?
+    var terminal: TerminalAttentionTerminalContext? = nil
     var version: Int = 1
     var readAt: Date? = nil
     var resolvedAt: Date? = nil
     var isStale = false
+    var isAgent: Bool { instanceID != nil }
 }
 
 enum TerminalAttentionMutationError: String, Error { case notFound, staleVersion }
@@ -30,7 +33,13 @@ final class TerminalAttentionStore: ObservableObject {
     private let events: TerminalSessionEventStore
     private var observation: UUID?
     private var previous: [UUID: TerminalAgentSnapshot] = [:]
-    private let capacity = 256
+    let capacity = 256
+    var onUnreadChanged: ((UUID, Bool) -> Void)?
+    private var terminalDeduplication = TerminalAttentionDeduplication()
+
+    func hasUnread(tabID: UUID) -> Bool {
+        items.contains { $0.tabID == tabID && $0.resolvedAt == nil && $0.readAt == nil }
+    }
 
     init(events: TerminalSessionEventStore) {
         self.events = events
@@ -70,17 +79,25 @@ final class TerminalAttentionStore: ObservableObject {
         previous.removeAll()
     }
 
+    func clearAgents(now: Date = Date()) {
+        for index in items.indices where items[index].isAgent && items[index].resolvedAt == nil {
+            resolve(index, now: now)
+        }
+        previous.removeAll()
+    }
+
     private func consume(_ event: TerminalSessionEvent) {
         if event.kind == .closed {
             for index in items.indices where items[index].tabID == event.tabID && items[index].resolvedAt == nil {
                 resolve(index, now: event.occurredAt)
             }
             previous[event.tabID] = nil
+            terminalDeduplication.remove(tabID: event.tabID)
             return
         }
         guard event.kind == .agentChanged else { return }
         guard let state = event.agent else {
-            for index in items.indices where items[index].tabID == event.tabID && items[index].resolvedAt == nil {
+            for index in items.indices where items[index].tabID == event.tabID && items[index].isAgent && items[index].resolvedAt == nil {
                 resolve(index, now: event.occurredAt)
             }
             previous[event.tabID] = nil
@@ -103,7 +120,7 @@ final class TerminalAttentionStore: ObservableObject {
     }
 
     private func updateExisting(tabID: UUID, state: TerminalAgentSnapshot, now: Date) {
-        for index in items.indices where items[index].tabID == tabID && items[index].resolvedAt == nil {
+        for index in items.indices where items[index].tabID == tabID && items[index].isAgent && items[index].resolvedAt == nil {
             let item = items[index]
             let sameRun = item.instanceID == state.instanceID && item.runID == state.runID
             let sameBlock = item.kind == .approval ? state.blockReason == .approval : item.kind == .question ? state.blockReason == .question : state.blockReason == .other
@@ -121,9 +138,7 @@ final class TerminalAttentionStore: ObservableObject {
     private func createIfNeeded(tabID: UUID, state: TerminalAgentSnapshot, kind: TerminalAttentionKind, now: Date) {
         guard !items.contains(where: { $0.tabID == tabID && $0.instanceID == state.instanceID && $0.runID == state.runID && $0.kind == kind && $0.resolvedAt == nil }) else { return }
         // Prefer discarding resolved history, then read summaries. Active questions are never dropped.
-        if items.count >= capacity, let index = items.firstIndex(where: { $0.resolvedAt != nil || !$0.kind.requiresAnswer }) {
-            items.remove(at: index)
-        }
+        makeRoom()
         guard items.count < capacity || kind.requiresAnswer else { return }
         let item = TerminalAttentionItem(id: UUID(), tabID: tabID, instanceID: state.instanceID,
             runID: state.runID, kind: kind, createdAt: now, createdSequence: events.sequence + 1,
@@ -139,6 +154,36 @@ final class TerminalAttentionStore: ObservableObject {
     }
 
     private func emit(_ kind: TerminalSessionEventKind, _ item: TerminalAttentionItem) {
+        onUnreadChanged?(item.tabID, hasUnread(tabID: item.tabID))
         events.publish(tabID: item.tabID, kind: kind, attention: item)
+    }
+
+    private func makeRoom() {
+        guard items.count >= capacity,
+              let index = items.firstIndex(where: { $0.resolvedAt != nil || !$0.kind.requiresAnswer }) else { return }
+        let tabID = items.remove(at: index).tabID
+        onUnreadChanged?(tabID, hasUnread(tabID: tabID))
+    }
+
+    // Mutations stay in this file so the unread projection and event journal cannot diverge.
+    func recordTerminal(_ context: TerminalAttentionTerminalContext, tabID: UUID, now: Date = Date()) -> TerminalAttentionItem? {
+        if context.kind != .bell, terminalDeduplication.contains(tabID: tabID, context: context) { return nil }
+        if context.kind == .bell, let index = items.firstIndex(where: {
+            $0.tabID == tabID && $0.resolvedAt == nil && $0.terminal?.kind == .bell && $0.terminal?.eventID == context.eventID
+        }) {
+            items[index].terminal?.occurrences += 1
+            items[index].version += 1
+            emit(.attentionUpdated, items[index])
+            return items[index]
+        }
+        makeRoom()
+        guard items.count < capacity else { return nil }
+        if context.kind != .bell { _ = terminalDeduplication.insert(tabID: tabID, context: context) }
+        let item = TerminalAttentionItem(id: UUID(), tabID: tabID, instanceID: nil, runID: nil,
+            kind: context.attentionKind, createdAt: now, createdSequence: events.sequence + 1,
+            source: nil, confidence: nil, terminal: context)
+        items.append(item)
+        emit(.attentionCreated, item)
+        return item
     }
 }

@@ -31,8 +31,11 @@ struct TerminalAttentionEntry: View {
                                     Text(workspace.sessionRegistry.sessions[item.tabID]?.tabTitle ?? L10n.string("attention.closed"))
                                         .font(.caption).lineLimit(1)
                                     Text(item.createdAt, style: .relative).font(.caption2)
+                                    if let count = item.terminal?.occurrences, count > 1 {
+                                        Text(L10n.format("attention.occurrences", count)).font(.caption2)
+                                    }
                                     if item.isStale { Text(L10n.string("attention.stale")).font(.caption2) }
-                                    if item.readAt != nil { Text(L10n.string("attention.read_pending")).font(.caption2) }
+                                    if item.readAt != nil && item.kind.requiresAnswer { Text(L10n.string("attention.read_pending")).font(.caption2) }
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(8)

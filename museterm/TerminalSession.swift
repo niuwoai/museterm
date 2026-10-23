@@ -327,6 +327,8 @@ final class TerminalSession: ObservableObject, Identifiable {
     @Published private(set) var commandBlocks: [TerminalCommandBlock] = []
     @Published private(set) var historySearchSnapshot = ""
     @Published private(set) var hasUnreadAttention = false
+    private(set) var processRunID = UUID()
+    weak var attentionStore: TerminalAttentionStore?
     @Published private(set) var executionContext: TerminalExecutionContext
     @Published private(set) var aiLease: TerminalAILease?
     @Published private(set) var agentStatus: TerminalAgentSnapshot?
@@ -491,14 +493,15 @@ final class TerminalSession: ObservableObject, Identifiable {
         controller.reconnectSSH()
     }
 
-    func markUnreadAttention() {
-        guard !hasUnreadAttention else { return }
-        hasUnreadAttention = true
+    func updateUnreadAttention(_ unread: Bool) {
+        guard hasUnreadAttention != unread else { return }
+        hasUnreadAttention = unread
     }
 
+    func beginProcessRun() { processRunID = UUID() }
+
     func clearUnreadAttention() {
-        guard hasUnreadAttention else { return }
-        hasUnreadAttention = false
+        attentionStore?.markViewed(tabID: id)
     }
 
     func reportBellAttention() {

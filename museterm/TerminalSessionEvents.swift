@@ -107,7 +107,11 @@ struct TerminalRegisteredSessionSnapshot: Codable {
 /// Owns only adopted sessions. Preheated shells are registered when they become actual tabs.
 final class TerminalSessionRegistry {
     let events: TerminalSessionEventStore
-    lazy var attention = TerminalAttentionStore(events: events)
+    lazy var attention: TerminalAttentionStore = {
+        let store = TerminalAttentionStore(events: events)
+        store.onUnreadChanged = { [weak self] id, unread in self?.sessions[id]?.updateUnreadAttention(unread) }
+        return store
+    }()
     lazy var waits = TerminalWaitCoordinator(registry: self)
     private(set) var agentMonitoringEnabled = true
     private(set) var sessions: [UUID: TerminalSession] = [:]
@@ -124,6 +128,7 @@ final class TerminalSessionRegistry {
         sessions[session.id] = session
         locations[session.id] = location
         session.eventStore = events
+        session.attentionStore = attention
         session.onSessionClosed = { [weak self] id in self?.unregister(id) }
         events.publish(tabID: session.id, kind: .registered, location: location)
     }
@@ -140,6 +145,8 @@ final class TerminalSessionRegistry {
         events.publish(tabID: id, kind: .closed)
         session.eventStore = nil
         session.onSessionClosed = nil
+        session.attentionStore = nil
+        session.updateUnreadAttention(false)
     }
 
     func refreshAgents(now: Date = Date()) {
@@ -152,7 +159,7 @@ final class TerminalSessionRegistry {
         agentMonitoringEnabled = enabled
         if !enabled {
             for session in sessions.values { session.updateAgent { $0 = TerminalAgentMonitor() } }
-            attention.clear()
+            attention.clearAgents()
             waits.disableAgentWaits()
         }
     }
