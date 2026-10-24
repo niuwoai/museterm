@@ -1,0 +1,858 @@
+{
+  "version": "1.251.0-rc17",
+  "build": 332,
+  "passed": true,
+  "scope": "Actual native GUI, Chinese, one window, two projects, horizontal and vertical split, original PTY recovery",
+  "split": {
+    "phase": "split",
+    "observedAt": "2026-10-24T08:09:29+08:00",
+    "version": "1.251.0-rc15",
+    "uiPID": 12984,
+    "uiEpoch": "8CD492AB-E23E-4BE1-8320-87C2AF05D7FF",
+    "serviceEpoch": "883F96ED-373A-4889-8A8A-0A29D5B8857D",
+    "tabs": [
+      {
+        "id": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A",
+        "runtime": {
+          "pid": 12990,
+          "generation": "4DF18B86-BA62-4D41-9C7E-19C8E65F0ABD",
+          "connected": true
+        },
+        "markers": [
+          "__QA_A_LIVE"
+        ],
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "AC082BA2-7D35-4FAA-8C16-29686947399B",
+        "runtime": {
+          "pid": 13132,
+          "generation": "683946A3-9787-4A47-8688-4000283FE6C9",
+          "connected": true
+        },
+        "markers": [
+          "__QA_B_LIVE"
+        ],
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "A3CFC624-CF12-4D25-988C-66D5F2B1A979",
+        "runtime": {
+          "pid": 13277,
+          "generation": "DE20F599-DDAC-49F1-BC63-01B3122E28E6",
+          "connected": true
+        },
+        "markers": [
+          "__QA_C_LIVE"
+        ],
+        "directory": "/Users/rocky"
+      }
+    ],
+    "selectedTabID": "A3CFC624-CF12-4D25-988C-66D5F2B1A979",
+    "layout": {
+      "projects": [
+        {
+          "id": "F2912629-F29A-460A-B311-F91349ED1CA1",
+          "name": "项目",
+          "selectedTabID": "3E3AA006-70CC-47B1-BA36-B35271CB99C5",
+          "tabs": [
+            {
+              "focusedTerminalID": "A3CFC624-CF12-4D25-988C-66D5F2B1A979",
+              "id": "3E3AA006-70CC-47B1-BA36-B35271CB99C5",
+              "layout": {
+                "split": {
+                  "axis": "horizontal",
+                  "first": {
+                    "terminal": {
+                      "_0": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A"
+                    }
+                  },
+                  "id": "74CF31E9-A948-4616-86EA-EFA4A7DFBAEC",
+                  "ratio": 0.5,
+                  "second": {
+                    "split": {
+                      "axis": "vertical",
+                      "first": {
+                        "terminal": {
+                          "_0": "AC082BA2-7D35-4FAA-8C16-29686947399B"
+                        }
+                      },
+                      "id": "0F4B25E6-CD37-4A6F-B781-15E14B846F38",
+                      "ratio": 0.5,
+                      "second": {
+                        "terminal": {
+                          "_0": "A3CFC624-CF12-4D25-988C-66D5F2B1A979"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 1,
+      "selectedProjectID": "F2912629-F29A-460A-B311-F91349ED1CA1"
+    },
+    "backendSessionCount": 3,
+    "attention": [],
+    "helperSHA256": "7f63eed52c6c0b5806d1d69dc49ed826660ea63da7ffe391cd3ad4594388bdf7"
+  },
+  "moved": {
+    "phase": "moved",
+    "observedAt": "2026-10-24T08:10:16+08:00",
+    "version": "1.251.0-rc15",
+    "uiPID": 12984,
+    "uiEpoch": "8CD492AB-E23E-4BE1-8320-87C2AF05D7FF",
+    "serviceEpoch": "883F96ED-373A-4889-8A8A-0A29D5B8857D",
+    "tabs": [
+      {
+        "id": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A",
+        "runtime": {
+          "pid": 12990,
+          "generation": "4DF18B86-BA62-4D41-9C7E-19C8E65F0ABD",
+          "connected": true
+        },
+        "markers": [
+          "__QA_A_LIVE"
+        ],
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "AC082BA2-7D35-4FAA-8C16-29686947399B",
+        "runtime": {
+          "pid": 13132,
+          "generation": "683946A3-9787-4A47-8688-4000283FE6C9",
+          "connected": true
+        },
+        "markers": [
+          "__QA_B_LIVE"
+        ],
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "A3CFC624-CF12-4D25-988C-66D5F2B1A979",
+        "runtime": {
+          "pid": 13277,
+          "generation": "DE20F599-DDAC-49F1-BC63-01B3122E28E6",
+          "connected": true
+        },
+        "markers": [
+          "__QA_C_LIVE"
+        ],
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "E5088606-55AB-4259-B792-6FC1F17F8579",
+        "runtime": {
+          "pid": 13545,
+          "generation": "8EB3E41D-3516-4D7B-8606-70257811149F",
+          "connected": true
+        },
+        "markers": [
+          "__QA_D_LIVE"
+        ],
+        "directory": "/private/tmp/qterm-native-qa-5a3edfdfe9fe"
+      }
+    ],
+    "selectedTabID": "A3CFC624-CF12-4D25-988C-66D5F2B1A979",
+    "layout": {
+      "projects": [
+        {
+          "id": "F2912629-F29A-460A-B311-F91349ED1CA1",
+          "name": "项目",
+          "selectedTabID": "3E3AA006-70CC-47B1-BA36-B35271CB99C5",
+          "tabs": [
+            {
+              "focusedTerminalID": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A",
+              "id": "3E3AA006-70CC-47B1-BA36-B35271CB99C5",
+              "layout": {
+                "split": {
+                  "axis": "horizontal",
+                  "first": {
+                    "terminal": {
+                      "_0": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A"
+                    }
+                  },
+                  "id": "74CF31E9-A948-4616-86EA-EFA4A7DFBAEC",
+                  "ratio": 0.5,
+                  "second": {
+                    "terminal": {
+                      "_0": "AC082BA2-7D35-4FAA-8C16-29686947399B"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "directory": "/private/tmp/qterm-native-qa-5a3edfdfe9fe",
+          "id": "838B66F7-2F66-41B9-A411-69001666EBAE",
+          "name": "布局验收",
+          "selectedTabID": "F929F22F-7FDF-4A6D-9AE6-89497D213A3D",
+          "tabs": [
+            {
+              "focusedTerminalID": "E5088606-55AB-4259-B792-6FC1F17F8579",
+              "id": "54B411F8-552A-45A0-8A71-4789977452E3",
+              "layout": {
+                "terminal": {
+                  "_0": "E5088606-55AB-4259-B792-6FC1F17F8579"
+                }
+              }
+            },
+            {
+              "focusedTerminalID": "A3CFC624-CF12-4D25-988C-66D5F2B1A979",
+              "id": "F929F22F-7FDF-4A6D-9AE6-89497D213A3D",
+              "layout": {
+                "terminal": {
+                  "_0": "A3CFC624-CF12-4D25-988C-66D5F2B1A979"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 1,
+      "selectedProjectID": "838B66F7-2F66-41B9-A411-69001666EBAE"
+    },
+    "backendSessionCount": 4,
+    "attention": [],
+    "helperSHA256": "7f63eed52c6c0b5806d1d69dc49ed826660ea63da7ffe391cd3ad4594388bdf7"
+  },
+  "staleSnapshotBeforeFix": {
+    "phase": "beforequit",
+    "observedAt": "2026-10-24T08:11:12+08:00",
+    "version": "1.251.0-rc15",
+    "uiPID": 12984,
+    "uiEpoch": "8CD492AB-E23E-4BE1-8320-87C2AF05D7FF",
+    "serviceEpoch": "883F96ED-373A-4889-8A8A-0A29D5B8857D",
+    "tabs": [
+      {
+        "id": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A",
+        "runtime": {
+          "pid": 12990,
+          "generation": "4DF18B86-BA62-4D41-9C7E-19C8E65F0ABD",
+          "connected": true
+        },
+        "markers": [
+          "__QA_A_LIVE"
+        ],
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "AC082BA2-7D35-4FAA-8C16-29686947399B",
+        "runtime": {
+          "pid": 13132,
+          "generation": "683946A3-9787-4A47-8688-4000283FE6C9",
+          "connected": true
+        },
+        "markers": [
+          "__QA_B_LIVE"
+        ],
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "A3CFC624-CF12-4D25-988C-66D5F2B1A979",
+        "runtime": {
+          "pid": 13277,
+          "generation": "DE20F599-DDAC-49F1-BC63-01B3122E28E6",
+          "connected": true
+        },
+        "markers": [
+          "__QA_C_LIVE"
+        ],
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "E5088606-55AB-4259-B792-6FC1F17F8579",
+        "runtime": {
+          "pid": 13545,
+          "generation": "8EB3E41D-3516-4D7B-8606-70257811149F",
+          "connected": true
+        },
+        "markers": [
+          "__QA_D_LIVE"
+        ],
+        "directory": "/private/tmp/qterm-native-qa-5a3edfdfe9fe"
+      }
+    ],
+    "selectedTabID": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A",
+    "layout": {
+      "projects": [
+        {
+          "id": "F2912629-F29A-460A-B311-F91349ED1CA1",
+          "name": "项目",
+          "selectedTabID": "3E3AA006-70CC-47B1-BA36-B35271CB99C5",
+          "tabs": [
+            {
+              "focusedTerminalID": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A",
+              "id": "3E3AA006-70CC-47B1-BA36-B35271CB99C5",
+              "layout": {
+                "split": {
+                  "axis": "horizontal",
+                  "first": {
+                    "terminal": {
+                      "_0": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A"
+                    }
+                  },
+                  "id": "74CF31E9-A948-4616-86EA-EFA4A7DFBAEC",
+                  "ratio": 0.3935251798561151,
+                  "second": {
+                    "terminal": {
+                      "_0": "AC082BA2-7D35-4FAA-8C16-29686947399B"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "directory": "/private/tmp/qterm-native-qa-5a3edfdfe9fe",
+          "id": "838B66F7-2F66-41B9-A411-69001666EBAE",
+          "name": "布局验收",
+          "selectedTabID": "F929F22F-7FDF-4A6D-9AE6-89497D213A3D",
+          "tabs": [
+            {
+              "focusedTerminalID": "E5088606-55AB-4259-B792-6FC1F17F8579",
+              "id": "54B411F8-552A-45A0-8A71-4789977452E3",
+              "layout": {
+                "terminal": {
+                  "_0": "E5088606-55AB-4259-B792-6FC1F17F8579"
+                }
+              }
+            },
+            {
+              "focusedTerminalID": "A3CFC624-CF12-4D25-988C-66D5F2B1A979",
+              "id": "F929F22F-7FDF-4A6D-9AE6-89497D213A3D",
+              "layout": {
+                "terminal": {
+                  "_0": "A3CFC624-CF12-4D25-988C-66D5F2B1A979"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 1,
+      "selectedProjectID": "F2912629-F29A-460A-B311-F91349ED1CA1"
+    },
+    "backendSessionCount": 4,
+    "attention": [],
+    "helperSHA256": "7f63eed52c6c0b5806d1d69dc49ed826660ea63da7ffe391cd3ad4594388bdf7"
+  },
+  "savedLayoutBeforeFix": {
+    "projects": [
+      {
+        "id": "F2912629-F29A-460A-B311-F91349ED1CA1",
+        "name": "项目",
+        "selectedTabID": "3E3AA006-70CC-47B1-BA36-B35271CB99C5",
+        "tabs": [
+          {
+            "focusedTerminalID": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A",
+            "id": "3E3AA006-70CC-47B1-BA36-B35271CB99C5",
+            "layout": {
+              "split": {
+                "axis": "horizontal",
+                "first": {
+                  "terminal": {
+                    "_0": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A"
+                  }
+                },
+                "id": "74CF31E9-A948-4616-86EA-EFA4A7DFBAEC",
+                "ratio": 0.3935251798561151,
+                "second": {
+                  "terminal": {
+                    "_0": "AC082BA2-7D35-4FAA-8C16-29686947399B"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      {
+        "directory": "/private/tmp/qterm-native-qa-5a3edfdfe9fe",
+        "id": "838B66F7-2F66-41B9-A411-69001666EBAE",
+        "name": "布局验收二",
+        "selectedTabID": "F929F22F-7FDF-4A6D-9AE6-89497D213A3D",
+        "tabs": [
+          {
+            "focusedTerminalID": "E5088606-55AB-4259-B792-6FC1F17F8579",
+            "id": "54B411F8-552A-45A0-8A71-4789977452E3",
+            "layout": {
+              "terminal": {
+                "_0": "E5088606-55AB-4259-B792-6FC1F17F8579"
+              }
+            }
+          },
+          {
+            "focusedTerminalID": "A3CFC624-CF12-4D25-988C-66D5F2B1A979",
+            "id": "F929F22F-7FDF-4A6D-9AE6-89497D213A3D",
+            "layout": {
+              "terminal": {
+                "_0": "A3CFC624-CF12-4D25-988C-66D5F2B1A979"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "schemaVersion": 1,
+    "selectedProjectID": "F2912629-F29A-460A-B311-F91349ED1CA1"
+  },
+  "restoredRC16": {
+    "phase": "restored",
+    "observedAt": "2026-10-24T08:13:28+08:00",
+    "version": "1.251.0-rc16",
+    "uiPID": 14385,
+    "uiEpoch": "CFFFD093-F648-4434-9F7D-E5D96D018A55",
+    "serviceEpoch": "883F96ED-373A-4889-8A8A-0A29D5B8857D",
+    "tabs": [
+      {
+        "id": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A",
+        "runtime": {
+          "pid": 12990,
+          "generation": "4DF18B86-BA62-4D41-9C7E-19C8E65F0ABD",
+          "connected": true
+        },
+        "markers": [
+          "__QA_A_LIVE"
+        ],
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "AC082BA2-7D35-4FAA-8C16-29686947399B",
+        "runtime": {
+          "pid": 13132,
+          "generation": "683946A3-9787-4A47-8688-4000283FE6C9",
+          "connected": true
+        },
+        "markers": [
+          "__QA_B_LIVE"
+        ],
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "A3CFC624-CF12-4D25-988C-66D5F2B1A979",
+        "runtime": {
+          "pid": 13277,
+          "generation": "DE20F599-DDAC-49F1-BC63-01B3122E28E6",
+          "connected": true
+        },
+        "markers": [
+          "__QA_C_LIVE"
+        ],
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "E5088606-55AB-4259-B792-6FC1F17F8579",
+        "runtime": {
+          "pid": 13545,
+          "generation": "8EB3E41D-3516-4D7B-8606-70257811149F",
+          "connected": true
+        },
+        "markers": [
+          "__QA_D_LIVE"
+        ],
+        "directory": "/private/tmp/qterm-native-qa-5a3edfdfe9fe"
+      }
+    ],
+    "selectedTabID": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A",
+    "layout": {
+      "projects": [
+        {
+          "id": "F2912629-F29A-460A-B311-F91349ED1CA1",
+          "name": "项目",
+          "selectedTabID": "3E3AA006-70CC-47B1-BA36-B35271CB99C5",
+          "tabs": [
+            {
+              "focusedTerminalID": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A",
+              "id": "3E3AA006-70CC-47B1-BA36-B35271CB99C5",
+              "layout": {
+                "split": {
+                  "axis": "horizontal",
+                  "first": {
+                    "terminal": {
+                      "_0": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A"
+                    }
+                  },
+                  "id": "74CF31E9-A948-4616-86EA-EFA4A7DFBAEC",
+                  "ratio": 0.3935251798561151,
+                  "second": {
+                    "terminal": {
+                      "_0": "AC082BA2-7D35-4FAA-8C16-29686947399B"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "directory": "/private/tmp/qterm-native-qa-5a3edfdfe9fe",
+          "id": "838B66F7-2F66-41B9-A411-69001666EBAE",
+          "name": "布局验收二",
+          "selectedTabID": "F929F22F-7FDF-4A6D-9AE6-89497D213A3D",
+          "tabs": [
+            {
+              "focusedTerminalID": "E5088606-55AB-4259-B792-6FC1F17F8579",
+              "id": "54B411F8-552A-45A0-8A71-4789977452E3",
+              "layout": {
+                "terminal": {
+                  "_0": "E5088606-55AB-4259-B792-6FC1F17F8579"
+                }
+              }
+            },
+            {
+              "focusedTerminalID": "A3CFC624-CF12-4D25-988C-66D5F2B1A979",
+              "id": "F929F22F-7FDF-4A6D-9AE6-89497D213A3D",
+              "layout": {
+                "terminal": {
+                  "_0": "A3CFC624-CF12-4D25-988C-66D5F2B1A979"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 1,
+      "selectedProjectID": "F2912629-F29A-460A-B311-F91349ED1CA1"
+    },
+    "backendSessionCount": 4,
+    "attention": [],
+    "helperSHA256": "abfdff6335a79951bfac1655e90c9588181d2b4bbe21791c36a939226f6d47d3"
+  },
+  "renamedRC17": {
+    "phase": "renamed",
+    "observedAt": "2026-10-24T08:17:01+08:00",
+    "version": "1.251.0-rc17",
+    "uiPID": 18514,
+    "uiEpoch": "E1DFA60C-BCB0-4921-BE0C-DCBEEB5D2D52",
+    "serviceEpoch": "883F96ED-373A-4889-8A8A-0A29D5B8857D",
+    "tabs": [
+      {
+        "id": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A",
+        "runtime": {
+          "pid": 12990,
+          "generation": "4DF18B86-BA62-4D41-9C7E-19C8E65F0ABD",
+          "connected": true
+        },
+        "markers": [
+          "__QA_A_LIVE"
+        ],
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "AC082BA2-7D35-4FAA-8C16-29686947399B",
+        "runtime": {
+          "pid": 13132,
+          "generation": "683946A3-9787-4A47-8688-4000283FE6C9",
+          "connected": true
+        },
+        "markers": [
+          "__QA_B_LIVE"
+        ],
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "A3CFC624-CF12-4D25-988C-66D5F2B1A979",
+        "runtime": {
+          "pid": 13277,
+          "generation": "DE20F599-DDAC-49F1-BC63-01B3122E28E6",
+          "connected": true
+        },
+        "markers": [
+          "__QA_C_LIVE"
+        ],
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "E5088606-55AB-4259-B792-6FC1F17F8579",
+        "runtime": {
+          "pid": 13545,
+          "generation": "8EB3E41D-3516-4D7B-8606-70257811149F",
+          "connected": true
+        },
+        "markers": [
+          "__QA_D_LIVE"
+        ],
+        "directory": "/private/tmp/qterm-native-qa-5a3edfdfe9fe"
+      }
+    ],
+    "selectedTabID": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A",
+    "layout": {
+      "projects": [
+        {
+          "id": "F2912629-F29A-460A-B311-F91349ED1CA1",
+          "name": "项目",
+          "selectedTabID": "3E3AA006-70CC-47B1-BA36-B35271CB99C5",
+          "tabs": [
+            {
+              "focusedTerminalID": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A",
+              "id": "3E3AA006-70CC-47B1-BA36-B35271CB99C5",
+              "layout": {
+                "split": {
+                  "axis": "horizontal",
+                  "first": {
+                    "terminal": {
+                      "_0": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A"
+                    }
+                  },
+                  "id": "74CF31E9-A948-4616-86EA-EFA4A7DFBAEC",
+                  "ratio": 0.3935251798561151,
+                  "second": {
+                    "terminal": {
+                      "_0": "AC082BA2-7D35-4FAA-8C16-29686947399B"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "directory": "/private/tmp/qterm-native-qa-5a3edfdfe9fe",
+          "id": "838B66F7-2F66-41B9-A411-69001666EBAE",
+          "name": "布局复验",
+          "selectedTabID": "F929F22F-7FDF-4A6D-9AE6-89497D213A3D",
+          "tabs": [
+            {
+              "focusedTerminalID": "E5088606-55AB-4259-B792-6FC1F17F8579",
+              "id": "54B411F8-552A-45A0-8A71-4789977452E3",
+              "layout": {
+                "terminal": {
+                  "_0": "E5088606-55AB-4259-B792-6FC1F17F8579"
+                }
+              }
+            },
+            {
+              "focusedTerminalID": "A3CFC624-CF12-4D25-988C-66D5F2B1A979",
+              "id": "F929F22F-7FDF-4A6D-9AE6-89497D213A3D",
+              "layout": {
+                "terminal": {
+                  "_0": "A3CFC624-CF12-4D25-988C-66D5F2B1A979"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 1,
+      "selectedProjectID": "F2912629-F29A-460A-B311-F91349ED1CA1"
+    },
+    "backendSessionCount": 4,
+    "attention": [],
+    "helperSHA256": "ef1874e6e8fb51ff182a66b63e349e94d4347fc2ccaf3f5c0d14742cc158c22a"
+  },
+  "closedRC17": {
+    "phase": "closed",
+    "observedAt": "2026-10-24T08:17:41+08:00",
+    "version": "1.251.0-rc17",
+    "uiPID": 18514,
+    "uiEpoch": "E1DFA60C-BCB0-4921-BE0C-DCBEEB5D2D52",
+    "serviceEpoch": "883F96ED-373A-4889-8A8A-0A29D5B8857D",
+    "tabs": [
+      {
+        "id": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A",
+        "runtime": {
+          "pid": 12990,
+          "generation": "4DF18B86-BA62-4D41-9C7E-19C8E65F0ABD",
+          "connected": true
+        },
+        "markers": [
+          "__QA_A_LIVE"
+        ],
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "A3CFC624-CF12-4D25-988C-66D5F2B1A979",
+        "runtime": {
+          "pid": 13277,
+          "generation": "DE20F599-DDAC-49F1-BC63-01B3122E28E6",
+          "connected": true
+        },
+        "markers": [
+          "__QA_C_LIVE"
+        ],
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "E5088606-55AB-4259-B792-6FC1F17F8579",
+        "runtime": {
+          "pid": 13545,
+          "generation": "8EB3E41D-3516-4D7B-8606-70257811149F",
+          "connected": true
+        },
+        "markers": [
+          "__QA_D_LIVE"
+        ],
+        "directory": "/private/tmp/qterm-native-qa-5a3edfdfe9fe"
+      }
+    ],
+    "selectedTabID": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A",
+    "layout": {
+      "projects": [
+        {
+          "id": "F2912629-F29A-460A-B311-F91349ED1CA1",
+          "name": "项目",
+          "selectedTabID": "3E3AA006-70CC-47B1-BA36-B35271CB99C5",
+          "tabs": [
+            {
+              "focusedTerminalID": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A",
+              "id": "3E3AA006-70CC-47B1-BA36-B35271CB99C5",
+              "layout": {
+                "terminal": {
+                  "_0": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "directory": "/private/tmp/qterm-native-qa-5a3edfdfe9fe",
+          "id": "838B66F7-2F66-41B9-A411-69001666EBAE",
+          "name": "布局复验",
+          "selectedTabID": "F929F22F-7FDF-4A6D-9AE6-89497D213A3D",
+          "tabs": [
+            {
+              "focusedTerminalID": "E5088606-55AB-4259-B792-6FC1F17F8579",
+              "id": "54B411F8-552A-45A0-8A71-4789977452E3",
+              "layout": {
+                "terminal": {
+                  "_0": "E5088606-55AB-4259-B792-6FC1F17F8579"
+                }
+              }
+            },
+            {
+              "focusedTerminalID": "A3CFC624-CF12-4D25-988C-66D5F2B1A979",
+              "id": "F929F22F-7FDF-4A6D-9AE6-89497D213A3D",
+              "layout": {
+                "terminal": {
+                  "_0": "A3CFC624-CF12-4D25-988C-66D5F2B1A979"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 1,
+      "selectedProjectID": "F2912629-F29A-460A-B311-F91349ED1CA1"
+    },
+    "backendSessionCount": 3,
+    "attention": [],
+    "helperSHA256": "ef1874e6e8fb51ff182a66b63e349e94d4347fc2ccaf3f5c0d14742cc158c22a"
+  },
+  "reopenedRC17": {
+    "phase": "final-reopen",
+    "observedAt": "2026-10-24T08:18:32+08:00",
+    "version": "1.251.0-rc17",
+    "uiPID": 18598,
+    "uiEpoch": "ACA46992-9D56-47CF-AD6C-5AA7C57BAF3C",
+    "serviceEpoch": "883F96ED-373A-4889-8A8A-0A29D5B8857D",
+    "tabs": [
+      {
+        "id": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A",
+        "runtime": {
+          "pid": 12990,
+          "generation": "4DF18B86-BA62-4D41-9C7E-19C8E65F0ABD",
+          "connected": true
+        },
+        "markers": [
+          "__QA_A_LIVE"
+        ],
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "A3CFC624-CF12-4D25-988C-66D5F2B1A979",
+        "runtime": {
+          "pid": 13277,
+          "generation": "DE20F599-DDAC-49F1-BC63-01B3122E28E6",
+          "connected": true
+        },
+        "markers": [
+          "__QA_C_LIVE"
+        ],
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "E5088606-55AB-4259-B792-6FC1F17F8579",
+        "runtime": {
+          "pid": 13545,
+          "generation": "8EB3E41D-3516-4D7B-8606-70257811149F",
+          "connected": true
+        },
+        "markers": [
+          "__QA_D_LIVE"
+        ],
+        "directory": "/private/tmp/qterm-native-qa-5a3edfdfe9fe"
+      }
+    ],
+    "selectedTabID": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A",
+    "layout": {
+      "projects": [
+        {
+          "id": "F2912629-F29A-460A-B311-F91349ED1CA1",
+          "name": "项目",
+          "selectedTabID": "3E3AA006-70CC-47B1-BA36-B35271CB99C5",
+          "tabs": [
+            {
+              "focusedTerminalID": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A",
+              "id": "3E3AA006-70CC-47B1-BA36-B35271CB99C5",
+              "layout": {
+                "terminal": {
+                  "_0": "E1B3B6B7-BEDF-4E9F-BBA0-6CEC9CE88D4A"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "directory": "/private/tmp/qterm-native-qa-5a3edfdfe9fe",
+          "id": "838B66F7-2F66-41B9-A411-69001666EBAE",
+          "name": "布局复验",
+          "selectedTabID": "F929F22F-7FDF-4A6D-9AE6-89497D213A3D",
+          "tabs": [
+            {
+              "focusedTerminalID": "E5088606-55AB-4259-B792-6FC1F17F8579",
+              "id": "54B411F8-552A-45A0-8A71-4789977452E3",
+              "layout": {
+                "terminal": {
+                  "_0": "E5088606-55AB-4259-B792-6FC1F17F8579"
+                }
+              }
+            },
+            {
+              "focusedTerminalID": "A3CFC624-CF12-4D25-988C-66D5F2B1A979",
+              "id": "F929F22F-7FDF-4A6D-9AE6-89497D213A3D",
+              "layout": {
+                "terminal": {
+                  "_0": "A3CFC624-CF12-4D25-988C-66D5F2B1A979"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 1,
+      "selectedProjectID": "F2912629-F29A-460A-B311-F91349ED1CA1"
+    },
+    "backendSessionCount": 3,
+    "attention": [],
+    "helperSHA256": "ef1874e6e8fb51ff182a66b63e349e94d4347fc2ccaf3f5c0d14742cc158c22a"
+  },
+  "firstRenameAfterLaunchCorrect": true,
+  "createAfterRenameBlank": true,
+  "cancelClosePreservedAllOriginalTerminals": true,
+  "savedDragRatio": 0.3935251798561151,
+  "ownedServiceCleanupVerified": true,
+  "limitations": [
+    "Not complete CLI/MCP GUI write flow",
+    "No multiwindow, detached, narrow or English acceptance",
+    "Long terminal title shortcut clipping still needs review",
+    "No SSH or system notification acceptance",
+    "Production backend remains disabled"
+  ]
+}

@@ -70,33 +70,14 @@ enum TerminalNotificationPolicy {
         failureMinimumDuration: Double
     ) -> Bool {
         guard block.endedAt != nil else { return false }
-        let duration = Double(block.durationMilliseconds ?? 0) / 1_000
-        if block.commandLifecycleState == .failed, notifyFailures {
-            guard !isLowInformationShellCommand(block.command) else { return false }
-            return duration >= failureMinimumDuration || block.outputSummary?.hasErrorSignal == true
-        }
-        if block.commandLifecycleState == .succeeded, notifyLongCompletion {
-            return duration >= longThreshold
-        }
-        return false
+        let policy = TerminalReminderPolicy(commandFailures: notifyFailures, longCommandCompletion: notifyLongCompletion,
+            longCommandSeconds: longThreshold, failureMinimumSeconds: failureMinimumDuration)
+        return policy.allowsCommand(state: block.commandLifecycleState,
+            duration: Double(block.durationMilliseconds ?? 0) / 1_000,
+            isLowInformation: TerminalReminderPolicy.isLowInformationCommand(block.command),
+            hasErrorSignal: block.outputSummary?.hasErrorSignal == true)
     }
 
-    private static func isLowInformationShellCommand(_ command: String) -> Bool {
-        let words = command
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .split(whereSeparator: \.isWhitespace)
-            .map(String.init)
-        guard !words.isEmpty else { return true }
-
-        let wrappers: Set<String> = ["builtin", "command"]
-        let commandIndex = words.indices.first { !wrappers.contains(words[$0]) } ?? words.startIndex
-        let commandName = URL(fileURLWithPath: words[commandIndex]).lastPathComponent
-        let lowInformationCommands: Set<String> = [
-            "alias", "bg", "cd", "clear", "dirs", "disown", "export", "false",
-            "fg", "history", "jobs", "popd", "pushd", "pwd", "true", "unalias", "unset"
-        ]
-        return lowInformationCommands.contains(commandName)
-    }
 }
 
 struct TerminalNotificationPayload: Equatable {
@@ -221,9 +202,20 @@ final class TerminalNotificationCoordinator: NSObject, ObservableObject, Termina
         self.preferences = preferences
         workspace.attentionReporter = self
         UNUserNotificationCenter.current().delegate = self
+        let attachedAt = Date()
         agentEventObservation = workspace.sessionRegistry.events.observe { [weak self] event in
-            guard event.kind == .attentionCreated, let item = event.attention, item.isAgent else { return }
-            self?.deliverAgentAttention(item)
+            guard let self, let item = event.attention else { return }
+            if item.isAgent {
+                if event.kind == .attentionCreated { self.deliverAgentAttention(item) }
+            } else if [.attentionCreated, .attentionUpdated].contains(event.kind),
+                      let session = self.workspace?.sessionRegistry.sessions[item.tabID], session.runtimeOwnsTerminalAttention {
+                if NSApplication.shared.isActive && self.workspace?.selectedID == item.tabID {
+                    do { try self.workspace?.sessionRegistry.attention.markRead(id: item.id, version: item.version) }
+                    catch { NSLog("QTerm runtime visible reminder acknowledgement unavailable") }
+                } else if event.kind == .attentionCreated && item.createdAt >= attachedAt {
+                    self.deliverRuntimeTerminalAttention(item)
+                }
+            }
         }
 
         refreshAuthorizationStatus()
@@ -248,6 +240,21 @@ final class TerminalNotificationCoordinator: NSObject, ObservableObject, Termina
         content.userInfo = ["tabID": item.tabID.uuidString, "attentionID": item.id.uuidString,
                             "attentionVersion": item.version]
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "agent-\(item.id)", content: content, trigger: nil))
+    }
+
+    private func deliverRuntimeTerminalAttention(_ item: TerminalAttentionItem) {
+        guard let preferences, preferences.notificationsEnabled, !NSApplication.shared.isActive,
+              isAuthorizedForSystemNotifications else { return }
+        let key = "\(item.tabID):terminal-\(item.kind.rawValue)", now = Date()
+        if let last = lastDeliveryDates[key], now.timeIntervalSince(last) < preferences.notificationCooldownSeconds { return }
+        lastDeliveryDates[key] = now
+        pruneExpiredDeliveryDates(now: now, cooldownSeconds: preferences.notificationCooldownSeconds)
+        let content = UNMutableNotificationContent()
+        content.title = L10n.string("attention.notification.title")
+        content.body = L10n.string("attention.kind.\(item.kind.rawValue)")
+        content.sound = .default
+        content.userInfo = ["tabID": item.tabID.uuidString, "attentionID": item.id.uuidString, "attentionVersion": item.version]
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "terminal-\(item.id)", content: content, trigger: nil))
     }
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,

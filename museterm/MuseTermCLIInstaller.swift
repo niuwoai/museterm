@@ -155,7 +155,7 @@ def text_payload(state, tab, field, chars)
 end
 
 def tab_summary_keys
-  ["id", "index", "title", "subtitle", "currentDirectory", "shellName", "sessionTunnelStatus", "aiControlled", "aiLeaseExpiresAt", "aiRequiresTakeover", "agent", "isSelected", "state", "columns", "rows", "updatedAt"]
+  ["id", "index", "title", "subtitle", "currentDirectory", "shellName", "sessionTunnelStatus", "aiControlled", "aiLeaseExpiresAt", "aiRequiresTakeover", "agent", "runtime", "isSelected", "state", "columns", "rows", "updatedAt"]
 end
 
 def tab_summaries(state)
@@ -198,7 +198,7 @@ def session_tunnels_payload(state)
   }
 end
 
-def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: nil, profile: nil, shortcut: nil, tunnel_name: nil, target_host: nil, target_port: nil, local_port: nil, timeout_seconds: 3.0, agent_kind: nil, agent_report: nil, event_cursor: nil, event_limit: nil, wait_spec: nil, attention_id: nil, attention_version: nil)
+def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: nil, profile: nil, shortcut: nil, tunnel_name: nil, target_host: nil, target_port: nil, local_port: nil, timeout_seconds: 3.0, agent_kind: nil, agent_report: nil, event_cursor: nil, event_limit: nil, wait_spec: nil, attention_id: nil, attention_version: nil, project_request: nil)
   received = false
   timeout_seconds = timeout_seconds.to_f
   raise "timeout must be positive." if timeout_seconds <= 0
@@ -221,7 +221,8 @@ def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: 
     "localPort" => local_port,
     "clientID" => CLIENT_ID,
     "controlID" => CONTROL_ID,
-    "authToken" => (["report_agent_state", "wait_session", "list_attention"].include?(action) ? nil : access_token),
+    "authToken" => (["report_agent_state", "wait_session", "list_attention"].include?(action) || (action == "project_layout" && project_request && project_request["operation"] == "list") ? nil : access_token),
+    "projectRequest" => project_request,
     "waitSpec" => wait_spec, "attentionID" => attention_id, "attentionVersion" => attention_version,
     "agentKind" => agent_kind, "agentReport" => agent_report,
     "eventCursor" => event_cursor, "eventLimit" => event_limit
@@ -255,6 +256,10 @@ def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: 
 rescue Timeout::Error
   raise "QTerm did not answer the tool request in time."
 ensure
+  if action == "project_layout" && !received
+    FileUtils.rm_f(request_path) if request_path
+    FileUtils.rm_f(response_path) if response_path
+  end
   if action == "wait_session" && id && !received
     abandon_wait(id)
     FileUtils.rm_f(request_path) if request_path
@@ -663,6 +668,7 @@ def mcp_tools
   [
     *agent_mcp_tools,
     *wait_mcp_tools,
+    *project_mcp_tools,
     {
       "name" => "help",
       "description" => "Read QTerm collaboration instructions first: takeover, background input, renewal, unlock, archives and release.",
@@ -851,6 +857,7 @@ end
 
 def call_tool(name, args)
   args ||= {}
+  return tool_result_text(JSON.pretty_generate(project_tool(args))) if name == "project_layout"
   return tool_result_text(JSON.pretty_generate(wait_tool(args))) if name == "wait_session"
   if ["list_attention", "acknowledge_attention"].include?(name)
     return tool_result_text(JSON.pretty_generate(attention_tool(name, args)))
@@ -993,7 +1000,9 @@ end
 \#(TerminalMCPDispatcher.script)
 
 \#(TerminalAgentCLI.script)
+\#(TerminalRuntimeCLI.script)
 \#(TerminalWaitCLI.script)
+\#(TerminalProjectCLI.script)
 
 def command_help
   puts <<~HELP
@@ -1017,6 +1026,7 @@ def command_help
       qterm mcp
       qterm attention [read --item UUID --version N] [--tab UUID]
       qterm wait SPEC_JSON
+      qterm project OPERATION [REQUEST_JSON]
       qterm agent bind --tab UUID --kind claude|codex
       qterm agent report --binding PRIVATE_FILE --activity working|idle|blocked|unknown|exited [--block-reason approval|question|other] [--result completed|failed|interrupted|unknown]
       qterm agent status --tab UUID
@@ -1034,6 +1044,7 @@ begin
   when "agent" then command_agent(ARGV)
   when "attention" then command_attention(ARGV)
   when "wait" then command_wait(ARGV)
+  when "project" then command_project(ARGV)
   when "screen" then command_screen(ARGV)
   when "history" then command_history(ARGV)
   when "commands" then command_commands(ARGV)

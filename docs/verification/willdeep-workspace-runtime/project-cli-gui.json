@@ -1,0 +1,2587 @@
+{
+  "receipts": [
+    {
+      "action": "project_layout",
+      "app": "QTerm",
+      "id": "02bd8b5f-a26e-4e0a-8ed6-3281720acf43",
+      "ok": true,
+      "projectResult": {
+        "activities": {
+          "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          }
+        },
+        "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+        "layout": {
+          "projects": [
+            {
+              "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+              "name": "项目",
+              "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "tabs": [
+                {
+                  "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                  "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                  "layout": {
+                    "terminal": {
+                      "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "schemaVersion": 1,
+          "selectedProjectID": "711AAC74-56F5-48B8-9CBF-C661AAD946F2"
+        },
+        "operation": "list",
+        "revision": 1,
+        "schemaVersion": 1,
+        "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+      },
+      "schemaVersion": 1,
+      "snapshotSequence": 7,
+      "version": "1.251.0-rc19"
+    },
+    {
+      "action": "project_layout",
+      "app": "QTerm",
+      "id": "6ad8ab37-eba9-4872-b31f-469fc06669e7",
+      "ok": true,
+      "projectResult": {
+        "activities": {
+          "6A16D6AF-22EF-4932-92EF-3465DC05D831": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          }
+        },
+        "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+        "layout": {
+          "projects": [
+            {
+              "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+              "name": "项目",
+              "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "tabs": [
+                {
+                  "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                  "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                  "layout": {
+                    "terminal": {
+                      "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+              "name": "后台项目",
+              "selectedTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+              "tabs": [
+                {
+                  "focusedTerminalID": "79DF5354-B262-42BC-BB28-B53770969B11",
+                  "id": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+                  "layout": {
+                    "terminal": {
+                      "_0": "79DF5354-B262-42BC-BB28-B53770969B11"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "schemaVersion": 1,
+          "selectedProjectID": "711AAC74-56F5-48B8-9CBF-C661AAD946F2"
+        },
+        "layoutTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+        "operation": "createProject",
+        "projectID": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+        "revision": 4,
+        "schemaVersion": 1,
+        "terminalID": "79DF5354-B262-42BC-BB28-B53770969B11",
+        "terminalState": "not_ready",
+        "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+      },
+      "schemaVersion": 1,
+      "snapshotSequence": 9,
+      "tabID": "79DF5354-B262-42BC-BB28-B53770969B11",
+      "version": "1.251.0-rc19"
+    },
+    {
+      "action": "project_layout",
+      "app": "QTerm",
+      "id": "c2a0722a-bdf6-4917-9e4c-b090ca4001a5",
+      "ok": true,
+      "projectResult": {
+        "activities": {
+          "6A16D6AF-22EF-4932-92EF-3465DC05D831": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          }
+        },
+        "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+        "layout": {
+          "projects": [
+            {
+              "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+              "name": "项目",
+              "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "tabs": [
+                {
+                  "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                  "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                  "layout": {
+                    "terminal": {
+                      "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+              "name": "后台项目",
+              "selectedTabID": "4C39F6BB-FBF9-4367-B0D8-1478FC9F07D5",
+              "tabs": [
+                {
+                  "focusedTerminalID": "79DF5354-B262-42BC-BB28-B53770969B11",
+                  "id": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+                  "layout": {
+                    "terminal": {
+                      "_0": "79DF5354-B262-42BC-BB28-B53770969B11"
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+                  "id": "4C39F6BB-FBF9-4367-B0D8-1478FC9F07D5",
+                  "layout": {
+                    "terminal": {
+                      "_0": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "schemaVersion": 1,
+          "selectedProjectID": "711AAC74-56F5-48B8-9CBF-C661AAD946F2"
+        },
+        "layoutTabID": "4C39F6BB-FBF9-4367-B0D8-1478FC9F07D5",
+        "operation": "createTab",
+        "projectID": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+        "revision": 7,
+        "schemaVersion": 1,
+        "terminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+        "terminalState": "not_ready",
+        "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+      },
+      "schemaVersion": 1,
+      "snapshotSequence": 10,
+      "tabID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+      "version": "1.251.0-rc19"
+    },
+    {
+      "action": "project_layout",
+      "app": "QTerm",
+      "id": "e6dae136-d0d4-415d-b78b-1656753aa8cb",
+      "ok": true,
+      "projectResult": {
+        "activities": {
+          "6A16D6AF-22EF-4932-92EF-3465DC05D831": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          }
+        },
+        "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+        "layout": {
+          "projects": [
+            {
+              "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+              "name": "项目",
+              "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "tabs": [
+                {
+                  "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                  "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                  "layout": {
+                    "terminal": {
+                      "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+              "name": "后台项目",
+              "selectedTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+              "tabs": [
+                {
+                  "focusedTerminalID": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+                  "id": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+                  "layout": {
+                    "split": {
+                      "axis": "horizontal",
+                      "first": {
+                        "terminal": {
+                          "_0": "79DF5354-B262-42BC-BB28-B53770969B11"
+                        }
+                      },
+                      "id": "03BD1D16-722A-4494-A818-46989932074A",
+                      "ratio": 0.5,
+                      "second": {
+                        "terminal": {
+                          "_0": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A"
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+                  "id": "4C39F6BB-FBF9-4367-B0D8-1478FC9F07D5",
+                  "layout": {
+                    "terminal": {
+                      "_0": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "schemaVersion": 1,
+          "selectedProjectID": "711AAC74-56F5-48B8-9CBF-C661AAD946F2"
+        },
+        "layoutTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+        "operation": "split",
+        "projectID": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+        "revision": 12,
+        "schemaVersion": 1,
+        "terminalID": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+        "terminalState": "not_ready",
+        "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+      },
+      "schemaVersion": 1,
+      "snapshotSequence": 11,
+      "tabID": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+      "version": "1.251.0-rc19"
+    },
+    {
+      "action": "project_layout",
+      "app": "QTerm",
+      "id": "4992ef43-4768-433c-aafc-88a65ef4c675",
+      "ok": true,
+      "projectResult": {
+        "activities": {
+          "475BFBEA-F8A9-4857-90C0-18909470B775": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "6A16D6AF-22EF-4932-92EF-3465DC05D831": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          }
+        },
+        "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+        "layout": {
+          "projects": [
+            {
+              "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+              "name": "项目",
+              "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "tabs": [
+                {
+                  "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                  "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                  "layout": {
+                    "terminal": {
+                      "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+              "name": "后台项目",
+              "selectedTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+              "tabs": [
+                {
+                  "focusedTerminalID": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+                  "id": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+                  "layout": {
+                    "split": {
+                      "axis": "horizontal",
+                      "first": {
+                        "terminal": {
+                          "_0": "79DF5354-B262-42BC-BB28-B53770969B11"
+                        }
+                      },
+                      "id": "03BD1D16-722A-4494-A818-46989932074A",
+                      "ratio": 0.5,
+                      "second": {
+                        "terminal": {
+                          "_0": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A"
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+                  "id": "4C39F6BB-FBF9-4367-B0D8-1478FC9F07D5",
+                  "layout": {
+                    "terminal": {
+                      "_0": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "475BFBEA-F8A9-4857-90C0-18909470B775",
+              "name": "移动目标",
+              "selectedTabID": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+              "tabs": [
+                {
+                  "focusedTerminalID": "CA69FDC6-794B-45AF-BC3B-766125949376",
+                  "id": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+                  "layout": {
+                    "terminal": {
+                      "_0": "CA69FDC6-794B-45AF-BC3B-766125949376"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "schemaVersion": 1,
+          "selectedProjectID": "711AAC74-56F5-48B8-9CBF-C661AAD946F2"
+        },
+        "layoutTabID": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+        "operation": "createProject",
+        "projectID": "475BFBEA-F8A9-4857-90C0-18909470B775",
+        "revision": 15,
+        "schemaVersion": 1,
+        "terminalID": "CA69FDC6-794B-45AF-BC3B-766125949376",
+        "terminalState": "not_ready",
+        "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+      },
+      "schemaVersion": 1,
+      "snapshotSequence": 12,
+      "tabID": "CA69FDC6-794B-45AF-BC3B-766125949376",
+      "version": "1.251.0-rc19"
+    },
+    {
+      "action": "project_layout",
+      "app": "QTerm",
+      "id": "c35ded14-8c15-4654-a3b7-02837996bb93",
+      "ok": true,
+      "projectResult": {
+        "activities": {
+          "475BFBEA-F8A9-4857-90C0-18909470B775": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "6A16D6AF-22EF-4932-92EF-3465DC05D831": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          }
+        },
+        "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+        "layout": {
+          "projects": [
+            {
+              "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+              "name": "项目",
+              "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "tabs": [
+                {
+                  "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                  "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                  "layout": {
+                    "terminal": {
+                      "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+              "name": "后台项目已改名",
+              "selectedTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+              "tabs": [
+                {
+                  "focusedTerminalID": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+                  "id": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+                  "layout": {
+                    "split": {
+                      "axis": "horizontal",
+                      "first": {
+                        "terminal": {
+                          "_0": "79DF5354-B262-42BC-BB28-B53770969B11"
+                        }
+                      },
+                      "id": "03BD1D16-722A-4494-A818-46989932074A",
+                      "ratio": 0.5,
+                      "second": {
+                        "terminal": {
+                          "_0": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A"
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+                  "id": "4C39F6BB-FBF9-4367-B0D8-1478FC9F07D5",
+                  "layout": {
+                    "terminal": {
+                      "_0": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "475BFBEA-F8A9-4857-90C0-18909470B775",
+              "name": "移动目标",
+              "selectedTabID": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+              "tabs": [
+                {
+                  "focusedTerminalID": "CA69FDC6-794B-45AF-BC3B-766125949376",
+                  "id": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+                  "layout": {
+                    "terminal": {
+                      "_0": "CA69FDC6-794B-45AF-BC3B-766125949376"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "schemaVersion": 1,
+          "selectedProjectID": "711AAC74-56F5-48B8-9CBF-C661AAD946F2"
+        },
+        "operation": "renameProject",
+        "projectID": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+        "revision": 16,
+        "schemaVersion": 1,
+        "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+      },
+      "schemaVersion": 1,
+      "snapshotSequence": 16,
+      "version": "1.251.0-rc19"
+    },
+    {
+      "action": "project_layout",
+      "app": "QTerm",
+      "id": "4817a42f-abeb-4245-86f1-7ffdddf9a0cc",
+      "ok": true,
+      "projectResult": {
+        "activities": {
+          "475BFBEA-F8A9-4857-90C0-18909470B775": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "6A16D6AF-22EF-4932-92EF-3465DC05D831": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          }
+        },
+        "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+        "layout": {
+          "projects": [
+            {
+              "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+              "name": "项目",
+              "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "tabs": [
+                {
+                  "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                  "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                  "layout": {
+                    "terminal": {
+                      "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+              "name": "后台项目已改名",
+              "selectedTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+              "tabs": [
+                {
+                  "focusedTerminalID": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+                  "id": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+                  "layout": {
+                    "split": {
+                      "axis": "horizontal",
+                      "first": {
+                        "terminal": {
+                          "_0": "79DF5354-B262-42BC-BB28-B53770969B11"
+                        }
+                      },
+                      "id": "03BD1D16-722A-4494-A818-46989932074A",
+                      "ratio": 0.5,
+                      "second": {
+                        "terminal": {
+                          "_0": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "475BFBEA-F8A9-4857-90C0-18909470B775",
+              "name": "移动目标",
+              "selectedTabID": "CCBF6177-05EE-4C15-BAE5-D2AB3281BDA5",
+              "tabs": [
+                {
+                  "focusedTerminalID": "CA69FDC6-794B-45AF-BC3B-766125949376",
+                  "id": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+                  "layout": {
+                    "terminal": {
+                      "_0": "CA69FDC6-794B-45AF-BC3B-766125949376"
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+                  "id": "CCBF6177-05EE-4C15-BAE5-D2AB3281BDA5",
+                  "layout": {
+                    "terminal": {
+                      "_0": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "schemaVersion": 1,
+          "selectedProjectID": "711AAC74-56F5-48B8-9CBF-C661AAD946F2"
+        },
+        "layoutTabID": "CCBF6177-05EE-4C15-BAE5-D2AB3281BDA5",
+        "operation": "moveTerminal",
+        "projectID": "475BFBEA-F8A9-4857-90C0-18909470B775",
+        "revision": 18,
+        "schemaVersion": 1,
+        "terminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+        "terminalState": "running",
+        "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+      },
+      "schemaVersion": 1,
+      "snapshotSequence": 17,
+      "tabID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+      "version": "1.251.0-rc19"
+    },
+    {
+      "action": "project_layout",
+      "app": "QTerm",
+      "id": "855a887a-6ca5-452d-84d7-b8b314489c45",
+      "ok": true,
+      "projectResult": {
+        "activities": {
+          "475BFBEA-F8A9-4857-90C0-18909470B775": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "6A16D6AF-22EF-4932-92EF-3465DC05D831": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          }
+        },
+        "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+        "layout": {
+          "projects": [
+            {
+              "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+              "name": "项目",
+              "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "tabs": [
+                {
+                  "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                  "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                  "layout": {
+                    "terminal": {
+                      "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+              "name": "后台项目已改名",
+              "tabs": []
+            },
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "475BFBEA-F8A9-4857-90C0-18909470B775",
+              "name": "移动目标",
+              "selectedTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+              "tabs": [
+                {
+                  "focusedTerminalID": "CA69FDC6-794B-45AF-BC3B-766125949376",
+                  "id": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+                  "layout": {
+                    "terminal": {
+                      "_0": "CA69FDC6-794B-45AF-BC3B-766125949376"
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+                  "id": "CCBF6177-05EE-4C15-BAE5-D2AB3281BDA5",
+                  "layout": {
+                    "terminal": {
+                      "_0": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D"
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+                  "id": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+                  "layout": {
+                    "split": {
+                      "axis": "horizontal",
+                      "first": {
+                        "terminal": {
+                          "_0": "79DF5354-B262-42BC-BB28-B53770969B11"
+                        }
+                      },
+                      "id": "03BD1D16-722A-4494-A818-46989932074A",
+                      "ratio": 0.5,
+                      "second": {
+                        "terminal": {
+                          "_0": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "schemaVersion": 1,
+          "selectedProjectID": "711AAC74-56F5-48B8-9CBF-C661AAD946F2"
+        },
+        "layoutTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+        "operation": "moveTab",
+        "projectID": "475BFBEA-F8A9-4857-90C0-18909470B775",
+        "revision": 22,
+        "schemaVersion": 1,
+        "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+      },
+      "schemaVersion": 1,
+      "snapshotSequence": 18,
+      "version": "1.251.0-rc19"
+    },
+    {
+      "action": "project_layout",
+      "app": "QTerm",
+      "id": "1a1fc60a-08ab-4f58-b1ad-b2b559f1fcc9",
+      "ok": true,
+      "projectResult": {
+        "activities": {
+          "475BFBEA-F8A9-4857-90C0-18909470B775": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "6A16D6AF-22EF-4932-92EF-3465DC05D831": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          }
+        },
+        "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+        "layout": {
+          "projects": [
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "475BFBEA-F8A9-4857-90C0-18909470B775",
+              "name": "移动目标",
+              "selectedTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+              "tabs": [
+                {
+                  "focusedTerminalID": "CA69FDC6-794B-45AF-BC3B-766125949376",
+                  "id": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+                  "layout": {
+                    "terminal": {
+                      "_0": "CA69FDC6-794B-45AF-BC3B-766125949376"
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+                  "id": "CCBF6177-05EE-4C15-BAE5-D2AB3281BDA5",
+                  "layout": {
+                    "terminal": {
+                      "_0": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D"
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+                  "id": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+                  "layout": {
+                    "split": {
+                      "axis": "horizontal",
+                      "first": {
+                        "terminal": {
+                          "_0": "79DF5354-B262-42BC-BB28-B53770969B11"
+                        }
+                      },
+                      "id": "03BD1D16-722A-4494-A818-46989932074A",
+                      "ratio": 0.5,
+                      "second": {
+                        "terminal": {
+                          "_0": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+              "name": "项目",
+              "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "tabs": [
+                {
+                  "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                  "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                  "layout": {
+                    "terminal": {
+                      "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+              "name": "后台项目已改名",
+              "tabs": []
+            }
+          ],
+          "schemaVersion": 1,
+          "selectedProjectID": "711AAC74-56F5-48B8-9CBF-C661AAD946F2"
+        },
+        "operation": "reorderProjects",
+        "revision": 23,
+        "schemaVersion": 1,
+        "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+      },
+      "schemaVersion": 1,
+      "snapshotSequence": 19,
+      "version": "1.251.0-rc19"
+    },
+    {
+      "action": "project_layout",
+      "app": "QTerm",
+      "id": "aeed5678-1298-4d96-aef2-c2a2d55e469e",
+      "ok": true,
+      "projectResult": {
+        "activities": {
+          "475BFBEA-F8A9-4857-90C0-18909470B775": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "6A16D6AF-22EF-4932-92EF-3465DC05D831": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          }
+        },
+        "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+        "layout": {
+          "projects": [
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "475BFBEA-F8A9-4857-90C0-18909470B775",
+              "name": "移动目标",
+              "selectedTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+              "tabs": [
+                {
+                  "focusedTerminalID": "CA69FDC6-794B-45AF-BC3B-766125949376",
+                  "id": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+                  "layout": {
+                    "terminal": {
+                      "_0": "CA69FDC6-794B-45AF-BC3B-766125949376"
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+                  "id": "CCBF6177-05EE-4C15-BAE5-D2AB3281BDA5",
+                  "layout": {
+                    "terminal": {
+                      "_0": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D"
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+                  "id": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+                  "layout": {
+                    "split": {
+                      "axis": "horizontal",
+                      "first": {
+                        "terminal": {
+                          "_0": "79DF5354-B262-42BC-BB28-B53770969B11"
+                        }
+                      },
+                      "id": "03BD1D16-722A-4494-A818-46989932074A",
+                      "ratio": 0.5,
+                      "second": {
+                        "terminal": {
+                          "_0": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+              "name": "项目",
+              "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "tabs": [
+                {
+                  "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                  "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                  "layout": {
+                    "terminal": {
+                      "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+              "name": "后台项目已改名",
+              "tabs": []
+            }
+          ],
+          "schemaVersion": 1,
+          "selectedProjectID": "711AAC74-56F5-48B8-9CBF-C661AAD946F2"
+        },
+        "operation": "list",
+        "revision": 23,
+        "schemaVersion": 1,
+        "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+      },
+      "schemaVersion": 1,
+      "snapshotSequence": 20,
+      "version": "1.251.0-rc19"
+    },
+    {
+      "action": "project_layout",
+      "app": "QTerm",
+      "id": "921afc24-06ed-45b7-8b91-155cb10ee78e",
+      "ok": true,
+      "projectResult": {
+        "activities": {
+          "475BFBEA-F8A9-4857-90C0-18909470B775": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "6A16D6AF-22EF-4932-92EF-3465DC05D831": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          }
+        },
+        "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+        "layout": {
+          "projects": [
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "475BFBEA-F8A9-4857-90C0-18909470B775",
+              "name": "移动目标",
+              "selectedTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+              "tabs": [
+                {
+                  "focusedTerminalID": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+                  "id": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+                  "layout": {
+                    "split": {
+                      "axis": "horizontal",
+                      "first": {
+                        "terminal": {
+                          "_0": "79DF5354-B262-42BC-BB28-B53770969B11"
+                        }
+                      },
+                      "id": "03BD1D16-722A-4494-A818-46989932074A",
+                      "ratio": 0.5,
+                      "second": {
+                        "terminal": {
+                          "_0": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A"
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+                  "id": "CCBF6177-05EE-4C15-BAE5-D2AB3281BDA5",
+                  "layout": {
+                    "terminal": {
+                      "_0": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D"
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "CA69FDC6-794B-45AF-BC3B-766125949376",
+                  "id": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+                  "layout": {
+                    "terminal": {
+                      "_0": "CA69FDC6-794B-45AF-BC3B-766125949376"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+              "name": "项目",
+              "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "tabs": [
+                {
+                  "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                  "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                  "layout": {
+                    "terminal": {
+                      "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+              "name": "后台项目已改名",
+              "tabs": []
+            }
+          ],
+          "schemaVersion": 1,
+          "selectedProjectID": "711AAC74-56F5-48B8-9CBF-C661AAD946F2"
+        },
+        "operation": "reorderTabs",
+        "projectID": "475BFBEA-F8A9-4857-90C0-18909470B775",
+        "revision": 24,
+        "schemaVersion": 1,
+        "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+      },
+      "schemaVersion": 1,
+      "snapshotSequence": 21,
+      "version": "1.251.0-rc19"
+    },
+    {
+      "action": "project_layout",
+      "app": "QTerm",
+      "id": "2e6cce31-5a7f-4a95-b9c4-2b82cfc61106",
+      "ok": true,
+      "projectResult": {
+        "activities": {
+          "475BFBEA-F8A9-4857-90C0-18909470B775": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "6A16D6AF-22EF-4932-92EF-3465DC05D831": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          }
+        },
+        "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+        "layout": {
+          "projects": [
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "475BFBEA-F8A9-4857-90C0-18909470B775",
+              "name": "移动目标",
+              "selectedTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+              "tabs": [
+                {
+                  "focusedTerminalID": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+                  "id": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+                  "layout": {
+                    "split": {
+                      "axis": "horizontal",
+                      "first": {
+                        "terminal": {
+                          "_0": "79DF5354-B262-42BC-BB28-B53770969B11"
+                        }
+                      },
+                      "id": "03BD1D16-722A-4494-A818-46989932074A",
+                      "ratio": 0.65,
+                      "second": {
+                        "terminal": {
+                          "_0": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A"
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+                  "id": "CCBF6177-05EE-4C15-BAE5-D2AB3281BDA5",
+                  "layout": {
+                    "terminal": {
+                      "_0": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D"
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "CA69FDC6-794B-45AF-BC3B-766125949376",
+                  "id": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+                  "layout": {
+                    "terminal": {
+                      "_0": "CA69FDC6-794B-45AF-BC3B-766125949376"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+              "name": "项目",
+              "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "tabs": [
+                {
+                  "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                  "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                  "layout": {
+                    "terminal": {
+                      "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+              "name": "后台项目已改名",
+              "tabs": []
+            }
+          ],
+          "schemaVersion": 1,
+          "selectedProjectID": "711AAC74-56F5-48B8-9CBF-C661AAD946F2"
+        },
+        "operation": "resizeSplit",
+        "revision": 25,
+        "schemaVersion": 1,
+        "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+      },
+      "schemaVersion": 1,
+      "snapshotSequence": 22,
+      "version": "1.251.0-rc19"
+    },
+    {
+      "action": "project_layout",
+      "app": "QTerm",
+      "id": "e4b322dc-06a4-47d5-9842-28629406d92a",
+      "ok": true,
+      "projectResult": {
+        "activities": {
+          "475BFBEA-F8A9-4857-90C0-18909470B775": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "6A16D6AF-22EF-4932-92EF-3465DC05D831": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          }
+        },
+        "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+        "layout": {
+          "projects": [
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "475BFBEA-F8A9-4857-90C0-18909470B775",
+              "name": "移动目标",
+              "selectedTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+              "tabs": [
+                {
+                  "focusedTerminalID": "79DF5354-B262-42BC-BB28-B53770969B11",
+                  "id": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+                  "layout": {
+                    "split": {
+                      "axis": "horizontal",
+                      "first": {
+                        "terminal": {
+                          "_0": "79DF5354-B262-42BC-BB28-B53770969B11"
+                        }
+                      },
+                      "id": "03BD1D16-722A-4494-A818-46989932074A",
+                      "ratio": 0.65,
+                      "second": {
+                        "terminal": {
+                          "_0": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A"
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+                  "id": "CCBF6177-05EE-4C15-BAE5-D2AB3281BDA5",
+                  "layout": {
+                    "terminal": {
+                      "_0": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D"
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "CA69FDC6-794B-45AF-BC3B-766125949376",
+                  "id": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+                  "layout": {
+                    "terminal": {
+                      "_0": "CA69FDC6-794B-45AF-BC3B-766125949376"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+              "name": "项目",
+              "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "tabs": [
+                {
+                  "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                  "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                  "layout": {
+                    "terminal": {
+                      "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+              "name": "后台项目已改名",
+              "tabs": []
+            }
+          ],
+          "schemaVersion": 1,
+          "selectedProjectID": "475BFBEA-F8A9-4857-90C0-18909470B775"
+        },
+        "operation": "focus",
+        "revision": 26,
+        "schemaVersion": 1,
+        "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+      },
+      "schemaVersion": 1,
+      "snapshotSequence": 23,
+      "version": "1.251.0-rc19"
+    },
+    {
+      "action": "project_layout",
+      "app": "QTerm",
+      "id": "ec0a69d0-b332-4d76-a920-52650b948b07",
+      "ok": true,
+      "projectResult": {
+        "activities": {
+          "475BFBEA-F8A9-4857-90C0-18909470B775": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "6A16D6AF-22EF-4932-92EF-3465DC05D831": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          }
+        },
+        "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+        "layout": {
+          "projects": [
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "475BFBEA-F8A9-4857-90C0-18909470B775",
+              "name": "移动目标",
+              "selectedTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+              "tabs": [
+                {
+                  "focusedTerminalID": "79DF5354-B262-42BC-BB28-B53770969B11",
+                  "id": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+                  "layout": {
+                    "terminal": {
+                      "_0": "79DF5354-B262-42BC-BB28-B53770969B11"
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+                  "id": "CCBF6177-05EE-4C15-BAE5-D2AB3281BDA5",
+                  "layout": {
+                    "terminal": {
+                      "_0": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D"
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "CA69FDC6-794B-45AF-BC3B-766125949376",
+                  "id": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+                  "layout": {
+                    "terminal": {
+                      "_0": "CA69FDC6-794B-45AF-BC3B-766125949376"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+              "name": "项目",
+              "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "tabs": [
+                {
+                  "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                  "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                  "layout": {
+                    "terminal": {
+                      "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+              "name": "后台项目已改名",
+              "tabs": []
+            }
+          ],
+          "schemaVersion": 1,
+          "selectedProjectID": "475BFBEA-F8A9-4857-90C0-18909470B775"
+        },
+        "operation": "closeTerminal",
+        "processClosure": "requested",
+        "removedTerminalIDs": [
+          "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A"
+        ],
+        "revision": 27,
+        "schemaVersion": 1,
+        "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+      },
+      "schemaVersion": 1,
+      "snapshotSequence": 26,
+      "version": "1.251.0-rc19"
+    },
+    {
+      "action": "project_layout",
+      "app": "QTerm",
+      "id": "2745619d-6e16-4c7b-80c9-3a2019c32b42",
+      "ok": true,
+      "projectResult": {
+        "activities": {
+          "475BFBEA-F8A9-4857-90C0-18909470B775": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "6A16D6AF-22EF-4932-92EF-3465DC05D831": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          }
+        },
+        "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+        "layout": {
+          "projects": [
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "475BFBEA-F8A9-4857-90C0-18909470B775",
+              "name": "移动目标",
+              "selectedTabID": "CCBF6177-05EE-4C15-BAE5-D2AB3281BDA5",
+              "tabs": [
+                {
+                  "focusedTerminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+                  "id": "CCBF6177-05EE-4C15-BAE5-D2AB3281BDA5",
+                  "layout": {
+                    "terminal": {
+                      "_0": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D"
+                    }
+                  }
+                },
+                {
+                  "focusedTerminalID": "CA69FDC6-794B-45AF-BC3B-766125949376",
+                  "id": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+                  "layout": {
+                    "terminal": {
+                      "_0": "CA69FDC6-794B-45AF-BC3B-766125949376"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+              "name": "项目",
+              "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "tabs": [
+                {
+                  "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                  "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                  "layout": {
+                    "terminal": {
+                      "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+              "name": "后台项目已改名",
+              "tabs": []
+            }
+          ],
+          "schemaVersion": 1,
+          "selectedProjectID": "475BFBEA-F8A9-4857-90C0-18909470B775"
+        },
+        "operation": "closeTab",
+        "processClosure": "requested",
+        "removedTerminalIDs": [
+          "79DF5354-B262-42BC-BB28-B53770969B11"
+        ],
+        "revision": 28,
+        "schemaVersion": 1,
+        "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+      },
+      "schemaVersion": 1,
+      "snapshotSequence": 27,
+      "version": "1.251.0-rc19"
+    },
+    {
+      "action": "project_layout",
+      "app": "QTerm",
+      "id": "4ab18933-5fea-46fb-bf4b-ed89c20a633d",
+      "ok": true,
+      "projectResult": {
+        "activities": {
+          "6A16D6AF-22EF-4932-92EF-3465DC05D831": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          },
+          "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          }
+        },
+        "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+        "layout": {
+          "projects": [
+            {
+              "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+              "name": "项目",
+              "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "tabs": [
+                {
+                  "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                  "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                  "layout": {
+                    "terminal": {
+                      "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+              "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+              "name": "后台项目已改名",
+              "tabs": []
+            }
+          ],
+          "schemaVersion": 1,
+          "selectedProjectID": "711AAC74-56F5-48B8-9CBF-C661AAD946F2"
+        },
+        "operation": "closeProject",
+        "processClosure": "requested",
+        "removedTerminalIDs": [
+          "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+          "CA69FDC6-794B-45AF-BC3B-766125949376"
+        ],
+        "revision": 32,
+        "schemaVersion": 1,
+        "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+      },
+      "schemaVersion": 1,
+      "snapshotSequence": 28,
+      "version": "1.251.0-rc19"
+    },
+    {
+      "action": "project_layout",
+      "app": "QTerm",
+      "id": "1de8fa29-62f1-49f1-9fb2-a94640be2947",
+      "ok": true,
+      "projectResult": {
+        "activities": {
+          "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+            "needsAnswer": 0,
+            "pending": 0,
+            "unknown": 0,
+            "unread": 0,
+            "working": 0
+          }
+        },
+        "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+        "layout": {
+          "projects": [
+            {
+              "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+              "name": "项目",
+              "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "tabs": [
+                {
+                  "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                  "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                  "layout": {
+                    "terminal": {
+                      "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "schemaVersion": 1,
+          "selectedProjectID": "711AAC74-56F5-48B8-9CBF-C661AAD946F2"
+        },
+        "operation": "closeProject",
+        "processClosure": "requested",
+        "removedTerminalIDs": [],
+        "revision": 33,
+        "schemaVersion": 1,
+        "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+      },
+      "schemaVersion": 1,
+      "snapshotSequence": 29,
+      "version": "1.251.0-rc19"
+    }
+  ],
+  "operations": [
+    "list",
+    "createProject",
+    "createTab",
+    "split",
+    "createProject",
+    "renameProject",
+    "moveTerminal",
+    "moveTab",
+    "reorderProjects",
+    "list",
+    "reorderTabs",
+    "resizeSplit",
+    "focus",
+    "closeTerminal",
+    "closeTab",
+    "closeProject",
+    "closeProject"
+  ],
+  "version": "1.251.0-rc19",
+  "build": 334,
+  "original": {
+    "id": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+    "pid": 34164,
+    "generation": "B68BDE87-E900-4574-A136-D415D18B8D57"
+  },
+  "originalProject": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+  "metadata": {
+    "app": "/private/tmp/qterm-native-qa-e143e78d6535/QTermQA.app",
+    "root": "/private/tmp/qterm-native-qa-e143e78d6535",
+    "tools": "/private/tmp/qterm-native-qa-e143e78d6535/Tools",
+    "backend": "/private/tmp/qrt-ui-502-c1c15431234af5751d8d",
+    "bundleID": "im.some.qterm.goaltests.projectcli.e143e78d6535",
+    "cli": "/private/tmp/qterm-native-qa-e143e78d6535/qterm-qa.rb",
+    "generatedCLISHA256": "42bd524f4925e5376e64fa84267e798824d97d13a368e547b3da1e74354f32f9",
+    "qaCLISHA256": "257315f7bc248a2d1e8299dc77823fda342ae5b1a52a8ed7e6952e5ba6cd3f96",
+    "credentialTransport": "Private file -> QA process memory only; root/client/key lookup adapted, business CLI and MCP code unchanged"
+  },
+  "serviceEpoch": "B0C5B5F9-4C74-4DD3-AD34-226C3C177F40",
+  "helperSHA256": "dc736a9de65ac550f59016aa0fc8b99a35555196220af85f0452e5e4f18f7e15",
+  "wrongCredentialRejected": true,
+  "projectB": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+  "projectD": "475BFBEA-F8A9-4857-90C0-18909470B775",
+  "terminalB": "79DF5354-B262-42BC-BB28-B53770969B11",
+  "terminalC": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+  "terminalD": "CA69FDC6-794B-45AF-BC3B-766125949376",
+  "terminalE": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+  "splitTab": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+  "splitID": "03BD1D16-722A-4494-A818-46989932074A",
+  "allCreated": [
+    {
+      "id": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+      "pid": 34541,
+      "generation": "467533BC-AC47-4B8E-A142-C4549F14DCA1"
+    },
+    {
+      "id": "79DF5354-B262-42BC-BB28-B53770969B11",
+      "pid": 34523,
+      "generation": "5E9FEF33-7975-4E0D-B9AA-39C51F124620"
+    },
+    {
+      "id": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+      "pid": 34670,
+      "generation": "4C6DDBBA-9613-42FC-9CB0-7A08CAFC1AAB"
+    },
+    {
+      "id": "CA69FDC6-794B-45AF-BC3B-766125949376",
+      "pid": 34812,
+      "generation": "A6EC79EE-DBA5-4F36-AC2C-508DC10CF2D2"
+    }
+  ],
+  "background": {
+    "selectedTabID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+    "layout": {
+      "projects": [
+        {
+          "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+          "name": "项目",
+          "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+          "tabs": [
+            {
+              "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+              "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "layout": {
+                "terminal": {
+                  "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+          "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+          "name": "后台项目",
+          "selectedTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+          "tabs": [
+            {
+              "focusedTerminalID": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+              "id": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+              "layout": {
+                "split": {
+                  "axis": "horizontal",
+                  "first": {
+                    "terminal": {
+                      "_0": "79DF5354-B262-42BC-BB28-B53770969B11"
+                    }
+                  },
+                  "id": "03BD1D16-722A-4494-A818-46989932074A",
+                  "ratio": 0.5,
+                  "second": {
+                    "terminal": {
+                      "_0": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "focusedTerminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+              "id": "4C39F6BB-FBF9-4367-B0D8-1478FC9F07D5",
+              "layout": {
+                "terminal": {
+                  "_0": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+          "id": "475BFBEA-F8A9-4857-90C0-18909470B775",
+          "name": "移动目标",
+          "selectedTabID": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+          "tabs": [
+            {
+              "focusedTerminalID": "CA69FDC6-794B-45AF-BC3B-766125949376",
+              "id": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+              "layout": {
+                "terminal": {
+                  "_0": "CA69FDC6-794B-45AF-BC3B-766125949376"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 1,
+      "selectedProjectID": "711AAC74-56F5-48B8-9CBF-C661AAD946F2"
+    },
+    "terminals": [
+      {
+        "id": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+        "pid": 34541,
+        "generation": "467533BC-AC47-4B8E-A142-C4549F14DCA1",
+        "running": true,
+        "directory": "/private/tmp/qterm-native-qa-e143e78d6535"
+      },
+      {
+        "id": "79DF5354-B262-42BC-BB28-B53770969B11",
+        "pid": 34523,
+        "generation": "5E9FEF33-7975-4E0D-B9AA-39C51F124620",
+        "running": true,
+        "directory": "/private/tmp/qterm-native-qa-e143e78d6535"
+      },
+      {
+        "id": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+        "pid": 34164,
+        "generation": "B68BDE87-E900-4574-A136-D415D18B8D57",
+        "running": true,
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+        "pid": 34670,
+        "generation": "4C6DDBBA-9613-42FC-9CB0-7A08CAFC1AAB",
+        "running": true,
+        "directory": "/private/tmp/qterm-native-qa-e143e78d6535"
+      },
+      {
+        "id": "CA69FDC6-794B-45AF-BC3B-766125949376",
+        "pid": 34812,
+        "generation": "A6EC79EE-DBA5-4F36-AC2C-508DC10CF2D2",
+        "running": true,
+        "directory": "/private/tmp/qterm-native-qa-e143e78d6535"
+      }
+    ],
+    "markers": [
+      {
+        "id": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+        "markers": []
+      },
+      {
+        "id": "79DF5354-B262-42BC-BB28-B53770969B11",
+        "markers": []
+      },
+      {
+        "id": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+        "markers": []
+      },
+      {
+        "id": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+        "markers": []
+      },
+      {
+        "id": "CA69FDC6-794B-45AF-BC3B-766125949376",
+        "markers": []
+      }
+    ]
+  },
+  "actualMCPStdioVerified": true,
+  "layoutBeforeExplicitFocus": {
+    "selectedTabID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+    "layout": {
+      "projects": [
+        {
+          "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+          "id": "475BFBEA-F8A9-4857-90C0-18909470B775",
+          "name": "移动目标",
+          "selectedTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+          "tabs": [
+            {
+              "focusedTerminalID": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+              "id": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+              "layout": {
+                "split": {
+                  "axis": "horizontal",
+                  "first": {
+                    "terminal": {
+                      "_0": "79DF5354-B262-42BC-BB28-B53770969B11"
+                    }
+                  },
+                  "id": "03BD1D16-722A-4494-A818-46989932074A",
+                  "ratio": 0.65,
+                  "second": {
+                    "terminal": {
+                      "_0": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "focusedTerminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+              "id": "CCBF6177-05EE-4C15-BAE5-D2AB3281BDA5",
+              "layout": {
+                "terminal": {
+                  "_0": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D"
+                }
+              }
+            },
+            {
+              "focusedTerminalID": "CA69FDC6-794B-45AF-BC3B-766125949376",
+              "id": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+              "layout": {
+                "terminal": {
+                  "_0": "CA69FDC6-794B-45AF-BC3B-766125949376"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+          "name": "项目",
+          "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+          "tabs": [
+            {
+              "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+              "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "layout": {
+                "terminal": {
+                  "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+          "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+          "name": "后台项目已改名",
+          "tabs": []
+        }
+      ],
+      "schemaVersion": 1,
+      "selectedProjectID": "711AAC74-56F5-48B8-9CBF-C661AAD946F2"
+    },
+    "terminals": [
+      {
+        "id": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+        "pid": 34541,
+        "generation": "467533BC-AC47-4B8E-A142-C4549F14DCA1",
+        "running": true,
+        "directory": "/private/tmp/qterm-native-qa-e143e78d6535"
+      },
+      {
+        "id": "79DF5354-B262-42BC-BB28-B53770969B11",
+        "pid": 34523,
+        "generation": "5E9FEF33-7975-4E0D-B9AA-39C51F124620",
+        "running": true,
+        "directory": "/private/tmp/qterm-native-qa-e143e78d6535"
+      },
+      {
+        "id": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+        "pid": 34164,
+        "generation": "B68BDE87-E900-4574-A136-D415D18B8D57",
+        "running": true,
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+        "pid": 34670,
+        "generation": "4C6DDBBA-9613-42FC-9CB0-7A08CAFC1AAB",
+        "running": true,
+        "directory": "/private/tmp/qterm-native-qa-e143e78d6535"
+      },
+      {
+        "id": "CA69FDC6-794B-45AF-BC3B-766125949376",
+        "pid": 34812,
+        "generation": "A6EC79EE-DBA5-4F36-AC2C-508DC10CF2D2",
+        "running": true,
+        "directory": "/private/tmp/qterm-native-qa-e143e78d6535"
+      }
+    ],
+    "markers": [
+      {
+        "id": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+        "markers": []
+      },
+      {
+        "id": "79DF5354-B262-42BC-BB28-B53770969B11",
+        "markers": []
+      },
+      {
+        "id": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+        "markers": []
+      },
+      {
+        "id": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+        "markers": []
+      },
+      {
+        "id": "CA69FDC6-794B-45AF-BC3B-766125949376",
+        "markers": []
+      }
+    ]
+  },
+  "focused": {
+    "selectedTabID": "79DF5354-B262-42BC-BB28-B53770969B11",
+    "layout": {
+      "projects": [
+        {
+          "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+          "id": "475BFBEA-F8A9-4857-90C0-18909470B775",
+          "name": "移动目标",
+          "selectedTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+          "tabs": [
+            {
+              "focusedTerminalID": "79DF5354-B262-42BC-BB28-B53770969B11",
+              "id": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+              "layout": {
+                "split": {
+                  "axis": "horizontal",
+                  "first": {
+                    "terminal": {
+                      "_0": "79DF5354-B262-42BC-BB28-B53770969B11"
+                    }
+                  },
+                  "id": "03BD1D16-722A-4494-A818-46989932074A",
+                  "ratio": 0.65,
+                  "second": {
+                    "terminal": {
+                      "_0": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "focusedTerminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+              "id": "CCBF6177-05EE-4C15-BAE5-D2AB3281BDA5",
+              "layout": {
+                "terminal": {
+                  "_0": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D"
+                }
+              }
+            },
+            {
+              "focusedTerminalID": "CA69FDC6-794B-45AF-BC3B-766125949376",
+              "id": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+              "layout": {
+                "terminal": {
+                  "_0": "CA69FDC6-794B-45AF-BC3B-766125949376"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+          "name": "项目",
+          "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+          "tabs": [
+            {
+              "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+              "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "layout": {
+                "terminal": {
+                  "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+          "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+          "name": "后台项目已改名",
+          "tabs": []
+        }
+      ],
+      "schemaVersion": 1,
+      "selectedProjectID": "475BFBEA-F8A9-4857-90C0-18909470B775"
+    },
+    "terminals": [
+      {
+        "id": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+        "pid": 34541,
+        "generation": "467533BC-AC47-4B8E-A142-C4549F14DCA1",
+        "running": true,
+        "directory": "/private/tmp/qterm-native-qa-e143e78d6535"
+      },
+      {
+        "id": "79DF5354-B262-42BC-BB28-B53770969B11",
+        "pid": 34523,
+        "generation": "5E9FEF33-7975-4E0D-B9AA-39C51F124620",
+        "running": true,
+        "directory": "/private/tmp/qterm-native-qa-e143e78d6535"
+      },
+      {
+        "id": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+        "pid": 34164,
+        "generation": "B68BDE87-E900-4574-A136-D415D18B8D57",
+        "running": true,
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+        "pid": 34670,
+        "generation": "4C6DDBBA-9613-42FC-9CB0-7A08CAFC1AAB",
+        "running": true,
+        "directory": "/private/tmp/qterm-native-qa-e143e78d6535"
+      },
+      {
+        "id": "CA69FDC6-794B-45AF-BC3B-766125949376",
+        "pid": 34812,
+        "generation": "A6EC79EE-DBA5-4F36-AC2C-508DC10CF2D2",
+        "running": true,
+        "directory": "/private/tmp/qterm-native-qa-e143e78d6535"
+      }
+    ],
+    "markers": [
+      {
+        "id": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+        "markers": []
+      },
+      {
+        "id": "79DF5354-B262-42BC-BB28-B53770969B11",
+        "markers": []
+      },
+      {
+        "id": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+        "markers": []
+      },
+      {
+        "id": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+        "markers": []
+      },
+      {
+        "id": "CA69FDC6-794B-45AF-BC3B-766125949376",
+        "markers": []
+      }
+    ]
+  },
+  "input": {
+    "selectedTabID": "79DF5354-B262-42BC-BB28-B53770969B11",
+    "layout": {
+      "projects": [
+        {
+          "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+          "id": "475BFBEA-F8A9-4857-90C0-18909470B775",
+          "name": "移动目标",
+          "selectedTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+          "tabs": [
+            {
+              "focusedTerminalID": "79DF5354-B262-42BC-BB28-B53770969B11",
+              "id": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+              "layout": {
+                "split": {
+                  "axis": "horizontal",
+                  "first": {
+                    "terminal": {
+                      "_0": "79DF5354-B262-42BC-BB28-B53770969B11"
+                    }
+                  },
+                  "id": "03BD1D16-722A-4494-A818-46989932074A",
+                  "ratio": 0.65,
+                  "second": {
+                    "terminal": {
+                      "_0": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "focusedTerminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+              "id": "CCBF6177-05EE-4C15-BAE5-D2AB3281BDA5",
+              "layout": {
+                "terminal": {
+                  "_0": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D"
+                }
+              }
+            },
+            {
+              "focusedTerminalID": "CA69FDC6-794B-45AF-BC3B-766125949376",
+              "id": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+              "layout": {
+                "terminal": {
+                  "_0": "CA69FDC6-794B-45AF-BC3B-766125949376"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+          "name": "项目",
+          "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+          "tabs": [
+            {
+              "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+              "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "layout": {
+                "terminal": {
+                  "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+          "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+          "name": "后台项目已改名",
+          "tabs": []
+        }
+      ],
+      "schemaVersion": 1,
+      "selectedProjectID": "475BFBEA-F8A9-4857-90C0-18909470B775"
+    },
+    "terminals": [
+      {
+        "id": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+        "pid": 34541,
+        "generation": "467533BC-AC47-4B8E-A142-C4549F14DCA1",
+        "running": true,
+        "directory": "/private/tmp/qterm-native-qa-e143e78d6535"
+      },
+      {
+        "id": "79DF5354-B262-42BC-BB28-B53770969B11",
+        "pid": 34523,
+        "generation": "5E9FEF33-7975-4E0D-B9AA-39C51F124620",
+        "running": true,
+        "directory": "/private/tmp/qterm-native-qa-e143e78d6535"
+      },
+      {
+        "id": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+        "pid": 34164,
+        "generation": "B68BDE87-E900-4574-A136-D415D18B8D57",
+        "running": true,
+        "directory": "/Users/rocky"
+      },
+      {
+        "id": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+        "pid": 34670,
+        "generation": "4C6DDBBA-9613-42FC-9CB0-7A08CAFC1AAB",
+        "running": true,
+        "directory": "/private/tmp/qterm-native-qa-e143e78d6535"
+      },
+      {
+        "id": "CA69FDC6-794B-45AF-BC3B-766125949376",
+        "pid": 34812,
+        "generation": "A6EC79EE-DBA5-4F36-AC2C-508DC10CF2D2",
+        "running": true,
+        "directory": "/private/tmp/qterm-native-qa-e143e78d6535"
+      }
+    ],
+    "markers": [
+      {
+        "id": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+        "markers": []
+      },
+      {
+        "id": "79DF5354-B262-42BC-BB28-B53770969B11",
+        "markers": [
+          "__PROJECT_CLI_B_LIVE"
+        ]
+      },
+      {
+        "id": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+        "markers": []
+      },
+      {
+        "id": "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A",
+        "markers": []
+      },
+      {
+        "id": "CA69FDC6-794B-45AF-BC3B-766125949376",
+        "markers": []
+      }
+    ]
+  },
+  "closeRequests": [
+    {
+      "activities": {
+        "475BFBEA-F8A9-4857-90C0-18909470B775": {
+          "needsAnswer": 0,
+          "pending": 0,
+          "unknown": 0,
+          "unread": 0,
+          "working": 0
+        },
+        "6A16D6AF-22EF-4932-92EF-3465DC05D831": {
+          "needsAnswer": 0,
+          "pending": 0,
+          "unknown": 0,
+          "unread": 0,
+          "working": 0
+        },
+        "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+          "needsAnswer": 0,
+          "pending": 0,
+          "unknown": 0,
+          "unread": 0,
+          "working": 0
+        }
+      },
+      "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+      "layout": {
+        "projects": [
+          {
+            "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+            "id": "475BFBEA-F8A9-4857-90C0-18909470B775",
+            "name": "移动目标",
+            "selectedTabID": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+            "tabs": [
+              {
+                "focusedTerminalID": "79DF5354-B262-42BC-BB28-B53770969B11",
+                "id": "0107CC6F-8A47-4F26-AFB7-A695BC866AD4",
+                "layout": {
+                  "terminal": {
+                    "_0": "79DF5354-B262-42BC-BB28-B53770969B11"
+                  }
+                }
+              },
+              {
+                "focusedTerminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+                "id": "CCBF6177-05EE-4C15-BAE5-D2AB3281BDA5",
+                "layout": {
+                  "terminal": {
+                    "_0": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D"
+                  }
+                }
+              },
+              {
+                "focusedTerminalID": "CA69FDC6-794B-45AF-BC3B-766125949376",
+                "id": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+                "layout": {
+                  "terminal": {
+                    "_0": "CA69FDC6-794B-45AF-BC3B-766125949376"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+            "name": "项目",
+            "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+            "tabs": [
+              {
+                "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                "layout": {
+                  "terminal": {
+                    "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+            "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+            "name": "后台项目已改名",
+            "tabs": []
+          }
+        ],
+        "schemaVersion": 1,
+        "selectedProjectID": "475BFBEA-F8A9-4857-90C0-18909470B775"
+      },
+      "operation": "closeTerminal",
+      "processClosure": "requested",
+      "removedTerminalIDs": [
+        "A2EEA708-00CF-4AA3-A051-F6AE38E34C8A"
+      ],
+      "revision": 27,
+      "schemaVersion": 1,
+      "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+    },
+    {
+      "activities": {
+        "475BFBEA-F8A9-4857-90C0-18909470B775": {
+          "needsAnswer": 0,
+          "pending": 0,
+          "unknown": 0,
+          "unread": 0,
+          "working": 0
+        },
+        "6A16D6AF-22EF-4932-92EF-3465DC05D831": {
+          "needsAnswer": 0,
+          "pending": 0,
+          "unknown": 0,
+          "unread": 0,
+          "working": 0
+        },
+        "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+          "needsAnswer": 0,
+          "pending": 0,
+          "unknown": 0,
+          "unread": 0,
+          "working": 0
+        }
+      },
+      "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+      "layout": {
+        "projects": [
+          {
+            "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+            "id": "475BFBEA-F8A9-4857-90C0-18909470B775",
+            "name": "移动目标",
+            "selectedTabID": "CCBF6177-05EE-4C15-BAE5-D2AB3281BDA5",
+            "tabs": [
+              {
+                "focusedTerminalID": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+                "id": "CCBF6177-05EE-4C15-BAE5-D2AB3281BDA5",
+                "layout": {
+                  "terminal": {
+                    "_0": "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D"
+                  }
+                }
+              },
+              {
+                "focusedTerminalID": "CA69FDC6-794B-45AF-BC3B-766125949376",
+                "id": "6DBDBA50-8D87-4278-8571-A36D894E92D6",
+                "layout": {
+                  "terminal": {
+                    "_0": "CA69FDC6-794B-45AF-BC3B-766125949376"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+            "name": "项目",
+            "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+            "tabs": [
+              {
+                "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                "layout": {
+                  "terminal": {
+                    "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+            "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+            "name": "后台项目已改名",
+            "tabs": []
+          }
+        ],
+        "schemaVersion": 1,
+        "selectedProjectID": "475BFBEA-F8A9-4857-90C0-18909470B775"
+      },
+      "operation": "closeTab",
+      "processClosure": "requested",
+      "removedTerminalIDs": [
+        "79DF5354-B262-42BC-BB28-B53770969B11"
+      ],
+      "revision": 28,
+      "schemaVersion": 1,
+      "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+    },
+    {
+      "activities": {
+        "6A16D6AF-22EF-4932-92EF-3465DC05D831": {
+          "needsAnswer": 0,
+          "pending": 0,
+          "unknown": 0,
+          "unread": 0,
+          "working": 0
+        },
+        "711AAC74-56F5-48B8-9CBF-C661AAD946F2": {
+          "needsAnswer": 0,
+          "pending": 0,
+          "unknown": 0,
+          "unread": 0,
+          "working": 0
+        }
+      },
+      "appEpoch": "281B0072-BF9C-4FDD-9B65-D249A5ED4796",
+      "layout": {
+        "projects": [
+          {
+            "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+            "name": "项目",
+            "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+            "tabs": [
+              {
+                "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+                "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+                "layout": {
+                  "terminal": {
+                    "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "directory": "/private/tmp/qterm-native-qa-e143e78d6535",
+            "id": "6A16D6AF-22EF-4932-92EF-3465DC05D831",
+            "name": "后台项目已改名",
+            "tabs": []
+          }
+        ],
+        "schemaVersion": 1,
+        "selectedProjectID": "711AAC74-56F5-48B8-9CBF-C661AAD946F2"
+      },
+      "operation": "closeProject",
+      "processClosure": "requested",
+      "removedTerminalIDs": [
+        "4FEE58DE-A722-420A-ADAA-D7864FB8BE5D",
+        "CA69FDC6-794B-45AF-BC3B-766125949376"
+      ],
+      "revision": 32,
+      "schemaVersion": 1,
+      "workspaceID": "091A6BDC-2499-4C01-824F-F1555F5BBB38"
+    }
+  ],
+  "closed": {
+    "selectedTabID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+    "layout": {
+      "projects": [
+        {
+          "id": "711AAC74-56F5-48B8-9CBF-C661AAD946F2",
+          "name": "项目",
+          "selectedTabID": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+          "tabs": [
+            {
+              "focusedTerminalID": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+              "id": "A329AB8D-6F4F-4481-B058-67A9D5C1C92F",
+              "layout": {
+                "terminal": {
+                  "_0": "8A9EC8B6-63A3-46EA-A008-2129007D0A40"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 1,
+      "selectedProjectID": "711AAC74-56F5-48B8-9CBF-C661AAD946F2"
+    },
+    "terminals": [
+      {
+        "id": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+        "pid": 34164,
+        "generation": "B68BDE87-E900-4574-A136-D415D18B8D57",
+        "running": true,
+        "directory": "/Users/rocky"
+      }
+    ],
+    "markers": [
+      {
+        "id": "8A9EC8B6-63A3-46EA-A008-2129007D0A40",
+        "markers": []
+      }
+    ]
+  },
+  "all14OperationsVerified": true,
+  "ownedCleanupAndCredentialRemovalVerified": true,
+  "passed": true,
+  "allMovedPTYIdentitiesPreserved": true,
+  "mcpRatioApplied": 0.65,
+  "allCloseReceiptsRequestedOnly": true,
+  "releaseConditionalFixtureExcluded": true,
+  "scope": "Actual generated CLI/MCP business code + native QA app; private root/clientID/key lookup adaptation and process-local credentials; no normal keychain use; no actual WillDeep task in this scenario"
+}

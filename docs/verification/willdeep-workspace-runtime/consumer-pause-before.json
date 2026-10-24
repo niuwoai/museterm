@@ -1,0 +1,18 @@
+{
+  "generatedAt": "2026-10-24T04:49:08+08:00",
+  "passed": false,
+  "failure": "EOFError: Client disconnected",
+  "pauseSeconds": 7,
+  "scope": "真实后台 PTY 与同一 Socket 订阅，100000 字节有界输出暂停 7 秒后继续读取；不等同 GUI 验收",
+  "receivedBytes": 1024,
+  "binarySHA256": "b8487a4f849587a41677be3df68956d3eda4aae63b6af1dad1a369fcef2f5f03",
+  "disconnects": [
+    {
+      "lastAction": "subscribe",
+      "queuedBytes": 203452,
+      "idleSeconds": 5.0404629583936185,
+      "subscribed": true,
+      "reason": "write_deadline"
+    }
+  ]
+}

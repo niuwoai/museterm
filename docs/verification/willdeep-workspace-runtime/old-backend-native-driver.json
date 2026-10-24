@@ -1,0 +1,117 @@
+{
+  "generatedAt": "2026-10-24T08:40:53+08:00",
+  "mode": "qa-ui",
+  "passed": true,
+  "failure": null,
+  "scope": "实际隔离 QTerm 图形界面 + WillDeep CLI/Runtime；本机 mock 模型；所有输入由原生界面执行，界面动作与退出时长另存独立证据",
+  "fixtureDirectory": null,
+  "binarySHA256": "ce8adf707cd3832e83c03c251cdbd528736e20302633028bd027532471297cb8",
+  "modelRequests": 2,
+  "frontendExitStatus": null,
+  "qtermBackendSHA256": "a4110e43cc4400a5ba6be39efcf30d3f88e9508cdbcca8b73983de1d62ee22c3",
+  "allUIClientsDetachedSeconds": null,
+  "backendInputDiagnostics": [],
+  "backendWaitResult": null,
+  "backendPendingKindsAtApproval": [
+    "approval"
+  ],
+  "backendCLIWaitResult": null,
+  "backendCLIWaitSourceSHA256": null,
+  "terminalDeviceStatusReplies": 0,
+  "lostAcknowledgementRetried": false,
+  "states": [
+    {
+      "activity": "unknown",
+      "sequence": 0,
+      "observedAt": 1185991.068286
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A"
+      },
+      "sequence": 1,
+      "observedAt": 1185991.176156
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A"
+      },
+      "sequence": 2,
+      "observedAt": 1186021.156454
+    },
+    {
+      "activity": "working",
+      "context": {
+        "taskID": "d9852ea4-6b1e-4209-b3d1-86be42550866",
+        "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A"
+      },
+      "sequence": 3,
+      "observedAt": 1186022.741931
+    },
+    {
+      "activity": "blocked",
+      "blockReason": "approval",
+      "context": {
+        "taskID": "b21a8e02-5eea-4363-b5b0-ad843d338d47",
+        "gateID": "55bf2ca2-06f2-42e0-bcfd-adb23609b928",
+        "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A"
+      },
+      "sequence": 4,
+      "observedAt": 1186023.168529
+    },
+    {
+      "activity": "blocked",
+      "blockReason": "approval",
+      "context": {
+        "taskID": "b21a8e02-5eea-4363-b5b0-ad843d338d47",
+        "gateID": "55bf2ca2-06f2-42e0-bcfd-adb23609b928",
+        "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A"
+      },
+      "sequence": 8,
+      "observedAt": 1186147.238303
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "taskID": "b21a8e02-5eea-4363-b5b0-ad843d338d47",
+        "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A"
+      },
+      "result": "completed",
+      "sequence": 9,
+      "observedAt": 1186165.166724
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "taskID": "b21a8e02-5eea-4363-b5b0-ad843d338d47",
+        "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A"
+      },
+      "result": "completed",
+      "sequence": 10,
+      "observedAt": 1186195.17875
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "taskID": "b21a8e02-5eea-4363-b5b0-ad843d338d47",
+        "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A"
+      },
+      "result": "completed",
+      "sequence": 11,
+      "observedAt": 1186225.235177
+    },
+    {
+      "activity": "exited",
+      "context": {
+        "taskID": "b21a8e02-5eea-4363-b5b0-ad843d338d47",
+        "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A"
+      },
+      "result": "completed",
+      "sequence": 12,
+      "observedAt": 1186225.838643
+    }
+  ],
+  "fixtureErrors": []
+}

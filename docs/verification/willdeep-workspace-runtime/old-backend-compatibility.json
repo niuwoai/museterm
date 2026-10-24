@@ -1,0 +1,381 @@
+{
+  "uiVersion": "1.251.0-rc18",
+  "uiBuild": 333,
+  "passed": true,
+  "residentBackend": {
+    "backendPID": 25111,
+    "helperPath": "/private/tmp/qterm-native-qa-c877f15e328c/QTermQA.app/Contents/Helpers/qterm-runtime",
+    "helperSHA256": "e9c23bedc86823b1cd85a57f5febc8c747c11c7077050a6bde454da30f284c14",
+    "startedAt": "2026-10-24T08:33:06+08:00",
+    "original": {
+      "id": "75031DCE-1145-41BE-846B-FC723B1788E4",
+      "pid": 25113,
+      "generation": "24132E87-43CE-4096-B63D-39A5D44B387F"
+    },
+    "version": "1.251.0-rc5",
+    "features": null,
+    "serviceEpoch": "D09B91E6-9725-4953-B672-7C0BB3EF21C3",
+    "attached": {
+      "uiPID": 25126,
+      "uiEpoch": "645FFEAE-19FB-4789-85F1-C0458BD6CB7C",
+      "uiVersion": "1.251.0-rc18",
+      "markers": [
+        "__OLD_BACKEND_FIRST_LIVE"
+      ],
+      "layout": {
+        "projects": [
+          {
+            "id": "7B43B7B0-0BCB-4457-9BCF-99456FA93624",
+            "name": "找回的后台终端",
+            "selectedTabID": "EA5AA84E-7408-4D91-BAC3-6D0C10BD3D36",
+            "tabs": [
+              {
+                "focusedTerminalID": "75031DCE-1145-41BE-846B-FC723B1788E4",
+                "id": "EA5AA84E-7408-4D91-BAC3-6D0C10BD3D36",
+                "layout": {
+                  "terminal": {
+                    "_0": "75031DCE-1145-41BE-846B-FC723B1788E4"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "schemaVersion": 1,
+        "selectedProjectID": "7B43B7B0-0BCB-4457-9BCF-99456FA93624"
+      }
+    },
+    "missingAgentToolCapabilityRejected": {
+      "ok": false,
+      "action": "get_agent_state",
+      "error": "unsupported_feature",
+      "tabID": "75031DCE-1145-41BE-846B-FC723B1788E4"
+    },
+    "uiAbsentAt": 1185870.998208,
+    "resumed": {
+      "uiPID": 26258,
+      "uiEpoch": "0E8C3EF0-1970-4505-9AA7-7F9A70E92A70",
+      "uiVersion": "1.251.0-rc18",
+      "markers": [
+        "__OLD_BACKEND_FIRST_LIVE",
+        "__OLD_BACKEND_SECOND_LIVE"
+      ],
+      "layout": {
+        "projects": [
+          {
+            "id": "7B43B7B0-0BCB-4457-9BCF-99456FA93624",
+            "name": "找回的后台终端",
+            "selectedTabID": "EA5AA84E-7408-4D91-BAC3-6D0C10BD3D36",
+            "tabs": [
+              {
+                "focusedTerminalID": "75031DCE-1145-41BE-846B-FC723B1788E4",
+                "id": "EA5AA84E-7408-4D91-BAC3-6D0C10BD3D36",
+                "layout": {
+                  "terminal": {
+                    "_0": "75031DCE-1145-41BE-846B-FC723B1788E4"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "schemaVersion": 1,
+        "selectedProjectID": "7B43B7B0-0BCB-4457-9BCF-99456FA93624"
+      }
+    },
+    "uiAbsentSeconds": 97.10115399979986,
+    "ownedCleanupVerified": true
+  },
+  "nativeForcedUIRecovery": {
+    "version": "1.251.0-rc18",
+    "build": 333,
+    "backendVersion": "1.251.0-rc5",
+    "before": {
+      "observedAt": "2026-10-24T08:38:12+08:00",
+      "monotonicTime": 1186074.219815,
+      "serviceEpoch": "D09B91E6-9725-4953-B672-7C0BB3EF21C3",
+      "terminal": {
+        "id": "75031DCE-1145-41BE-846B-FC723B1788E4",
+        "pid": 25113,
+        "generation": "24132E87-43CE-4096-B63D-39A5D44B387F",
+        "agent": {
+          "ruleVersion": 2,
+          "source": "integration",
+          "confidence": "high",
+          "blockReason": "approval",
+          "expiresAt": 814495191.887589,
+          "activity": "blocked",
+          "kind": "willdeep",
+          "context": {
+            "taskID": "b21a8e02-5eea-4363-b5b0-ad843d338d47",
+            "gateID": "55bf2ca2-06f2-42e0-bcfd-adb23609b928",
+            "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A"
+          },
+          "runID": "1C069740-1152-43D9-AA0B-7BD0BCA24384",
+          "updatedAt": 814495071.887589,
+          "reason": "reported",
+          "reportSequence": 5,
+          "instanceID": "3AB78D6A-F85D-4768-AE3B-C9CC2F3BB039"
+        },
+        "running": true
+      },
+      "foregroundPID": 26341,
+      "attention": [
+        {
+          "createdSequence": 6,
+          "source": "integration",
+          "runID": "1C069740-1152-43D9-AA0B-7BD0BCA24384",
+          "kind": "approval",
+          "isStale": false,
+          "instanceID": "3AB78D6A-F85D-4768-AE3B-C9CC2F3BB039",
+          "context": {
+            "taskID": "b21a8e02-5eea-4363-b5b0-ad843d338d47",
+            "gateID": "55bf2ca2-06f2-42e0-bcfd-adb23609b928",
+            "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A"
+          },
+          "confidence": "high",
+          "version": 1,
+          "tabID": "75031DCE-1145-41BE-846B-FC723B1788E4",
+          "createdAt": 814495041.796665,
+          "id": "D1191FED-4B8E-49E2-94C6-24EF3AEFBCC2"
+        }
+      ]
+    },
+    "appPIDBefore": 26258,
+    "uiEpochBefore": "0E8C3EF0-1970-4505-9AA7-7F9A70E92A70",
+    "savedCursorBeforeKill": {
+      "generation": "24132E87-43CE-4096-B63D-39A5D44B387F",
+      "offset": 19118
+    },
+    "helperSHA256": "a4110e43cc4400a5ba6be39efcf30d3f88e9508cdbcca8b73983de1d62ee22c3",
+    "killMonotonicTime": 1186077.165207,
+    "afterKill": {
+      "observedAt": "2026-10-24T08:38:15+08:00",
+      "monotonicTime": 1186077.165876,
+      "serviceEpoch": "D09B91E6-9725-4953-B672-7C0BB3EF21C3",
+      "terminal": {
+        "id": "75031DCE-1145-41BE-846B-FC723B1788E4",
+        "pid": 25113,
+        "generation": "24132E87-43CE-4096-B63D-39A5D44B387F",
+        "agent": {
+          "ruleVersion": 2,
+          "source": "integration",
+          "confidence": "high",
+          "blockReason": "approval",
+          "expiresAt": 814495191.887589,
+          "activity": "blocked",
+          "kind": "willdeep",
+          "context": {
+            "taskID": "b21a8e02-5eea-4363-b5b0-ad843d338d47",
+            "gateID": "55bf2ca2-06f2-42e0-bcfd-adb23609b928",
+            "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A"
+          },
+          "runID": "1C069740-1152-43D9-AA0B-7BD0BCA24384",
+          "updatedAt": 814495071.887589,
+          "reason": "reported",
+          "reportSequence": 5,
+          "instanceID": "3AB78D6A-F85D-4768-AE3B-C9CC2F3BB039"
+        },
+        "running": true
+      },
+      "foregroundPID": 26341,
+      "attention": [
+        {
+          "createdSequence": 6,
+          "source": "integration",
+          "runID": "1C069740-1152-43D9-AA0B-7BD0BCA24384",
+          "kind": "approval",
+          "isStale": false,
+          "instanceID": "3AB78D6A-F85D-4768-AE3B-C9CC2F3BB039",
+          "context": {
+            "taskID": "b21a8e02-5eea-4363-b5b0-ad843d338d47",
+            "gateID": "55bf2ca2-06f2-42e0-bcfd-adb23609b928",
+            "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A"
+          },
+          "confidence": "high",
+          "version": 1,
+          "tabID": "75031DCE-1145-41BE-846B-FC723B1788E4",
+          "createdAt": 814495041.796665,
+          "id": "D1191FED-4B8E-49E2-94C6-24EF3AEFBCC2"
+        }
+      ]
+    },
+    "forcedKillVerified": true,
+    "offline": {
+      "observedAt": "2026-10-24T08:39:07+08:00",
+      "monotonicTime": 1186128.866158,
+      "serviceEpoch": "D09B91E6-9725-4953-B672-7C0BB3EF21C3",
+      "terminal": {
+        "id": "75031DCE-1145-41BE-846B-FC723B1788E4",
+        "pid": 25113,
+        "generation": "24132E87-43CE-4096-B63D-39A5D44B387F",
+        "agent": {
+          "ruleVersion": 2,
+          "source": "integration",
+          "confidence": "high",
+          "blockReason": "approval",
+          "expiresAt": 814495252.010936,
+          "activity": "blocked",
+          "kind": "willdeep",
+          "context": {
+            "taskID": "b21a8e02-5eea-4363-b5b0-ad843d338d47",
+            "gateID": "55bf2ca2-06f2-42e0-bcfd-adb23609b928",
+            "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A"
+          },
+          "runID": "1C069740-1152-43D9-AA0B-7BD0BCA24384",
+          "updatedAt": 814495132.010936,
+          "reason": "reported",
+          "reportSequence": 7,
+          "instanceID": "3AB78D6A-F85D-4768-AE3B-C9CC2F3BB039"
+        },
+        "running": true
+      },
+      "foregroundPID": 26341,
+      "attention": [
+        {
+          "createdSequence": 6,
+          "source": "integration",
+          "runID": "1C069740-1152-43D9-AA0B-7BD0BCA24384",
+          "kind": "approval",
+          "isStale": false,
+          "instanceID": "3AB78D6A-F85D-4768-AE3B-C9CC2F3BB039",
+          "context": {
+            "taskID": "b21a8e02-5eea-4363-b5b0-ad843d338d47",
+            "gateID": "55bf2ca2-06f2-42e0-bcfd-adb23609b928",
+            "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A"
+          },
+          "confidence": "high",
+          "version": 1,
+          "tabID": "75031DCE-1145-41BE-846B-FC723B1788E4",
+          "createdAt": 814495041.796665,
+          "id": "D1191FED-4B8E-49E2-94C6-24EF3AEFBCC2"
+        }
+      ]
+    },
+    "offlineSeconds": 51.70041200006381,
+    "restored": {
+      "observedAt": "2026-10-24T08:39:25+08:00",
+      "monotonicTime": 1186147.11743,
+      "serviceEpoch": "D09B91E6-9725-4953-B672-7C0BB3EF21C3",
+      "terminal": {
+        "id": "75031DCE-1145-41BE-846B-FC723B1788E4",
+        "pid": 25113,
+        "generation": "24132E87-43CE-4096-B63D-39A5D44B387F",
+        "agent": {
+          "ruleVersion": 2,
+          "source": "integration",
+          "confidence": "high",
+          "blockReason": "approval",
+          "expiresAt": 814495282.054337,
+          "activity": "blocked",
+          "kind": "willdeep",
+          "context": {
+            "taskID": "b21a8e02-5eea-4363-b5b0-ad843d338d47",
+            "gateID": "55bf2ca2-06f2-42e0-bcfd-adb23609b928",
+            "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A"
+          },
+          "runID": "1C069740-1152-43D9-AA0B-7BD0BCA24384",
+          "updatedAt": 814495162.054337,
+          "reason": "reported",
+          "reportSequence": 8,
+          "instanceID": "3AB78D6A-F85D-4768-AE3B-C9CC2F3BB039"
+        },
+        "running": true
+      },
+      "foregroundPID": 26341,
+      "attention": [
+        {
+          "createdSequence": 6,
+          "source": "integration",
+          "runID": "1C069740-1152-43D9-AA0B-7BD0BCA24384",
+          "kind": "approval",
+          "isStale": false,
+          "instanceID": "3AB78D6A-F85D-4768-AE3B-C9CC2F3BB039",
+          "context": {
+            "taskID": "b21a8e02-5eea-4363-b5b0-ad843d338d47",
+            "gateID": "55bf2ca2-06f2-42e0-bcfd-adb23609b928",
+            "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A"
+          },
+          "confidence": "high",
+          "version": 1,
+          "tabID": "75031DCE-1145-41BE-846B-FC723B1788E4",
+          "createdAt": 814495041.796665,
+          "id": "D1191FED-4B8E-49E2-94C6-24EF3AEFBCC2"
+        }
+      ]
+    },
+    "appPIDAfter": 26682,
+    "uiEpochAfter": "5DBA7451-05EE-40C0-8056-ACC8A6905A5F",
+    "restoredUIAttention": [
+      {
+        "confidence": "high",
+        "context": {
+          "gateID": "55bf2ca2-06f2-42e0-bcfd-adb23609b928",
+          "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A",
+          "taskID": "b21a8e02-5eea-4363-b5b0-ad843d338d47"
+        },
+        "createdAt": "2026-10-24T00:37:21Z",
+        "createdSequence": 6,
+        "id": "D1191FED-4B8E-49E2-94C6-24EF3AEFBCC2",
+        "instanceID": "3AB78D6A-F85D-4768-AE3B-C9CC2F3BB039",
+        "isStale": false,
+        "kind": "approval",
+        "runID": "1C069740-1152-43D9-AA0B-7BD0BCA24384",
+        "source": "integration",
+        "tabID": "75031DCE-1145-41BE-846B-FC723B1788E4",
+        "version": 1
+      }
+    ],
+    "completion": [
+      {
+        "createdSequence": 9,
+        "source": "integration",
+        "runID": "1C069740-1152-43D9-AA0B-7BD0BCA24384",
+        "kind": "completed",
+        "isStale": false,
+        "instanceID": "3AB78D6A-F85D-4768-AE3B-C9CC2F3BB039",
+        "context": {
+          "taskID": "b21a8e02-5eea-4363-b5b0-ad843d338d47",
+          "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A"
+        },
+        "confidence": "high",
+        "version": 1,
+        "tabID": "75031DCE-1145-41BE-846B-FC723B1788E4",
+        "createdAt": 814495183.792182,
+        "id": "1E8E2B7E-F74D-44DE-8F15-ADEC71F3F9B7"
+      }
+    ],
+    "completedUIAttention": [
+      {
+        "confidence": "high",
+        "context": {
+          "sessionID": "FE4468EE-280A-41A8-B8C8-F790D58FBE3A",
+          "taskID": "b21a8e02-5eea-4363-b5b0-ad843d338d47"
+        },
+        "createdAt": "2026-10-24T00:39:43Z",
+        "createdSequence": 9,
+        "id": "1E8E2B7E-F74D-44DE-8F15-ADEC71F3F9B7",
+        "instanceID": "3AB78D6A-F85D-4768-AE3B-C9CC2F3BB039",
+        "isStale": false,
+        "kind": "completed",
+        "runID": "1C069740-1152-43D9-AA0B-7BD0BCA24384",
+        "source": "integration",
+        "tabID": "75031DCE-1145-41BE-846B-FC723B1788E4",
+        "version": 1
+      }
+    ],
+    "completionReadClearedUIAndBackend": true
+  },
+  "actualResidentBackendSHA256": "e9c23bedc86823b1cd85a57f5febc8c747c11c7077050a6bde454da30f284c14",
+  "embeddedCandidateHelperSHA256": "a4110e43cc4400a5ba6be39efcf30d3f88e9508cdbcca8b73983de1d62ee22c3",
+  "driverArtifactFieldNote": "Raw qa-ui driver qtermBackendSHA256 is the embedded candidate, not the resident rc5 process. Actual process path/PID/version/hash are independently verified in residentBackend.",
+  "limitations": [
+    "One actual rc5 protocol-3 resident backend",
+    "Missing optional capabilities rejected, not silently emulated",
+    "No incompatible-protocol or damaged endpoint matrix",
+    "Old response budget not upgraded",
+    "No multiwindow, SSH or notification acceptance"
+  ],
+  "normalOfflineMinimumSeconds": 31,
+  "normalUIAbsentSecondsFieldNote": "residentBackend.uiAbsentSeconds includes reopening and resumed-input observation latency; only 31 seconds of confirmed UI absence is claimed for normal quit. Forced recovery offlineSeconds was checked before relaunch."
+}

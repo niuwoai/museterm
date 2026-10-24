@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-10-24T01:36:12+08:00",
+  "scope": "完整应用单元测试，含真实 SwiftTerm 窗口与实际工具文件桥；后续静默首包修复另有专项，不包含 UI 自动化和正式应用退出重开",
+  "resultBundle": "/private/tmp/qterm-runtime-unit-02.xcresult",
+  "passed": true,
+  "passedTests": 517,
+  "failedTests": 0,
+  "skippedTests": 0,
+  "failures": []
+}

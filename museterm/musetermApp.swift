@@ -15,21 +15,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        do { try TerminalRuntimeWorkspaceLifecycle.shared.prepareForExit() }
+        catch {
+            let alert = NSAlert()
+            alert.messageText = L10n.string("runtime.workspace.save_failed")
+            alert.informativeText = L10n.string("runtime.workspace.exit_cancelled")
+            alert.runModal()
+            return .terminateCancel
+        }
         TerminalWindowCloseState.isAppTerminating = true
         return .terminateNow
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        TerminalWindowCloseState.isAppTerminating = false
+        // Closing a floating window during teardown must still detach its PTY.
+        TerminalWindowCloseState.isAppTerminating = true
     }
 }
 
 @main
 struct musetermApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var preferences = TerminalPreferences()
+    @StateObject private var preferences: TerminalPreferences
 
     init() {
+        let preferences = TerminalPreferences()
+        #if DEBUG
+        TerminalToolAccessTestFixture.configure(preferences)
+        #endif
+        _preferences = StateObject(wrappedValue: preferences)
         SomeIMUpdateController.shared.start()
     }
 

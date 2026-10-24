@@ -1,0 +1,29 @@
+{
+  "version": "1.251.0-rc12",
+  "build": 327,
+  "scope": "完整应用单元回归，含真实 SwiftTerm 提醒恢复、已读和生成 CLI 离线列表；不是全部 GUI/系统通知/远端 SSH 验收",
+  "summary": {
+    "result": "Passed",
+    "totalTestCount": 582,
+    "passedTests": 582,
+    "failedTests": 0,
+    "skippedTests": 0,
+    "testFailures": []
+  },
+  "resultBundle": "/private/tmp/qterm-runtime-reminder-full-03.xcresult",
+  "priorRuns": [
+    {
+      "resultBundle": "/private/tmp/qterm-runtime-reminder-full-01.xcresult",
+      "passedTests": 581,
+      "failedTests": 0,
+      "note": "原生语义 BEL 去重修复之前"
+    },
+    {
+      "resultBundle": "/private/tmp/qterm-runtime-reminder-full-02.xcresult",
+      "passedTests": 581,
+      "failedTests": 1,
+      "note": "共享夹具启动原生 working Agent，新增语义去重后不再生成普通响铃；列表用例改为明确 unknown 状态以验证兜底"
+    }
+  ],
+  "nativeFailure": "native-runtime-reminder-initial-failure.json"
+}

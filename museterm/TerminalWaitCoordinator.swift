@@ -1,52 +1,7 @@
 import Foundation
 
-enum TerminalWaitCondition: String, Codable { case commandFinished, agentState, attention, outputChanged, events }
-enum TerminalWaitOutcome: String, Codable {
-    case matched, timeout, cancelled, targetClosed, targetReplaced, appExited, appRestarted, cursorExpired, futureCursor, disabled
-}
-
-struct TerminalWaitSpec: Codable {
-    let condition: TerminalWaitCondition
-    let after: TerminalEventCursor
-    var tabID: UUID? = nil
-    var commandID: UUID? = nil
-    var instanceID: UUID? = nil
-    var runID: UUID? = nil
-    var activity: TerminalAgentActivity? = nil
-    var revision: Int? = nil
-    var timeoutSeconds: Double = 30
-}
-
-extension TerminalWaitSpec {
-    init(from decoder: Decoder) throws {
-        let values = try decoder.container(keyedBy: CodingKeys.self)
-        self.init(condition: try values.decode(TerminalWaitCondition.self, forKey: .condition),
-            after: try values.decode(TerminalEventCursor.self, forKey: .after),
-            tabID: try values.decodeIfPresent(UUID.self, forKey: .tabID),
-            commandID: try values.decodeIfPresent(UUID.self, forKey: .commandID),
-            instanceID: try values.decodeIfPresent(UUID.self, forKey: .instanceID),
-            runID: try values.decodeIfPresent(UUID.self, forKey: .runID),
-            activity: try values.decodeIfPresent(TerminalAgentActivity.self, forKey: .activity),
-            revision: try values.decodeIfPresent(Int.self, forKey: .revision),
-            timeoutSeconds: try values.decodeIfPresent(Double.self, forKey: .timeoutSeconds) ?? 30)
-    }
-}
-
-struct TerminalWaitResult: Codable {
-    let waitID: String
-    let outcome: TerminalWaitOutcome
-    var cursor: TerminalEventCursor
-    var event: TerminalSessionEvent? = nil
-    var agent: TerminalAgentSnapshot? = nil
-    var commandID: UUID? = nil
-    var commandState: TerminalCommandLifecycleState? = nil
-    var attention: TerminalAttentionItem? = nil
-    var revision: Int? = nil
-}
-
-enum TerminalWaitError: String, Error { case invalidSpec, duplicateID, capacityExceeded, unknownWait }
-
-/// One main-actor transaction checks the condition and installs the waiter. No check/subscribe gap.
+/// One owner executor checks the condition and installs the waiter. The UI and
+/// runtime supply snapshots on their own serial executor; no check/subscribe gap.
 final class TerminalWaitCoordinator {
     struct Pending {
         let id: String
@@ -54,7 +9,9 @@ final class TerminalWaitCoordinator {
         let spec: TerminalWaitSpec
         let deadline: Date
     }
-    private weak var registry: TerminalSessionRegistry?
+    private let targetSnapshot: (UUID) -> TerminalWaitTargetSnapshot?
+    private let attentionItems: () -> [TerminalAttentionItem]
+    private let monitoringEnabled: () -> Bool
     private let events: TerminalSessionEventStore
     private var observation: UUID?
     private var pending: [String: Pending] = [:]
@@ -65,10 +22,13 @@ final class TerminalWaitCoordinator {
     static let maximumPerOwner = 16
     static let maximumTimeout: Double = 60
 
-    init(registry: TerminalSessionRegistry) {
-        self.registry = registry
-        events = registry.events
-        observation = registry.events.observe { [weak self] in self?.observe($0) }
+    init(events: TerminalSessionEventStore, target: @escaping (UUID) -> TerminalWaitTargetSnapshot?,
+         attention: @escaping () -> [TerminalAttentionItem], monitoringEnabled: @escaping () -> Bool) {
+        self.events = events
+        targetSnapshot = target
+        attentionItems = attention
+        self.monitoringEnabled = monitoringEnabled
+        observation = events.observe { [weak self] in self?.observe($0) }
     }
 
     deinit { if let observation { events.removeObserver(observation) } }
@@ -113,6 +73,10 @@ final class TerminalWaitCoordinator {
         }
     }
 
+    func shutdown() {
+        for waiter in Array(pending.values) { complete(waiter, outcome: .appExited) }
+    }
+
     func expire(now: Date = Date()) {
         earlyCancellations = earlyCancellations.filter { now.timeIntervalSince($0.value.date) <= Self.maximumTimeout }
         closedOwners = closedOwners.filter { now.timeIntervalSince($0.value) <= Self.maximumTimeout }
@@ -150,34 +114,32 @@ final class TerminalWaitCoordinator {
     }
 
     private func evaluate(_ waiter: Pending) -> TerminalWaitResult? {
-        guard let registry else { return nil }
         let spec = waiter.spec
-        let store = registry.events
+        let store = events
         guard spec.after.appEpoch == store.appEpoch else { return result(waiter, .appRestarted) }
         guard spec.after.sequence <= store.sequence else { return result(waiter, .futureCursor) }
-        if [.agentState, .attention].contains(spec.condition), !registry.agentMonitoringEnabled { return result(waiter, .disabled) }
-        let session = spec.tabID.flatMap { registry.sessions[$0] }
+        if [.agentState, .attention].contains(spec.condition), !monitoringEnabled() { return result(waiter, .disabled) }
+        let session = spec.tabID.flatMap { targetSnapshot($0) }
         if spec.tabID != nil, session == nil { return result(waiter, .targetClosed) }
         switch spec.condition {
         case .commandFinished:
-            guard let block = session?.commandBlocks.first(where: { $0.id == spec.commandID }) else {
+            guard let id = spec.commandID, let block = session?.commands[id] else {
                 return result(waiter, .targetReplaced)
             }
-            guard block.endedAt != nil else { return nil }
+            guard block.finished else { return nil }
             var matched = result(waiter, .matched)
-            matched.commandID = block.id
-            matched.commandState = block.commandLifecycleState
+            matched.commandID = id
+            matched.commandState = block.state
             return matched
         case .agentState:
-            session?.expireAgentStatus(now: Date())
-            guard let state = session?.agentStatus else { return result(waiter, .targetReplaced) }
+            guard let state = session?.agent else { return result(waiter, .targetReplaced) }
             guard state.instanceID == spec.instanceID, state.runID == spec.runID else { return result(waiter, .targetReplaced) }
             guard state.activity == spec.activity else { return nil }
             var matched = result(waiter, .matched)
             matched.agent = state
             return matched
         case .outputChanged:
-            guard let current = session?.lastOutputRevision, current > (spec.revision ?? 0) else { return nil }
+            guard let current = session?.outputRevision, current > (spec.revision ?? 0) else { return nil }
             var matched = result(waiter, .matched)
             matched.revision = current
             return matched
@@ -185,7 +147,7 @@ final class TerminalWaitCoordinator {
             do {
                 let batch = try store.read(after: spec.after, limit: 1_024)
                 if spec.condition == .attention {
-                    guard let item = registry.attention.activeItems.first(where: {
+                    guard let item = attentionItems().first(where: {
                         $0.createdSequence > spec.after.sequence && (spec.tabID == nil || $0.tabID == spec.tabID)
                     }) else { return nil }
                     var matched = result(waiter, .matched)
@@ -210,7 +172,7 @@ final class TerminalWaitCoordinator {
 
     private func result(_ waiter: Pending, _ outcome: TerminalWaitOutcome) -> TerminalWaitResult {
         TerminalWaitResult(waitID: waiter.id, outcome: outcome,
-            cursor: registry?.events.cursor ?? waiter.spec.after)
+            cursor: events.cursor)
     }
 
     private func complete(_ waiter: Pending, outcome: TerminalWaitOutcome) {

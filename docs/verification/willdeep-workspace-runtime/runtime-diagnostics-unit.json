@@ -1,0 +1,12 @@
+{
+  "title": "断连提示与诊断后完整应用单元回归",
+  "generatedAt": "2026-10-24T04:06:38+08:00",
+  "passed": true,
+  "version": "1.251.0-rc2",
+  "build": 317,
+  "passedTests": 540,
+  "failedTests": 0,
+  "skippedTests": 0,
+  "resultBundle": "/private/tmp/qterm-runtime-diagnostics-full-01.xcresult",
+  "testHostBundleID": "im.some.qterm.goaltests.QTerm4"
+}

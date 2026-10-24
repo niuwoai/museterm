@@ -1,0 +1,55 @@
+{
+  "version": "1.251.0-rc11",
+  "build": 326,
+  "scope": "完整应用单元回归，含真实 SwiftTerm 与生成 CLI 命令身份/等待；不等于全部 GUI 验收",
+  "summary": {
+    "devicesAndConfigurations": [
+      {
+        "device": {
+          "architecture": "arm64",
+          "deviceId": "00008112-000C103C3AF9401E",
+          "deviceName": "My Mac",
+          "modelName": "MacBook Pro",
+          "osBuildNumber": "26A434",
+          "osVersion": "27.0.1",
+          "platform": "macOS"
+        },
+        "expectedFailures": 0,
+        "failedTests": 0,
+        "passedTests": 572,
+        "skippedTests": 0,
+        "testPlanConfiguration": {
+          "configurationId": "1",
+          "configurationName": "Test Scheme Action"
+        }
+      }
+    ],
+    "environmentDescription": "museterm · Built with macOS 27.0.1",
+    "expectedFailures": 0,
+    "failedTests": 0,
+    "finishTime": 1792795482.449,
+    "passedTests": 572,
+    "result": "Passed",
+    "runtimeWarnings": [],
+    "skippedTests": 0,
+    "startTime": 1792795422.068,
+    "statistics": [],
+    "testFailures": [],
+    "title": "Test - museterm",
+    "topInsights": [
+      {
+        "category": "Longest Test Runs",
+        "impact": "49% of duration",
+        "text": "4 longest test runs with outlier durations exceeding 4.37s (three standard deviations)"
+      }
+    ],
+    "totalTestCount": 572
+  },
+  "resultBundle": "/private/tmp/qterm-runtime-command-full-01.xcresult",
+  "initialFixtureFailure": {
+    "resultBundle": "/private/tmp/qterm-runtime-command-targeted-02.xcresult",
+    "cause": "夹具通过产品输入管线额外启动 printf 命令，导致人为 echo ok 记录重复；改为原始 Socket 只注入实际 shell 标记，并使用真实输入推断创建临时记录",
+    "retest": "/private/tmp/qterm-runtime-command-targeted-03.xcresult",
+    "retestPassed": 2
+  }
+}

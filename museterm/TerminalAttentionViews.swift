@@ -23,7 +23,9 @@ struct TerminalAttentionEntry: View {
                     LazyVStack(alignment: .leading, spacing: 12) {
                         ForEach(store.activeItems) { item in
                             Button {
-                                workspace.focusAttention(tabID: item.tabID, itemID: item.id, version: item.version)
+                                if workspace.focusAttention(tabID: item.tabID, itemID: item.id, version: item.version) {
+                                    isPresented = false
+                                }
                             } label: {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(L10n.string("attention.kind.\(item.kind.rawValue)"))

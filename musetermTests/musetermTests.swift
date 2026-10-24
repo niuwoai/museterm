@@ -48,7 +48,9 @@ final class musetermTests: XCTestCase {
         let script = MuseTermCLIInstaller.script
 
         XCTAssertEqual(MuseTermCLIInstaller.installURL.lastPathComponent, "qterm")
-        XCTAssertTrue(MuseTermCLIInstaller.supportPath.hasSuffix("/QTerm/Tools"))
+        // The test host uses a private tool root; the installed CLI still targets
+        // the production location unless its fixture explicitly overrides ROOT.
+        XCTAssertTrue(script.contains("ROOT = File.expand_path(\"~/Library/Application Support/QTerm/Tools\")"))
         XCTAssertTrue(script.contains("qterm tabs"))
         XCTAssertTrue(script.contains("qterm screen"))
         XCTAssertTrue(script.contains("qterm history"))

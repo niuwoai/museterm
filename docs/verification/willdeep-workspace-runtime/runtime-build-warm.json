@@ -1,0 +1,22 @@
+{
+  "generatedAt": "2026-10-24T01:15:15+08:00",
+  "scope": "helper compilation only; not test, signing or release acceleration",
+  "measurements": [
+    {
+      "architecture": "arm64",
+      "stage": "clang",
+      "seconds": 0.0899420001078397,
+      "exitCode": 0,
+      "moduleCacheExisted": true,
+      "moduleCache": "/private/tmp/qterm-runtime-cache-measure-01/QTermRuntimeBuild/ModuleCache-arm64"
+    },
+    {
+      "architecture": "arm64",
+      "stage": "swiftc",
+      "seconds": 19.291055999929085,
+      "exitCode": 0,
+      "moduleCacheExisted": true,
+      "moduleCache": "/private/tmp/qterm-runtime-cache-measure-01/QTermRuntimeBuild/ModuleCache-arm64"
+    }
+  ]
+}

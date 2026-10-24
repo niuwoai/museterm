@@ -1,0 +1,154 @@
+{
+  "generatedAt": "2026-10-24T07:49:16+08:00",
+  "mode": "backend-tui",
+  "passed": true,
+  "failure": null,
+  "scope": "实际 WillDeep CLI/Runtime + 独立 QTerm 后台真实 PTY/状态桥/待处理；本机 mock 模型；尚非 QTerm 图形界面联调",
+  "fixtureDirectory": null,
+  "binarySHA256": "ce8adf707cd3832e83c03c251cdbd528736e20302633028bd027532471297cb8",
+  "modelRequests": 2,
+  "frontendExitStatus": null,
+  "qtermBackendSHA256": "d3b7f248649b51c916aa39ef150379c99aa2e473bd3d3c1c75b095c31803917c",
+  "allUIClientsDetachedSeconds": 31.001250999979675,
+  "backendInputDiagnostics": [
+    {
+      "bytes": 4,
+      "echoEnabled": false,
+      "foregroundPID": 6925,
+      "ptyPID": 6925
+    },
+    {
+      "bytes": 34,
+      "echoEnabled": false,
+      "foregroundPID": 6925,
+      "ptyPID": 6925
+    },
+    {
+      "bytes": 1,
+      "echoEnabled": false,
+      "foregroundPID": 6925,
+      "ptyPID": 6925
+    },
+    {
+      "bytes": 6,
+      "echoEnabled": false,
+      "foregroundPID": 6925,
+      "ptyPID": 6925
+    }
+  ],
+  "backendWaitResult": {
+    "cursor": {
+      "sequence": 148,
+      "appEpoch": "B6F951DA-C49A-4607-8EC1-4941B562342E"
+    },
+    "outcome": "matched",
+    "agent": {
+      "activity": "idle",
+      "confidence": "high",
+      "source": "integration",
+      "expiresAt": 814492276.106116,
+      "kind": "willdeep",
+      "lastResult": "completed",
+      "ruleVersion": 2,
+      "instanceID": "1ED6257D-9C46-4E96-B25B-3F1863447A3D",
+      "context": {
+        "sessionID": "68E33357-A11D-4402-971C-C1F33A0A9F05",
+        "taskID": "16e44bee-c5c4-4280-aec0-419ae87efe6f"
+      },
+      "reportSequence": 5,
+      "updatedAt": 814492156.106116,
+      "runID": "CF60D50B-2882-4664-93BA-B675C4494D45",
+      "reason": "reported"
+    },
+    "waitID": "5b4766b1-6d8f-4894-826a-c0eb975cc138"
+  },
+  "backendPendingKindsAtApproval": [
+    "approval"
+  ],
+  "backendCLIWaitResult": {
+    "cursor": {
+      "sequence": 148,
+      "appEpoch": "B6F951DA-C49A-4607-8EC1-4941B562342E"
+    },
+    "outcome": "matched",
+    "agent": {
+      "activity": "idle",
+      "confidence": "high",
+      "source": "integration",
+      "expiresAt": "2026-10-23T23:51:16Z",
+      "kind": "willdeep",
+      "lastResult": "completed",
+      "ruleVersion": 2,
+      "instanceID": "1ED6257D-9C46-4E96-B25B-3F1863447A3D",
+      "context": {
+        "sessionID": "68E33357-A11D-4402-971C-C1F33A0A9F05",
+        "taskID": "16e44bee-c5c4-4280-aec0-419ae87efe6f"
+      },
+      "reportSequence": 5,
+      "updatedAt": "2026-10-23T23:49:16Z",
+      "runID": "CF60D50B-2882-4664-93BA-B675C4494D45",
+      "reason": "reported"
+    },
+    "waitID": "fded2c3d-bc84-4b97-8f2c-e4674693bf6b"
+  },
+  "backendCLIWaitSourceSHA256": "adb00e8425ec97f4de07bee234b224f775cc2e6bf44ac43330ad350090c81a3a",
+  "terminalDeviceStatusReplies": 1,
+  "lostAcknowledgementRetried": false,
+  "states": [
+    {
+      "activity": "unknown",
+      "sequence": 0,
+      "observedAt": 1183104.386306
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "sessionID": "68E33357-A11D-4402-971C-C1F33A0A9F05"
+      },
+      "sequence": 1,
+      "observedAt": 1183104.495775
+    },
+    {
+      "activity": "working",
+      "context": {
+        "sessionID": "68E33357-A11D-4402-971C-C1F33A0A9F05",
+        "taskID": "35b60dee-6233-4a43-bb43-1cb6c62d4bfc"
+      },
+      "sequence": 2,
+      "observedAt": 1183104.765783
+    },
+    {
+      "activity": "blocked",
+      "blockReason": "approval",
+      "context": {
+        "sessionID": "68E33357-A11D-4402-971C-C1F33A0A9F05",
+        "taskID": "16e44bee-c5c4-4280-aec0-419ae87efe6f",
+        "gateID": "19b19fff-9400-40b2-9baa-653bc592f72b"
+      },
+      "sequence": 3,
+      "observedAt": 1183105.466746
+    },
+    {
+      "activity": "blocked",
+      "blockReason": "approval",
+      "context": {
+        "sessionID": "68E33357-A11D-4402-971C-C1F33A0A9F05",
+        "taskID": "16e44bee-c5c4-4280-aec0-419ae87efe6f",
+        "gateID": "19b19fff-9400-40b2-9baa-653bc592f72b"
+      },
+      "sequence": 4,
+      "observedAt": 1183136.742901
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "sessionID": "68E33357-A11D-4402-971C-C1F33A0A9F05",
+        "taskID": "16e44bee-c5c4-4280-aec0-419ae87efe6f"
+      },
+      "result": "completed",
+      "sequence": 5,
+      "observedAt": 1183137.481995
+    }
+  ],
+  "fixtureErrors": []
+}

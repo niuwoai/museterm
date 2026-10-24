@@ -1,7 +1,7 @@
 import Foundation
 
 enum TerminalAgentToolService {
-    static let actions: Set<String> = ["bind_agent", "report_agent_state", "get_agent_state", "read_session_events"]
+    static let actions: Set<String> = ["bind_agent", "bind_native_agent", "report_agent_state", "get_agent_state", "read_session_events"]
 
     static func perform(_ request: TerminalToolRequest, registry: TerminalSessionRegistry,
                         snapshotSequence: Int, paired: () -> Bool) -> TerminalToolResponse {
@@ -15,7 +15,18 @@ enum TerminalAgentToolService {
             }
             guard let selector = request.tab, let id = UUID(uuidString: selector),
                   let session = registry.sessions[id] else { throw TerminalAgentReportError.unavailable }
+            // Runtime mutation must go through the asynchronous bridge and the
+            // service's monitor. Never mint a second UI-only reporting grant.
+            if session.runtimeRequiresExisting || session.runtimeInfo != nil {
+                throw TerminalAgentReportError.unavailable
+            }
             switch request.action {
+            case "bind_native_agent":
+                guard registry.agentMonitoringEnabled, request.agentKind == .willdeep,
+                      session.nativeAgentContext.authorizes(request.nativeAgentToken) else {
+                    throw TerminalAgentReportError.invalidCapability
+                }
+                response.agentGrant = try session.bindAgent(kind: .willdeep)
             case "bind_agent":
                 guard registry.agentMonitoringEnabled else { throw TerminalAgentReportError.unavailable }
                 // Status binding is separate from terminal input permission and the input lease.

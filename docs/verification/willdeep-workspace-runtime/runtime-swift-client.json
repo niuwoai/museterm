@@ -1,0 +1,17 @@
+{
+  "backendSHA256" : "0c994c8501514a89f67bdb36974de3dc19e56e140b0219fb7f35205761c74613",
+  "checks" : [
+    "actual_swift_client_handshake_version_and_private_capability",
+    "swift_client_disconnect_reconnect_keeps_same_pid",
+    "swift_client_real_input_echo_and_output_cursor",
+    "oversized_request_is_rejected_before_socket_write",
+    "cross_executor_cancellation_does_not_close_pty",
+    "capability_symlink_is_rejected"
+  ],
+  "failure" : null,
+  "fixtureDirectory" : null,
+  "generatedAt" : "2026-10-23T16:29:09Z",
+  "passed" : true,
+  "scope" : "生产 Swift 连接器对真实独立后台；尚未接 NSView\/UI 恢复",
+  "version" : "1.251.0-rc1"
+}

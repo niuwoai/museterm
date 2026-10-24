@@ -1,13 +1,13 @@
 import Combine
 import Foundation
 
-enum TerminalAttentionKind: String, Codable {
+nonisolated enum TerminalAttentionKind: String, Codable {
     case approval, question, blocked, completed, failed
     case bell, commandCompleted, commandFailed, processExited
     var requiresAnswer: Bool { self == .approval || self == .question || self == .blocked }
 }
 
-struct TerminalAttentionItem: Codable, Equatable, Identifiable {
+nonisolated struct TerminalAttentionItem: Codable, Equatable, Identifiable {
     let id: UUID
     let tabID: UUID
     let instanceID: UUID?
@@ -18,6 +18,7 @@ struct TerminalAttentionItem: Codable, Equatable, Identifiable {
     let source: TerminalAgentSource?
     let confidence: TerminalAgentConfidence?
     var terminal: TerminalAttentionTerminalContext? = nil
+    var context: TerminalAgentReportedContext? = nil
     var version: Int = 1
     var readAt: Date? = nil
     var resolvedAt: Date? = nil
@@ -25,7 +26,7 @@ struct TerminalAttentionItem: Codable, Equatable, Identifiable {
     var isAgent: Bool { instanceID != nil }
 }
 
-enum TerminalAttentionMutationError: String, Error { case notFound, staleVersion }
+nonisolated enum TerminalAttentionMutationError: String, Error { case notFound, staleVersion, unavailable }
 
 /// Read state never determines whether an Agent still needs an answer. No terminal text is stored.
 final class TerminalAttentionStore: ObservableObject {
@@ -36,6 +37,39 @@ final class TerminalAttentionStore: ObservableObject {
     let capacity = 256
     var onUnreadChanged: ((UUID, Bool) -> Void)?
     private var terminalDeduplication = TerminalAttentionDeduplication()
+    private var externalAgentTabs: Set<UUID> = []
+    private var externalTerminalTabs: Set<UUID> = []
+    private var externalCursors: [UUID: TerminalEventCursor] = [:]
+    var externalAcknowledgement: [UUID: (UUID, Int) -> Bool] = [:]
+
+    func markAgentAuthorityExternal(tabID: UUID) { externalAgentTabs.insert(tabID) }
+    func markRuntimeAuthorityExternal(tabID: UUID) {
+        externalAgentTabs.insert(tabID)
+        externalTerminalTabs.insert(tabID)
+    }
+
+    func adoptAgentItems(_ values: [TerminalAttentionItem], tabID: UUID, cursor: TerminalEventCursor? = nil) {
+        if let cursor {
+            if let previous = externalCursors[tabID], previous.appEpoch == cursor.appEpoch, previous.sequence > cursor.sequence { return }
+            externalCursors[tabID] = cursor
+        }
+        externalAgentTabs.insert(tabID)
+        let includeTerminal = externalTerminalTabs.contains(tabID)
+        let old = items.filter { $0.tabID == tabID && ($0.isAgent || includeTerminal) }
+        let next = values.filter { $0.tabID == tabID && ($0.isAgent || includeTerminal) && $0.resolvedAt == nil }
+        guard old != next else { return }
+        items.removeAll { $0.tabID == tabID && ($0.isAgent || includeTerminal) }
+        items.append(contentsOf: next)
+        for var removed in old where !next.contains(where: { $0.id == removed.id }) {
+            removed.resolvedAt = Date(); removed.version += 1
+            emit(.attentionResolved, removed)
+        }
+        for item in next {
+            if let previous = old.first(where: { $0.id == item.id }) {
+                if previous != item { emit(.attentionUpdated, item) }
+            } else { emit(.attentionCreated, item) }
+        }
+    }
 
     func hasUnread(tabID: UUID) -> Bool {
         items.contains { $0.tabID == tabID && $0.resolvedAt == nil && $0.readAt == nil }
@@ -62,6 +96,13 @@ final class TerminalAttentionStore: ObservableObject {
         }
         guard items[index].version == version else { throw TerminalAttentionMutationError.staleVersion }
         guard items[index].readAt == nil else { return }
+        if (items[index].isAgent && externalAgentTabs.contains(items[index].tabID))
+            || (!items[index].isAgent && externalTerminalTabs.contains(items[index].tabID)) {
+            guard externalAcknowledgement[items[index].tabID]?(id, version) == true else {
+                throw TerminalAttentionMutationError.unavailable
+            }
+            return
+        }
         items[index].readAt = now
         items[index].version += 1
         if !items[index].kind.requiresAnswer { items[index].resolvedAt = now }
@@ -88,6 +129,10 @@ final class TerminalAttentionStore: ObservableObject {
 
     private func consume(_ event: TerminalSessionEvent) {
         if event.kind == .closed {
+            externalAgentTabs.remove(event.tabID)
+            externalTerminalTabs.remove(event.tabID)
+            externalCursors[event.tabID] = nil
+            externalAcknowledgement[event.tabID] = nil
             for index in items.indices where items[index].tabID == event.tabID && items[index].resolvedAt == nil {
                 resolve(index, now: event.occurredAt)
             }
@@ -96,6 +141,7 @@ final class TerminalAttentionStore: ObservableObject {
             return
         }
         guard event.kind == .agentChanged else { return }
+        guard !externalAgentTabs.contains(event.tabID) else { return }
         guard let state = event.agent else {
             for index in items.indices where items[index].tabID == event.tabID && items[index].isAgent && items[index].resolvedAt == nil {
                 resolve(index, now: event.occurredAt)
@@ -111,7 +157,7 @@ final class TerminalAttentionStore: ObservableObject {
             createIfNeeded(tabID: event.tabID, state: state, kind: kind, now: event.occurredAt)
         } else if state.source == .integration, state.reason == .reported,
                   state.activity == .idle || state.activity == .exited,
-                  old?.lastResult != state.lastResult || old?.instanceID != state.instanceID {
+                  old?.lastResult != state.lastResult || old?.instanceID != state.instanceID || old?.context != state.context {
             if state.lastResult == .completed || state.lastResult == .failed {
                 createIfNeeded(tabID: event.tabID, state: state,
                     kind: state.lastResult == .completed ? .completed : .failed, now: event.occurredAt)
@@ -124,7 +170,7 @@ final class TerminalAttentionStore: ObservableObject {
             let item = items[index]
             let sameRun = item.instanceID == state.instanceID && item.runID == state.runID
             let sameBlock = item.kind == .approval ? state.blockReason == .approval : item.kind == .question ? state.blockReason == .question : state.blockReason == .other
-            if !sameRun || (!item.kind.requiresAnswer && state.activity == .working)
+            if !sameRun || item.context != state.context || (!item.kind.requiresAnswer && state.activity == .working)
                 || (item.kind.requiresAnswer && state.activity != .unknown && (state.activity != .blocked || !sameBlock)) {
                 resolve(index, now: now)
             } else if item.kind.requiresAnswer, item.isStale != (state.activity == .unknown) {
@@ -142,7 +188,7 @@ final class TerminalAttentionStore: ObservableObject {
         guard items.count < capacity || kind.requiresAnswer else { return }
         let item = TerminalAttentionItem(id: UUID(), tabID: tabID, instanceID: state.instanceID,
             runID: state.runID, kind: kind, createdAt: now, createdSequence: events.sequence + 1,
-            source: state.source, confidence: state.confidence)
+            source: state.source, confidence: state.confidence, context: state.context)
         items.append(item)
         emit(.attentionCreated, item)
     }
@@ -171,7 +217,7 @@ final class TerminalAttentionStore: ObservableObject {
         if context.kind == .bell, let index = items.firstIndex(where: {
             $0.tabID == tabID && $0.resolvedAt == nil && $0.terminal?.kind == .bell && $0.terminal?.eventID == context.eventID
         }) {
-            items[index].terminal?.occurrences += 1
+            items[index].terminal?.occurrences += context.occurrences
             items[index].version += 1
             emit(.attentionUpdated, items[index])
             return items[index]

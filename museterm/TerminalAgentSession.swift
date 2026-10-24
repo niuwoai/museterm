@@ -1,15 +1,6 @@
 import Foundation
 
 extension TerminalAgentSnapshot {
-    static func sameEvidence(_ lhs: Self?, _ rhs: Self?) -> Bool {
-        guard var lhs, let rhs else { return lhs == nil && rhs == nil }
-        // Heartbeats refresh freshness without flooding the semantic event log.
-        lhs.updatedAt = rhs.updatedAt
-        lhs.expiresAt = rhs.expiresAt
-        lhs.reportSequence = rhs.reportSequence
-        return lhs == rhs
-    }
-
     var label: String {
         L10n.format("agent.status.label", L10n.string("agent.kind.\(kind.rawValue)"),
                     L10n.string("agent.activity.\(activity.rawValue)"))
@@ -40,9 +31,13 @@ extension TerminalSession {
         try updateAgent { try $0.report(report, now: now) }
     }
 
-    func expireAgentStatus(now: Date) { updateAgent { $0.expire(now: now) } }
+    func expireAgentStatus(now: Date) {
+        guard !runtimeOwnsAgent else { return }
+        updateAgent { $0.expire(now: now) }
+    }
 
     func observeAgentLaunch(command: String, runID: UUID) {
+        guard !runtimeOwnsAgent else { return }
         // SSH command text is not proof of the identity of a remote foreground process.
         guard case .localShell = launchConfiguration,
               let kind = TerminalAgentScreenRules.launchedKind(command: command) else { return }
@@ -50,6 +45,7 @@ extension TerminalSession {
     }
 
     func observeAgentForeground(kind: TerminalAgentKind?, processRunID: UUID, screen: String, now: Date) {
+        guard !runtimeOwnsAgent else { return }
         guard case .localShell = launchConfiguration else { return }
         updateAgent {
             guard let kind else { $0.foregroundLost(now: now); return }

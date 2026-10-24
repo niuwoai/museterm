@@ -57,6 +57,11 @@ enum TerminalQuickPathStore {
 
     static var directory: URL {
         if let directoryOverride { return directoryOverride }
+        #if DEBUG
+        if TerminalToolPaths.isIsolatedTesting {
+            return TerminalToolPaths.rootDirectory.appendingPathComponent("QuickPaths", isDirectory: true)
+        }
+        #endif
         do {
             let base = try FileManager.default.url(
                 for: .applicationSupportDirectory,

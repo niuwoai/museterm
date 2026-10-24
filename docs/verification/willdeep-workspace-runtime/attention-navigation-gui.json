@@ -1,0 +1,239 @@
+{
+  "snapshots": [
+    {
+      "phase": "before",
+      "observedAt": "2026-10-25T00:03:06+08:00",
+      "selectedTerminalID": "8E62219D-A4BF-409F-A7DD-38F0E68F250B",
+      "selectedProjectID": "DD2A1999-7CF4-49F0-AEA7-23EA4CEC5610",
+      "selectedLayoutTabID": "014AE944-CD84-4646-87AA-0038B0C3EFDA",
+      "focusedLeafID": "8E62219D-A4BF-409F-A7DD-38F0E68F250B",
+      "attention": {
+        "confidence": "high",
+        "context": {
+          "gateID": "question-1",
+          "sessionID": "8E62219D-A4BF-409F-A7DD-38F0E68F250B",
+          "taskID": "sidebar-display-fixture"
+        },
+        "createdAt": "2026-10-24T16:02:13Z",
+        "createdSequence": 35,
+        "id": "ECE368FD-68A2-4F8E-BDFA-8C4E873881C3",
+        "instanceID": "B6420ECD-AF91-46C3-B6BF-CA427D468FBA",
+        "isStale": false,
+        "kind": "question",
+        "runID": "AF478126-1AF1-402F-80B8-3F9398795458",
+        "source": "integration",
+        "tabID": "1EB21E0A-2BB1-428E-9DFB-CEBC5A92A30E",
+        "version": 1
+      },
+      "originalPTYsUnchanged": true
+    },
+    {
+      "phase": "after",
+      "observedAt": "2026-10-25T00:03:33+08:00",
+      "selectedTerminalID": "1EB21E0A-2BB1-428E-9DFB-CEBC5A92A30E",
+      "selectedProjectID": "AD935586-BDFA-4F8C-BD5F-253304ADD4AC",
+      "selectedLayoutTabID": "A4C5DF6B-EE73-4CD0-813D-DDDFD6B29206",
+      "focusedLeafID": "1EB21E0A-2BB1-428E-9DFB-CEBC5A92A30E",
+      "attention": {
+        "confidence": "high",
+        "context": {
+          "gateID": "question-1",
+          "sessionID": "8E62219D-A4BF-409F-A7DD-38F0E68F250B",
+          "taskID": "sidebar-display-fixture"
+        },
+        "createdAt": "2026-10-24T16:02:13Z",
+        "createdSequence": 35,
+        "id": "ECE368FD-68A2-4F8E-BDFA-8C4E873881C3",
+        "instanceID": "B6420ECD-AF91-46C3-B6BF-CA427D468FBA",
+        "isStale": false,
+        "kind": "question",
+        "readAt": "2026-10-24T16:03:19Z",
+        "runID": "AF478126-1AF1-402F-80B8-3F9398795458",
+        "source": "integration",
+        "tabID": "1EB21E0A-2BB1-428E-9DFB-CEBC5A92A30E",
+        "version": 2
+      },
+      "originalPTYsUnchanged": true
+    },
+    {
+      "phase": "input",
+      "observedAt": "2026-10-25T00:04:58+08:00",
+      "selectedTerminalID": "1EB21E0A-2BB1-428E-9DFB-CEBC5A92A30E",
+      "selectedProjectID": "AD935586-BDFA-4F8C-BD5F-253304ADD4AC",
+      "selectedLayoutTabID": "A4C5DF6B-EE73-4CD0-813D-DDDFD6B29206",
+      "focusedLeafID": "1EB21E0A-2BB1-428E-9DFB-CEBC5A92A30E",
+      "attention": {
+        "confidence": "high",
+        "context": {
+          "gateID": "question-1",
+          "sessionID": "8E62219D-A4BF-409F-A7DD-38F0E68F250B",
+          "taskID": "sidebar-display-fixture"
+        },
+        "createdAt": "2026-10-24T16:02:13Z",
+        "createdSequence": 35,
+        "id": "ECE368FD-68A2-4F8E-BDFA-8C4E873881C3",
+        "instanceID": "B6420ECD-AF91-46C3-B6BF-CA427D468FBA",
+        "isStale": true,
+        "kind": "question",
+        "readAt": "2026-10-24T16:03:19Z",
+        "runID": "AF478126-1AF1-402F-80B8-3F9398795458",
+        "source": "integration",
+        "tabID": "1EB21E0A-2BB1-428E-9DFB-CEBC5A92A30E",
+        "version": 3
+      },
+      "originalPTYsUnchanged": true
+    },
+    {
+      "phase": "detached",
+      "observedAt": "2026-10-25T00:07:02+08:00",
+      "selectedTerminalID": "1EB21E0A-2BB1-428E-9DFB-CEBC5A92A30E",
+      "selectedProjectID": "AD935586-BDFA-4F8C-BD5F-253304ADD4AC",
+      "selectedLayoutTabID": "A4C5DF6B-EE73-4CD0-813D-DDDFD6B29206",
+      "focusedLeafID": "1EB21E0A-2BB1-428E-9DFB-CEBC5A92A30E",
+      "attention": {
+        "confidence": "high",
+        "context": {
+          "gateID": "question-1",
+          "sessionID": "8E62219D-A4BF-409F-A7DD-38F0E68F250B",
+          "taskID": "sidebar-display-fixture"
+        },
+        "createdAt": "2026-10-24T16:02:13Z",
+        "createdSequence": 35,
+        "id": "ECE368FD-68A2-4F8E-BDFA-8C4E873881C3",
+        "instanceID": "B6420ECD-AF91-46C3-B6BF-CA427D468FBA",
+        "isStale": false,
+        "kind": "question",
+        "readAt": "2026-10-24T16:03:19Z",
+        "runID": "AF478126-1AF1-402F-80B8-3F9398795458",
+        "source": "integration",
+        "tabID": "1EB21E0A-2BB1-428E-9DFB-CEBC5A92A30E",
+        "version": 4
+      },
+      "originalPTYsUnchanged": true
+    },
+    {
+      "phase": "restored",
+      "observedAt": "2026-10-25T00:09:04+08:00",
+      "version": "1.251.0-rc28",
+      "selectedTerminalID": "1EB21E0A-2BB1-428E-9DFB-CEBC5A92A30E",
+      "selectedProjectID": "AD935586-BDFA-4F8C-BD5F-253304ADD4AC",
+      "selectedLayoutTabID": "A4C5DF6B-EE73-4CD0-813D-DDDFD6B29206",
+      "focusedLeafID": "1EB21E0A-2BB1-428E-9DFB-CEBC5A92A30E",
+      "attention": {
+        "confidence": "high",
+        "context": {
+          "gateID": "question-1",
+          "sessionID": "8E62219D-A4BF-409F-A7DD-38F0E68F250B",
+          "taskID": "sidebar-display-fixture"
+        },
+        "createdAt": "2026-10-24T16:02:13Z",
+        "createdSequence": 35,
+        "id": "ECE368FD-68A2-4F8E-BDFA-8C4E873881C3",
+        "instanceID": "B6420ECD-AF91-46C3-B6BF-CA427D468FBA",
+        "isStale": true,
+        "kind": "question",
+        "readAt": "2026-10-24T16:03:19Z",
+        "runID": "AF478126-1AF1-402F-80B8-3F9398795458",
+        "source": "integration",
+        "tabID": "1EB21E0A-2BB1-428E-9DFB-CEBC5A92A30E",
+        "version": 5
+      },
+      "originalPTYsUnchanged": true
+    },
+    {
+      "phase": "before",
+      "observedAt": "2026-10-25T00:09:21+08:00",
+      "version": "1.251.0-rc28",
+      "selectedTerminalID": "8E62219D-A4BF-409F-A7DD-38F0E68F250B",
+      "selectedProjectID": "DD2A1999-7CF4-49F0-AEA7-23EA4CEC5610",
+      "selectedLayoutTabID": "014AE944-CD84-4646-87AA-0038B0C3EFDA",
+      "focusedLeafID": "8E62219D-A4BF-409F-A7DD-38F0E68F250B",
+      "attention": {
+        "confidence": "high",
+        "context": {
+          "gateID": "question-1",
+          "sessionID": "8E62219D-A4BF-409F-A7DD-38F0E68F250B",
+          "taskID": "sidebar-display-fixture"
+        },
+        "createdAt": "2026-10-24T16:02:13Z",
+        "createdSequence": 35,
+        "id": "ECE368FD-68A2-4F8E-BDFA-8C4E873881C3",
+        "instanceID": "B6420ECD-AF91-46C3-B6BF-CA427D468FBA",
+        "isStale": false,
+        "kind": "question",
+        "readAt": "2026-10-24T16:03:19Z",
+        "runID": "AF478126-1AF1-402F-80B8-3F9398795458",
+        "source": "integration",
+        "tabID": "1EB21E0A-2BB1-428E-9DFB-CEBC5A92A30E",
+        "version": 6
+      },
+      "originalPTYsUnchanged": true
+    },
+    {
+      "phase": "input-fixed",
+      "observedAt": "2026-10-25T00:10:07+08:00",
+      "version": "1.251.0-rc28",
+      "selectedTerminalID": "1EB21E0A-2BB1-428E-9DFB-CEBC5A92A30E",
+      "selectedProjectID": "AD935586-BDFA-4F8C-BD5F-253304ADD4AC",
+      "selectedLayoutTabID": "A4C5DF6B-EE73-4CD0-813D-DDDFD6B29206",
+      "focusedLeafID": "1EB21E0A-2BB1-428E-9DFB-CEBC5A92A30E",
+      "attention": {
+        "confidence": "high",
+        "context": {
+          "gateID": "question-1",
+          "sessionID": "8E62219D-A4BF-409F-A7DD-38F0E68F250B",
+          "taskID": "sidebar-display-fixture"
+        },
+        "createdAt": "2026-10-24T16:02:13Z",
+        "createdSequence": 35,
+        "id": "ECE368FD-68A2-4F8E-BDFA-8C4E873881C3",
+        "instanceID": "B6420ECD-AF91-46C3-B6BF-CA427D468FBA",
+        "isStale": false,
+        "kind": "question",
+        "readAt": "2026-10-24T16:03:19Z",
+        "runID": "AF478126-1AF1-402F-80B8-3F9398795458",
+        "source": "integration",
+        "tabID": "1EB21E0A-2BB1-428E-9DFB-CEBC5A92A30E",
+        "version": 6
+      },
+      "originalPTYsUnchanged": true
+    }
+  ],
+  "version": "1.251.0-rc28",
+  "build": 343,
+  "targetID": "1EB21E0A-2BB1-428E-9DFB-CEBC5A92A30E",
+  "otherProjectTerminalID": "8E62219D-A4BF-409F-A7DD-38F0E68F250B",
+  "questionID": "ECE368FD-68A2-4F8E-BDFA-8C4E873881C3",
+  "originalPTYs": [
+    {
+      "id": "1EB21E0A-2BB1-428E-9DFB-CEBC5A92A30E",
+      "pid": 57977,
+      "generation": "786A5001-A413-4A91-97F8-538192B976EF"
+    },
+    {
+      "id": "8E62219D-A4BF-409F-A7DD-38F0E68F250B",
+      "pid": 57745,
+      "generation": "6F352C56-3FA2-486C-B0E3-4C6A71C0FE83"
+    },
+    {
+      "id": "C5A852CC-F3ED-40F7-9570-B988D341C297",
+      "pid": 58027,
+      "generation": "7F817FA2-15B4-4D54-9578-B79610E3F46A"
+    }
+  ],
+  "scope": "Actual native QA click across projects to one split leaf; protocol status fixture, not real WillDeep task",
+  "initialPasteFailure": {
+    "escapeDidNotDismissPopover": true,
+    "observedTerminalError": "bad pattern: [200~printf",
+    "markerAbsent": true,
+    "scope": "Observed native QA after Escape while attention popover remained open; cause not yet proven"
+  },
+  "nativeInputOnlyTargetVerified": true,
+  "initialVersion": "1.251.0-rc27",
+  "autoDismissAfterSelectionObserved": true,
+  "noExtraEscapeOrPaneClickBeforeFixedInput": true,
+  "ownedCleanupAndCredentialRemovalVerified": true,
+  "candidateSourceSHA256": "7742442b4c2e4221adb6ad0c13e11057d45ddf7183aa250732218bdaf75b0901",
+  "candidateQASHA256": "99eb7df4743738ccb43004dba9d5d3ba140b03902dbf91f3f689c1f7680b510a",
+  "qaRefreshInitialFailure": "Framework symlink already existed while copying QA; retried by rebuilding only owned QA Contents, before signing/launch"
+}

@@ -4,7 +4,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ContentView: View {
-    @StateObject private var workspace = TerminalWorkspace()
+    @StateObject private var workspace: TerminalWorkspace
     @StateObject private var sshStore = SSHConnectionStore()
     @StateObject private var profileStore = TerminalProfileStore.shared
     @StateObject private var notificationCoordinator = TerminalNotificationCoordinator.shared
@@ -16,6 +16,7 @@ struct ContentView: View {
 
     init(preferences: TerminalPreferences = TerminalPreferences()) {
         self.preferences = preferences
+        _workspace = StateObject(wrappedValue: TerminalRuntimeWorkspaceLifecycle.shared.makeWorkspace())
     }
 
     var body: some View {
@@ -113,6 +114,13 @@ struct ContentView: View {
         .onAppear {
             workspace.profileStore = profileStore
             workspace.preferences = preferences
+            let detached = workspace.pendingRestoredDetachedIDs
+            workspace.pendingRestoredDetachedIDs = []
+            for id in detached {
+                if let session = workspace.tabs.first(where: { $0.id == id }) {
+                    DetachedTerminalPanelManager.shared.detach(session, workspace: workspace, preferences: preferences)
+                }
+            }
             TerminalToolBridge.shared.attach(workspace: workspace)
             notificationCoordinator.attach(workspace: workspace, preferences: preferences)
             #if DEBUG
@@ -223,22 +231,7 @@ private struct SidebarView: View {
                 if preferences.showsTabList {
                     ScrollView {
                         LazyVStack(spacing: 8) {
-                            VStack(spacing: 4) {
-                                ForEach(Array(workspace.tabs.enumerated()), id: \.element.id) { index, tab in
-                                    TabRowView(
-                                        tab: tab,
-                                        isSelected: workspace.selectedID == tab.id,
-                                        showsUnreadBadge: preferences.notificationsEnabled && preferences.showInactiveTabNotificationBadges,
-                                        shortcutNumber: index < 9 ? index + 1 : nil,
-                                        skin: preferences.skin,
-                                        closeAction: { workspace.close(tab) },
-                                        detachAction: { detach(tab) }
-                                    )
-                                    .onTapGesture {
-                                        workspace.select(tab)
-                                    }
-                                }
-                            }
+                            TerminalProjectsSidebar(workspace: workspace, preferences: preferences, compact: false, onDetach: detach)
 
                             TerminalQuickPathSection(workspace: workspace, skin: preferences.skin)
 
@@ -276,20 +269,7 @@ private struct SidebarView: View {
                     // 点击切换、右键关闭，悬停提示完整标题与 ⌘ 快捷键。
                     ScrollView {
                         LazyVStack(spacing: 4) {
-                            ForEach(Array(workspace.tabs.enumerated()), id: \.element.id) { index, tab in
-                                CompactTabRowView(
-                                    tab: tab,
-                                    isSelected: workspace.selectedID == tab.id,
-                                    showsUnreadBadge: preferences.notificationsEnabled && preferences.showInactiveTabNotificationBadges,
-                                    shortcutNumber: index < 9 ? index + 1 : nil,
-                                    skin: preferences.skin,
-                                    closeAction: { workspace.close(tab) },
-                                    detachAction: { detach(tab) }
-                                )
-                                .onTapGesture {
-                                    workspace.select(tab)
-                                }
-                            }
+                            TerminalProjectsSidebar(workspace: workspace, preferences: preferences, compact: true, onDetach: detach)
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
@@ -503,7 +483,7 @@ extension Notification.Name {
     static let recommendationBlacklistChanged = Notification.Name("MuseTermRecommendationBlacklistChanged")
 }
 
-private struct TabRowView: View {
+struct TabRowView: View {
     @ObservedObject var tab: TerminalSession
     let isSelected: Bool
     let showsUnreadBadge: Bool
@@ -511,6 +491,7 @@ private struct TabRowView: View {
     let skin: TerminalVisualSkin
     let closeAction: () -> Void
     let detachAction: () -> Void
+    var contextMenuContent: AnyView? = nil
     @State private var isHovering = false
 
     var body: some View {
@@ -534,19 +515,24 @@ private struct TabRowView: View {
                     Text(tab.tabTitle)
                         .font(.caption.weight(.semibold))
                         .lineLimit(1)
-                        .layoutPriority(1)
-                    if let status = tab.agentStatus { TerminalAgentBadge(status: status) }
+                        .help(tab.tabTitle)
                     if let shortcutNumber {
                         // 稍浅颜色备注 ⌘ 数字，提示 Command+N 可直接切到该标签。
                         Text(verbatim: "⌘\(shortcutNumber)")
                             .font(.caption2.monospacedDigit())
                             .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .layoutPriority(2)
                     }
                 }
-                if tab.tabSubtitle != nil || tab.shellName != nil {
+                if tab.tabSubtitle != nil || tab.shellName != nil || tab.agentStatus != nil {
                     HStack(spacing: 5) {
                         if let shellName = tab.shellName {
                             ShellBadge(shellName: shellName, skin: skin)
+                        }
+                        if let status = tab.agentStatus {
+                            TerminalAgentBadge(status: status).layoutPriority(1)
                         }
                         if let subtitle = tab.tabSubtitle {
                             Text(subtitle)
@@ -605,12 +591,14 @@ private struct TabRowView: View {
             isHovering = hovering
         }
         .contextMenu {
-            Button(action: detachAction) {
-                Label(L10n.string("action.detach_tab"), systemImage: "rectangle.on.rectangle.slash")
-            }
-            Divider()
-            Button(role: .destructive, action: closeAction) {
-                Label(L10n.string("action.close_tab"), systemImage: "xmark")
+            if let contextMenuContent { contextMenuContent } else {
+                Button(action: detachAction) {
+                    Label(L10n.string("action.detach_tab"), systemImage: "rectangle.on.rectangle.slash")
+                }
+                Divider()
+                Button(role: .destructive, action: closeAction) {
+                    Label(L10n.string("action.close_tab"), systemImage: "xmark")
+                }
             }
         }
     }
@@ -623,7 +611,7 @@ private struct TabRowView: View {
     }
 }
 
-private struct CompactTabRowView: View {
+struct CompactTabRowView: View {
     @ObservedObject var tab: TerminalSession
     let isSelected: Bool
     let showsUnreadBadge: Bool
@@ -631,6 +619,7 @@ private struct CompactTabRowView: View {
     let skin: TerminalVisualSkin
     let closeAction: () -> Void
     let detachAction: () -> Void
+    var contextMenuContent: AnyView? = nil
 
     var body: some View {
         HStack(spacing: 5) {
@@ -681,12 +670,14 @@ private struct CompactTabRowView: View {
         .contentShape(Rectangle())
         .help(helpText)
         .contextMenu {
-            Button(action: detachAction) {
-                Label(L10n.string("action.detach_tab"), systemImage: "rectangle.on.rectangle.slash")
-            }
-            Divider()
-            Button(role: .destructive, action: closeAction) {
-                Label(L10n.string("action.close_tab"), systemImage: "xmark")
+            if let contextMenuContent { contextMenuContent } else {
+                Button(action: detachAction) {
+                    Label(L10n.string("action.detach_tab"), systemImage: "rectangle.on.rectangle.slash")
+                }
+                Divider()
+                Button(role: .destructive, action: closeAction) {
+                    Label(L10n.string("action.close_tab"), systemImage: "xmark")
+                }
             }
         }
     }
@@ -729,30 +720,7 @@ private struct TerminalPaneView: View {
 
     var body: some View {
         ZStack {
-            ForEach(workspace.tabs) { tab in
-                let isSelected = workspace.selectedID == tab.id
-                TerminalHostView(session: tab, preferences: preferences, isActive: isSelected)
-                    .id(tab.id)
-                    .allowsHitTesting(
-                        isSelected && tab.sessionTunnelStatus?.occupiesTerminal != true
-                    )
-                    .accessibilityHidden(!isSelected)
-                    .zIndex(isSelected ? 1 : 0)
-            }
-            if let selectedTab = workspace.selectedTab, selectedTab.canManuallyReconnectSSH {
-                SSHReconnectOverlay(
-                    tab: selectedTab,
-                    skin: preferences.skin
-                )
-                .transition(.opacity)
-                .zIndex(2)
-            }
-            if let selectedTab = workspace.selectedTab {
-                TerminalAIControlMask(tab: selectedTab, skin: preferences.skin)
-                    .zIndex(35)
-                SessionTunnelMaskContainer(tab: selectedTab, skin: preferences.skin)
-                    .zIndex(40)
-            }
+            TerminalProjectCanvas(workspace: workspace, preferences: preferences)
             AICommandAssistantLayer(
                 model: aiCommandAssistant,
                 workspace: workspace,
@@ -763,7 +731,7 @@ private struct TerminalPaneView: View {
     }
 }
 
-private struct SSHReconnectOverlay: View {
+struct SSHReconnectOverlay: View {
     @ObservedObject var tab: TerminalSession
     let skin: TerminalVisualSkin
 

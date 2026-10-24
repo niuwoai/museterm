@@ -1,0 +1,19 @@
+{
+  "generatedAt": "2026-10-24T05:30:40+08:00",
+  "version": "1.251.0-rc6",
+  "build": 321,
+  "passed": true,
+  "failure": null,
+  "checks": [
+    "restart_capability_advertised_without_breaking_protocol_3",
+    "stale_generation_and_control_rejected",
+    "failed_exec_retains_original_exited_identity",
+    "same_terminal_new_pid_and_generation",
+    "lost_ack_replay_uses_cached_result_without_second_exec",
+    "live_process_and_late_old_generation_preserved",
+    "only_new_native_status_bootstrap_remains",
+    "explicit_close_and_empty_service_shutdown"
+  ],
+  "helperSHA256": "3f95b99fd9511568bdc523d40803e04243c1570227d17463db8fe3454b984373",
+  "scope": "真实私有 Socket/PTY 重启契约，不代表 SSH 服务器或全部 GUI 验收"
+}

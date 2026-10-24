@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-10-24T01:59:04+08:00",
+  "scope": "完整应用单元测试，含退出保存、控制器断开与同 PID 恢复、窗口/项目回归；随后脱敏与待挂载面板保护另有专项",
+  "resultBundle": "/private/tmp/qterm-runtime-restore-unit-01.xcresult",
+  "passed": true,
+  "passedTests": 530,
+  "failedTests": 0,
+  "skippedTests": 0,
+  "failures": []
+}
