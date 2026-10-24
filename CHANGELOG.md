@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.251.0-rc29] - 2026-10-25
+
+### Fixed
+- 修复正式 Archive 的脚本沙箱拒绝后台构建缓存子文件：缓存改放 Xcode 已授权的目标 TEMP_DIR，保留私有目录/锁校验及 ENABLE_USER_SCRIPT_SANDBOXING，不关闭沙箱或跳过签名。
+
 ## [1.251.0-rc28] - 2026-10-25
 
 ### Fixed

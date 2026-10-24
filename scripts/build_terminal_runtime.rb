@@ -12,7 +12,12 @@ client_probe = architectures.delete("--client-probe")
 architectures = [RUBY_PLATFORM.include?("arm64") ? "arm64" : "x86_64"] if architectures.empty?
 abort "Unsupported architecture" unless (architectures - %w[arm64 x86_64]).empty?
 FileUtils.mkdir_p(File.dirname(output))
-build_root = ENV["DERIVED_FILE_DIR"] ? File.join(ENV.fetch("DERIVED_FILE_DIR"), "QTermRuntimeBuild") : "/private/tmp/qterm-runtime-build-#{Process.uid}"
+# Xcode grants script scratch access to TEMP_DIR, but independently denies
+# DERIVED_FILE_DIR descendants unless each output is declared. A directory
+# output is only a literal allowance, so dynamic module-cache/lock children
+# must live in the target's script scratch area rather than DerivedSources.
+scratch_root = ENV["TEMP_DIR"] || ENV["DERIVED_FILE_DIR"]
+build_root = scratch_root ? File.join(scratch_root, "QTermRuntimeBuild") : "/private/tmp/qterm-runtime-build-#{Process.uid}"
 FileUtils.mkdir_p(build_root, mode: 0o700)
 attributes = File.lstat(build_root)
 abort "Runtime cache root must be an owned directory" unless attributes.directory? && !attributes.symlink? && attributes.uid == Process.uid

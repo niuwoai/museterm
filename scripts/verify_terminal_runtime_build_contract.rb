@@ -12,8 +12,8 @@ Dir.mktmpdir("qrt-build-contract-", "/private/tmp") do |root|
   output = File.join(root, "runtime")
   sentinel = "existing-artifact-must-not-be-overwritten"
   File.write(output, sentinel)
-  run = lambda do |name, derived, architecture, &predicate|
-    stdout, stderr, status = Open3.capture3({"DERIVED_FILE_DIR" => derived}, RbConfig.ruby, builder, output, architecture)
+  run = lambda do |name, derived, architecture, environment = {}, &predicate|
+    stdout, stderr, status = Open3.capture3({"DERIVED_FILE_DIR" => derived, "TEMP_DIR" => nil}.merge(environment), RbConfig.ruby, builder, output, architecture)
     passed = !status.success? && File.read(output) == sentinel && predicate.call(stdout + stderr)
     results << {"name" => name, "passed" => passed, "exitCode" => status.exitstatus}
   end
@@ -33,6 +33,13 @@ Dir.mktmpdir("qrt-build-contract-", "/private/tmp") do |root|
   File.write(protected, sentinel)
   File.symlink(protected, File.join(cache, "build.lock"))
   run.call("cache_lock_symlink_cannot_overwrite_another_file", derived, "arm64") { |message| message.include?("ELOOP") || message.include?("Too many levels") }
+  results.last["passed"] &&= File.read(protected) == sentinel
+
+  temporary = File.join(root, "xcode-temporary")
+  FileUtils.mkdir_p(temporary, mode: 0o700)
+  File.symlink(victim, File.join(temporary, "QTermRuntimeBuild"))
+  run.call("xcode_temp_root_precedes_derived_sources_without_weakening_symlink_guard", derived, "arm64",
+    {"TEMP_DIR" => temporary}) { |message| message.include?("Runtime cache root must be an owned directory") }
   results.last["passed"] &&= File.read(protected) == sentinel
 end
 passed = results.all? { |result| result.fetch("passed") }
