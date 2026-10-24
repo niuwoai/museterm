@@ -56,21 +56,26 @@ Dir.mktmpdir("qterm-runtime-build-", build_root) do |temporary|
     binary
   end
   if binaries.length == 1
-    FileUtils.cp(binaries.first, output)
+    signed_binary = binaries.first
   else
-    _, error, status = Open3.capture3("xcrun", "lipo", "-create", *binaries, "-output", output)
+    signed_binary = File.join(temporary, "runtime-universal")
+    _, error, status = Open3.capture3("xcrun", "lipo", "-create", *binaries, "-output", signed_binary)
     abort error unless status.success?
   end
+  # codesign creates temporary sibling files. Sign inside the recursively
+  # writable scratch directory before copying to Xcode's literal output path.
+  File.chmod(0o755, signed_binary)
+  identity = ENV["EXPANDED_CODE_SIGN_IDENTITY"]
+  if ENV["CODE_SIGNING_ALLOWED"] == "YES" && identity && !identity.empty?
+    command = ["/usr/bin/codesign", "--force", "--sign", identity]
+    command += identity == "-" ? ["--timestamp=none"] : ["--options", "runtime", "--timestamp"]
+    _, error, status = Open3.capture3(*command, signed_binary)
+    abort "Runtime signing failed: #{error}" unless status.success?
+  end
+  FileUtils.cp(signed_binary, output)
 end
 cache_lock.close
 File.chmod(0o755, output)
-identity = ENV["EXPANDED_CODE_SIGN_IDENTITY"]
-if ENV["CODE_SIGNING_ALLOWED"] == "YES" && identity && !identity.empty?
-  command = ["/usr/bin/codesign", "--force", "--sign", identity]
-  command += identity == "-" ? ["--timestamp=none"] : ["--options", "runtime", "--timestamp"]
-  _, error, status = Open3.capture3(*command, output)
-  abort "Runtime signing failed: #{error}" unless status.success?
-end
 puts "Built #{output} (#{architectures.join(', ')})"
 if (prefix = ENV["QTERM_RUNTIME_BUILD_REPORT"])
   report = {"generatedAt" => Time.now.iso8601, "scope" => "helper compilation only; not test, signing or release acceleration", "measurements" => measurements}
