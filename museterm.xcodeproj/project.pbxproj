@@ -299,7 +299,7 @@
 				"$(SRCROOT)/museterm/TerminalWaitCoordinator.swift",
 			);
 			name = "Build terminal runtime";
-			outputPaths = ("$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Helpers/qterm-runtime", "$(DERIVED_FILE_DIR)/QTermRuntimeBuild");
+			outputPaths = ("$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Helpers/qterm-runtime", "$(TEMP_DIR)/QTermRuntimeBuild");
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "/usr/bin/ruby \"${SRCROOT}/scripts/build_terminal_runtime.rb\" \"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Helpers/qterm-runtime\" ${ARCHS}\n";
@@ -471,7 +471,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 343;
+				CURRENT_PROJECT_VERSION = 344;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -493,7 +493,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = "1.251.0-rc28";
+				MARKETING_VERSION = "1.251.0-rc29";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.museterm;
 				PRODUCT_MODULE_NAME = museterm;
 				PRODUCT_NAME = QTerm;
@@ -514,7 +514,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 343;
+				CURRENT_PROJECT_VERSION = 344;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -536,7 +536,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = "1.251.0-rc28";
+				MARKETING_VERSION = "1.251.0-rc29";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.museterm;
 				PRODUCT_MODULE_NAME = museterm;
 				PRODUCT_NAME = QTerm;
@@ -555,11 +555,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 343;
+				CURRENT_PROJECT_VERSION = 344;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = "1.251.0-rc28";
+				MARKETING_VERSION = "1.251.0-rc29";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -576,11 +576,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 343;
+				CURRENT_PROJECT_VERSION = 344;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = "1.251.0-rc28";
+				MARKETING_VERSION = "1.251.0-rc29";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -596,10 +596,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 343;
+				CURRENT_PROJECT_VERSION = 344;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = "1.251.0-rc28";
+				MARKETING_VERSION = "1.251.0-rc29";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -615,10 +615,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 343;
+				CURRENT_PROJECT_VERSION = 344;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = "1.251.0-rc28";
+				MARKETING_VERSION = "1.251.0-rc29";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
