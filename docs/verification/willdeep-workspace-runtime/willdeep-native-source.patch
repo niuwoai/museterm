@@ -1,0 +1,1546 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index f7ee46f..3f8667c 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,5 +1,11 @@
+ # Changelog
+ 
++## [0.115.0-rc1] - 2026-10-23
++
++### Added
++- WillDeep CLI 新增 QTerm 原生状态报告器：终端专用状态权限、异步报告/心跳、真实 Runtime 主任务与人工决策归属，不向 QTerm 发送正文或模型凭据。开发中，尚未发布。
++- 无头 Runtime 命令接入状态报告；退出前有界发送最后状态，保留仍由 Runtime 持有的待审批任务，不把前端结束误报为任务中断。
++
+ ## [0.114.0-rc8] - 2026-10-23
+ 
+ ### Fixed
+diff --git a/Cargo.lock b/Cargo.lock
+index c1aa49f..92a8963 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -2906,7 +2906,7 @@ checksum = "a28ac98ddc8b9274cb41bb4d9d4d5c425b6020c50c46f25559911905610b4a88"
+ 
+ [[package]]
+ name = "willdeep"
+-version = "0.114.0-rc8"
++version = "0.115.0-rc1"
+ dependencies = [
+  "anyhow",
+  "arboard",
+@@ -2946,7 +2946,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "willdeep-core"
+-version = "0.114.0-rc8"
++version = "0.115.0-rc1"
+ dependencies = [
+  "anyhow",
+  "async-trait",
+@@ -2973,7 +2973,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "willdeep-runtime-client"
+-version = "0.114.0-rc8"
++version = "0.115.0-rc1"
+ dependencies = [
+  "bytes",
+  "futures-util",
+@@ -2988,7 +2988,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "willdeep-runtime-protocol"
+-version = "0.114.0-rc8"
++version = "0.115.0-rc1"
+ dependencies = [
+  "chrono",
+  "chrono-tz",
+diff --git a/Cargo.toml b/Cargo.toml
+index 3f8dd9e..60ae6a6 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -8,7 +8,7 @@ members = [
+ resolver = "2"
+ 
+ [workspace.package]
+-version = "0.114.0-rc8"
++version = "0.115.0-rc1"
+ edition = "2024"
+ license = "Apache-2.0"
+ repository = "https://github.com/niuwoai/willdeep-rs"
+@@ -52,5 +52,5 @@ qrcode = { version = "0.14", default-features = false }
+ tokio-tungstenite = { version = "0.28", default-features = false, features = ["connect", "rustls-tls-webpki-roots"] }
+ # 带 version 才能发布：crates.io 上的包不认 path。工作区内的两个 crate 与
+ # 当前预发布版本保持一致，发布时才能解析到同版本的包。
+-willdeep-runtime-protocol = { path = "crates/willdeep-runtime-protocol", version = "0.114.0-rc8" }
+-willdeep-runtime-client = { path = "crates/willdeep-runtime-client", version = "0.114.0-rc8" }
++willdeep-runtime-protocol = { path = "crates/willdeep-runtime-protocol", version = "0.115.0-rc1" }
++willdeep-runtime-client = { path = "crates/willdeep-runtime-client", version = "0.115.0-rc1" }
+diff --git a/PRODUCT_OVERVIEW.md b/PRODUCT_OVERVIEW.md
+index dc576d3..bb4043f 100644
+--- a/PRODUCT_OVERVIEW.md
++++ b/PRODUCT_OVERVIEW.md
+@@ -1,5 +1,7 @@
+ # Product Overview
+ 
++QTerm 原生状态接入正在开发：按当前 TUI 或无头 CLI 会话和 Runtime 主任务报告工作/等待审批/回答/结束，仅共享状态元数据；退出前有界发送最终状态，无头命令返回不清除 Runtime 持有的待审批任务。仍需完成最新代码的跨进程验收；不迁移审批 UI，不授予终端控制权限。
++
+ 待发队列的底部操作使用带背景色的可点击按钮；立即发送、删除、保存与取消编辑的成功反馈在 3 秒后消失，失败信息持续保留。队列面板继续打开，管理期间仍暂停自动发送。
+ 
+ 审批弹窗标题按完整多语言文本居中显示，包含待审批队列数量提示。
+@@ -16,7 +18,7 @@ Web 聊天使用宽正文画布，协作与定时任务从标题栏按需展开
+ 
+ 终端 UI 偏好：`[ui].mode` 可选 `full`（完全 UI，未配置时默认）或 `compact`（简洁 UI）。`/uistyle` 可在当前 TUI 会话中切换，`full` / `compact` 显式指定；`status` / `no-status` 显示或隐藏简洁 UI 底部状态栏，不改变当前布局。该命令不改配置文件；`willdeep-config` 保存的启动默认值仍在重启后生效。简洁 UI 隐藏主聊天、输入框的四边框、活动区与权限标签，只用一条标准细线分开正文与输入，整个底部背景铺满终端右下边缘；输入区使用跟随 QTerm 主题的 ANSI 黑色背景，青色输入文字与灰色建议文字保持可读。空输入且等待用户时背景以 ANSI 暗色低频轻柔呼吸，输入、建议或任务运行时保持稳定。`compact_status_line` 默认 true，在最下面一行显示与完全 UI 一致的状态、用量与快捷键，可独立关闭。侧栏、弹窗、附件、搜索和队列照常操作，后台任务与草稿保持不变。
+ 
+-> 最后更新：2026-10-23 | 当前版本：v0.114.0-rc8；Provider 与模型两栏联动、自动发现本地 Ollama / Magpie；生成中的输出需在 800 毫秒内连续按两次 Esc 才能中断；流式增量由专用线程分组持久化后广播，活动轮次由 Runtime 独立保存会话检查点；Runtime 交接等待完整终态提交。[交接回归](docs/verification/0.114.0-rc3/README.md) · [流式验收](docs/verification/0.114.0-rc2/README.md)。
++> 最后更新：2026-10-23 | 当前版本：v0.115.0-rc1；Provider 与模型两栏联动、自动发现本地 Ollama / Magpie；生成中的输出需在 800 毫秒内连续按两次 Esc 才能中断；流式增量由专用线程分组持久化后广播，活动轮次由 Runtime 独立保存会话检查点；Runtime 交接等待完整终态提交。[交接回归](docs/verification/0.114.0-rc3/README.md) · [流式验收](docs/verification/0.114.0-rc2/README.md)。
+ 
+ 模型选择：`/model` 在宽窗口显示 Provider 与模型两栏，打开时聚焦当前模型；Tab 切换栏，↑↓ 与翻页键移动，支持各栏搜索、鼠标点击和滚轮。左栏浏览联动右栏模型，确认模型后才切换实际配置；窄窗口使用 Provider › 模型的两步页面，Esc 返回上级。列表在窗口内缓存并后台刷新，过期请求取消，F5 重试。
+ 
+diff --git a/crates/willdeep-cli/src/daemon/headless.rs b/crates/willdeep-cli/src/daemon/headless.rs
+index 1a9e96f..060257b 100644
+--- a/crates/willdeep-cli/src/daemon/headless.rs
++++ b/crates/willdeep-cli/src/daemon/headless.rs
+@@ -30,9 +30,26 @@ pub(crate) struct HeadlessRuntimeRequest {
+ }
+ 
+ pub(crate) async fn execute_headless_turn(
++    home: &Path,
++    request: HeadlessRuntimeRequest,
++    on_event: impl FnMut(serde_json::Value),
++) -> Result<Result<HeadlessRuntimeOutcome, HeadlessRuntimeStatus>> {
++    let reporter = crate::qterm::Reporter::from_env();
++    let session = request.session_id;
++    reporter.update(session, None, None, willdeep_core::RuntimeStatus::Working);
++    let result = execute_reported_turn(home, request, on_event, &reporter).await;
++    if result.is_err() {
++        reporter.unavailable(session);
++    }
++    reporter.finish(true).await;
++    result
++}
++
++async fn execute_reported_turn(
+     home: &Path,
+     request: HeadlessRuntimeRequest,
+     mut on_event: impl FnMut(serde_json::Value),
++    reporter: &crate::qterm::Reporter,
+ ) -> Result<Result<HeadlessRuntimeOutcome, HeadlessRuntimeStatus>> {
+     let mut cursor = runtime_event_head(home).await?;
+     ensure_runtime_session(
+@@ -67,6 +84,9 @@ pub(crate) async fn execute_headless_turn(
+             }
+         };
+         task_id = turn.active_task_id.or(task_id);
++        if reporter.is_enabled() {
++            report_headless_status(reporter, &client, &turn).await;
++        }
+         loop {
+             let events = match client
+                 .events(&willdeep_runtime_protocol::EventListParams {
+@@ -168,6 +188,8 @@ pub(crate) async fn execute_headless_turn(
+         tokio::select! {
+             _ = tokio::signal::ctrl_c() => {
+                 let _ = client.stop_turn(submitted.id, uuid::Uuid::new_v4()).await;
++                reporter.update(request.session_id, task_id.map(|id| id.to_string()), None,
++                    willdeep_core::RuntimeStatus::Cancelled);
+                 return Ok(Err(HeadlessRuntimeStatus::Cancelled));
+             }
+             _ = tokio::time::sleep(Duration::from_millis(100)) => {}
+@@ -175,6 +197,65 @@ pub(crate) async fn execute_headless_turn(
+     }
+ }
+ 
++async fn report_headless_status(
++    reporter: &crate::qterm::Reporter,
++    client: &willdeep_runtime_client::RuntimeClient,
++    turn: &willdeep_runtime_protocol::RuntimeTurn,
++) {
++    use willdeep_core::RuntimeStatus as Status;
++    use willdeep_runtime_protocol::TurnStatus;
++    let status = match turn.status {
++        TurnStatus::Queued => Status::Queued,
++        TurnStatus::Running => Status::Working,
++        TurnStatus::Completed => Status::Done,
++        TurnStatus::Partial => Status::Partial,
++        TurnStatus::WaitingApproval => Status::WaitingApproval,
++        TurnStatus::WaitingAnswer => Status::WaitingAnswer,
++        TurnStatus::Failed => Status::Failed,
++        TurnStatus::Cancelled => Status::Cancelled,
++        TurnStatus::Interrupted => Status::Interrupted,
++    };
++    let gate = match turn.status {
++        TurnStatus::WaitingApproval => client
++            .approvals()
++            .await
++            .ok()
++            .and_then(|r| api_data(r).ok())
++            .and_then(|gates| {
++                gates
++                    .into_iter()
++                    .find(|g| Some(g.task_id) == turn.active_task_id)
++                    .map(|g| g.id)
++            }),
++        TurnStatus::WaitingAnswer => client
++            .questions()
++            .await
++            .ok()
++            .and_then(|r| api_data(r).ok())
++            .and_then(|gates| {
++                gates
++                    .into_iter()
++                    .find(|g| Some(g.task_id) == turn.active_task_id)
++                    .map(|g| g.id)
++            }),
++        _ => None,
++    };
++    if matches!(
++        turn.status,
++        TurnStatus::WaitingApproval | TurnStatus::WaitingAnswer
++    ) && gate.is_none()
++    {
++        reporter.unavailable(turn.session_id);
++        return;
++    }
++    reporter.update(
++        turn.session_id,
++        turn.active_task_id.map(|id| id.to_string()),
++        gate.map(|id| id.to_string()),
++        status,
++    );
++}
++
+ async fn wait_for_runtime_handoff(home: &Path, previous_token: &str) -> bool {
+     let state_path = DaemonPaths::new(home).state;
+     let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+diff --git a/crates/willdeep-cli/src/main.rs b/crates/willdeep-cli/src/main.rs
+index a206011..dda6275 100644
+--- a/crates/willdeep-cli/src/main.rs
++++ b/crates/willdeep-cli/src/main.rs
+@@ -51,6 +51,7 @@ mod plugin_web;
+ mod projects;
+ mod prompt_cmd;
+ mod provider_settings;
++mod qterm;
+ mod schedule_cmd;
+ mod session_startup;
+ mod telemetry;
+diff --git a/crates/willdeep-cli/src/tui.rs b/crates/willdeep-cli/src/tui.rs
+index 079be77..9bc0dbd 100644
+--- a/crates/willdeep-cli/src/tui.rs
++++ b/crates/willdeep-cli/src/tui.rs
+@@ -255,6 +255,7 @@ struct App {
+     input: PromptEditor,
+     transcript: Vec<String>,
+     running: bool,
++    qterm_gate_generation: u64,
+     approval: Option<ApprovalRequest>,
+     approval_selected: usize,
+     /// Approvals that arrived while another one was on screen. Without this
+diff --git a/crates/willdeep-cli/src/tui/app_state.rs b/crates/willdeep-cli/src/tui/app_state.rs
+index 6c41a47..08c5a15 100644
+--- a/crates/willdeep-cli/src/tui/app_state.rs
++++ b/crates/willdeep-cli/src/tui/app_state.rs
+@@ -9,6 +9,7 @@ impl App {
+             input: PromptEditor::default(),
+             transcript,
+             running: false,
++            qterm_gate_generation: 0,
+             approval: None,
+             approval_selected: 0,
+             approval_queue: VecDeque::new(),
+@@ -1357,6 +1358,7 @@ impl App {
+             return false;
+         }
+         self.approval = Some(request);
++        self.qterm_gate_generation = self.qterm_gate_generation.wrapping_add(1);
+         self.approval_selected = 0;
+         true
+     }
+@@ -1432,6 +1434,7 @@ impl App {
+         };
+         let _ = sender.send(decide(always));
+         self.approval = self.approval_queue.pop_front();
++        self.qterm_gate_generation = self.qterm_gate_generation.wrapping_add(1);
+         self.approval_selected = 0;
+     }
+ 
+@@ -1455,12 +1458,14 @@ impl App {
+             return false;
+         }
+         self.question = Some(dialog);
++        self.qterm_gate_generation = self.qterm_gate_generation.wrapping_add(1);
+         true
+     }
+ 
+     /// Promote the next queued question after the visible one is answered.
+     pub(super) fn promote_next_question(&mut self) {
+         self.question = self.question_queue.pop_front();
++        self.qterm_gate_generation = self.qterm_gate_generation.wrapping_add(1);
+     }
+ 
+     /// 收起已经没人等着回答的对话框：接收端被丢掉了（gate 在手机或别的终端上
+@@ -1479,6 +1484,7 @@ impl App {
+             .is_some_and(|(_, _, sender)| sender.is_closed())
+         {
+             self.approval = self.approval_queue.pop_front();
++            self.qterm_gate_generation = self.qterm_gate_generation.wrapping_add(1);
+             self.approval_selected = 0;
+         }
+         self.question_queue
+diff --git a/crates/willdeep-cli/src/tui/event_loop.rs b/crates/willdeep-cli/src/tui/event_loop.rs
+index 70b996b..3546854 100644
+--- a/crates/willdeep-cli/src/tui/event_loop.rs
++++ b/crates/willdeep-cli/src/tui/event_loop.rs
+@@ -323,7 +323,27 @@ pub(super) async fn event_loop(
+         runtime.runtime_submit.workspace.clone(),
+         runtime_event_tx.clone(),
+     );
++    let mut qterm = crate::qterm::ViewState::from_env();
+     loop {
++        qterm.observe(
++            session.id,
++            app.running,
++            app.runtime_turn,
++            app.approval.is_some(),
++            app.question.is_some(),
++            app.qterm_gate_generation,
++        );
++        if qterm.reporter.take_error() {
++            app.notice = Some(
++                language
++                    .text(
++                        "QTerm 状态连接暂不可用；任务继续运行",
++                        "QTerm status connection unavailable; task continues",
++                        "QTerm 状態接続を利用できません。タスクは継続します",
++                    )
++                    .to_owned(),
++            );
++        }
+         if let Some(after) = app.runtime_follow_after.take() {
+             while runtime_event_rx.try_recv().is_ok() {}
+             _runtime_event_follower = crate::daemon::start_runtime_event_follower(
+@@ -589,6 +609,7 @@ pub(super) async fn event_loop(
+                 }
+             },
+             Some(snapshot)=runtime_snapshot_rx.recv()=>{
++                qterm.runtime_snapshot(&snapshot, session.id, app.runtime_event_cursor, app.running);
+                 runtime.notifier.attention_snapshot(&snapshot.attention);
+                 if app.observe_runtime_tasks(&snapshot.tasks,session.id,snapshot.event_sequence) {
+                     runtime_ui::reconcile_stale_runtime_turn(&mut app,session,runtime).await;
+@@ -1568,8 +1589,8 @@ pub(super) async fn event_loop(
+                 UiMessage::Agent(AgentEvent::GoalBudgetLimited{reason})=>app.record_progress(format!("{} · {reason:?}",language.text("目标预算耗尽 · 转入收尾","Goal budget exhausted · wrapping up","目標の予算を使い切りました · まとめに移ります"))),
+                 UiMessage::Approval(v,a,s)=>{let detail=v.clone();if app.enqueue_approval((v,a,s)){runtime.notifier.attention_required(RuntimeStatus::WaitingApproval,"tool_approval",detail);execute!(term.backend_mut(),crossterm::style::Print("\x07"))?;}},
+                 UiMessage::Question(request,sender)=>{let checked=vec![false;request.options.len()];let detail=request.question.clone();if app.enqueue_question(AskDialog{request,selected:0,checked,answer:PromptEditor::default(),sender}){runtime.notifier.attention_required(RuntimeStatus::WaitingAnswer,"ask_user",detail);execute!(term.backend_mut(),crossterm::style::Print("\x07"))?;}},
+-                UiMessage::Finished(Ok(mut outcome), ownership)=>{crate::harness::present_partial_outcome(&mut outcome, language);runtime.notifier.task_stopped(&outcome);app.note_reply(&outcome.final_text);app.append_turn_stats(Some(&outcome));store.refresh_execution(session)?;session.messages=outcome.messages;persist_turn_result(session,store)?;drop(ownership);dispatch_retitle(session,&agent,&runtime.tx,false);requeue_undelivered_steering(&mut app,&agent);app.finish_turn();wake_for_kernel_events(&mut app,session,store,&agent,runtime)?;dispatch_input_suggestion(&app,session,&agent,&runtime.tx);},
+-                UiMessage::Finished(Err(e), ownership)=>{store.refresh_execution(session)?;drop(ownership);app.append_transcript(format!("Error: {e}"));app.finish_turn();},
++                UiMessage::Finished(Ok(mut outcome), ownership)=>{qterm.finished(session.id, if outcome.stop_reason.is_complete() { RuntimeStatus::Done } else { RuntimeStatus::Partial });crate::harness::present_partial_outcome(&mut outcome, language);runtime.notifier.task_stopped(&outcome);app.note_reply(&outcome.final_text);app.append_turn_stats(Some(&outcome));store.refresh_execution(session)?;session.messages=outcome.messages;persist_turn_result(session,store)?;drop(ownership);dispatch_retitle(session,&agent,&runtime.tx,false);requeue_undelivered_steering(&mut app,&agent);app.finish_turn();wake_for_kernel_events(&mut app,session,store,&agent,runtime)?;dispatch_input_suggestion(&app,session,&agent,&runtime.tx);},
++                UiMessage::Finished(Err(e), ownership)=>{qterm.finished(session.id, RuntimeStatus::Failed);store.refresh_execution(session)?;drop(ownership);app.append_transcript(format!("Error: {e}"));app.finish_turn();},
+                 UiMessage::Compressed(Ok(messages), ownership)=>{store.refresh_execution(session)?;let changed=session.replace_with_compressed_messages(messages);persist_turn_result(session,store)?;drop(ownership);app.append_transcript(if changed{"System: Context compressed".to_owned()}else{"System: Context is too short to compress".to_owned()});app.finish_turn();},
+                 UiMessage::Compressed(Err(e), ownership)=>{store.refresh_execution(session)?;drop(ownership);app.append_transcript(format!("Error: context compression failed: {e}"));app.finish_turn();},
+                 UiMessage::RuntimeNotice(notice)=>app.notice=Some(notice),
+@@ -1611,5 +1632,6 @@ pub(super) async fn event_loop(
+     if app.runtime_event_cursor > session.runtime_event_cursor {
+         runtime_ui::sync_runtime_session(&mut app, session, store)?;
+     }
++    qterm.reporter.finish(false).await;
+     Ok(())
+ }
+diff --git a/web/package.json b/web/package.json
+index 511da8f..686d7c7 100644
+--- a/web/package.json
++++ b/web/package.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "willdeep-web",
+   "private": true,
+-  "version": "0.114.0-rc8",
++  "version": "0.115.0-rc1",
+   "type": "module",
+   "scripts": {
+     "dev": "vite",
+diff --git a/crates/willdeep-cli/src/qterm.rs b/crates/willdeep-cli/src/qterm.rs
+new file mode 100644
+index 0000000..ac06ef5
+--- /dev/null
++++ b/crates/willdeep-cli/src/qterm.rs
+@@ -0,0 +1,392 @@
++//! Optional terminal-scoped status reporting. No prompts, output or input capabilities cross this bridge.
++mod transport;
++mod view;
++pub(crate) use view::ViewState;
++#[cfg(test)]
++mod tests;
++
++use serde::Serialize;
++use std::sync::{Arc, Condvar, Mutex};
++use std::time::{Duration, Instant};
++use uuid::Uuid;
++use willdeep_core::RuntimeStatus;
++
++const HEARTBEAT: Duration = Duration::from_secs(30);
++const RETRY: Duration = Duration::from_secs(5);
++
++#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
++#[serde(rename_all = "camelCase")]
++pub(crate) struct Context {
++    #[serde(rename = "sessionID")]
++    session_id: Uuid,
++    #[serde(rename = "taskID", skip_serializing_if = "Option::is_none")]
++    task_id: Option<String>,
++    #[serde(rename = "gateID", skip_serializing_if = "Option::is_none")]
++    gate_id: Option<String>,
++}
++
++#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
++#[serde(rename_all = "camelCase")]
++struct State {
++    activity: &'static str,
++    #[serde(skip_serializing_if = "Option::is_none")]
++    block_reason: Option<&'static str>,
++    #[serde(skip_serializing_if = "Option::is_none")]
++    result: Option<&'static str>,
++    context: Context,
++}
++
++impl State {
++    fn new(
++        session: Uuid,
++        task: Option<String>,
++        gate: Option<String>,
++        status: RuntimeStatus,
++    ) -> Self {
++        let (activity, block_reason, result) = match status {
++            RuntimeStatus::Working | RuntimeStatus::Queued => ("working", None, None),
++            RuntimeStatus::WaitingApproval => ("blocked", Some("approval"), None),
++            RuntimeStatus::WaitingAnswer => ("blocked", Some("question"), None),
++            RuntimeStatus::Blocked => ("blocked", Some("other"), None),
++            RuntimeStatus::Done => ("idle", None, Some("completed")),
++            RuntimeStatus::Failed => ("idle", None, Some("failed")),
++            RuntimeStatus::Cancelled | RuntimeStatus::Interrupted => {
++                ("idle", None, Some("interrupted"))
++            }
++            RuntimeStatus::Partial => ("idle", None, Some("unknown")),
++            RuntimeStatus::Unknown => ("unknown", None, None),
++            RuntimeStatus::Idle => ("idle", None, None),
++        };
++        Self {
++            activity,
++            block_reason,
++            result,
++            context: Context {
++                session_id: session,
++                task_id: task,
++                gate_id: gate,
++            },
++        }
++    }
++}
++
++#[derive(Default)]
++struct Shared {
++    state: Option<State>,
++    revision: u64,
++    stop: bool,
++    error: bool,
++    preserve_runtime: bool,
++}
++
++/// UI calls only replace a bounded metadata snapshot and wake a dedicated worker.
++/// This object belongs to a frontend, never to the shared WillDeep Runtime.
++#[derive(Default)]
++pub(crate) struct Reporter {
++    shared: Option<Arc<(Mutex<Shared>, Condvar)>>,
++    worker: Option<std::thread::JoinHandle<()>>,
++}
++
++impl Reporter {
++    pub(crate) fn from_env() -> Self {
++        let Some(path) = std::env::var_os("QTERM_AGENT_CONTEXT") else {
++            return Self::default();
++        };
++        let Ok(endpoint) = transport::Endpoint::open(std::path::Path::new(&path)) else {
++            return Self::default();
++        };
++        Self::start(endpoint)
++    }
++
++    fn start(endpoint: transport::Endpoint) -> Self {
++        let shared = Arc::new((Mutex::new(Shared::default()), Condvar::new()));
++        let worker = shared.clone();
++        let Ok(handle) = std::thread::Builder::new()
++            .name("qterm-status".into())
++            .spawn(move || run_worker(endpoint, worker))
++        else {
++            return Self::default();
++        };
++        Self {
++            shared: Some(shared),
++            worker: Some(handle),
++        }
++    }
++
++    /// Drain the latest bounded snapshot before the frontend exits. Each transport
++    /// request already has a deadline; this never waits for a Runtime task to end.
++    /// A headless frontend leaves the task state intact because its Runtime owns
++    /// the task after the command returns (including a still-pending gate).
++    pub(crate) async fn finish(mut self, preserve_runtime: bool) {
++        if let Some(shared) = &self.shared {
++            let mut slot = shared.0.lock().unwrap_or_else(|p| p.into_inner());
++            slot.preserve_runtime = preserve_runtime;
++            slot.stop = true;
++            shared.1.notify_one();
++        }
++        if let Some(worker) = self.worker.take() {
++            let _ = tokio::task::spawn_blocking(move || worker.join()).await;
++        }
++    }
++
++    pub(crate) fn update(
++        &self,
++        session: Uuid,
++        task: Option<String>,
++        gate: Option<String>,
++        status: RuntimeStatus,
++    ) {
++        let Some(shared) = &self.shared else { return };
++        let mut slot = shared
++            .0
++            .lock()
++            .unwrap_or_else(|poisoned| poisoned.into_inner());
++        let next = State::new(session, task, gate, status);
++        if slot.state.as_ref() == Some(&next) {
++            return;
++        }
++        slot.state = Some(next);
++        slot.revision = slot.revision.wrapping_add(1);
++        shared.1.notify_one();
++    }
++
++    pub(crate) fn take_error(&self) -> bool {
++        self.shared.as_ref().is_some_and(|shared| {
++            let mut slot = shared
++                .0
++                .lock()
++                .unwrap_or_else(|poisoned| poisoned.into_inner());
++            std::mem::take(&mut slot.error)
++        })
++    }
++
++    pub(crate) fn is_enabled(&self) -> bool {
++        self.shared.is_some()
++    }
++
++    pub(crate) fn unavailable(&self, session: Uuid) {
++        let current = self.current_state(session);
++        self.update(
++            session,
++            current.as_ref().and_then(|s| s.context.task_id.clone()),
++            current.and_then(|s| s.context.gate_id),
++            RuntimeStatus::Unknown,
++        );
++    }
++
++    fn has_result(&self, session: Uuid) -> bool {
++        self.shared.as_ref().is_some_and(|shared| {
++            shared
++                .0
++                .lock()
++                .unwrap_or_else(|p| p.into_inner())
++                .state
++                .as_ref()
++                .is_some_and(|state| state.context.session_id == session && state.result.is_some())
++        })
++    }
++
++    fn current_state(&self, session: Uuid) -> Option<State> {
++        self.shared.as_ref().and_then(|shared| {
++            shared
++                .0
++                .lock()
++                .unwrap_or_else(|p| p.into_inner())
++                .state
++                .clone()
++                .filter(|state| state.context.session_id == session)
++        })
++    }
++
++    /// Ignore stale snapshots and other sessions or background child agents.
++    pub(crate) fn runtime_snapshot(
++        &self,
++        snapshot: &crate::daemon::RuntimeSnapshot,
++        session: Uuid,
++        cursor: u64,
++        running: bool,
++    ) {
++        if snapshot.event_sequence.is_none() {
++            if let Some(shared) = &self.shared {
++                let previous = shared
++                    .0
++                    .lock()
++                    .unwrap_or_else(|p| p.into_inner())
++                    .state
++                    .clone();
++                if let Some(state) = previous.filter(|state| state.context.session_id == session) {
++                    self.update(
++                        session,
++                        state.context.task_id,
++                        state.context.gate_id,
++                        RuntimeStatus::Unknown,
++                    );
++                }
++            }
++            return;
++        }
++        if !snapshot
++            .event_sequence
++            .is_some_and(|sequence| sequence >= cursor)
++        {
++            return;
++        }
++        let roots = snapshot
++            .agents
++            .iter()
++            .filter(|agent| agent.parent_id.is_none())
++            .map(|agent| agent.id)
++            .collect::<Vec<_>>();
++        let task = main_task(&snapshot.tasks, session, &roots);
++        let Some(task) = task else { return };
++        use willdeep_runtime_protocol::TaskStatus;
++        if running
++            && matches!(
++                task.status,
++                TaskStatus::Completed
++                    | TaskStatus::Failed
++                    | TaskStatus::Partial
++                    | TaskStatus::Cancelled
++                    | TaskStatus::Interrupted
++            )
++        {
++            // A queued new turn is absent from older Runtime task snapshots. Do not present
++            // an old completed task as the result of that new turn.
++            return;
++        }
++        let status = match task.status {
++            TaskStatus::Running | TaskStatus::Queued | TaskStatus::Cancelling => {
++                RuntimeStatus::Working
++            }
++            TaskStatus::WaitingApproval => RuntimeStatus::WaitingApproval,
++            TaskStatus::WaitingAnswer => RuntimeStatus::WaitingAnswer,
++            TaskStatus::Completed => RuntimeStatus::Done,
++            TaskStatus::Failed => RuntimeStatus::Failed,
++            TaskStatus::Partial => RuntimeStatus::Partial,
++            TaskStatus::Cancelled => RuntimeStatus::Cancelled,
++            TaskStatus::Interrupted => RuntimeStatus::Interrupted,
++        };
++        let gate = snapshot
++            .gates
++            .iter()
++            .find(|gate| gate.task_id() == task.id)
++            .map(|gate| gate.id().to_string());
++        self.update(session, Some(task.id.to_string()), gate, status);
++    }
++}
++
++fn main_task<'a>(
++    tasks: &'a [crate::daemon::tui_bridge::RemoteTask],
++    session: Uuid,
++    roots: &[Uuid],
++) -> Option<&'a crate::daemon::tui_bridge::RemoteTask> {
++    use willdeep_runtime_protocol::TaskStatus;
++    tasks
++        .iter()
++        .filter(|task| {
++            task.session_id == Some(session)
++                && task.agent_id.is_none_or(|agent| roots.contains(&agent))
++        })
++        .max_by_key(|task| {
++            (
++                matches!(
++                    task.status,
++                    TaskStatus::Queued
++                        | TaskStatus::Running
++                        | TaskStatus::Cancelling
++                        | TaskStatus::WaitingApproval
++                        | TaskStatus::WaitingAnswer
++                ),
++                task.created_at,
++                task.id,
++            )
++        })
++}
++
++impl Drop for Reporter {
++    fn drop(&mut self) {
++        if let Some(shared) = &self.shared {
++            shared
++                .0
++                .lock()
++                .unwrap_or_else(|poisoned| poisoned.into_inner())
++                .stop = true;
++            shared.1.notify_one();
++        }
++    }
++}
++
++fn run_worker(mut endpoint: transport::Endpoint, shared: Arc<(Mutex<Shared>, Condvar)>) {
++    let mut sent = None;
++    let mut next = Instant::now();
++    let mut disconnected = false;
++    loop {
++        let mut slot = shared
++            .0
++            .lock()
++            .unwrap_or_else(|poisoned| poisoned.into_inner());
++        while !slot.stop
++            && (slot.state.is_none() || (sent == Some(slot.revision) && Instant::now() < next))
++        {
++            let timeout = next
++                .saturating_duration_since(Instant::now())
++                .max(Duration::from_millis(20));
++            slot = shared
++                .1
++                .wait_timeout(slot, timeout)
++                .unwrap_or_else(|poisoned| poisoned.into_inner())
++                .0;
++        }
++        let state = slot.state.clone();
++        let revision = slot.revision;
++        let stop = slot.stop;
++        drop(slot);
++        if stop {
++            if let Some(mut state) = state {
++                // Drop used to skip the final revision entirely. Deliver it before
++                // retiring the frontend, even when it was queued during an ACK.
++                if sent != Some(revision) && endpoint.report(&state).is_err() {
++                    shared.0.lock().unwrap_or_else(|p| p.into_inner()).error = true;
++                }
++                if shared
++                    .0
++                    .lock()
++                    .unwrap_or_else(|p| p.into_inner())
++                    .preserve_runtime
++                {
++                    return;
++                }
++                state.activity = "exited";
++                state.block_reason = None;
++                if endpoint.report(&state).is_err() {
++                    shared
++                        .0
++                        .lock()
++                        .unwrap_or_else(|poisoned| poisoned.into_inner())
++                        .error = true;
++                }
++            }
++            return;
++        }
++        let Some(state) = state else { continue };
++        match endpoint.report(&state) {
++            Ok(()) => {
++                sent = Some(revision);
++                next = Instant::now() + HEARTBEAT;
++                disconnected = false;
++            }
++            Err(_) => {
++                if !disconnected {
++                    shared
++                        .0
++                        .lock()
++                        .unwrap_or_else(|poisoned| poisoned.into_inner())
++                        .error = true;
++                }
++                disconnected = true;
++                sent = Some(revision);
++                next = Instant::now() + RETRY;
++            }
++        }
++    }
++}
+diff --git a/crates/willdeep-cli/src/qterm/tests.rs b/crates/willdeep-cli/src/qterm/tests.rs
+new file mode 100644
+index 0000000..820ddf0
+--- /dev/null
++++ b/crates/willdeep-cli/src/qterm/tests.rs
+@@ -0,0 +1,503 @@
++use super::*;
++use serde_json::json;
++use std::fs;
++use std::path::PathBuf;
++
++struct Fixture {
++    root: PathBuf,
++    context: PathBuf,
++}
++
++impl Fixture {
++    fn new() -> Self {
++        let root = std::env::temp_dir().join(format!("willdeep-qterm-{}", Uuid::new_v4()));
++        fs::create_dir_all(root.join("requests")).unwrap();
++        fs::create_dir_all(root.join("responses")).unwrap();
++        let context = root.join("context.json");
++        write_private(
++            &context,
++            &json!({"protocolVersion":1,"tabID":Uuid::new_v4(),"root":root,
++            "token":format!("{}{}",Uuid::new_v4(),Uuid::new_v4())}),
++        );
++        Self { root, context }
++    }
++}
++
++impl Drop for Fixture {
++    fn drop(&mut self) {
++        fs::remove_dir_all(&self.root).unwrap();
++    }
++}
++
++fn write_private(path: &std::path::Path, value: &serde_json::Value) {
++    use std::io::Write;
++    let mut options = fs::OpenOptions::new();
++    options.write(true).create_new(true);
++    #[cfg(unix)]
++    {
++        use std::os::unix::fs::OpenOptionsExt;
++        options.mode(0o600);
++    }
++    let pending = path.with_extension(format!("pending-{}", Uuid::new_v4()));
++    options
++        .open(&pending)
++        .unwrap()
++        .write_all(&serde_json::to_vec(value).unwrap())
++        .unwrap();
++    fs::rename(pending, path).unwrap();
++}
++
++fn next_request(root: &std::path::Path) -> (PathBuf, serde_json::Value) {
++    let deadline = Instant::now() + Duration::from_secs(4);
++    loop {
++        for entry in fs::read_dir(root.join("requests")).unwrap().flatten() {
++            if entry.path().extension().is_some_and(|ext| ext == "json") {
++                return (
++                    entry.path(),
++                    serde_json::from_slice(&fs::read(entry.path()).unwrap()).unwrap(),
++                );
++            }
++        }
++        assert!(
++            Instant::now() < deadline,
++            "status request was not published"
++        );
++        std::thread::sleep(Duration::from_millis(10));
++    }
++}
++
++fn respond(root: &std::path::Path, path: PathBuf, request: &serde_json::Value, grant: bool) {
++    let mut response = json!({"id":request["id"],"ok":true});
++    if grant {
++        response["agentGrant"] =
++            json!({"instanceID":Uuid::new_v4(),"runID":Uuid::new_v4(),"token":"status-only-token"});
++    }
++    fs::remove_file(path).unwrap();
++    write_private(
++        &root
++            .join("responses")
++            .join(format!("{}.json", request["id"].as_str().unwrap())),
++        &response,
++    );
++}
++
++#[test]
++fn semantic_mapping_never_equates_idle_partial_cancel_and_success() {
++    let session = Uuid::new_v4();
++    for (status, activity, block, result) in [
++        (RuntimeStatus::Idle, "idle", None, None),
++        (RuntimeStatus::Queued, "working", None, None),
++        (
++            RuntimeStatus::WaitingApproval,
++            "blocked",
++            Some("approval"),
++            None,
++        ),
++        (
++            RuntimeStatus::WaitingAnswer,
++            "blocked",
++            Some("question"),
++            None,
++        ),
++        (RuntimeStatus::Done, "idle", None, Some("completed")),
++        (RuntimeStatus::Failed, "idle", None, Some("failed")),
++        (
++            RuntimeStatus::Interrupted,
++            "idle",
++            None,
++            Some("interrupted"),
++        ),
++        (RuntimeStatus::Cancelled, "idle", None, Some("interrupted")),
++        (RuntimeStatus::Partial, "idle", None, Some("unknown")),
++        (RuntimeStatus::Unknown, "unknown", None, None),
++    ] {
++        let state = State::new(session, None, None, status);
++        assert_eq!(
++            (state.activity, state.block_reason, state.result),
++            (activity, block, result)
++        );
++    }
++}
++
++#[test]
++fn context_and_response_files_must_be_private_and_not_symlinks() {
++    let fixture = Fixture::new();
++    assert!(transport::Endpoint::open(&fixture.context).is_ok());
++    #[cfg(unix)]
++    {
++        use std::os::unix::fs::{PermissionsExt, symlink};
++        fs::set_permissions(&fixture.context, fs::Permissions::from_mode(0o644)).unwrap();
++        assert!(transport::Endpoint::open(&fixture.context).is_err());
++        fs::set_permissions(&fixture.context, fs::Permissions::from_mode(0o600)).unwrap();
++        let link = fixture.root.join("link.json");
++        symlink(&fixture.context, &link).unwrap();
++        assert!(transport::Endpoint::open(&link).is_err());
++    }
++}
++
++#[test]
++fn transport_binds_once_and_sends_metadata_with_increasing_sequence() {
++    let fixture = Fixture::new();
++    let root = fixture.root.clone();
++    let server = std::thread::spawn(move || {
++        let (path, request) = next_request(&root);
++        assert_eq!(request["action"], "bind_native_agent");
++        assert_eq!(request["agentKind"], "willdeep");
++        assert!(request.get("authToken").is_none());
++        respond(&root, path, &request, true);
++        for sequence in 1..=2 {
++            let (path, request) = next_request(&root);
++            assert_eq!(request["action"], "report_agent_state");
++            assert_eq!(request["agentReport"]["sequence"], sequence);
++            assert_eq!(request["agentReport"]["context"]["taskID"], "task-1");
++            assert_eq!(request["agentReport"]["token"], "status-only-token");
++            assert!(request.get("text").is_none());
++            respond(&root, path, &request, false);
++        }
++    });
++    let mut endpoint = transport::Endpoint::open(&fixture.context).unwrap();
++    let session = Uuid::new_v4();
++    endpoint
++        .report(&State::new(
++            session,
++            Some("task-1".into()),
++            None,
++            RuntimeStatus::Working,
++        ))
++        .unwrap();
++    endpoint
++        .report(&State::new(
++            session,
++            Some("task-1".into()),
++            None,
++            RuntimeStatus::Done,
++        ))
++        .unwrap();
++    server.join().unwrap();
++    assert_eq!(
++        fs::read_dir(fixture.root.join("responses"))
++            .unwrap()
++            .count(),
++        0
++    );
++}
++
++fn memory_reporter() -> Reporter {
++    Reporter {
++        shared: Some(Arc::new((Mutex::new(Shared::default()), Condvar::new()))),
++        worker: None,
++    }
++}
++
++#[test]
++fn runtime_frontend_finishing_does_not_invent_a_local_interruption() {
++    let session = Uuid::new_v4();
++    let mut view = ViewState::new(memory_reporter());
++    view.observe(session, true, true, false, false, 0);
++    view.reporter.update(
++        session,
++        Some("actual-runtime-task".into()),
++        None,
++        RuntimeStatus::Working,
++    );
++    // runtime_turn is cleared by the UI before the final Runtime snapshot arrives.
++    view.observe(session, false, false, false, false, 0);
++    let reported = state(&view.reporter);
++    assert_eq!(reported.activity, "working");
++    assert_eq!(reported.result, None);
++    assert_eq!(
++        reported.context.task_id.as_deref(),
++        Some("actual-runtime-task")
++    );
++}
++
++#[tokio::test]
++async fn headless_shutdown_drains_final_result_without_retiring_runtime_task() {
++    let fixture = Fixture::new();
++    let root = fixture.root.clone();
++    let server = std::thread::spawn(move || {
++        let (path, request) = next_request(&root);
++        respond(&root, path, &request, true);
++        let (path, request) = next_request(&root);
++        assert_eq!(request["agentReport"]["result"], "completed");
++        assert_eq!(request["agentReport"]["activity"], "idle");
++        respond(&root, path, &request, false);
++    });
++    let reporter = Reporter::start(transport::Endpoint::open(&fixture.context).unwrap());
++    reporter.update(
++        Uuid::new_v4(),
++        Some("task-final".into()),
++        None,
++        RuntimeStatus::Done,
++    );
++    reporter.finish(true).await;
++    server.join().unwrap();
++    assert_eq!(
++        fs::read_dir(fixture.root.join("requests")).unwrap().count(),
++        0
++    );
++}
++
++#[tokio::test]
++async fn frontend_shutdown_delivers_final_result_before_exited_and_keeps_result() {
++    let fixture = Fixture::new();
++    let root = fixture.root.clone();
++    let server = std::thread::spawn(move || {
++        let (path, request) = next_request(&root);
++        respond(&root, path, &request, true);
++        for activity in ["idle", "exited"] {
++            let (path, request) = next_request(&root);
++            assert_eq!(request["agentReport"]["activity"], activity);
++            assert_eq!(request["agentReport"]["result"], "failed");
++            respond(&root, path, &request, false);
++        }
++    });
++    let reporter = Reporter::start(transport::Endpoint::open(&fixture.context).unwrap());
++    reporter.update(
++        Uuid::new_v4(),
++        Some("task-final".into()),
++        None,
++        RuntimeStatus::Failed,
++    );
++    reporter.finish(false).await;
++    server.join().unwrap();
++}
++
++fn state(reporter: &Reporter) -> State {
++    reporter
++        .shared
++        .as_ref()
++        .unwrap()
++        .0
++        .lock()
++        .unwrap()
++        .state
++        .clone()
++        .unwrap()
++}
++
++#[test]
++fn local_consecutive_identical_gates_get_distinct_episodes() {
++    let mut view = ViewState::new(memory_reporter());
++    let session = Uuid::new_v4();
++    view.observe(session, true, false, true, false, 1);
++    let first = state(&view.reporter);
++    view.observe(session, true, false, true, false, 2);
++    let second = state(&view.reporter);
++    assert_eq!(first.activity, "blocked");
++    assert_ne!(first.context.gate_id, second.context.gate_id);
++    view.observe(session, true, false, false, false, 3);
++    assert_eq!(state(&view.reporter).activity, "working");
++    view.finished(session, RuntimeStatus::Done);
++    view.observe(session, false, false, false, false, 3);
++    assert_eq!(state(&view.reporter).result, Some("completed"));
++}
++
++#[test]
++fn repeated_views_are_deduplicated_and_session_switch_resets_context() {
++    let mut view = ViewState::new(memory_reporter());
++    let session = Uuid::new_v4();
++    view.observe(session, true, false, false, false, 0);
++    let first = state(&view.reporter);
++    let revision = view
++        .reporter
++        .shared
++        .as_ref()
++        .unwrap()
++        .0
++        .lock()
++        .unwrap()
++        .revision;
++    view.observe(session, true, false, false, false, 0);
++    assert_eq!(
++        revision,
++        view.reporter
++            .shared
++            .as_ref()
++            .unwrap()
++            .0
++            .lock()
++            .unwrap()
++            .revision
++    );
++    let next = Uuid::new_v4();
++    view.observe(next, false, false, false, false, 0);
++    let state = state(&view.reporter);
++    assert_eq!(state.context.session_id, next);
++    assert_ne!(state.context, first.context);
++    assert_eq!(state.result, None);
++}
++
++#[test]
++fn runtime_unavailable_becomes_unknown_and_preserves_pending_gate_identity() {
++    let reporter = memory_reporter();
++    let session = Uuid::new_v4();
++    reporter.update(
++        session,
++        Some("task-1".into()),
++        Some("gate-1".into()),
++        RuntimeStatus::WaitingApproval,
++    );
++    let snapshot = crate::daemon::RuntimeSnapshot {
++        attention: vec![],
++        gates: vec![],
++        agents: vec![],
++        tasks: vec![],
++        tools: vec![],
++        artifacts: vec![],
++        runtime_version: None,
++        event_sequence: None,
++        mobile: None,
++    };
++    reporter.runtime_snapshot(&snapshot, session, 0, false);
++    let state = state(&reporter);
++    assert_eq!(state.activity, "unknown");
++    assert_eq!(state.context.gate_id.as_deref(), Some("gate-1"));
++}
++
++fn task(
++    session: Uuid,
++    agent: Uuid,
++    created_at: u64,
++    status: willdeep_runtime_protocol::TaskStatus,
++) -> crate::daemon::tui_bridge::RemoteTask {
++    crate::daemon::tui_bridge::RemoteTask {
++        id: Uuid::new_v4(),
++        session_id: Some(session),
++        turn_id: None,
++        agent_id: Some(agent),
++        status,
++        profile: None,
++        created_at,
++        started_at: Some(created_at),
++        completed_at: None,
++        exit_code: None,
++        failure_domain: None,
++    }
++}
++
++#[test]
++fn background_or_other_session_completion_never_finishes_root() {
++    use willdeep_runtime_protocol::TaskStatus;
++    let session = Uuid::new_v4();
++    let root = Uuid::new_v4();
++    let child = Uuid::new_v4();
++    let tasks = vec![
++        task(session, root, 1, TaskStatus::Running),
++        task(session, child, 3, TaskStatus::Completed),
++        task(Uuid::new_v4(), root, 4, TaskStatus::Completed),
++    ];
++    assert_eq!(main_task(&tasks, session, &[root]).unwrap().id, tasks[0].id);
++    assert!(main_task(&tasks, Uuid::new_v4(), &[root]).is_none());
++}
++
++#[test]
++fn active_root_has_priority_over_finished_history() {
++    use willdeep_runtime_protocol::TaskStatus;
++    let session = Uuid::new_v4();
++    let root = Uuid::new_v4();
++    let tasks = vec![
++        task(session, root, 2, TaskStatus::WaitingApproval),
++        task(session, root, 3, TaskStatus::Completed),
++    ];
++    assert_eq!(
++        main_task(&tasks, session, &[root]).unwrap().status,
++        TaskStatus::WaitingApproval
++    );
++}
++
++#[test]
++fn final_result_is_not_lost_when_a_local_gate_closes_at_completion() {
++    let mut view = ViewState::new(memory_reporter());
++    let session = Uuid::new_v4();
++    view.observe(session, true, false, true, false, 1);
++    view.finished(session, RuntimeStatus::Done);
++    view.observe(session, false, false, false, false, 2);
++    assert_eq!(state(&view.reporter).result, Some("completed"));
++}
++
++#[test]
++fn missing_endpoint_keeps_cli_behavior_optional() {
++    assert!(
++        transport::Endpoint::open(std::path::Path::new("/nonexistent/qterm-context.json")).is_err()
++    );
++    let reporter = Reporter::default();
++    reporter.update(Uuid::new_v4(), None, None, RuntimeStatus::Working);
++    assert!(!reporter.take_error());
++}
++
++#[test]
++fn old_completed_snapshot_cannot_finish_a_new_queued_turn() {
++    use willdeep_runtime_protocol::TaskStatus;
++    let session = Uuid::new_v4();
++    let reporter = memory_reporter();
++    reporter.update(
++        session,
++        Some("new-turn".into()),
++        None,
++        RuntimeStatus::Working,
++    );
++    let mut old = task(session, Uuid::new_v4(), 1, TaskStatus::Completed);
++    old.agent_id = None;
++    let snapshot = crate::daemon::RuntimeSnapshot {
++        attention: vec![],
++        gates: vec![],
++        agents: vec![],
++        tasks: vec![old],
++        tools: vec![],
++        artifacts: vec![],
++        runtime_version: None,
++        event_sequence: Some(5),
++        mobile: None,
++    };
++    reporter.runtime_snapshot(&snapshot, session, 5, true);
++    assert_eq!(state(&reporter).activity, "working");
++    assert_eq!(
++        state(&reporter).context.task_id.as_deref(),
++        Some("new-turn")
++    );
++}
++
++#[test]
++fn adopting_running_runtime_does_not_reset_a_pending_approval() {
++    let session = Uuid::new_v4();
++    let mut view = ViewState::new(memory_reporter());
++    view.observe(session, false, false, false, false, 0);
++    view.reporter.update(
++        session,
++        Some("runtime-task".into()),
++        Some("gate".into()),
++        RuntimeStatus::WaitingApproval,
++    );
++    view.observe(session, true, true, true, false, 1);
++    assert_eq!(state(&view.reporter).activity, "blocked");
++    assert_eq!(
++        state(&view.reporter).context.gate_id.as_deref(),
++        Some("gate")
++    );
++}
++
++#[test]
++fn runtime_history_does_not_overwrite_a_local_turn() {
++    use willdeep_runtime_protocol::TaskStatus;
++    let session = Uuid::new_v4();
++    let mut view = ViewState::new(memory_reporter());
++    view.observe(session, true, false, false, false, 0);
++    let mut old = task(session, Uuid::new_v4(), 1, TaskStatus::Completed);
++    old.agent_id = None;
++    let snapshot = crate::daemon::RuntimeSnapshot {
++        attention: vec![],
++        gates: vec![],
++        agents: vec![],
++        tasks: vec![old],
++        tools: vec![],
++        artifacts: vec![],
++        runtime_version: None,
++        event_sequence: Some(5),
++        mobile: None,
++    };
++    view.finished(session, RuntimeStatus::Failed);
++    view.observe(session, false, false, false, false, 0);
++    view.runtime_snapshot(&snapshot, session, 5, false);
++    assert_eq!(state(&view.reporter).result, Some("failed"));
++}
+diff --git a/crates/willdeep-cli/src/qterm/transport.rs b/crates/willdeep-cli/src/qterm/transport.rs
+new file mode 100644
+index 0000000..cb88915
+--- /dev/null
++++ b/crates/willdeep-cli/src/qterm/transport.rs
+@@ -0,0 +1,165 @@
++use super::State;
++use serde::Deserialize;
++use serde_json::{Value, json};
++use std::fs::{self, File, OpenOptions};
++use std::io::{self, Read, Write};
++use std::path::{Path, PathBuf};
++use std::time::{Duration, Instant};
++use uuid::Uuid;
++
++const REQUEST_TIMEOUT: Duration = Duration::from_secs(2);
++const MAX_FILE_SIZE: u64 = 65_536;
++
++#[derive(Deserialize)]
++#[serde(rename_all = "camelCase")]
++struct Descriptor {
++    protocol_version: u32,
++    #[serde(rename = "tabID")]
++    tab_id: Uuid,
++    root: PathBuf,
++    token: String,
++}
++
++pub(super) struct Endpoint {
++    descriptor: Descriptor,
++    grant: Option<Value>,
++    sequence: u64,
++    session: Option<Uuid>,
++}
++
++impl Endpoint {
++    pub(super) fn open(path: &Path) -> io::Result<Self> {
++        let descriptor: Descriptor = serde_json::from_slice(&read_private(path)?)?;
++        if descriptor.protocol_version != 1
++            || descriptor.token.len() != 72
++            || !descriptor.root.is_absolute()
++        {
++            return Err(io::Error::other("unsupported QTerm status context"));
++        }
++        Ok(Self {
++            descriptor,
++            grant: None,
++            sequence: 0,
++            session: None,
++        })
++    }
++
++    pub(super) fn report(&mut self, state: &State) -> io::Result<()> {
++        if self.session != Some(state.context.session_id) {
++            self.grant = None;
++        }
++        if self.grant.is_none() {
++            let response = self
++                .request(json!({"action":"bind_native_agent", "agentKind":"willdeep",
++                "nativeAgentToken": self.descriptor.token}))?;
++            let grant = response
++                .get("agentGrant")
++                .filter(|grant| {
++                    grant.get("token").and_then(Value::as_str).is_some()
++                        && grant.get("runID").and_then(Value::as_str).is_some()
++                        && grant.get("instanceID").and_then(Value::as_str).is_some()
++                })
++                .ok_or_else(|| io::Error::other("invalid QTerm status grant"))?;
++            self.grant = Some(grant.clone());
++            self.session = Some(state.context.session_id);
++            self.sequence = 0;
++        }
++        self.sequence = self
++            .sequence
++            .checked_add(1)
++            .ok_or_else(|| io::Error::other("status sequence exhausted"))?;
++        let mut report = serde_json::to_value(state)?;
++        for field in ["token", "runID", "instanceID"] {
++            report[field] = self.grant.as_ref().unwrap()[field].clone();
++        }
++        report["sequence"] = self.sequence.into();
++        // A retired grant is never rebound automatically: a newer WillDeep owns this terminal now.
++        self.request(json!({"action":"report_agent_state", "agentReport": report}))
++            .map(|_| ())
++    }
++
++    fn request(&self, mut request: Value) -> io::Result<Value> {
++        let id = Uuid::new_v4().to_string();
++        request["id"] = id.clone().into();
++        request["tab"] = self.descriptor.tab_id.to_string().into();
++        let pending = self
++            .descriptor
++            .root
++            .join("requests")
++            .join(format!("{id}.pending"));
++        let published = pending.with_extension("json");
++        let response = self
++            .descriptor
++            .root
++            .join("responses")
++            .join(format!("{id}.json"));
++        let result = (|| {
++            let mut options = OpenOptions::new();
++            options.write(true).create_new(true);
++            #[cfg(unix)]
++            {
++                use std::os::unix::fs::OpenOptionsExt;
++                options.mode(0o600).custom_flags(libc::O_NOFOLLOW);
++            }
++            let mut file = options.open(&pending)?;
++            file.write_all(&serde_json::to_vec(&request)?)?;
++            file.sync_all()?;
++            drop(file);
++            fs::rename(&pending, &published)?;
++            let deadline = Instant::now() + REQUEST_TIMEOUT;
++            loop {
++                match read_private(&response) {
++                    Ok(data) => {
++                        let response: Value = serde_json::from_slice(&data)?;
++                        if response["id"] != id || response["ok"] != true {
++                            return Err(io::Error::other("QTerm status request rejected"));
++                        }
++                        return Ok(response);
++                    }
++                    Err(error)
++                        if error.kind() == io::ErrorKind::NotFound && Instant::now() < deadline =>
++                    {
++                        std::thread::sleep(Duration::from_millis(20))
++                    }
++                    Err(error) => return Err(error),
++                }
++            }
++        })();
++        for path in [&pending, &published, &response] {
++            if let Err(error) = fs::remove_file(path)
++                && error.kind() != io::ErrorKind::NotFound
++            {
++                return Err(io::Error::other("QTerm status request cleanup failed"));
++            }
++        }
++        result
++    }
++}
++
++fn read_private(path: &Path) -> io::Result<Vec<u8>> {
++    let mut options = OpenOptions::new();
++    options.read(true);
++    #[cfg(unix)]
++    {
++        use std::os::unix::fs::OpenOptionsExt;
++        options.custom_flags(libc::O_NOFOLLOW);
++    }
++    let file: File = options.open(path)?;
++    let metadata = file.metadata()?;
++    if !metadata.is_file() || metadata.len() > MAX_FILE_SIZE {
++        return Err(io::Error::other("invalid QTerm status file"));
++    }
++    #[cfg(unix)]
++    {
++        use std::os::unix::fs::MetadataExt;
++        if metadata.uid() != unsafe { libc::getuid() } || metadata.mode() & 0o077 != 0 {
++            return Err(io::Error::other("unsafe QTerm status file permissions"));
++        }
++    }
++    let mut data = Vec::new();
++    file.take(MAX_FILE_SIZE + 1).read_to_end(&mut data)?;
++    if data.len() as u64 > MAX_FILE_SIZE {
++        return Err(io::Error::other("oversized QTerm status file"));
++    }
++    Ok(data)
++}
+diff --git a/crates/willdeep-cli/src/qterm/view.rs b/crates/willdeep-cli/src/qterm/view.rs
+new file mode 100644
+index 0000000..34effa7
+--- /dev/null
++++ b/crates/willdeep-cli/src/qterm/view.rs
+@@ -0,0 +1,102 @@
++use super::*;
++
++#[derive(Default)]
++pub(crate) struct ViewState {
++    pub reporter: Reporter,
++    session: Option<Uuid>,
++    task: Option<String>,
++    running: bool,
++    gate: Option<(u64, RuntimeStatus)>,
++    local_mode: bool,
++}
++
++impl ViewState {
++    pub(crate) fn from_env() -> Self {
++        Self::new(Reporter::from_env())
++    }
++
++    pub(super) fn new(reporter: Reporter) -> Self {
++        Self {
++            reporter,
++            ..Self::default()
++        }
++    }
++
++    pub(crate) fn observe(
++        &mut self,
++        session: Uuid,
++        running: bool,
++        runtime_turn: bool,
++        approval: bool,
++        question: bool,
++        generation: u64,
++    ) {
++        if self.session != Some(session) {
++            self.session = Some(session);
++            self.task = None;
++            self.running = false;
++            self.gate = None;
++            self.local_mode = false;
++            self.reporter
++                .update(session, None, None, RuntimeStatus::Idle);
++        }
++        if running && (!self.running || runtime_turn == self.local_mode) {
++            self.local_mode = !runtime_turn;
++            if let Some(current) = self
++                .reporter
++                .current_state(session)
++                .filter(|state| runtime_turn && matches!(state.activity, "working" | "blocked"))
++            {
++                self.task = current.context.task_id;
++            } else {
++                self.task = Some(Uuid::new_v4().to_string());
++                self.reporter
++                    .update(session, self.task.clone(), None, RuntimeStatus::Working);
++            }
++        }
++        let gate = if approval {
++            Some((generation, RuntimeStatus::WaitingApproval))
++        } else if question {
++            Some((generation, RuntimeStatus::WaitingAnswer))
++        } else {
++            None
++        };
++        if self.local_mode && gate != self.gate && (running || !self.reporter.has_result(session)) {
++            let status = gate.map(|(_, status)| status).unwrap_or(if running {
++                RuntimeStatus::Working
++            } else {
++                RuntimeStatus::Idle
++            });
++            self.reporter.update(
++                session,
++                self.task.clone(),
++                gate.map(|(id, _)| format!("local:{id}")),
++                status,
++            );
++        }
++        if self.local_mode && self.running && !running && !self.reporter.has_result(session) {
++            self.reporter
++                .update(session, self.task.clone(), None, RuntimeStatus::Interrupted);
++        }
++        self.running = running;
++        self.gate = gate;
++    }
++
++    pub(crate) fn finished(&self, session: Uuid, status: RuntimeStatus) {
++        self.reporter
++            .update(session, self.task.clone(), None, status);
++    }
++
++    pub(crate) fn runtime_snapshot(
++        &self,
++        snapshot: &crate::daemon::RuntimeSnapshot,
++        session: Uuid,
++        cursor: u64,
++        running: bool,
++    ) {
++        if !self.local_mode {
++            self.reporter
++                .runtime_snapshot(snapshot, session, cursor, running);
++        }
++    }
++}

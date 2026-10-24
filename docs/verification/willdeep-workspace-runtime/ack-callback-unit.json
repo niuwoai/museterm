@@ -1,0 +1,36 @@
+{
+  "version": "1.251.0-rc15",
+  "build": 330,
+  "summaries": [
+    {
+      "result": "Passed",
+      "totalTestCount": 3,
+      "passedTests": 3,
+      "failedTests": 0,
+      "skippedTests": 0,
+      "testFailures": [],
+      "resultBundle": "/private/tmp/qterm-ack-callback-targeted-02.xcresult"
+    },
+    {
+      "result": "Passed",
+      "totalTestCount": 601,
+      "passedTests": 601,
+      "failedTests": 0,
+      "skippedTests": 0,
+      "testFailures": [],
+      "resultBundle": "/private/tmp/qterm-ack-callback-full-01.xcresult"
+    }
+  ],
+  "scope": [
+    "real PTY duplicate acknowledgement completion",
+    "stale version refresh preserves latest item",
+    "explicit latest-version retry",
+    "duplicate UI markRead does not report disconnect",
+    "released handle completion"
+  ],
+  "limitations": [
+    "No new complete GUI acceptance",
+    "Production backend remains disabled",
+    "No commit, release or local app replacement"
+  ]
+}

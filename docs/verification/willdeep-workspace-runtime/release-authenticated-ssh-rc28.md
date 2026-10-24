@@ -1,0 +1,16 @@
+# 真实 SSH 认证、断连与显式重连
+
+通过：true，检查：10
+
+Actual authenticated loopback OpenSSH through real QTerm backend/PTYS with controlled network drop; not external remote server or GUI/Profile acceptance
+
+- real_ssh_public_key_authentication_with_strict_pinned_host_key
+- viewer_disconnect_keeps_original_authenticated_ssh_process
+- reattached_ssh_accepts_real_remote_command
+- actual_network_transport_loss_preserves_exited_identity_without_implicit_replacement
+- explicit_restart_reauthenticates_same_terminal_with_new_pid_and_generation
+- late_old_generation_reconnect_cannot_replace_live_ssh
+- host_key_mismatch_fails_without_bypassing_authentication
+- public_key_mismatch_fails_without_bypassing_authentication
+- negative_authentication_cases_do_not_affect_original_reconnected_session
+- owned_ssh_pty_and_empty_backend_closed

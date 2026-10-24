@@ -6,9 +6,19 @@ struct TerminalToolPaths {
     static let requestDirectoryName = "requests"
     static let responseDirectoryName = "responses"
 
+    static var isIsolatedTesting: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-ui-testing-agent-state")
+            || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || Bundle.main.bundleIdentifier?.hasPrefix("im.some.qterm.goaltests") == true
+        #else
+        false
+        #endif
+    }
+
     static var rootDirectory: URL {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-ui-testing-agent-state") {
+        if isIsolatedTesting {
             let path = ProcessInfo.processInfo.environment["QTERM_AGENT_TEST_TOOL_ROOT"]
             return path.map { URL(fileURLWithPath: $0, isDirectory: true) }
                 ?? FileManager.default.temporaryDirectory.appendingPathComponent("qterm-agent-ui-\(ProcessInfo.processInfo.processIdentifier)")
@@ -43,6 +53,7 @@ struct TerminalToolPaths {
 }
 
 struct TerminalToolState: Codable {
+    var projectLayout: TerminalProjectLayout? = nil
     var attentionItems: [TerminalAttentionItem]? = nil
     var capabilities: [String]? = nil
     var eventCursor: TerminalEventCursor? = nil
@@ -79,6 +90,7 @@ struct TerminalToolState: Codable {
 
 struct TerminalToolTabSnapshot: Codable, Equatable {
     var agent: TerminalAgentSnapshot? = nil
+    var runtime: TerminalToolRuntimeSnapshot? = nil
     var aiControlled: Bool? = nil
     var aiLeaseExpiresAt: Date? = nil
     var aiRequiresTakeover: Bool? = nil
@@ -98,6 +110,18 @@ struct TerminalToolTabSnapshot: Codable, Equatable {
     let commandDiagnostics: TerminalToolCommandDiagnosticsSnapshot
     let commandBlocks: [TerminalToolCommandBlockSnapshot]
     let updatedAt: Date
+}
+
+struct TerminalToolRuntimeSnapshot: Codable, Equatable {
+    let pid: Int32
+    let generation: UUID
+    let connected: Bool
+    var errorCode: String? = nil
+    var errorStage: String? = nil
+    var attachOnly: Bool? = nil
+    var eventCursor: TerminalEventCursor? = nil
+    var outputRevision: Int? = nil
+    var commands: [TerminalRuntimeCommandInfo]? = nil
 }
 
 struct TerminalToolSessionTunnelSnapshot: Codable, Equatable {
@@ -412,6 +436,8 @@ struct TerminalToolCommandBlockSnapshot: Codable, Equatable {
 }
 
 struct TerminalToolRequest: Codable {
+    var projectRequest: TerminalProjectToolRequest? = nil
+    var nativeAgentToken: String? = nil
     var noResponse: Bool? = nil
     var waitSpec: TerminalWaitSpec? = nil
     var waitID: String? = nil
@@ -462,9 +488,11 @@ struct TerminalToolShortcutSummary: Codable {
 }
 
 struct TerminalToolResponse: Codable {
+    var projectResult: TerminalProjectToolResult? = nil
     var waitResult: TerminalWaitResult? = nil
     var attentionItems: [TerminalAttentionItem]? = nil
     var agentGrant: TerminalAgentGrant? = nil
+    var agentReportRoot: String? = nil
     var agent: TerminalAgentSnapshot? = nil
     var eventBatch: TerminalEventBatch? = nil
     let schemaVersion: Int
@@ -632,7 +660,8 @@ final class TerminalToolBridge {
         if let registry = workspace?.sessionRegistry, Date().timeIntervalSince(lastRuntimeWrite) >= 1 {
             lastRuntimeWrite = Date()
             let metadata = TerminalToolRuntime(appEpoch: registry.events.appEpoch,
-                pid: ProcessInfo.processInfo.processIdentifier, version: AppVersion.value, cursor: registry.events.cursor)
+                pid: ProcessInfo.processInfo.processIdentifier, version: AppVersion.value, cursor: registry.events.cursor,
+                backend: backendEventSource(registry))
             do {
                 let data = try encoder.encode(metadata)
                 let url = location.runtimeFile
@@ -660,6 +689,14 @@ final class TerminalToolBridge {
         writeStateIfNeeded(force: handledRequestCount > 0)
     }
 
+    private func backendEventSource(_ registry: TerminalSessionRegistry) -> TerminalToolBackendRuntime? {
+        let sources = registry.sessions.values.filter { $0.runtimeInfo != nil }
+            .compactMap { $0.controller.runtimeHandle?.backendEventSource }
+        guard let first = sources.first,
+              sources.allSatisfy({ $0.root == first.root && $0.cursor.appEpoch == first.cursor.appEpoch }) else { return nil }
+        return first
+    }
+
     private func writeStateIfNeeded(force: Bool) {
         guard let workspace else { return }
         let signature = stateSignature(workspace: workspace)
@@ -677,6 +714,7 @@ final class TerminalToolBridge {
     private func stateSignature(workspace: TerminalWorkspace) -> Int {
         var hasher = Hasher()
         hasher.combine(workspace.selectedTab?.id)
+        hasher.combine(workspace.projectLayoutRevision)
         hasher.combine(workspace.sessionTunnelPresets)
         hasher.combine(workspace.sessionRegistry.events.sequence)
         for session in workspace.sessionRegistry.sessions.values.sorted(by: { $0.sequence < $1.sequence }) {
@@ -687,6 +725,10 @@ final class TerminalToolBridge {
             tab.expireAIControlIfNeeded()
             hasher.combine(tab.aiLease?.expiresAt)
             hasher.combine(tab.aiRequiresTakeover)
+            hasher.combine(tab.runtimeInfo?.generation)
+            hasher.combine(tab.controller.runtimeHandle?.connected)
+            hasher.combine(tab.controller.runtimeHandle?.lastError?.diagnosticCode)
+            hasher.combine(tab.controller.runtimeHandle?.lastErrorStage)
             hasher.combine(tab.controller.contentRevision)
             hasher.combine(tab.tabTitle)
             hasher.combine(tab.toolStateText)
@@ -710,6 +752,7 @@ final class TerminalToolBridge {
         state.eventCursor = workspace.sessionRegistry.events.cursor
         state.sessions = workspace.sessionRegistry.snapshots
         state.attentionItems = workspace.sessionRegistry.attention.activeItems
+        state.projectLayout = workspace.projectLayout
         state.capabilities = ["agent-state-v1", "session-events-v1", "attention-v1", "wait-v1"]
         let data: Data
         do {
@@ -751,7 +794,8 @@ final class TerminalToolBridge {
                 let data = try Data(contentsOf: file)
                 let request = try decoder.decode(TerminalToolRequest.self, from: data)
                 suppressResponse = request.noResponse == true && ["cancel_wait", "cancel_all_waits"].contains(request.action)
-                response = try handleWaitRequest(request) ?? (request.action == "wait_session" ? nil : perform(request: request))
+                if handleRuntimeAgentRequest(request) || handleRuntimeControlRequest(request) || handleRuntimeInputRequest(request) { response = nil }
+                else { response = try handleWaitRequest(request) ?? (request.action == "wait_session" ? nil : perform(request: request)) }
             } catch {
                 response = TerminalToolResponse(
                     id: file.deletingPathExtension().lastPathComponent,
@@ -767,6 +811,105 @@ final class TerminalToolBridge {
             handledCount += 1
         }
         return handledCount
+    }
+
+    /// Runtime operations finish asynchronously. Publishing an OK response when
+    /// an operation is merely queued would misrepresent ownership to CLI/MCP.
+    private func handleRuntimeAgentRequest(_ request: TerminalToolRequest) -> Bool {
+        let actions: [String: TerminalRuntimeAction] = ["bind_agent": .bindAgent,
+            "report_agent_state": .reportAgent, "get_agent_state": .getAgentState]
+        guard actions[request.action] != nil || request.action == "bind_native_agent",
+              let workspace, let selector = request.tab, let id = UUID(uuidString: selector),
+              let tab = workspace.sessionRegistry.sessions[id], let handle = tab.controller.runtimeHandle else { return false }
+        let respond: (Result<TerminalRuntimeResponse, Error>) -> Void = { [weak self] result in
+            guard let self else { return }
+            var response = TerminalToolResponse(id: request.id, ok: true, snapshotSequence: self.snapshotSequence,
+                action: request.action, tabID: tab.id.uuidString, message: nil, error: nil)
+            switch result {
+            case .success(let backend):
+                if let info = backend.session {
+                    workspace.sessionRegistry.attention.markAgentAuthorityExternal(tabID: id)
+                    tab.applyRuntimeInfo(info)
+                    workspace.sessionRegistry.attention.adoptAgentItems(backend.attention ?? [], tabID: id, cursor: backend.eventHead)
+                    response.agent = info.agent
+                }
+                response.agentGrant = backend.agentGrant
+                if backend.agentGrant != nil { response.agentReportRoot = handle.agentReportRoot.path }
+            case .failure(let error):
+                let code = (error as? TerminalAgentReportError)?.rawValue
+                    ?? (error as? TerminalRuntimeConnectionError)?.diagnosticCode ?? "unavailable"
+                response = TerminalToolResponse(id: request.id, ok: false, snapshotSequence: self.snapshotSequence,
+                    action: request.action, tabID: tab.id.uuidString, message: nil, error: code)
+            }
+            self.write(response: response)
+        }
+        guard request.action != "bind_native_agent" else {
+            // Native bootstrap tokens belong to the service's status-only
+            // endpoint. They cannot mint grants through this UI endpoint.
+            respond(.failure(TerminalAgentReportError.invalidCapability)); return true
+        }
+        if request.action != "get_agent_state", !workspace.sessionRegistry.agentMonitoringEnabled {
+            respond(.failure(TerminalAgentReportError.unavailable)); return true
+        }
+        if request.action == "bind_agent" {
+            let allowed = TerminalToolAccess.authorizes(clientID: request.clientID, token: request.authToken)
+            TerminalToolAccess.recordAuthorization(clientID: request.clientID, action: request.action, allowed: allowed)
+            guard allowed else { respond(.failure(TerminalAgentReportError.invalidCapability)); return true }
+            guard request.agentKind != nil else { respond(.failure(TerminalAgentReportError.invalidState)); return true }
+        }
+        guard let action = actions[request.action] else { return true }
+        handle.agentOperation(action, kind: request.agentKind, report: request.agentReport,
+            commandID: request.agentKind.flatMap { tab.observedAgentCommandID(kind: $0) }, completion: respond)
+        return true
+    }
+
+    private func handleRuntimeControlRequest(_ request: TerminalToolRequest) -> Bool {
+        let actions: [String: TerminalRuntimeAction] = ["takeover_tab": .acquireControl,
+            "renew_tab_control": .renewControl, "release_tab": .releaseControl]
+        guard let action = actions[request.action], let workspace,
+              let selector = request.tab, let id = UUID(uuidString: selector),
+              let tab = try? workspace.toolTab(matching: id.uuidString),
+              tab.controller.runtimeHandle != nil else { return false }
+        let allowed = workspace.preferences?.toolBridgeWritesEnabled == true
+            && TerminalToolAccess.authorizes(clientID: request.clientID, token: request.authToken)
+        TerminalToolAccess.recordAuthorization(clientID: request.clientID, action: request.action, allowed: allowed)
+        let respond: (Result<Void, Error>) -> Void = { [weak self] result in
+            guard let self else { return }
+            let error: String?
+            if case .failure(let failure) = result { error = failure.localizedDescription } else { error = nil }
+            self.write(response: TerminalToolResponse(id: request.id, ok: error == nil,
+                snapshotSequence: self.snapshotSequence, action: request.action, tabID: tab.id.uuidString,
+                message: error == nil ? L10n.string("ai_control.updated") : nil, error: error))
+        }
+        do {
+            guard allowed else { throw TerminalToolError.accessDenied }
+            guard let owner = request.controlID, !owner.isEmpty, owner.count <= 80 else { throw TerminalAIControlError.retake }
+            if action == .releaseControl, tab.aiLease != nil { try tab.authorizeAIInput(owner: owner) }
+            tab.changeAIControl(action: action, owner: owner, completion: respond)
+        } catch { respond(.failure(error)) }
+        return true
+    }
+
+    private func handleRuntimeInputRequest(_ request: TerminalToolRequest) -> Bool {
+        guard ["input", "send_text", "send_key"].contains(request.action), let workspace,
+              let tab = try? workspace.toolTab(matching: request.tab), tab.controller.runtimeHandle != nil else { return false }
+        let allowed = workspace.preferences?.toolBridgeWritesEnabled == true
+            && TerminalToolAccess.authorizes(clientID: request.clientID, token: request.authToken)
+        TerminalToolAccess.recordAuthorization(clientID: request.clientID, action: request.action, allowed: allowed)
+        let respond: (Result<Void, Error>) -> Void = { [weak self] result in
+            guard let self else { return }
+            let error: String?
+            if case .failure(let failure) = result { error = failure.localizedDescription } else { error = nil }
+            self.write(response: TerminalToolResponse(id: request.id, ok: error == nil,
+                snapshotSequence: self.snapshotSequence, action: request.action, tabID: tab.id.uuidString,
+                message: error == nil ? L10n.format("tools.response.input_sent", tab.tabTitle) : nil, error: error))
+        }
+        guard allowed else { respond(.failure(TerminalToolError.accessDenied)); return true }
+        guard let bytes = TerminalToolInput.bytes(text: request.text, key: request.key, rawBytes: request.bytes) else {
+            respond(.failure(TerminalAIControlError.inputRejected)); return true
+        }
+        tab.controller.sendToolInput(bytes: bytes, owner: request.controlID, completion: respond)
+        return true
     }
 
     private func handleWaitRequest(_ request: TerminalToolRequest) throws -> TerminalToolResponse? {
@@ -819,6 +962,16 @@ final class TerminalToolBridge {
                         action: request.action, allowed: allowed)
                     return allowed
                 })
+        }
+
+        if request.action == TerminalProjectToolService.action {
+            return TerminalProjectToolService.perform(request, workspace: workspace, snapshotSequence: snapshotSequence) {
+                let allowed = workspace.preferences?.toolBridgeWritesEnabled == true
+                    && TerminalToolAccess.authorizes(clientID: request.clientID, token: request.authToken)
+                TerminalToolAccess.recordAuthorization(clientID: request.clientID,
+                    action: "project_layout.\(request.projectRequest?.operation.rawValue ?? "invalid")", allowed: allowed)
+                return allowed
+            }
         }
 
         if TerminalAttentionToolService.actions.contains(request.action) {
@@ -1187,6 +1340,7 @@ struct TerminalToolStateWriteThrottle {
 }
 
 enum TerminalToolError: LocalizedError {
+    case accessDenied
     case tabNotFound(String)
     case processUnavailable
     case sessionTunnelActive
@@ -1194,6 +1348,7 @@ enum TerminalToolError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
+        case .accessDenied: return L10n.string("tools.error.access_denied")
         case .tabNotFound(let selector):
             return L10n.format("tools.error.tab_not_found", selector)
         case .processUnavailable:

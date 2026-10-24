@@ -1,0 +1,310 @@
+{
+  "snapshots": [
+    {
+      "phase": "seed",
+      "observedAt": "2026-10-24T19:07:41+08:00",
+      "selectedTabID": "C87B0861-F3FF-4A3A-9CD9-5766FD95600B",
+      "layout": {
+        "projects": [
+          {
+            "id": "A31E427A-F7D6-468A-B617-E1B0280B0F0E",
+            "name": "项目",
+            "selectedTabID": "EB3A6C17-2CE6-4C7B-B33E-F4F03C9E6DC5",
+            "tabs": [
+              {
+                "focusedTerminalID": "3772F073-52AC-4B04-9880-3C26D9D6CD09",
+                "id": "EB3A6C17-2CE6-4C7B-B33E-F4F03C9E6DC5",
+                "layout": {
+                  "terminal": {
+                    "_0": "3772F073-52AC-4B04-9880-3C26D9D6CD09"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "directory": "/private/tmp/qterm-native-qa-c5001d6261a3",
+            "id": "0FB0FE4F-6297-4630-99BA-A8BFECAA2404",
+            "name": "A project with a deliberately long name for sidebar layout verification",
+            "selectedTabID": "6567B08A-9DC8-416A-B7D6-3B7D97E6CC93",
+            "tabs": [
+              {
+                "focusedTerminalID": "C87B0861-F3FF-4A3A-9CD9-5766FD95600B",
+                "id": "6567B08A-9DC8-416A-B7D6-3B7D97E6CC93",
+                "layout": {
+                  "split": {
+                    "axis": "vertical",
+                    "first": {
+                      "terminal": {
+                        "_0": "C87B0861-F3FF-4A3A-9CD9-5766FD95600B"
+                      }
+                    },
+                    "id": "C1F0E63C-79A6-4D61-99FD-F2929427A4FC",
+                    "ratio": 0.5,
+                    "second": {
+                      "terminal": {
+                        "_0": "47461C66-9C07-45F5-AA24-7609F5F41993"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "schemaVersion": 1,
+        "selectedProjectID": "0FB0FE4F-6297-4630-99BA-A8BFECAA2404"
+      },
+      "attention": [
+        {
+          "confidence": "high",
+          "context": {
+            "gateID": "question-1",
+            "sessionID": "3772F073-52AC-4B04-9880-3C26D9D6CD09",
+            "taskID": "sidebar-display-fixture"
+          },
+          "createdAt": "2026-10-24T11:07:39Z",
+          "createdSequence": 43,
+          "id": "FD93D187-CA19-4BCA-AB54-0C174B17C58A",
+          "instanceID": "C91BC1F1-04D9-4C5F-9A34-5CA2BA013F25",
+          "isStale": false,
+          "kind": "question",
+          "runID": "505B5B56-17F8-4F31-B81B-B22D08E2C8B4",
+          "source": "integration",
+          "tabID": "C87B0861-F3FF-4A3A-9CD9-5766FD95600B",
+          "version": 1
+        }
+      ],
+      "source": {
+        "id": "C87B0861-F3FF-4A3A-9CD9-5766FD95600B",
+        "title": "qterm-native-qa-c5001d6261a3",
+        "agent": {
+          "activity": "blocked",
+          "blockReason": "question",
+          "confidence": "high",
+          "context": {
+            "gateID": "question-1",
+            "sessionID": "3772F073-52AC-4B04-9880-3C26D9D6CD09",
+            "taskID": "sidebar-display-fixture"
+          },
+          "expiresAt": "2026-10-24T11:09:39Z",
+          "instanceID": "C91BC1F1-04D9-4C5F-9A34-5CA2BA013F25",
+          "kind": "willdeep",
+          "reason": "reported",
+          "reportSequence": 1,
+          "ruleVersion": 2,
+          "runID": "505B5B56-17F8-4F31-B81B-B22D08E2C8B4",
+          "source": "integration",
+          "updatedAt": "2026-10-24T11:07:39Z"
+        },
+        "runtime": {
+          "commands": [],
+          "connected": true,
+          "eventCursor": {
+            "appEpoch": "9181AE5B-116A-48CE-9E07-B81B9BFF195C",
+            "sequence": 43
+          },
+          "generation": "A584CE04-7268-4AD7-BC61-540C7BB37F0A",
+          "outputRevision": 13,
+          "pid": 84772
+        }
+      }
+    },
+    {
+      "phase": "capture",
+      "observedAt": "2026-10-24T19:09:44+08:00",
+      "selectedTabID": "47461C66-9C07-45F5-AA24-7609F5F41993",
+      "layout": {
+        "projects": [
+          {
+            "id": "A31E427A-F7D6-468A-B617-E1B0280B0F0E",
+            "name": "项目",
+            "selectedTabID": "EB3A6C17-2CE6-4C7B-B33E-F4F03C9E6DC5",
+            "tabs": [
+              {
+                "focusedTerminalID": "3772F073-52AC-4B04-9880-3C26D9D6CD09",
+                "id": "EB3A6C17-2CE6-4C7B-B33E-F4F03C9E6DC5",
+                "layout": {
+                  "terminal": {
+                    "_0": "3772F073-52AC-4B04-9880-3C26D9D6CD09"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "directory": "/private/tmp/qterm-native-qa-c5001d6261a3",
+            "id": "0FB0FE4F-6297-4630-99BA-A8BFECAA2404",
+            "name": "A project with a deliberately long name for sidebar layout verification",
+            "selectedTabID": "6567B08A-9DC8-416A-B7D6-3B7D97E6CC93",
+            "tabs": [
+              {
+                "focusedTerminalID": "47461C66-9C07-45F5-AA24-7609F5F41993",
+                "id": "6567B08A-9DC8-416A-B7D6-3B7D97E6CC93",
+                "layout": {
+                  "split": {
+                    "axis": "vertical",
+                    "first": {
+                      "terminal": {
+                        "_0": "C87B0861-F3FF-4A3A-9CD9-5766FD95600B"
+                      }
+                    },
+                    "id": "C1F0E63C-79A6-4D61-99FD-F2929427A4FC",
+                    "ratio": 0.5,
+                    "second": {
+                      "terminal": {
+                        "_0": "47461C66-9C07-45F5-AA24-7609F5F41993"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "schemaVersion": 1,
+        "selectedProjectID": "0FB0FE4F-6297-4630-99BA-A8BFECAA2404"
+      },
+      "attention": [
+        {
+          "confidence": "high",
+          "context": {
+            "gateID": "question-1",
+            "sessionID": "3772F073-52AC-4B04-9880-3C26D9D6CD09",
+            "taskID": "sidebar-display-fixture"
+          },
+          "createdAt": "2026-10-24T11:07:39Z",
+          "createdSequence": 43,
+          "id": "FD93D187-CA19-4BCA-AB54-0C174B17C58A",
+          "instanceID": "C91BC1F1-04D9-4C5F-9A34-5CA2BA013F25",
+          "isStale": true,
+          "kind": "question",
+          "runID": "505B5B56-17F8-4F31-B81B-B22D08E2C8B4",
+          "source": "integration",
+          "tabID": "C87B0861-F3FF-4A3A-9CD9-5766FD95600B",
+          "version": 2
+        }
+      ],
+      "source": null
+    },
+    {
+      "phase": "capture",
+      "observedAt": "2026-10-24T19:12:10+08:00",
+      "selectedTabID": "47461C66-9C07-45F5-AA24-7609F5F41993",
+      "layout": {
+        "projects": [
+          {
+            "id": "A31E427A-F7D6-468A-B617-E1B0280B0F0E",
+            "name": "项目",
+            "selectedTabID": "EB3A6C17-2CE6-4C7B-B33E-F4F03C9E6DC5",
+            "tabs": [
+              {
+                "focusedTerminalID": "3772F073-52AC-4B04-9880-3C26D9D6CD09",
+                "id": "EB3A6C17-2CE6-4C7B-B33E-F4F03C9E6DC5",
+                "layout": {
+                  "terminal": {
+                    "_0": "3772F073-52AC-4B04-9880-3C26D9D6CD09"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "directory": "/private/tmp/qterm-native-qa-c5001d6261a3",
+            "id": "0FB0FE4F-6297-4630-99BA-A8BFECAA2404",
+            "name": "A project with a deliberately long name for sidebar layout verification",
+            "selectedTabID": "6567B08A-9DC8-416A-B7D6-3B7D97E6CC93",
+            "tabs": [
+              {
+                "focusedTerminalID": "47461C66-9C07-45F5-AA24-7609F5F41993",
+                "id": "6567B08A-9DC8-416A-B7D6-3B7D97E6CC93",
+                "layout": {
+                  "split": {
+                    "axis": "vertical",
+                    "first": {
+                      "terminal": {
+                        "_0": "C87B0861-F3FF-4A3A-9CD9-5766FD95600B"
+                      }
+                    },
+                    "id": "C1F0E63C-79A6-4D61-99FD-F2929427A4FC",
+                    "ratio": 0.5,
+                    "second": {
+                      "terminal": {
+                        "_0": "47461C66-9C07-45F5-AA24-7609F5F41993"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "schemaVersion": 1,
+        "selectedProjectID": "0FB0FE4F-6297-4630-99BA-A8BFECAA2404"
+      },
+      "attention": [
+        {
+          "confidence": "high",
+          "context": {
+            "gateID": "question-1",
+            "sessionID": "3772F073-52AC-4B04-9880-3C26D9D6CD09",
+            "taskID": "sidebar-display-fixture"
+          },
+          "createdAt": "2026-10-24T11:07:39Z",
+          "createdSequence": 43,
+          "id": "FD93D187-CA19-4BCA-AB54-0C174B17C58A",
+          "instanceID": "C91BC1F1-04D9-4C5F-9A34-5CA2BA013F25",
+          "isStale": true,
+          "kind": "question",
+          "runID": "505B5B56-17F8-4F31-B81B-B22D08E2C8B4",
+          "source": "integration",
+          "tabID": "C87B0861-F3FF-4A3A-9CD9-5766FD95600B",
+          "version": 2
+        }
+      ],
+      "source": null
+    }
+  ],
+  "version": "1.251.0-rc21",
+  "build": 336,
+  "language": "zh-Hans",
+  "configuredSidebarWidth": 220,
+  "app": "/private/tmp/qterm-native-qa-c5001d6261a3/QTermQA.app",
+  "bundleID": "im.some.qterm.goaltests.projectcli.c5001d6261a3",
+  "sourceID": "C87B0861-F3FF-4A3A-9CD9-5766FD95600B",
+  "originalSelectedID": "3772F073-52AC-4B04-9880-3C26D9D6CD09",
+  "terminals": [
+    {
+      "id": "3772F073-52AC-4B04-9880-3C26D9D6CD09",
+      "pid": 84526,
+      "generation": "326E9CD1-1B75-4FBD-A13D-99C85E54077F"
+    },
+    {
+      "id": "47461C66-9C07-45F5-AA24-7609F5F41993",
+      "pid": 84849,
+      "generation": "681C20FD-D64E-46E5-942C-DBFACDBEC449"
+    },
+    {
+      "id": "C87B0861-F3FF-4A3A-9CD9-5766FD95600B",
+      "pid": 84772,
+      "generation": "A584CE04-7268-4AD7-BC61-540C7BB37F0A"
+    }
+  ],
+  "scope": "Actual native sidebar; protocol Agent display fixture, no actual WillDeep model task",
+  "ownedCleanupAndCredentialRemovalVerified": true,
+  "visualChecks": {
+    "expanded220pt": "Long title truncated; shortcut Cmd+2 stayed on one line; shell and Agent status on second row",
+    "collapsed": "State icon and project count visible; compact labels wrap without overlap",
+    "attention": "Global count 1, project count 1, one actual popup item",
+    "actualWillDeepTask": false,
+    "floating": {
+      "typedMarkerExecuted": "__QTERM_FLOATING_TYPED_OK",
+      "pastePassed": false,
+      "pasteFailure": "Bracketed paste start residue [200~; zsh bad pattern",
+      "reattachVerified": false,
+      "controlsObservation": "Hover controls were not exposed by available UI interactions"
+    },
+    "initialConnection": "First tool request timed out; same original PID/generation connected after explicit reconnect",
+    "scope": "Actual rc21 isolated GUI; no claim of full floating acceptance"
+  }
+}

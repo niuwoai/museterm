@@ -1,7 +1,15 @@
+import AppKit
 import XCTest
 @testable import museterm
 
 final class TerminalWindowCloseCoordinatorTests: XCTestCase {
+    @MainActor
+    func testApplicationTeardownKeepsRuntimeDetachSemanticsUntilProcessExit() {
+        TerminalWindowCloseState.isAppTerminating = true
+        defer { TerminalWindowCloseState.isAppTerminating = false }
+        AppDelegate().applicationWillTerminate(Notification(name: NSApplication.willTerminateNotification))
+        XCTAssertTrue(TerminalWindowCloseState.isAppTerminating)
+    }
     private final class RecordingTabCloseConfirmer: TerminalTabCloseConfirming {
         var shouldAllowClose = true
         private(set) var requestedTabTitles: [String] = []

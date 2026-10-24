@@ -53,13 +53,24 @@ def wait_tool(args)
   raise "Invalid wait timeout." unless seconds.is_a?(Numeric)
   seconds = seconds.to_f
   raise "Wait timeout must be between 0 and 60 seconds." unless seconds.finite? && (0..60).cover?(seconds)
-  response = send_request(action: "wait_session", wait_spec: spec, timeout_seconds: seconds + 5)
+  source = backend_runtime_source(spec["after"])
+  response = if source
+    backend_endpoint_request(source, "wait_session", {"controlID" => CONTROL_ID, "waitSpec" => spec},
+      timeout_seconds: seconds + STATUS_RESPONSE_TIMEOUT, wait_spec: spec)
+  else
+    send_request(action: "wait_session", wait_spec: spec, timeout_seconds: seconds + 5)
+  end
   raise(response["error"] || "Wait failed.") unless response["ok"]
   response
 end
 
 def attention_tool(name, args)
-  response = send_request(action: name, tab: args["tab"], attention_id: args["itemID"], attention_version: args["version"])
+  source = name == "list_attention" ? backend_runtime_source : nil
+  response = if source && source.fetch("features", []).include?("terminal_attention_v1")
+    backend_endpoint_request(source, "list_attention", {"tab" => args["tab"]})
+  else
+    send_request(action: name, tab: args["tab"], attention_id: args["itemID"], attention_version: args["version"])
+  end
   raise(response["error"] || "Attention request failed.") unless response["ok"]
   response
 end

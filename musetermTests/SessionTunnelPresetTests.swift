@@ -122,6 +122,7 @@ final class SessionTunnelPresetTests: XCTestCase {
             "list_attention",
             "acknowledge_attention",
             "wait_session",
+            "project_layout",
             "report_agent_state",
             "get_agent_state",
             "read_session_events",
@@ -147,6 +148,17 @@ final class SessionTunnelPresetTests: XCTestCase {
         let schema = try XCTUnwrap(startTool["inputSchema"] as? [String: Any])
         let properties = try XCTUnwrap(schema["properties"] as? [String: Any])
         XCTAssertNotNil(properties["preset"])
+        let projectTool = try XCTUnwrap(tools.first { $0["name"] as? String == "project_layout" })
+        let projectSchema = try XCTUnwrap(projectTool["inputSchema"] as? [String: Any])
+        let projectProperties = try XCTUnwrap(projectSchema["properties"] as? [String: Any])
+        let operation = try XCTUnwrap(projectProperties["operation"] as? [String: Any])
+        XCTAssertEqual(Set(try XCTUnwrap(operation["enum"] as? [String])), Set([
+            "list", "createProject", "renameProject", "createTab", "split", "moveTerminal", "moveTab",
+            "reorderProjects", "reorderTabs", "resizeSplit", "focus", "closeTerminal", "closeTab", "closeProject"
+        ]))
+        XCTAssertNotNil(projectProperties["expectedEpoch"])
+        XCTAssertNotNil(projectProperties["expectedRevision"])
+        XCTAssertNotNil(projectProperties["terminateRunning"])
     }
 
     private func makeFixture() throws -> (root: URL, scriptURL: URL) {

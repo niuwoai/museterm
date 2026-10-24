@@ -1,0 +1,2 @@
+# Unified patches retain a single context marker on empty source lines.
+docs/verification/willdeep-workspace-runtime/*.patch -whitespace

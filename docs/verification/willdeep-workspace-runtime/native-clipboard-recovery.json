@@ -1,0 +1,150 @@
+{
+  "generatedAt": "2026-10-24T04:56:49+08:00",
+  "mode": "qa-ui",
+  "passed": true,
+  "failure": null,
+  "scope": "真实隔离 QTerm 剪贴板提交、原审批退出重开与确认；本机 mock 模型；不代表回放画面/普通提醒已通过",
+  "fixtureDirectory": null,
+  "binarySHA256": "ce8adf707cd3832e83c03c251cdbd528736e20302633028bd027532471297cb8",
+  "modelRequests": 2,
+  "frontendExitStatus": null,
+  "qtermBackendSHA256": "b4e0a1196b4efb2353e9e3a986448e0496939703b8b8cd19a90115493b785974",
+  "allUIClientsDetachedSeconds": null,
+  "backendInputDiagnostics": [],
+  "terminalDeviceStatusReplies": 0,
+  "lostAcknowledgementRetried": false,
+  "states": [
+    {
+      "activity": "unknown",
+      "sequence": 0,
+      "observedAt": 1172418.889774
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "sessionID": "E4E54A18-3516-46BD-B811-A76C7C266433"
+      },
+      "sequence": 1,
+      "observedAt": 1172418.945254
+    },
+    {
+      "activity": "working",
+      "context": {
+        "taskID": "38bb198e-075b-473f-874e-5fba0263483a",
+        "sessionID": "E4E54A18-3516-46BD-B811-A76C7C266433"
+      },
+      "sequence": 2,
+      "observedAt": 1172443.141065
+    },
+    {
+      "activity": "blocked",
+      "blockReason": "approval",
+      "context": {
+        "taskID": "5d9daa48-7f3f-4d5f-967c-5926760c086b",
+        "gateID": "ec40efa9-1997-4573-9ef7-3ea5a45c201a",
+        "sessionID": "E4E54A18-3516-46BD-B811-A76C7C266433"
+      },
+      "sequence": 3,
+      "observedAt": 1172443.949594
+    },
+    {
+      "activity": "blocked",
+      "blockReason": "approval",
+      "context": {
+        "taskID": "5d9daa48-7f3f-4d5f-967c-5926760c086b",
+        "gateID": "ec40efa9-1997-4573-9ef7-3ea5a45c201a",
+        "sessionID": "E4E54A18-3516-46BD-B811-A76C7C266433"
+      },
+      "sequence": 11,
+      "observedAt": 1172697.273485
+    },
+    {
+      "activity": "blocked",
+      "blockReason": "approval",
+      "context": {
+        "taskID": "5d9daa48-7f3f-4d5f-967c-5926760c086b",
+        "gateID": "ec40efa9-1997-4573-9ef7-3ea5a45c201a",
+        "sessionID": "E4E54A18-3516-46BD-B811-A76C7C266433"
+      },
+      "sequence": 12,
+      "observedAt": 1172714.37078
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "taskID": "5d9daa48-7f3f-4d5f-967c-5926760c086b",
+        "sessionID": "E4E54A18-3516-46BD-B811-A76C7C266433"
+      },
+      "result": "completed",
+      "sequence": 13,
+      "observedAt": 1172728.886887
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "taskID": "5d9daa48-7f3f-4d5f-967c-5926760c086b",
+        "sessionID": "E4E54A18-3516-46BD-B811-A76C7C266433"
+      },
+      "result": "completed",
+      "sequence": 14,
+      "observedAt": 1172758.962507
+    },
+    {
+      "activity": "exited",
+      "context": {
+        "taskID": "5d9daa48-7f3f-4d5f-967c-5926760c086b",
+        "sessionID": "E4E54A18-3516-46BD-B811-A76C7C266433"
+      },
+      "result": "completed",
+      "sequence": 15,
+      "observedAt": 1172782.485963
+    }
+  ],
+  "fixtureErrors": [],
+  "version": "1.251.0-rc4",
+  "build": 319,
+  "nativeGUIExitedObservedSeconds": 67.8774759999942,
+  "disconnects": [],
+  "clipboardSubmittedWithoutReconnect": true,
+  "sameForegroundPIDAndGate": true,
+  "uniqueNativeApprovalAndCompletion": true,
+  "qaAppSHA256": "69ff99b6929291dc020ae35d2cc1ecd85f68ca92bae3c0b7c184b45112653a5e",
+  "nativeCheckpoints": {
+    "blocked": {
+      "observedAt": "2026-10-24T04:51:49.441019+08:00",
+      "qaPIDs": [
+        27577
+      ],
+      "foregroundPID": 27869
+    },
+    "quit": {
+      "observedAt": "2026-10-24T04:52:06.783455+08:00",
+      "qaPIDs": [],
+      "foregroundPID": 27869
+    },
+    "detached": {
+      "observedAt": "2026-10-24T04:53:14.660938+08:00",
+      "qaPIDs": [],
+      "foregroundPID": 27869
+    },
+    "restored": {
+      "observedAt": "2026-10-24T04:55:15.870423+08:00",
+      "qaPIDs": [
+        30695
+      ],
+      "foregroundPID": 27869
+    },
+    "completed": {
+      "observedAt": "2026-10-24T04:56:34.642781+08:00",
+      "qaPIDs": [
+        30695
+      ],
+      "foregroundPID": 27869
+    }
+  },
+  "overallUIAcceptancePassed": false,
+  "remainingDefects": [
+    "重开回放旧响铃，界面出现原生审批之外的终端响铃事项",
+    "恢复画面存在历史绘制残留"
+  ]
+}

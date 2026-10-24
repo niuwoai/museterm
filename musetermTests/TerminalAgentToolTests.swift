@@ -25,6 +25,21 @@ final class TerminalAgentToolTests: XCTestCase {
         XCTAssertFalse(session.aiRequiresTakeover)
     }
 
+    func testRuntimeTerminalCannotMintLocalGrantOrReturnUnverifiedProjection() throws {
+        let registry = TerminalSessionRegistry()
+        let session = TerminalSession(sequence: 1)
+        session.runtimeRequiresExisting = true
+        registry.register(session)
+        for action in ["bind_agent", "get_agent_state"] {
+            let response = TerminalAgentToolService.perform(try request(action, tab: session.id, extra: ["agentKind": "codex"]),
+                registry: registry, snapshotSequence: 1, paired: { XCTFail("No local authorization path for a backend terminal"); return true })
+            XCTAssertFalse(response.ok)
+            XCTAssertEqual(response.error, "unavailable")
+            XCTAssertNil(response.agentGrant)
+        }
+        XCTAssertNil(session.agentStatus)
+    }
+
     func testStatusCapabilityCannotReportToAnotherTerminal() throws {
         let registry = TerminalSessionRegistry()
         let first = TerminalSession(sequence: 1)

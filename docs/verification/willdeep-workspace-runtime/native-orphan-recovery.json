@@ -1,0 +1,638 @@
+{
+  "generatedAt": "2026-10-24T05:44:41+08:00",
+  "version": "1.251.0-rc7",
+  "build": 322,
+  "passed": true,
+  "scope": "实际 QTerm/WillDeep CLI/独立 Runtime，正常退出后暂移唯一自有恢复记录；本机 mock 模型；不是强杀 App 或服务崩溃重建实验",
+  "driver": {
+    "generatedAt": "2026-10-24T05:43:27+08:00",
+    "mode": "qa-ui",
+    "passed": true,
+    "failure": null,
+    "scope": "实际隔离 QTerm 图形界面 + WillDeep CLI/Runtime；本机 mock 模型；所有输入由原生界面执行，界面动作与退出时长另存独立证据",
+    "fixtureDirectory": null,
+    "binarySHA256": "ce8adf707cd3832e83c03c251cdbd528736e20302633028bd027532471297cb8",
+    "modelRequests": 2,
+    "frontendExitStatus": null,
+    "qtermBackendSHA256": "d70520c4f41b86f87b3b69ec15ed9254fc06ed704eae3f6cbb35c7fe3b247b8e",
+    "allUIClientsDetachedSeconds": null,
+    "backendInputDiagnostics": [],
+    "terminalDeviceStatusReplies": 0,
+    "lostAcknowledgementRetried": false,
+    "states": [
+      {
+        "activity": "unknown",
+        "sequence": 0,
+        "observedAt": 1175404.300797
+      },
+      {
+        "activity": "idle",
+        "context": {
+          "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1"
+        },
+        "sequence": 1,
+        "observedAt": 1175404.351918
+      },
+      {
+        "activity": "working",
+        "context": {
+          "taskID": "6ba5fd87-67d5-4b82-a8fb-0b54a7670543",
+          "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1"
+        },
+        "sequence": 2,
+        "observedAt": 1175426.602227
+      },
+      {
+        "activity": "blocked",
+        "blockReason": "approval",
+        "context": {
+          "taskID": "cf33c59e-06b7-45f7-9d97-80bdeee0b38a",
+          "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1",
+          "gateID": "5df43e6c-ea13-4824-9cad-aa05f2d13c68"
+        },
+        "sequence": 3,
+        "observedAt": 1175427.308389
+      },
+      {
+        "activity": "blocked",
+        "blockReason": "approval",
+        "context": {
+          "taskID": "cf33c59e-06b7-45f7-9d97-80bdeee0b38a",
+          "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1",
+          "gateID": "5df43e6c-ea13-4824-9cad-aa05f2d13c68"
+        },
+        "sequence": 7,
+        "observedAt": 1175550.003434
+      },
+      {
+        "activity": "idle",
+        "context": {
+          "taskID": "cf33c59e-06b7-45f7-9d97-80bdeee0b38a",
+          "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1"
+        },
+        "result": "completed",
+        "sequence": 8,
+        "observedAt": 1175561.30696
+      },
+      {
+        "activity": "exited",
+        "context": {
+          "taskID": "cf33c59e-06b7-45f7-9d97-80bdeee0b38a",
+          "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1"
+        },
+        "result": "completed",
+        "sequence": 9,
+        "observedAt": 1175582.274874
+      }
+    ],
+    "fixtureErrors": []
+  },
+  "checkpoints": {
+    "blocked": {
+      "observedAt": "2026-10-24T05:41:12.262202+08:00",
+      "monotonicTime": 1175453.581588,
+      "serviceEpoch": "15AC489B-75E0-417C-B2E8-4959FF5C6264",
+      "terminal": {
+        "id": "716CC735-8C70-4144-916A-6394E21F2D51",
+        "pid": 51609,
+        "generation": "98314B78-92D8-4CAA-AB0A-F5406BA2249C",
+        "agent": {
+          "ruleVersion": 2,
+          "context": {
+            "taskID": "cf33c59e-06b7-45f7-9d97-80bdeee0b38a",
+            "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1",
+            "gateID": "5df43e6c-ea13-4824-9cad-aa05f2d13c68"
+          },
+          "kind": "willdeep",
+          "runID": "DEBAD2E3-C080-4F44-92D7-E1449C11D475",
+          "reason": "reported",
+          "activity": "blocked",
+          "reportSequence": 3,
+          "expiresAt": 814484565.96911,
+          "updatedAt": 814484445.96911,
+          "instanceID": "2851C666-EB78-465B-97AD-CE81BE1D1BB8",
+          "blockReason": "approval",
+          "confidence": "high",
+          "source": "integration"
+        }
+      },
+      "foregroundPID": 51817,
+      "attention": [
+        {
+          "instanceID": "2851C666-EB78-465B-97AD-CE81BE1D1BB8",
+          "id": "82391881-62D2-4693-B9E8-1B63763B49A3",
+          "createdSequence": 6,
+          "isStale": false,
+          "runID": "DEBAD2E3-C080-4F44-92D7-E1449C11D475",
+          "kind": "approval",
+          "tabID": "716CC735-8C70-4144-916A-6394E21F2D51",
+          "createdAt": 814484445.969118,
+          "confidence": "high",
+          "context": {
+            "taskID": "cf33c59e-06b7-45f7-9d97-80bdeee0b38a",
+            "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1",
+            "gateID": "5df43e6c-ea13-4824-9cad-aa05f2d13c68"
+          },
+          "version": 1,
+          "source": "integration"
+        }
+      ],
+      "qaPIDs": [
+        51600
+      ],
+      "userQTermOriginalPIDAlive": true,
+      "projectLayout": {
+        "projects": [
+          {
+            "id": "EB923985-6E93-4402-A91B-A39C40D7BAAD",
+            "name": "项目",
+            "selectedTabID": "4436A103-9EC5-4190-8708-1CFC37732FCB",
+            "tabs": [
+              {
+                "focusedTerminalID": "716CC735-8C70-4144-916A-6394E21F2D51",
+                "id": "4436A103-9EC5-4190-8708-1CFC37732FCB",
+                "layout": {
+                  "terminal": {
+                    "_0": "716CC735-8C70-4144-916A-6394E21F2D51"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "schemaVersion": 1,
+        "selectedProjectID": "EB923985-6E93-4402-A91B-A39C40D7BAAD"
+      }
+    },
+    "quit": {
+      "observedAt": "2026-10-24T05:41:33.440294+08:00",
+      "monotonicTime": 1175474.759675,
+      "serviceEpoch": "15AC489B-75E0-417C-B2E8-4959FF5C6264",
+      "terminal": {
+        "id": "716CC735-8C70-4144-916A-6394E21F2D51",
+        "pid": 51609,
+        "generation": "98314B78-92D8-4CAA-AB0A-F5406BA2249C",
+        "agent": {
+          "ruleVersion": 2,
+          "context": {
+            "taskID": "cf33c59e-06b7-45f7-9d97-80bdeee0b38a",
+            "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1",
+            "gateID": "5df43e6c-ea13-4824-9cad-aa05f2d13c68"
+          },
+          "kind": "willdeep",
+          "runID": "DEBAD2E3-C080-4F44-92D7-E1449C11D475",
+          "reason": "reported",
+          "activity": "blocked",
+          "reportSequence": 4,
+          "expiresAt": 814484596.026291,
+          "updatedAt": 814484476.026291,
+          "instanceID": "2851C666-EB78-465B-97AD-CE81BE1D1BB8",
+          "blockReason": "approval",
+          "confidence": "high",
+          "source": "integration"
+        }
+      },
+      "foregroundPID": 51817,
+      "attention": [
+        {
+          "instanceID": "2851C666-EB78-465B-97AD-CE81BE1D1BB8",
+          "id": "82391881-62D2-4693-B9E8-1B63763B49A3",
+          "createdSequence": 6,
+          "isStale": false,
+          "runID": "DEBAD2E3-C080-4F44-92D7-E1449C11D475",
+          "kind": "approval",
+          "tabID": "716CC735-8C70-4144-916A-6394E21F2D51",
+          "createdAt": 814484445.969118,
+          "confidence": "high",
+          "context": {
+            "taskID": "cf33c59e-06b7-45f7-9d97-80bdeee0b38a",
+            "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1",
+            "gateID": "5df43e6c-ea13-4824-9cad-aa05f2d13c68"
+          },
+          "version": 1,
+          "source": "integration"
+        }
+      ],
+      "qaPIDs": [],
+      "userQTermOriginalPIDAlive": true,
+      "projectLayout": {
+        "projects": [
+          {
+            "id": "EB923985-6E93-4402-A91B-A39C40D7BAAD",
+            "name": "项目",
+            "selectedTabID": "4436A103-9EC5-4190-8708-1CFC37732FCB",
+            "tabs": [
+              {
+                "focusedTerminalID": "716CC735-8C70-4144-916A-6394E21F2D51",
+                "id": "4436A103-9EC5-4190-8708-1CFC37732FCB",
+                "layout": {
+                  "terminal": {
+                    "_0": "716CC735-8C70-4144-916A-6394E21F2D51"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "schemaVersion": 1,
+        "selectedProjectID": "EB923985-6E93-4402-A91B-A39C40D7BAAD"
+      }
+    },
+    "detached-final": {
+      "observedAt": "2026-10-24T05:42:19.794248+08:00",
+      "monotonicTime": 1175521.113619,
+      "serviceEpoch": "15AC489B-75E0-417C-B2E8-4959FF5C6264",
+      "terminal": {
+        "id": "716CC735-8C70-4144-916A-6394E21F2D51",
+        "pid": 51609,
+        "generation": "98314B78-92D8-4CAA-AB0A-F5406BA2249C",
+        "agent": {
+          "ruleVersion": 2,
+          "context": {
+            "taskID": "cf33c59e-06b7-45f7-9d97-80bdeee0b38a",
+            "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1",
+            "gateID": "5df43e6c-ea13-4824-9cad-aa05f2d13c68"
+          },
+          "kind": "willdeep",
+          "runID": "DEBAD2E3-C080-4F44-92D7-E1449C11D475",
+          "reason": "reported",
+          "activity": "blocked",
+          "reportSequence": 6,
+          "expiresAt": 814484656.130323,
+          "updatedAt": 814484536.130323,
+          "instanceID": "2851C666-EB78-465B-97AD-CE81BE1D1BB8",
+          "blockReason": "approval",
+          "confidence": "high",
+          "source": "integration"
+        }
+      },
+      "foregroundPID": 51817,
+      "attention": [
+        {
+          "instanceID": "2851C666-EB78-465B-97AD-CE81BE1D1BB8",
+          "id": "82391881-62D2-4693-B9E8-1B63763B49A3",
+          "createdSequence": 6,
+          "isStale": false,
+          "runID": "DEBAD2E3-C080-4F44-92D7-E1449C11D475",
+          "kind": "approval",
+          "tabID": "716CC735-8C70-4144-916A-6394E21F2D51",
+          "createdAt": 814484445.969118,
+          "confidence": "high",
+          "context": {
+            "taskID": "cf33c59e-06b7-45f7-9d97-80bdeee0b38a",
+            "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1",
+            "gateID": "5df43e6c-ea13-4824-9cad-aa05f2d13c68"
+          },
+          "version": 1,
+          "source": "integration"
+        }
+      ],
+      "qaPIDs": [],
+      "userQTermOriginalPIDAlive": true,
+      "projectLayout": {
+        "projects": [
+          {
+            "id": "EB923985-6E93-4402-A91B-A39C40D7BAAD",
+            "name": "项目",
+            "selectedTabID": "4436A103-9EC5-4190-8708-1CFC37732FCB",
+            "tabs": [
+              {
+                "focusedTerminalID": "716CC735-8C70-4144-916A-6394E21F2D51",
+                "id": "4436A103-9EC5-4190-8708-1CFC37732FCB",
+                "layout": {
+                  "terminal": {
+                    "_0": "716CC735-8C70-4144-916A-6394E21F2D51"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "schemaVersion": 1,
+        "selectedProjectID": "EB923985-6E93-4402-A91B-A39C40D7BAAD"
+      }
+    },
+    "restored": {
+      "observedAt": "2026-10-24T05:42:48.584744+08:00",
+      "monotonicTime": 1175549.904112,
+      "serviceEpoch": "15AC489B-75E0-417C-B2E8-4959FF5C6264",
+      "terminal": {
+        "id": "716CC735-8C70-4144-916A-6394E21F2D51",
+        "pid": 51609,
+        "generation": "98314B78-92D8-4CAA-AB0A-F5406BA2249C",
+        "agent": {
+          "ruleVersion": 2,
+          "context": {
+            "taskID": "cf33c59e-06b7-45f7-9d97-80bdeee0b38a",
+            "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1",
+            "gateID": "5df43e6c-ea13-4824-9cad-aa05f2d13c68"
+          },
+          "kind": "willdeep",
+          "runID": "DEBAD2E3-C080-4F44-92D7-E1449C11D475",
+          "reason": "reported",
+          "activity": "blocked",
+          "reportSequence": 7,
+          "expiresAt": 814484686.178615,
+          "updatedAt": 814484566.178615,
+          "instanceID": "2851C666-EB78-465B-97AD-CE81BE1D1BB8",
+          "blockReason": "approval",
+          "confidence": "high",
+          "source": "integration"
+        }
+      },
+      "foregroundPID": 51817,
+      "attention": [
+        {
+          "createdAt": 814484445.969118,
+          "confidence": "high",
+          "isStale": false,
+          "source": "integration",
+          "instanceID": "2851C666-EB78-465B-97AD-CE81BE1D1BB8",
+          "createdSequence": 6,
+          "version": 1,
+          "tabID": "716CC735-8C70-4144-916A-6394E21F2D51",
+          "runID": "DEBAD2E3-C080-4F44-92D7-E1449C11D475",
+          "id": "82391881-62D2-4693-B9E8-1B63763B49A3",
+          "context": {
+            "taskID": "cf33c59e-06b7-45f7-9d97-80bdeee0b38a",
+            "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1",
+            "gateID": "5df43e6c-ea13-4824-9cad-aa05f2d13c68"
+          },
+          "kind": "approval"
+        }
+      ],
+      "qaPIDs": [
+        52111
+      ],
+      "userQTermOriginalPIDAlive": true,
+      "projectLayout": {
+        "projects": [
+          {
+            "id": "434B80BD-BF2F-419E-BB24-0A0128D88258",
+            "name": "找回的后台终端",
+            "selectedTabID": "E4C0487D-C40C-47E6-884D-97D557259D54",
+            "tabs": [
+              {
+                "focusedTerminalID": "716CC735-8C70-4144-916A-6394E21F2D51",
+                "id": "E4C0487D-C40C-47E6-884D-97D557259D54",
+                "layout": {
+                  "terminal": {
+                    "_0": "716CC735-8C70-4144-916A-6394E21F2D51"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "schemaVersion": 1,
+        "selectedProjectID": "434B80BD-BF2F-419E-BB24-0A0128D88258"
+      }
+    },
+    "completed": {
+      "observedAt": "2026-10-24T05:43:14.285320+08:00",
+      "monotonicTime": 1175575.604692,
+      "serviceEpoch": "15AC489B-75E0-417C-B2E8-4959FF5C6264",
+      "terminal": {
+        "id": "716CC735-8C70-4144-916A-6394E21F2D51",
+        "pid": 51609,
+        "generation": "98314B78-92D8-4CAA-AB0A-F5406BA2249C",
+        "agent": {
+          "ruleVersion": 2,
+          "lastResult": "completed",
+          "context": {
+            "taskID": "cf33c59e-06b7-45f7-9d97-80bdeee0b38a",
+            "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1"
+          },
+          "kind": "willdeep",
+          "runID": "DEBAD2E3-C080-4F44-92D7-E1449C11D475",
+          "reason": "reported",
+          "activity": "idle",
+          "reportSequence": 8,
+          "expiresAt": 814484699.964303,
+          "updatedAt": 814484579.964303,
+          "instanceID": "2851C666-EB78-465B-97AD-CE81BE1D1BB8",
+          "confidence": "high",
+          "source": "integration"
+        }
+      },
+      "foregroundPID": 51817,
+      "attention": [
+        {
+          "createdAt": 814484579.964316,
+          "confidence": "high",
+          "isStale": false,
+          "source": "integration",
+          "instanceID": "2851C666-EB78-465B-97AD-CE81BE1D1BB8",
+          "createdSequence": 9,
+          "version": 1,
+          "tabID": "716CC735-8C70-4144-916A-6394E21F2D51",
+          "runID": "DEBAD2E3-C080-4F44-92D7-E1449C11D475",
+          "id": "9D5205CF-C229-4DB2-BE2D-DC643E34C4E6",
+          "context": {
+            "taskID": "cf33c59e-06b7-45f7-9d97-80bdeee0b38a",
+            "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1"
+          },
+          "kind": "completed"
+        }
+      ],
+      "qaPIDs": [
+        52111
+      ],
+      "userQTermOriginalPIDAlive": true,
+      "projectLayout": {
+        "projects": [
+          {
+            "id": "434B80BD-BF2F-419E-BB24-0A0128D88258",
+            "name": "找回的后台终端",
+            "selectedTabID": "E4C0487D-C40C-47E6-884D-97D557259D54",
+            "tabs": [
+              {
+                "focusedTerminalID": "716CC735-8C70-4144-916A-6394E21F2D51",
+                "id": "E4C0487D-C40C-47E6-884D-97D557259D54",
+                "layout": {
+                  "terminal": {
+                    "_0": "716CC735-8C70-4144-916A-6394E21F2D51"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "schemaVersion": 1,
+        "selectedProjectID": "434B80BD-BF2F-419E-BB24-0A0128D88258"
+      }
+    },
+    "saved-quit": {
+      "observedAt": "2026-10-24T05:43:49.571063+08:00",
+      "monotonicTime": 1175610.890424,
+      "serviceEpoch": "15AC489B-75E0-417C-B2E8-4959FF5C6264",
+      "terminal": {
+        "id": "716CC735-8C70-4144-916A-6394E21F2D51",
+        "pid": 51609,
+        "generation": "98314B78-92D8-4CAA-AB0A-F5406BA2249C",
+        "agent": {
+          "activity": "exited",
+          "confidence": "high",
+          "reason": "reported",
+          "ruleVersion": 2,
+          "updatedAt": 814484600.952717,
+          "source": "integration",
+          "instanceID": "2851C666-EB78-465B-97AD-CE81BE1D1BB8",
+          "lastResult": "completed",
+          "runID": "DEBAD2E3-C080-4F44-92D7-E1449C11D475",
+          "reportSequence": 9,
+          "context": {
+            "taskID": "cf33c59e-06b7-45f7-9d97-80bdeee0b38a",
+            "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1"
+          },
+          "kind": "willdeep"
+        }
+      },
+      "foregroundPID": 51609,
+      "attention": [
+        {
+          "instanceID": "2851C666-EB78-465B-97AD-CE81BE1D1BB8",
+          "id": "9D5205CF-C229-4DB2-BE2D-DC643E34C4E6",
+          "createdSequence": 9,
+          "isStale": false,
+          "runID": "DEBAD2E3-C080-4F44-92D7-E1449C11D475",
+          "kind": "completed",
+          "tabID": "716CC735-8C70-4144-916A-6394E21F2D51",
+          "createdAt": 814484579.964316,
+          "confidence": "high",
+          "context": {
+            "taskID": "cf33c59e-06b7-45f7-9d97-80bdeee0b38a",
+            "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1"
+          },
+          "version": 1,
+          "source": "integration"
+        }
+      ],
+      "qaPIDs": [],
+      "userQTermOriginalPIDAlive": true,
+      "projectLayout": {
+        "projects": [
+          {
+            "id": "434B80BD-BF2F-419E-BB24-0A0128D88258",
+            "name": "找回的后台终端",
+            "selectedTabID": "E4C0487D-C40C-47E6-884D-97D557259D54",
+            "tabs": [
+              {
+                "focusedTerminalID": "716CC735-8C70-4144-916A-6394E21F2D51",
+                "id": "E4C0487D-C40C-47E6-884D-97D557259D54",
+                "layout": {
+                  "terminal": {
+                    "_0": "716CC735-8C70-4144-916A-6394E21F2D51"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "schemaVersion": 1,
+        "selectedProjectID": "434B80BD-BF2F-419E-BB24-0A0128D88258"
+      }
+    },
+    "saved-restored": {
+      "observedAt": "2026-10-24T05:44:04.922843+08:00",
+      "monotonicTime": 1175626.242231,
+      "serviceEpoch": "15AC489B-75E0-417C-B2E8-4959FF5C6264",
+      "terminal": {
+        "id": "716CC735-8C70-4144-916A-6394E21F2D51",
+        "pid": 51609,
+        "generation": "98314B78-92D8-4CAA-AB0A-F5406BA2249C",
+        "agent": {
+          "lastResult": "completed",
+          "updatedAt": 814484600.952717,
+          "activity": "exited",
+          "kind": "willdeep",
+          "runID": "DEBAD2E3-C080-4F44-92D7-E1449C11D475",
+          "source": "integration",
+          "reason": "reported",
+          "confidence": "high",
+          "instanceID": "2851C666-EB78-465B-97AD-CE81BE1D1BB8",
+          "reportSequence": 9,
+          "ruleVersion": 2,
+          "context": {
+            "taskID": "cf33c59e-06b7-45f7-9d97-80bdeee0b38a",
+            "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1"
+          }
+        }
+      },
+      "foregroundPID": 51609,
+      "attention": [
+        {
+          "createdAt": 814484579.964316,
+          "confidence": "high",
+          "isStale": false,
+          "source": "integration",
+          "instanceID": "2851C666-EB78-465B-97AD-CE81BE1D1BB8",
+          "createdSequence": 9,
+          "version": 1,
+          "tabID": "716CC735-8C70-4144-916A-6394E21F2D51",
+          "runID": "DEBAD2E3-C080-4F44-92D7-E1449C11D475",
+          "id": "9D5205CF-C229-4DB2-BE2D-DC643E34C4E6",
+          "context": {
+            "taskID": "cf33c59e-06b7-45f7-9d97-80bdeee0b38a",
+            "sessionID": "93876B89-283A-4576-A5A5-8E4F020413A1"
+          },
+          "kind": "completed"
+        }
+      ],
+      "qaPIDs": [
+        52462
+      ],
+      "userQTermOriginalPIDAlive": true,
+      "projectLayout": {
+        "projects": [
+          {
+            "id": "434B80BD-BF2F-419E-BB24-0A0128D88258",
+            "name": "找回的后台终端",
+            "selectedTabID": "E4C0487D-C40C-47E6-884D-97D557259D54",
+            "tabs": [
+              {
+                "focusedTerminalID": "716CC735-8C70-4144-916A-6394E21F2D51",
+                "id": "E4C0487D-C40C-47E6-884D-97D557259D54",
+                "layout": {
+                  "terminal": {
+                    "_0": "716CC735-8C70-4144-916A-6394E21F2D51"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "schemaVersion": 1,
+        "selectedProjectID": "434B80BD-BF2F-419E-BB24-0A0128D88258"
+      }
+    }
+  },
+  "missingRecord": {
+    "record": "/private/tmp/qrt-ui-502-da555bf6db94d1c6263d/workspaces/E15101CF-F631-4D44-A0B1-5106CE442215.json",
+    "sha256": "70c40b380edbec6c7d3ef2f8337a32dc4ad1032b3ca6797538c347586e7a3453",
+    "workspaceID": "E15101CF-F631-4D44-A0B1-5106CE442215",
+    "terminalID": "716CC735-8C70-4144-916A-6394E21F2D51"
+  },
+  "discovery": {
+    "backendSessionCount": 1,
+    "uiTabCount": 1,
+    "totalAttention": [
+      {
+        "id": "82391881-62D2-4693-B9E8-1B63763B49A3",
+        "kind": "approval"
+      }
+    ],
+    "newWorkspaceID": "BDE21DA6-12FE-4342-B7D9-792C97A624CF",
+    "attachOnly": true
+  },
+  "confirmedQAAbsentSeconds": 46.35394399985671,
+  "originalRecordBackupPreserved": true,
+  "savedAttachOnlySurvivesSecondRelaunch": true,
+  "installedApplicationReplaced": false,
+  "remaining": [
+    "完整工具/事件路由",
+    "远端 SSH 认证及网络故障",
+    "正常后台入口",
+    "全部布局/多窗口联合验收"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "generatedAt": "2026-10-24T07:01:28+08:00",
+  "version": "1.251.0-rc12",
+  "passed": true,
+  "failure": null,
+  "checks": [
+    "osc_shell_and_dcs_terminators_are_not_bells",
+    "single_inbox_bell_batch_read_resolution_and_new_bell_identity",
+    "duplicate_input_ack_does_not_duplicate_reminders",
+    "updated_category_policy_applies_without_viewer",
+    "failure_error_evidence_low_information_filter_and_long_success_threshold",
+    "readonly_native_list_uses_same_terminal_and_agent_inbox",
+    "native_agent_bells_do_not_duplicate_semantic_approval",
+    "process_exit_generates_one_reminder_with_all_socket_clients_absent"
+  ],
+  "helperSHA256": "b2d0aa19fff91c3d739022c1ad536da2be074df5e4d1ded903d4ff070f887d61",
+  "scope": "真实 PTY 普通提醒、资格规则、后台去重及无查看端列表；不包含系统通知投递和完整 GUI"
+}

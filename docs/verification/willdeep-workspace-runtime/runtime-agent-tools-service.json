@@ -1,0 +1,18 @@
+{
+  "generatedAt": "2026-10-24T05:56:12+08:00",
+  "version": "1.251.0-rc8",
+  "build": 323,
+  "passed": true,
+  "failure": null,
+  "checks": [
+    "agent_tools_feature_negotiated_on_protocol_3",
+    "status_grant_never_authorizes_ui_or_input_socket",
+    "status_report_scoped_to_terminal_and_process_generation",
+    "binding_report_and_inbox_use_same_backend_monitor",
+    "disconnect_reconnect_queries_fresh_state_without_grant_leak",
+    "repeated_sequence_rejected_and_completion_unique",
+    "replacement_invalidates_old_grant_and_events_are_redacted"
+  ],
+  "helperSHA256": "cd6a0ce3264ae68f8fa192e9cf9ecf9fa343a7d1aea402e161a3b0c6cf2bdd79",
+  "scope": "实际 Socket/PTY 通用 Agent 操作契约，不代表独立 CLI/MCP 事件等待已完成"
+}

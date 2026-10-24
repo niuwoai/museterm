@@ -1,17 +1,17 @@
 import Foundation
 
-enum TerminalAgentKind: String, Codable { case claude, codex }
-enum TerminalAgentActivity: String, Codable { case unknown, working, idle, blocked, exited }
-enum TerminalAgentBlockReason: String, Codable { case approval, question, other }
-enum TerminalAgentResult: String, Codable { case completed, failed, interrupted, unknown }
-enum TerminalAgentSource: String, Codable { case integration, foregroundProcess, shellCommand }
-enum TerminalAgentConfidence: String, Codable { case high, medium, low }
-enum TerminalAgentReason: String, Codable {
+nonisolated enum TerminalAgentKind: String, Codable { case claude, codex, willdeep }
+nonisolated enum TerminalAgentActivity: String, Codable { case unknown, working, idle, blocked, exited }
+nonisolated enum TerminalAgentBlockReason: String, Codable { case approval, question, other }
+nonisolated enum TerminalAgentResult: String, Codable { case completed, failed, interrupted, unknown }
+nonisolated enum TerminalAgentSource: String, Codable { case integration, foregroundProcess, shellCommand }
+nonisolated enum TerminalAgentConfidence: String, Codable { case high, medium, low }
+nonisolated enum TerminalAgentReason: String, Codable {
     case bound, reported, launched, foregroundDetected, screenApproval, screenQuestion, screenWorking
     case unrecognizedScreen, expired, processExited, commandEnded, foregroundLost
 }
 
-struct TerminalAgentSnapshot: Codable, Equatable {
+nonisolated struct TerminalAgentSnapshot: Codable, Equatable {
     let instanceID: UUID
     let runID: UUID
     let kind: TerminalAgentKind
@@ -25,16 +25,30 @@ struct TerminalAgentSnapshot: Codable, Equatable {
     var expiresAt: Date?
     var reportSequence: UInt64
     let ruleVersion: Int
+    var context: TerminalAgentReportedContext? = nil
+}
+
+nonisolated struct TerminalAgentReportedContext: Codable, Equatable {
+    let sessionID: UUID
+    var taskID: String? = nil
+    var gateID: String? = nil
+
+    var isValid: Bool {
+        [taskID, gateID].allSatisfy { value in
+            value == nil || (!value!.isEmpty && value!.utf8.count <= 128
+                && value!.unicodeScalars.allSatisfy { CharacterSet.alphanumerics.contains($0) || "-_:./".unicodeScalars.contains($0) })
+        }
+    }
 }
 
 /// Returned only when an explicitly paired client binds a status reporter. Never in snapshots/events.
-struct TerminalAgentGrant: Codable {
+nonisolated struct TerminalAgentGrant: Codable {
     let instanceID: UUID
     let runID: UUID
     let token: String
 }
 
-struct TerminalAgentReport: Codable {
+nonisolated struct TerminalAgentReport: Codable {
     let instanceID: UUID
     let runID: UUID
     let token: String
@@ -42,14 +56,15 @@ struct TerminalAgentReport: Codable {
     let activity: TerminalAgentActivity
     var blockReason: TerminalAgentBlockReason? = nil
     var result: TerminalAgentResult? = nil
+    var context: TerminalAgentReportedContext? = nil
 }
 
-enum TerminalAgentReportError: String, Error {
+nonisolated enum TerminalAgentReportError: String, Error {
     case invalidCapability, staleSequence, invalidState, unavailable
 }
 
 /// Pure reducer: callers supply time. Silence never becomes success or idle.
-struct TerminalAgentMonitor {
+nonisolated struct TerminalAgentMonitor {
     static let reportLifetime: TimeInterval = 120
     static let observedLifetime: TimeInterval = 15
     private(set) var snapshot: TerminalAgentSnapshot?
@@ -78,11 +93,13 @@ struct TerminalAgentMonitor {
             throw TerminalAgentReportError.invalidCapability
         }
         guard report.sequence > current.reportSequence else { throw TerminalAgentReportError.staleSequence }
-        guard (report.activity == .blocked) == (report.blockReason != nil),
+        guard report.context?.isValid != false,
+              (report.activity == .blocked) == (report.blockReason != nil),
               report.result == nil || report.activity == .idle || report.activity == .exited else {
             throw TerminalAgentReportError.invalidState
         }
         current.activity = report.activity
+        current.context = report.context
         current.blockReason = report.blockReason
         if let result = report.result { current.lastResult = result }
         else if report.activity == .working { current.lastResult = nil }
@@ -176,13 +193,13 @@ struct TerminalAgentMonitor {
     }
 }
 
-struct TerminalAgentScreenDetection {
+nonisolated struct TerminalAgentScreenDetection {
     let activity: TerminalAgentActivity
     var blockReason: TerminalAgentBlockReason? = nil
     let reason: TerminalAgentReason
 }
 
-enum TerminalAgentScreenRules {
+nonisolated enum TerminalAgentScreenRules {
     static let version = 2
     static let maximumCharacters = 8_192
     static let maximumLines = 12
@@ -199,6 +216,9 @@ enum TerminalAgentScreenRules {
     }
 
     static func detect(kind: TerminalAgentKind, screen: String) -> TerminalAgentScreenDetection {
+        guard kind != .willdeep else {
+            return TerminalAgentScreenDetection(activity: .unknown, reason: .unrecognizedScreen)
+        }
         let lines = String(screen.suffix(maximumCharacters)).split(separator: "\n")
             .suffix(maximumLines).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
         // Require a visible, selected choice at the live bottom, not an isolated phrase in a log.
@@ -213,5 +233,16 @@ enum TerminalAgentScreenRules {
         // Question and work state remain unknown until an integration reports them. Broad text
         // matching ("thinking", "?", "done") is intentionally excluded.
         return TerminalAgentScreenDetection(activity: .unknown, reason: .unrecognizedScreen)
+    }
+}
+
+extension TerminalAgentSnapshot {
+    static func sameEvidence(_ lhs: Self?, _ rhs: Self?) -> Bool {
+        guard var lhs, let rhs else { return lhs == nil && rhs == nil }
+        // Heartbeats refresh freshness without flooding the semantic event log.
+        lhs.updatedAt = rhs.updatedAt
+        lhs.expiresAt = rhs.expiresAt
+        lhs.reportSequence = rhs.reportSequence
+        return lhs == rhs
     }
 }

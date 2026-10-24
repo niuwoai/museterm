@@ -1,44 +1,64 @@
 import Foundation
 
-enum TerminalShellIntegrationEvent: Equatable {
+nonisolated enum TerminalShellIntegrationEvent: Equatable {
     case commandStarted(String)
     case commandFinished(Int32)
     case shellDetected(String)
     case executionContext(TerminalShellReportedContext)
 }
 
-final class TerminalShellIntegrationParser {
-    private static let markerPrefix = "\u{1B}]777;MuseTerm;"
-    private static let bellTerminator: Character = "\u{7}"
-    private static let stringTerminator = "\u{1B}\\"
-    private static let maxBufferCharacters = 8_192
+nonisolated struct TerminalLocatedShellEvent: Equatable {
+    let event: TerminalShellIntegrationEvent
+    let startOffset: UInt64
+    let endOffset: UInt64
+}
 
-    private var buffer = ""
+final class TerminalShellIntegrationParser {
+    private static let markerPrefix = Data("\u{1B}]777;MuseTerm;".utf8)
+    private static let bellTerminator = Data([7])
+    private static let stringTerminator = Data([27, 92])
+    static let maximumRetainedBytes = 32_768
+    private var buffer = Data()
+    private var bufferOffset: UInt64 = 0
+    private var nextOffset: UInt64?
+    var retainedByteCount: Int { buffer.count }
 
     func accept(_ data: ArraySlice<UInt8>) -> [TerminalShellIntegrationEvent] {
-        guard !data.isEmpty else { return [] }
-        buffer.append(String(decoding: data, as: UTF8.self))
+        acceptLocated(data, at: nextOffset ?? 0).map(\.event)
+    }
 
-        var events: [TerminalShellIntegrationEvent] = []
+    func acceptLocated(_ data: ArraySlice<UInt8>, at offset: UInt64) -> [TerminalLocatedShellEvent] {
+        guard !data.isEmpty else { return [] }
+        let (end, overflow) = offset.addingReportingOverflow(UInt64(data.count))
+        guard !overflow else { buffer.removeAll(); nextOffset = nil; return [] }
+        if nextOffset != offset { buffer.removeAll(); bufferOffset = offset }
+        if buffer.isEmpty { bufferOffset = offset }
+        nextOffset = end
+        buffer.append(contentsOf: data)
+        var events: [TerminalLocatedShellEvent] = []
         while let prefixRange = buffer.range(of: Self.markerPrefix) {
             let payloadStart = prefixRange.upperBound
             guard let terminator = Self.terminatorRange(in: buffer, from: payloadStart) else {
-                if prefixRange.lowerBound != buffer.startIndex {
-                    buffer.removeSubrange(buffer.startIndex..<prefixRange.lowerBound)
-                }
-                trimBufferIfNeeded()
+                discard(prefixRange.lowerBound)
+                if buffer.count > Self.maximumRetainedBytes { discard(buffer.count - Self.maximumRetainedBytes) }
                 return events
             }
-
-            let payload = String(buffer[payloadStart..<terminator.range.lowerBound])
-            if let event = Self.event(from: payload) {
-                events.append(event)
+            let payload = buffer[payloadStart..<terminator.lowerBound]
+            if payload.count <= Self.maximumRetainedBytes,
+               let text = String(data: payload, encoding: .utf8), let event = Self.event(from: text) {
+                events.append(.init(event: event, startOffset: bufferOffset + UInt64(prefixRange.lowerBound),
+                    endOffset: bufferOffset + UInt64(terminator.upperBound)))
             }
-            buffer.removeSubrange(buffer.startIndex..<terminator.range.upperBound)
+            discard(terminator.upperBound)
         }
-
-        keepPossiblePrefixTail()
+        discard(max(0, buffer.count - (Self.markerPrefix.count - 1)))
         return events
+    }
+
+    private func discard(_ count: Int) {
+        guard count > 0 else { return }
+        buffer = Data(buffer.dropFirst(count))
+        bufferOffset += UInt64(count)
     }
 
     private static func event(from payload: String) -> TerminalShellIntegrationEvent? {
@@ -80,27 +100,11 @@ final class TerminalShellIntegrationParser {
         return nil
     }
 
-    private struct Terminator {
-        let range: Range<String.Index>
-    }
-
-    private static func terminatorRange(in buffer: String, from start: String.Index) -> Terminator? {
-        let searchRange = start..<buffer.endIndex
-        let bellRange = buffer[start...].firstIndex(of: bellTerminator).map {
-            $0..<buffer.index(after: $0)
-        }
-        let stRange = buffer.range(of: stringTerminator, range: searchRange)
-
-        switch (bellRange, stRange) {
-        case (.some(let bell), .some(let st)):
-            return Terminator(range: bell.lowerBound < st.lowerBound ? bell : st)
-        case (.some(let bell), .none):
-            return Terminator(range: bell)
-        case (.none, .some(let st)):
-            return Terminator(range: st)
-        case (.none, .none):
-            return nil
-        }
+    private static func terminatorRange(in buffer: Data, from start: Int) -> Range<Int>? {
+        let range = start..<buffer.count
+        let bell = buffer.range(of: bellTerminator, in: range)
+        let st = buffer.range(of: stringTerminator, in: range)
+        return [bell, st].compactMap { $0 }.min { $0.lowerBound < $1.lowerBound }
     }
 
     private static func command(fromHex hex: String) -> String? {
@@ -124,14 +128,4 @@ final class TerminalShellIntegrationParser {
         return String(bytes: bytes, encoding: .utf8)
     }
 
-    private func keepPossiblePrefixTail() {
-        let keepCount = Self.markerPrefix.count - 1
-        guard buffer.count > keepCount else { return }
-        buffer = String(buffer.suffix(keepCount))
-    }
-
-    private func trimBufferIfNeeded() {
-        guard buffer.count > Self.maxBufferCharacters else { return }
-        buffer = String(buffer.suffix(Self.maxBufferCharacters))
-    }
 }

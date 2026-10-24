@@ -267,6 +267,11 @@ enum LearnedCommandStore {
 
     static var directory: URL {
         if let directoryOverride { return directoryOverride }
+        #if DEBUG
+        if TerminalToolPaths.isIsolatedTesting {
+            return TerminalToolPaths.rootDirectory.appendingPathComponent("LearnedCommands", isDirectory: true)
+        }
+        #endif
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
         return base.appendingPathComponent("QTerm", isDirectory: true)

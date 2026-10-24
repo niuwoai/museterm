@@ -1,0 +1,60 @@
+{
+  "version": "1.251.0-rc14",
+  "app": "/private/tmp/qterm-native-qa-b27738969f69/QTermQA.app",
+  "startedAt": "2026-10-24T07:42:29+08:00",
+  "appPIDBefore": 3499,
+  "uiEpochBefore": "15F69FD5-F11A-40E6-8137-647F0989B63E",
+  "original": {
+    "id": "B4796ED9-6CE6-44AC-91BF-84BFA613F747",
+    "pid": 3513,
+    "generation": "D281C9D2-99D9-4A44-8B0E-AB14945DCEDD"
+  },
+  "sessionIDs": [
+    "B4796ED9-6CE6-44AC-91BF-84BFA613F747",
+    "ED5C4C1F-AD75-41F8-88CC-06BE8910C09A"
+  ],
+  "selectedBefore": "ED5C4C1F-AD75-41F8-88CC-06BE8910C09A",
+  "baseline": {
+    "generation": "D281C9D2-99D9-4A44-8B0E-AB14945DCEDD",
+    "offset": 1562
+  },
+  "helperSHA256": "ad9d719246ba4f8017e58b463678fbb2b718cb0a4d992660e24fc07c01339422",
+  "firstDuringOutput": {
+    "generation": "D281C9D2-99D9-4A44-8B0E-AB14945DCEDD",
+    "offset": 1601
+  },
+  "secondDuringOutput": {
+    "generation": "D281C9D2-99D9-4A44-8B0E-AB14945DCEDD",
+    "offset": 1644
+  },
+  "checkpointBeforeKill": {
+    "generation": "D281C9D2-99D9-4A44-8B0E-AB14945DCEDD",
+    "offset": 4202
+  },
+  "bellID": "6CEFB318-6C39-469A-94DE-150602BEEFE0",
+  "commandIDsBeforeKill": [
+    "5BF65552-B520-18D6-D290-0805DF14A0FD"
+  ],
+  "lastPhase": "cleanup",
+  "forcedKillVerified": true,
+  "offlineOffset": 4639,
+  "offlineCommandIDs": [
+    "3FB9E621-B4E7-CE59-8BE2-84DF8D7E852C"
+  ],
+  "appPIDAfter": 6337,
+  "uiEpochAfter": "4EDE56B8-ADBD-4C70-BFB8-072633F73E8D",
+  "selectedAfter": "ED5C4C1F-AD75-41F8-88CC-06BE8910C09A",
+  "liveCommandIDsAfter": [
+    "3FB9E621-B4E7-CE59-8BE2-84DF8D7E852C"
+  ],
+  "resumed": true,
+  "uiReadVerified": true,
+  "selectedAfterRead": "B4796ED9-6CE6-44AC-91BF-84BFA613F747",
+  "ownedServiceCleanupVerified": true,
+  "scope": "真实隔离 QTerm GUI、实际强制结束 UI 后重新打开、原 zsh PTY/普通提醒；不是 WillDeep 审批强制结束联合场景",
+  "uiObservations": [
+    "强制结束前待处理 1，原终端未读且另一个终端被选中",
+    "重开后仍待处理 1，弹窗显示同一响铃已合并 2 次",
+    "点击同一事项跳回原终端后待处理 0、空列表、未读标记清除"
+  ]
+}

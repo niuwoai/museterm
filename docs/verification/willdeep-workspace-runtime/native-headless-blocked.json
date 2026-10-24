@@ -1,0 +1,43 @@
+{
+  "generatedAt": "2026-10-23T23:47:46+08:00",
+  "mode": "headless-blocked",
+  "passed": true,
+  "failure": null,
+  "scope": "实际 WillDeep TUI/Runtime + PTY；本机模型与状态桥夹具；不等同 QTerm UI 联调或后台保活验收",
+  "fixtureDirectory": null,
+  "binarySHA256": "ce8adf707cd3832e83c03c251cdbd528736e20302633028bd027532471297cb8",
+  "modelRequests": 1,
+  "frontendExitStatus": 4,
+  "lostAcknowledgementRetried": true,
+  "states": [
+    {
+      "sequence": 1,
+      "activity": "working",
+      "context": {
+        "sessionID": "0a81ed62-959e-49a3-8b61-2d0f971b7543"
+      },
+      "observedAt": 1154245.628843
+    },
+    {
+      "sequence": 2,
+      "activity": "working",
+      "context": {
+        "sessionID": "0a81ed62-959e-49a3-8b61-2d0f971b7543",
+        "taskID": "f30d6223-8736-464a-94d5-73d9c134179a"
+      },
+      "observedAt": 1154245.80281
+    },
+    {
+      "sequence": 3,
+      "activity": "blocked",
+      "blockReason": "approval",
+      "context": {
+        "gateID": "a27e43ae-8a25-4a04-9b3c-3663c3b58982",
+        "sessionID": "0a81ed62-959e-49a3-8b61-2d0f971b7543",
+        "taskID": "f30d6223-8736-464a-94d5-73d9c134179a"
+      },
+      "observedAt": 1154246.016025
+    }
+  ],
+  "fixtureErrors": []
+}

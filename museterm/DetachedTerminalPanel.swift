@@ -101,7 +101,7 @@ final class DetachedTerminalPanelWindow: NSWindow {
 @MainActor
 final class DetachedTerminalPanelController: NSObject, NSWindowDelegate {
     private let session: TerminalSession
-    weak var workspace: TerminalWorkspace?
+    let workspace: TerminalWorkspace?
     private let preferences: TerminalPreferences
     private weak var manager: DetachedTerminalPanelManager?
 
@@ -247,7 +247,8 @@ final class DetachedTerminalPanelController: NSObject, NSWindowDelegate {
         window?.delegate = nil
         window = nil
         manager?.forget(session.id)
-        session.terminate()
+        if TerminalWindowCloseState.isAppTerminating { session.detachForApplicationExit() }
+        else { session.terminate() }
     }
 }
 
@@ -309,10 +310,13 @@ private struct DetachedPanelContentView: View {
             DetachedGlassBackground(opacity: preferences.glassOpacity)
 
             TerminalHostView(session: session, preferences: preferences, isActive: true)
+                .padding(.top, 30)
 
             TerminalAIControlMask(tab: session, skin: preferences.skin)
+            TerminalRuntimeIssueView(session: session)
 
-            // 顶部拖拽条（始终存在，透明），悬停时叠加控制按钮。
+            // Reserve a header so controls never cover terminal text. Keep them
+            // discoverable even when embedded AppKit views absorb hover events.
             topChrome
         }
         .onHover { hovering in
@@ -330,9 +334,8 @@ private struct DetachedPanelContentView: View {
             controlButtons
                 .padding(.top, 6)
                 .padding(.trailing, 8)
-                .opacity(chrome.isHovering ? 1 : 0)
+                .opacity(chrome.isHovering ? 1 : 0.75)
                 .animation(.easeInOut(duration: 0.15), value: chrome.isHovering)
-                .allowsHitTesting(chrome.isHovering)
         }
         .frame(maxWidth: .infinity, alignment: .top)
     }
@@ -370,6 +373,8 @@ private struct DetachedPanelContentView: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(.secondary)
+        .accessibilityLabel(Text(help))
+        .accessibilityIdentifier("detached-panel-\(systemName)")
         .help(help)
     }
 }

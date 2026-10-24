@@ -126,19 +126,6 @@ enum TerminalCommandBoundaryReason: String, Codable, Equatable {
     }
 }
 
-enum TerminalCommandLifecycleState: String, Codable, Equatable {
-    case running
-    case succeeded
-    case failed
-    case interrupted
-    case superseded
-    case completedUnknownStatus = "completed_unknown_status"
-
-    var contextLabel: String {
-        rawValue
-    }
-}
-
 struct TerminalCommandBlock: Codable, Equatable, Identifiable {
     var id: UUID
     var command: String
@@ -304,7 +291,7 @@ final class TerminalSession: ObservableObject, Identifiable {
         case exited(Int32?)
     }
 
-    let id = UUID()
+    let id: UUID
     let sequence: Int
     let createdAt = Date()
     let launchConfiguration: TerminalLaunchConfiguration
@@ -315,7 +302,7 @@ final class TerminalSession: ObservableObject, Identifiable {
     @Published var state: State = .running {
         didSet {
             if case .exited = state {
-                updateAgent { $0.exit(now: Date()) }
+                if !runtimeOwnsAgent { updateAgent { $0.exit(now: Date()) } }
                 if case .running = oldValue { eventStore?.publish(tabID: id, kind: .processExited) }
             }
         }
@@ -329,6 +316,41 @@ final class TerminalSession: ObservableObject, Identifiable {
     @Published private(set) var hasUnreadAttention = false
     private(set) var processRunID = UUID()
     weak var attentionStore: TerminalAttentionStore?
+    let nativeAgentContext = TerminalNativeAgentContext()
+    @Published private(set) var runtimeInfo: TerminalRuntimeSessionInfo?
+    @Published var runtimeConnectionIssue: TerminalRuntimePresentationIssue?
+    private(set) var runtimeOwnsAgent = false
+    var runtimeOwnsTerminalAttention = false
+    var runtimeGenerationToRestore: UUID?
+    var runtimeAttachOnly = false
+    var runtimeRecoveryRoot: URL?
+    var runtimeRenderedCursorToRestore: TerminalRuntimeOutputCursor?
+    var runtimeRenderedCursor: TerminalRuntimeOutputCursor? {
+        (didCreateController ? controller.runtimeHandle?.renderedCursor : nil) ?? runtimeRenderedCursorToRestore
+    }
+    var runtimeRequiresExisting = false
+    var onRuntimeIdentityChanged: (() -> Void)?
+    var onRuntimeOutputRendered: (() -> Void)?
+
+    func applyRuntimeInfo(_ info: TerminalRuntimeSessionInfo) {
+        guard info.id == id else { return }
+        let identityChanged = runtimeInfo?.generation != info.generation
+        if runtimeRenderedCursorToRestore?.generation != info.generation { runtimeRenderedCursorToRestore = nil }
+        runtimeGenerationToRestore = info.generation
+        runtimeInfo = info
+        processRunID = info.generation
+        applyRuntimeControl(info)
+        if identityChanged { onRuntimeIdentityChanged?() }
+        if info.agent != nil || runtimeOwnsAgent {
+            runtimeOwnsAgent = true
+            let previous = agentStatus
+            agentStatus = info.agent
+            if !TerminalAgentSnapshot.sameEvidence(previous, info.agent) {
+                eventStore?.publish(tabID: id, kind: .agentChanged, agent: info.agent)
+            }
+        }
+    }
+    var onPaneFocus: (() -> Void)?
     @Published private(set) var executionContext: TerminalExecutionContext
     @Published private(set) var aiLease: TerminalAILease?
     @Published private(set) var agentStatus: TerminalAgentSnapshot?
@@ -362,6 +384,7 @@ final class TerminalSession: ObservableObject, Identifiable {
     private(set) var aiRequiresTakeover = false
 
     func takeAIControl(owner: String, now: Date = Date(), archiveDirectory: URL = TerminalAIArchive.directory) throws {
+        guard runtimeInfo == nil, !didCreateController || controller.runtimeHandle == nil else { throw TerminalAIControlError.busy }
         expireAIControlIfNeeded(now: now)
         guard aiLease == nil || aiLease?.owner == owner else {
             throw TerminalAIControlError.owned
@@ -377,18 +400,24 @@ final class TerminalSession: ObservableObject, Identifiable {
     }
 
     func renewAIControl(owner: String, now: Date = Date()) throws {
+        guard runtimeInfo == nil, !didCreateController || controller.runtimeHandle == nil else { throw TerminalAIControlError.busy }
         expireAIControlIfNeeded(now: now)
         guard aiLease?.owner == owner else { throw TerminalAIControlError.retake }
         aiLease?.expiresAt = now.addingTimeInterval(TerminalAILease.duration)
         scheduleAIExpiry()
     }
 
-    func authorizeAIInput(owner: String?) throws {
+    func authorizeAIInput(owner: String?, archiveDirectory: URL = TerminalAIArchive.directory) throws {
         expireAIControlIfNeeded()
         if let aiLease {
             guard aiLease.owner == owner else { throw TerminalAIControlError.owned }
         } else if aiRequiresTakeover {
             throw TerminalAIControlError.retake
+        }
+        if runtimeInfo != nil, aiLease != nil, aiArchive == nil {
+            let archive = try TerminalAIArchive(tabID: id, directory: archiveDirectory)
+            try archive.event("viewer_reattached")
+            aiArchive = archive
         }
     }
 
@@ -397,6 +426,17 @@ final class TerminalSession: ObservableObject, Identifiable {
     }
 
     func releaseAIControl(reason: String) {
+        if runtimeInfo != nil, didCreateController, controller.runtimeHandle != nil,
+           !["terminal_closed", "process_exited", "tab_closed"].contains(reason) {
+            changeAIControl(action: .releaseControl, owner: nil) { [weak self] result in
+                if case .failure = result { self?.runtimeConnectionIssue = .inputRejected }
+            }
+            return
+        }
+        finishAIControl(reason: reason)
+    }
+
+    private func finishAIControl(reason: String) {
         let hadLease = aiLease != nil
         aiExpiryTask?.cancel()
         aiExpiryTask = nil
@@ -412,7 +452,51 @@ final class TerminalSession: ObservableObject, Identifiable {
     }
 
     func expireAIControlIfNeeded(now: Date = Date()) {
+        guard runtimeInfo == nil else { return } // The service owns lease expiry.
         if let aiLease, now >= aiLease.expiresAt { releaseAIControl(reason: "lease_expired") }
+    }
+
+    private func applyRuntimeControl(_ info: TerminalRuntimeSessionInfo) {
+        aiExpiryTask?.cancel(); aiExpiryTask = nil
+        if let owner = info.controlOwner, let expiresAt = info.controlExpiresAt {
+            let previousOwner = aiLease?.owner
+            aiLease = TerminalAILease(owner: owner, expiresAt: expiresAt)
+            aiRequiresTakeover = true
+            if previousOwner != owner { eventStore?.publish(tabID: id, kind: .controlChanged) }
+        } else if aiLease != nil {
+            finishAIControl(reason: "backend_released")
+        }
+    }
+
+    func changeAIControl(action: TerminalRuntimeAction, owner: String?,
+                         archiveDirectory: URL = TerminalAIArchive.directory,
+                         completion: @escaping (Result<Void, Error>) -> Void) {
+        do {
+            guard [.acquireControl, .renewControl, .releaseControl].contains(action) else { throw TerminalAIControlError.inputRejected }
+            guard let runtimeInfo else {
+                guard !didCreateController || controller.runtimeHandle == nil else { throw TerminalToolError.processUnavailable }
+                if action == .acquireControl, let owner { try takeAIControl(owner: owner, archiveDirectory: archiveDirectory) }
+                else if action == .renewControl, let owner { try renewAIControl(owner: owner) }
+                else if action == .releaseControl { releaseAIControl(reason: "released") }
+                else { throw TerminalAIControlError.retake }
+                completion(.success(())); return
+            }
+            guard didCreateController, let handle = controller.runtimeHandle, handle.connected, runtimeInfo.running else {
+                throw TerminalToolError.processUnavailable
+            }
+            guard !isPlayingShortcut, sessionTunnelStatus?.occupiesTerminal != true,
+                  fileTransferStatus?.isActive != true else { throw TerminalAIControlError.busy }
+            let archive = action == .acquireControl && aiArchive == nil
+                ? try TerminalAIArchive(tabID: id, directory: archiveDirectory) : nil
+            handle.control(action, owner: owner) { [weak self] result in
+                switch result {
+                case .success:
+                    if let archive { self?.aiArchive = archive }
+                    completion(.success(()))
+                case .failure(let error): completion(.failure(error))
+                }
+            }
+        } catch { completion(.failure(error)) }
     }
 
     private func scheduleAIExpiry() {
@@ -441,7 +525,8 @@ final class TerminalSession: ObservableObject, Identifiable {
     weak var attentionReporter: TerminalAttentionReporting?
     var commandCompletionHandler: ((TerminalSession, TerminalCommandBlock) -> Void)?
 
-    init(sequence: Int, launchConfiguration: TerminalLaunchConfiguration = .localShell()) {
+    init(sequence: Int, launchConfiguration: TerminalLaunchConfiguration = .localShell(), id: UUID = UUID()) {
+        self.id = id
         self.sequence = sequence
         self.launchConfiguration = launchConfiguration
         title = launchConfiguration.connectionLabel ?? L10n.format("tab.default_title", sequence)
@@ -515,11 +600,20 @@ final class TerminalSession: ObservableObject, Identifiable {
     func terminate() {
         guard !sessionWasClosed else { return }
         sessionWasClosed = true
+        nativeAgentContext.invalidate()
         updateAgent { $0.exit(now: Date(), close: true) }
         releaseAIControl(reason: "tab_closed")
         cancelRecording()
         controller.terminate()
         onSessionClosed?(id)
+    }
+
+    func detachForApplicationExit() {
+        cancelRecording()
+        do { try aiArchive?.flush(); try aiArchive?.event("viewer_detached") }
+        catch { NSLog("QTerm could not flush detached input archive") }
+        guard didCreateController else { return }
+        controller.terminate(preservingRuntime: true)
     }
 
     var hasRunningProcess: Bool {
@@ -607,11 +701,12 @@ final class TerminalSession: ObservableObject, Identifiable {
         }
     }
 
-    func startShellIntegratedCommand(command: String, historySnapshot: String) {
+    func startShellIntegratedCommand(command: String, historySnapshot: String, commandID: UUID? = nil) {
         startCommand(
             command: command,
             startSource: .shellIntegration,
-            historySnapshot: historySnapshot
+            historySnapshot: historySnapshot,
+            commandID: commandID
         )
     }
 
@@ -959,7 +1054,8 @@ final class TerminalSession: ObservableObject, Identifiable {
     private func startCommand(
         command: String,
         startSource: TerminalCommandStartSource,
-        historySnapshot: String
+        historySnapshot: String,
+        commandID: UUID? = nil
     ) {
         let cleanCommand = command.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanCommand.isEmpty else { return }
@@ -971,6 +1067,11 @@ final class TerminalSession: ObservableObject, Identifiable {
                normalizedCommand(commandBlocks[index].command) == normalizedCommand(cleanCommand) {
                 commandBlocks[index].command = String(cleanCommand.prefix(4_000))
                 commandBlocks[index].commandStartSource = .shellIntegration
+                if let commandID, commandBlocks[index].id != commandID {
+                    commandBlocks[index].id = commandID
+                    activeCommandBlockID = commandID
+                    eventStore?.publish(tabID: id, kind: .commandStarted, commandID: commandID, commandState: .running)
+                }
                 activeCommandOutputStartIndex = historySnapshot.count
                 pendingCommandBytes.removeAll(keepingCapacity: true)
                 observeAgentLaunch(command: cleanCommand, runID: commandBlocks[index].id)
@@ -985,7 +1086,7 @@ final class TerminalSession: ObservableObject, Identifiable {
         }
 
         let block = TerminalCommandBlock(
-            id: UUID(),
+            id: commandID ?? UUID(),
             command: String(cleanCommand.prefix(4_000)),
             workingDirectory: currentDirectory,
             startedAt: Date(),
@@ -1201,12 +1302,29 @@ enum TerminalContextExecutionError: LocalizedError {
 }
 
 final class TerminalWorkspace: ObservableObject {
+    let runtimeWorkspaceID: UUID
+    var onRuntimePersistenceNeeded: (() -> Void)?
+    var onRuntimeOutputRendered: (() -> Void)?
+    var onRuntimeRecordRemovalNeeded: (() -> Void)?
+    var pendingRestoredDetachedIDs: [UUID] = []
+    @Published var runtimeRecoveryIssue = false
+    @Published var runtimeDiscoveryInProgress = false
     let sessionRegistry = TerminalSessionRegistry()
+    private(set) var projectLayoutRevision: UInt64 = 0
+    @Published var projectLayout = TerminalProjectLayout() {
+        didSet {
+            if oldValue != projectLayout { projectLayoutRevision += 1; onRuntimePersistenceNeeded?() }
+        }
+    }
+    private var projectEventObservation: UUID?
     var suppressAttentionAutoRead = false
-    @Published private(set) var tabs: [TerminalSession] = []
+    @Published private(set) var tabs: [TerminalSession] = [] {
+        didSet { reconcileProjectLayout() }
+    }
     @Published var selectedID: TerminalSession.ID? {
         didSet {
             guard oldValue != selectedID else { return }
+            if let selectedID { selectProjectTerminal(selectedID) }
             // 切换选中标签 → 新标签的继承目录变化，按新目录重排预热会话。
             refreshPrewarmIfStale()
             if let selectedID, !suppressAttentionAutoRead { sessionRegistry.attention.markViewed(tabID: selectedID) }
@@ -1271,8 +1389,14 @@ final class TerminalWorkspace: ObservableObject {
     init(
         automaticallyStartProcesses: Bool = true,
         tabCloseConfirmer: TerminalTabCloseConfirming = SystemTerminalTabCloseConfirmer(),
-        profileStore: TerminalProfileStore? = .shared
+        profileStore: TerminalProfileStore? = .shared,
+        restoringRuntimeRecord: TerminalRuntimeWorkspaceRecord? = nil,
+        deferInitialTab: Bool = false
     ) {
+        let recovery = restoringRuntimeRecord.flatMap { record -> TerminalRuntimeWorkspaceRecord? in
+            do { try record.validate(); return record } catch { return nil }
+        }
+        runtimeWorkspaceID = recovery?.workspaceID ?? UUID()
         let loadedLearnedCommands = LearnedCommandStore.load()
         learnedCommandIndex = LearnedCommandIndex(records: loadedLearnedCommands)
         learnedCommands = learnedCommandIndex.records
@@ -1290,17 +1414,29 @@ final class TerminalWorkspace: ObservableObject {
         // 只能回落系统登录 shell（zsh），而 ContentView 的 onAppear 注入来得太晚。
         // 默认取共享单例（与 ContentView 注入的是同一实例）；测试可显式传 nil。
         self.profileStore = profileStore
-        newTab()
+        projectEventObservation = sessionRegistry.events.observe { [weak self] event in
+            if [.closed, .locationChanged].contains(event.kind) { self?.reconcileProjectLayout() }
+            if event.kind == .closed, self?.sessionRegistry.sessions.isEmpty == true { self?.onRuntimeRecordRemovalNeeded?() }
+            if [.agentChanged, .attentionCreated, .attentionUpdated, .attentionResolved].contains(event.kind) {
+                self?.objectWillChange.send()
+            }
+        }
+        if let recovery { installRuntimeRecord(recovery) }
+        else {
+            runtimeRecoveryIssue = restoringRuntimeRecord != nil
+            if !deferInitialTab { newTab() }
+        }
     }
 
     deinit {
+        if let projectEventObservation { sessionRegistry.events.removeObserver(projectEventObservation) }
         flushPendingQuickPathSave()
         flushPendingLearnedCommandSave()
         preparedTab?.terminate()
     }
 
     var selectedTab: TerminalSession? {
-        guard let selectedID else { return tabs.first }
+        guard let selectedID else { return nil }
         return tabs.first { $0.id == selectedID } ?? tabs.first
     }
 
@@ -1382,13 +1518,19 @@ final class TerminalWorkspace: ObservableObject {
     }
 
     func saveSnapshot() throws {
-        let snapshotTabs = tabs.map { tab -> TerminalWorkspaceSnapshot.Tab in
+        guard !sessionRegistry.sessions.values.contains(where: \.runtimeAttachOnly) else {
+            throw TerminalWorkspaceSnapshotError.unsupportedTab
+        }
+        let snapshotTabs = sessionRegistry.sessions.values.sorted { $0.sequence < $1.sequence }.map { tab -> TerminalWorkspaceSnapshot.Tab in
+            var saved: TerminalWorkspaceSnapshot.Tab
             switch tab.launchConfiguration {
             case .localShell(let startDirectory, let profile):
-                return .local(directory: tab.currentDirectory ?? startDirectory, profile: profile)
+                saved = .local(directory: tab.currentDirectory ?? startDirectory, profile: profile)
             case .ssh(let profile):
-                return .ssh(profile: profile)
+                saved = .ssh(profile: profile)
             }
+            saved.terminalID = tab.id
+            return saved
         }
 
         guard !snapshotTabs.isEmpty else {
@@ -1401,9 +1543,110 @@ final class TerminalWorkspace: ObservableObject {
 
         let snapshot = TerminalWorkspaceSnapshot(
             selectedIndex: min(max(selectedIndex, 0), snapshotTabs.count - 1),
-            tabs: snapshotTabs
+            tabs: snapshotTabs, projectLayout: projectLayout
         )
         try TerminalWorkspaceSnapshotStore.save(snapshot)
+    }
+
+    func runtimeWorkspaceRecord() throws -> TerminalRuntimeWorkspaceRecord {
+        let sessions = sessionRegistry.sessions.values.sorted { $0.sequence < $1.sequence }
+        let saved = sessions.map { session -> TerminalWorkspaceSnapshot.Tab in
+            var tab: TerminalWorkspaceSnapshot.Tab
+            switch session.launchConfiguration {
+            case .localShell(let directory, let profile):
+                var reference = profile
+                reference?.environment = [:]
+                reference?.startupCommands = []
+                reference?.customPrompt = ""
+                tab = .local(directory: session.currentDirectory ?? directory, profile: reference)
+            case .ssh(var profile):
+                profile.extraOptions = []
+                profile.startupCommands = []
+                tab = .ssh(profile: profile)
+            }
+            tab.terminalID = session.id
+            tab.runtimeGeneration = session.runtimeInfo?.generation ?? session.runtimeGenerationToRestore
+            tab.runtimeRequiresExisting = session.runtimeRequiresExisting || tab.runtimeGeneration != nil
+            tab.runtimeRenderedCursor = session.runtimeRenderedCursor
+            tab.runtimeAttachOnly = session.runtimeAttachOnly ? true : nil
+            return tab
+        }
+        let selected = selectedID.flatMap { id in sessions.firstIndex { $0.id == id } } ?? 0
+        let snapshot = TerminalWorkspaceSnapshot(selectedIndex: selected, tabs: saved, projectLayout: projectLayout)
+        let record = TerminalRuntimeWorkspaceRecord(workspaceID: runtimeWorkspaceID, snapshot: snapshot,
+            detachedIDs: Set(sessionRegistry.locations.filter { $0.value == .detached }.map(\.key) + pendingRestoredDetachedIDs)
+                .sorted { $0.uuidString < $1.uuidString })
+        try record.validate()
+        return record
+    }
+
+    private func installRuntimeRecord(_ record: TerminalRuntimeWorkspaceRecord) {
+        let ids = record.snapshot.tabs.compactMap(\.terminalID)
+        guard let layout = try? record.snapshot.restoredProjectLayout(terminalIDs: ids, defaultName: L10n.string("project.default")) else { return }
+        let sshProfiles = SSHConnectionStore().profiles
+        let restored = zip(record.snapshot.tabs, ids).map { saved, id -> TerminalSession in
+            let configuration: TerminalLaunchConfiguration
+            var missingProfile = false
+            if let profile = saved.sshProfile, saved.kind == .ssh {
+                let current = sshProfiles.first { $0.id == profile.id }
+                missingProfile = current == nil
+                configuration = .ssh((current ?? profile).normalized)
+            } else {
+                let current = saved.localProfile.flatMap { profileStore?.profile(id: $0.id) }
+                missingProfile = saved.localProfile != nil && current == nil
+                configuration = .localShell(startDirectory: saved.localDirectory, profile: (current ?? saved.localProfile)?.normalized)
+            }
+            let session = makeTab(launchConfiguration: configuration, id: id)
+            session.runtimeGenerationToRestore = saved.runtimeGeneration
+            session.runtimeRenderedCursorToRestore = saved.runtimeRenderedCursor
+            session.runtimeAttachOnly = saved.runtimeAttachOnly == true
+            if session.runtimeAttachOnly { session.title = L10n.string("runtime.recovered_terminal") }
+            session.runtimeRequiresExisting = saved.runtimeRequiresExisting == true || saved.runtimeGeneration != nil || missingProfile
+            return session
+        }
+        tabs = restored
+        projectLayout = layout
+        restored.forEach { sessionRegistry.register($0); trackQuickPaths(for: $0) }
+        pendingRestoredDetachedIDs = record.detachedIDs
+        selectedID = layout.focusedTerminalID ?? restored.first?.id
+    }
+
+    /// Lost layout/configuration cannot be reconstructed from a PTY PID. Keep
+    /// these terminals attach-only rather than guessing a local/SSH profile.
+    func adoptRuntimeOrphans(_ infos: [TerminalRuntimeSessionInfo], root: URL) throws {
+        let available = infos.filter { sessionRegistry.sessions[$0.id] == nil }
+        guard !available.isEmpty else { return }
+        var layout = projectLayout
+        let project = try layout.addProject(name: L10n.string("runtime.recovered_project"))
+        let recovered = available.map { info -> TerminalSession in
+            let session = makeTab(launchConfiguration: .localShell(startDirectory: nil), id: info.id)
+            session.runtimeRequiresExisting = true
+            session.runtimeGenerationToRestore = info.generation
+            session.runtimeRenderedCursorToRestore = .init(generation: info.generation, offset: info.outputOffset)
+            session.runtimeAttachOnly = true
+            session.runtimeRecoveryRoot = root
+            session.title = L10n.string("runtime.recovered_terminal")
+            return session
+        }
+        for session in recovered { try layout.addTab(terminal: session.id, projectID: project) }
+        let wasEmpty = tabs.isEmpty
+        if !wasEmpty { layout.selectedProjectID = projectLayout.selectedProjectID }
+        recovered.forEach { sessionRegistry.register($0) }
+        tabs.append(contentsOf: recovered)
+        projectLayout = layout
+        if wasEmpty { selectedID = recovered.first?.id }
+        onRuntimePersistenceNeeded?()
+        if automaticallyStartProcesses {
+            recovered.forEach { session in DispatchQueue.main.async { session.startProcessIfNeeded() } }
+        }
+    }
+
+    func detachRuntimeForApplicationExit() {
+        prewarmRearmWorkItem?.cancel()
+        preparedTab?.terminate()
+        preparedTab = nil
+        isPreparingNextTab = false
+        for session in sessionRegistry.sessions.values { session.detachForApplicationExit() }
     }
 
     func restoreSnapshot() throws {
@@ -1432,6 +1675,8 @@ final class TerminalWorkspace: ObservableObject {
             }
         }
 
+        let restoredLayout = try snapshot.restoredProjectLayout(terminalIDs: restoredTabs.map(\.id), defaultName: L10n.string("project.default"))
+
         preparedTab?.terminate()
         preparedTab = nil
         preparedTabWarmDirectory = nil
@@ -1442,12 +1687,13 @@ final class TerminalWorkspace: ObservableObject {
         quickPathCancellables.removeAll()
         lastRecordedQuickPathByTab.removeAll()
         tabs = restoredTabs
+        projectLayout = restoredLayout
         tabs.forEach { sessionRegistry.register($0) }
         tabs.forEach { $0.attentionReporter = attentionReporter }
         tabs.forEach(trackQuickPaths)
 
         let selectedIndex = min(max(snapshot.selectedIndex, 0), tabs.count - 1)
-        selectedID = tabs[selectedIndex].id
+        selectedID = restoredLayout.focusedTerminalID ?? tabs[selectedIndex].id
         tabs[selectedIndex].clearUnreadAttention()
 
         if automaticallyStartProcesses {
@@ -1530,7 +1776,7 @@ final class TerminalWorkspace: ObservableObject {
 
     func select(_ tab: TerminalSession) {
         selectedID = tab.id
-        tab.clearUnreadAttention()
+        if !suppressAttentionAutoRead { tab.clearUnreadAttention() }
     }
 
     func selectNextTab() {
@@ -1574,9 +1820,8 @@ final class TerminalWorkspace: ObservableObject {
         }
 
         if selectedID == tab.id {
-            let fallbackIndex = min(index, tabs.count - 1)
-            selectedID = tabs[fallbackIndex].id
-            tabs[fallbackIndex].clearUnreadAttention()
+            selectedID = projectLayout.focusedTerminalID ?? tabs[min(index, tabs.count - 1)].id
+            if !suppressAttentionAutoRead { selectedTab?.clearUnreadAttention() }
         }
 
         return true
@@ -1592,8 +1837,8 @@ final class TerminalWorkspace: ObservableObject {
         isClosingTab = true
         defer { isClosingTab = false }
 
-        tabs.remove(at: index)
         sessionRegistry.move(tab.id, to: .detached)
+        tabs.remove(at: index)
         quickPathCancellables[tab.id] = nil
         lastRecordedQuickPathByTab[tab.id] = nil
 
@@ -1872,8 +2117,10 @@ final class TerminalWorkspace: ObservableObject {
         return preparedTab
     }
 
-    private func makeTab(launchConfiguration: TerminalLaunchConfiguration = .localShell()) -> TerminalSession {
-        let tab = TerminalSession(sequence: nextSequence, launchConfiguration: launchConfiguration)
+    private func makeTab(launchConfiguration: TerminalLaunchConfiguration = .localShell(), id: UUID = UUID()) -> TerminalSession {
+        let tab = TerminalSession(sequence: nextSequence, launchConfiguration: launchConfiguration, id: id)
+        tab.onRuntimeIdentityChanged = { [weak self] in self?.onRuntimePersistenceNeeded?() }
+        tab.onRuntimeOutputRendered = { [weak self] in self?.onRuntimeOutputRendered?() }
         tab.attentionReporter = attentionReporter
         tab.commandCompletionHandler = { [weak self] session, block in
             self?.observeCompletedCommand(block, in: session)
@@ -1935,7 +2182,7 @@ final class TerminalWorkspace: ObservableObject {
     }
 
     private func schedulePrepareNextTab() {
-        guard automaticallyStartProcesses else { return }
+        guard automaticallyStartProcesses, !TerminalRuntimeService.isEnabled else { return }
         guard preparedTab == nil, !isPreparingNextTab else { return }
         isPreparingNextTab = true
 
@@ -1946,7 +2193,7 @@ final class TerminalWorkspace: ObservableObject {
 
     private func prepareNextTab() {
         defer { isPreparingNextTab = false }
-        guard preparedTab == nil else { return }
+        guard preparedTab == nil, !TerminalRuntimeService.isEnabled else { return }
 
         // 预热跟随默认 Profile：默认是 fish 就预热 fish、是系统默认就预热登录 shell，
         // 让「点 + / 快捷键开默认标签」这条最高频路径无论用哪种 shell 都能秒开。

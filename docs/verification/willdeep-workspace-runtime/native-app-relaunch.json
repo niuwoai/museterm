@@ -1,0 +1,15 @@
+{
+  "title": "隔离原生 App 退出重开与分屏身份复验",
+  "passed": true,
+  "checks": {
+    "normalQuitReopenedSamePTYs": true,
+    "sameProjectSplitLayout": true,
+    "newUIReusedServiceEpoch": true,
+    "newUIReusedFourPTYs": true,
+    "newUIReusedLayout": true,
+    "sameDetachedIdentity": true,
+    "actualSplitChildPWD": true
+  },
+  "scope": "原生 Computer Use 操作隔离 QA；非 XCTest UI runner；非已安装应用",
+  "residentHelperSHA256": "9e3fd97f85458fc2230162a39ac0a0fef7f0ad3ee8057c54c001ec1d0f899500"
+}

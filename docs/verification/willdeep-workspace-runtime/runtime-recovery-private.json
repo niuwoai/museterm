@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-10-24T01:59:04+08:00",
+  "scope": "最新恢复记录与真实窗口专项：同 PID 恢复、不重放启动输入、缺失会话不新建、保存失败保持输入、私有文件、脱敏、多窗口领取与悬浮项目归属；不是完整 App 退出重开 UI 验收",
+  "resultBundle": "/private/tmp/qterm-runtime-recovery-private-01.xcresult",
+  "passed": true,
+  "passedTests": 20,
+  "failedTests": 0,
+  "skippedTests": 0,
+  "failures": []
+}

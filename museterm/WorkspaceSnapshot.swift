@@ -1,21 +1,5 @@
 import Foundation
 
-enum TerminalWorkingDirectory {
-    static func normalizedExistingDirectory(_ directory: String?) -> String? {
-        guard let directory = directory?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !directory.isEmpty else {
-            return nil
-        }
-
-        let expanded = (directory as NSString).expandingTildeInPath
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: expanded, isDirectory: &isDirectory), isDirectory.boolValue else {
-            return nil
-        }
-        return expanded
-    }
-}
-
 struct TerminalWorkspaceSnapshot: Codable, Equatable {
     struct Tab: Codable, Equatable {
         enum Kind: String, Codable {
@@ -27,6 +11,11 @@ struct TerminalWorkspaceSnapshot: Codable, Equatable {
         var localDirectory: String?
         var sshProfile: SSHConnectionProfile?
         var localProfile: TerminalProfile?
+        var terminalID: UUID? = nil
+        var runtimeGeneration: UUID? = nil
+        var runtimeRequiresExisting: Bool? = nil
+        var runtimeRenderedCursor: TerminalRuntimeOutputCursor? = nil
+        var runtimeAttachOnly: Bool? = nil
 
         static func local(directory: String?, profile: TerminalProfile? = nil) -> Tab {
             Tab(kind: .local, localDirectory: directory, sshProfile: nil, localProfile: profile?.normalized)
@@ -42,19 +31,22 @@ struct TerminalWorkspaceSnapshot: Codable, Equatable {
     var savedAt: Date
     var selectedIndex: Int
     var tabs: [Tab]
+    var projectLayout: TerminalProjectLayout? = nil
 
     init(
         schemaVersion: Int = 1,
         appVersion: String = AppVersion.value,
         savedAt: Date = Date(),
         selectedIndex: Int,
-        tabs: [Tab]
+        tabs: [Tab],
+        projectLayout: TerminalProjectLayout? = nil
     ) {
-        self.schemaVersion = schemaVersion
+        self.schemaVersion = projectLayout == nil ? schemaVersion : 2
         self.appVersion = appVersion
         self.savedAt = savedAt
         self.selectedIndex = selectedIndex
         self.tabs = tabs
+        self.projectLayout = projectLayout
     }
 }
 
@@ -76,6 +68,14 @@ enum TerminalWorkspaceSnapshotError: LocalizedError {
 }
 
 enum TerminalWorkspaceSnapshotStore {
+    private static var directoryOverride: URL?
+
+    @discardableResult
+    static func _setTestDirectoryOverride(_ directory: URL?) -> URL? {
+        let previous = directoryOverride
+        directoryOverride = directory
+        return previous
+    }
     static func save(_ snapshot: TerminalWorkspaceSnapshot) throws {
         let url = try snapshotURL()
         try FileManager.default.createDirectory(
@@ -103,6 +103,12 @@ enum TerminalWorkspaceSnapshotStore {
     }
 
     private static func snapshotURL() throws -> URL {
+        if let directoryOverride { return directoryOverride.appendingPathComponent("last-workspace.json") }
+        #if DEBUG
+        if TerminalToolPaths.isIsolatedTesting {
+            return TerminalToolPaths.rootDirectory.appendingPathComponent("last-workspace.json")
+        }
+        #endif
         let base = try FileManager.default.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,

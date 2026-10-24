@@ -1,0 +1,165 @@
+{
+  "generatedAt": "2026-10-24T04:31:40+08:00",
+  "mode": "qa-ui",
+  "passed": true,
+  "failure": null,
+  "scope": "实际隔离 QTerm 图形界面 + WillDeep CLI/Runtime；本机 mock 模型；所有输入由原生界面执行，界面动作与退出时长另存独立证据",
+  "fixtureDirectory": null,
+  "binarySHA256": "ce8adf707cd3832e83c03c251cdbd528736e20302633028bd027532471297cb8",
+  "modelRequests": 2,
+  "frontendExitStatus": null,
+  "qtermBackendSHA256": "9e3fd97f85458fc2230162a39ac0a0fef7f0ad3ee8057c54c001ec1d0f899500",
+  "allUIClientsDetachedSeconds": null,
+  "backendInputDiagnostics": [],
+  "terminalDeviceStatusReplies": 0,
+  "lostAcknowledgementRetried": false,
+  "states": [
+    {
+      "activity": "unknown",
+      "sequence": 0,
+      "observedAt": 1170135.691652
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "sessionID": "661EB2E0-62A8-433E-A777-2BF87A7477E0"
+      },
+      "sequence": 1,
+      "observedAt": 1170135.745415
+    },
+    {
+      "activity": "working",
+      "context": {
+        "taskID": "88670ad8-5bcd-4c3b-b669-fceb875c1236",
+        "sessionID": "661EB2E0-62A8-433E-A777-2BF87A7477E0"
+      },
+      "sequence": 2,
+      "observedAt": 1170151.100245
+    },
+    {
+      "activity": "blocked",
+      "blockReason": "approval",
+      "context": {
+        "gateID": "f1443939-2f1e-4cf7-b762-e585a08b0420",
+        "sessionID": "661EB2E0-62A8-433E-A777-2BF87A7477E0",
+        "taskID": "a39009bb-e3b6-4115-9902-1a451f1df5bb"
+      },
+      "sequence": 3,
+      "observedAt": 1170151.700036
+    },
+    {
+      "activity": "blocked",
+      "blockReason": "approval",
+      "context": {
+        "gateID": "f1443939-2f1e-4cf7-b762-e585a08b0420",
+        "sessionID": "661EB2E0-62A8-433E-A777-2BF87A7477E0",
+        "taskID": "a39009bb-e3b6-4115-9902-1a451f1df5bb"
+      },
+      "sequence": 8,
+      "observedAt": 1170302.751344
+    },
+    {
+      "activity": "working",
+      "context": {
+        "sessionID": "661EB2E0-62A8-433E-A777-2BF87A7477E0",
+        "taskID": "a39009bb-e3b6-4115-9902-1a451f1df5bb"
+      },
+      "sequence": 9,
+      "observedAt": 1170322.744039
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "taskID": "a39009bb-e3b6-4115-9902-1a451f1df5bb",
+        "sessionID": "661EB2E0-62A8-433E-A777-2BF87A7477E0"
+      },
+      "result": "completed",
+      "sequence": 10,
+      "observedAt": 1170323.719132
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "sessionID": "661EB2E0-62A8-433E-A777-2BF87A7477E0",
+        "taskID": "a39009bb-e3b6-4115-9902-1a451f1df5bb"
+      },
+      "result": "completed",
+      "sequence": 11,
+      "observedAt": 1170353.757117
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "taskID": "a39009bb-e3b6-4115-9902-1a451f1df5bb",
+        "sessionID": "661EB2E0-62A8-433E-A777-2BF87A7477E0"
+      },
+      "result": "completed",
+      "sequence": 12,
+      "observedAt": 1170383.807225
+    },
+    {
+      "activity": "exited",
+      "context": {
+        "sessionID": "661EB2E0-62A8-433E-A777-2BF87A7477E0",
+        "taskID": "a39009bb-e3b6-4115-9902-1a451f1df5bb"
+      },
+      "result": "completed",
+      "sequence": 13,
+      "observedAt": 1170390.479484
+    }
+  ],
+  "fixtureErrors": [],
+  "title": "真实 QTerm / WillDeep 图形重开与逐键审批",
+  "qaAppVersion": "1.251.0-rc2",
+  "qaAppBuild": 317,
+  "qaAppSHA256": "9ea0301f1c917c63ee2c1d415d21ea918971cfbf394ac2950f17cd74b62ee622",
+  "nativeGUIExitedObservedSeconds": 69.51740300003439,
+  "checks": {
+    "sameServiceEpoch": true,
+    "samePTYPIDAndGeneration": true,
+    "sameForegroundWillDeepPID": true,
+    "samePendingGateAndTask": true,
+    "uniqueApproval": true,
+    "sameTaskUniqueCompletion": true,
+    "userQTermOriginalPIDPreserved": true
+  },
+  "nativeCheckpoints": {
+    "blocked": {
+      "observedAt": "2026-10-24T04:13:17.914439+08:00",
+      "qaPIDs": [
+        6901
+      ],
+      "foregroundPID": 14336
+    },
+    "quit": {
+      "observedAt": "2026-10-24T04:13:37.756011+08:00",
+      "qaPIDs": [],
+      "foregroundPID": 14336
+    },
+    "detached": {
+      "observedAt": "2026-10-24T04:14:47.273392+08:00",
+      "qaPIDs": [],
+      "foregroundPID": 14336
+    },
+    "restored": {
+      "observedAt": "2026-10-24T04:15:21.371479+08:00",
+      "qaPIDs": [
+        15258
+      ],
+      "foregroundPID": 14336
+    },
+    "completed": {
+      "observedAt": "2026-10-24T04:16:39.936455+08:00",
+      "qaPIDs": [
+        15258
+      ],
+      "foregroundPID": 14336
+    }
+  },
+  "limitations": [
+    "本机 mock 模型；提交、批准与退出使用真实原生界面逐键操作",
+    "第四轮剪贴板输入仍复现断连，不计为通过",
+    "恢复画面存在重放显示问题，尚未验收视觉正确性",
+    "全工作区另有旧夹具终端提醒；唯一性断言按当前终端的 task/gate 检查"
+  ]
+}

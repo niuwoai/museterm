@@ -1,0 +1,33 @@
+{
+  "version": "1.251.0-rc17",
+  "build": 332,
+  "rc16": [
+    {
+      "result": "Passed",
+      "totalTestCount": 1,
+      "passedTests": 1,
+      "failedTests": 0,
+      "skippedTests": 0,
+      "testFailures": [],
+      "resultBundle": "/private/tmp/qterm-quiet-layout-targeted-01.xcresult"
+    },
+    {
+      "result": "Passed",
+      "totalTestCount": 602,
+      "passedTests": 602,
+      "failedTests": 0,
+      "skippedTests": 0,
+      "testFailures": [],
+      "resultBundle": "/private/tmp/qterm-quiet-layout-full-01.xcresult"
+    }
+  ],
+  "rc17": {
+    "result": "Passed",
+    "totalTestCount": 602,
+    "passedTests": 602,
+    "failedTests": 0,
+    "skippedTests": 0,
+    "testFailures": [],
+    "resultBundle": "/private/tmp/qterm-project-sheet-full-01.xcresult"
+  }
+}

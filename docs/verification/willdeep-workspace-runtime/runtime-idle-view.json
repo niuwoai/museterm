@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-10-24T01:37:20+08:00",
+  "scope": "当前 embedded helper 与真实 SwiftTerm 窗口专项；含超过请求写超时的静默后首包、同 PID 重连、设备回复、控制、真实工具桥；不是正常 App 退出恢复",
+  "resultBundle": "/private/tmp/qterm-runtime-idle-view-01.xcresult",
+  "passed": true,
+  "passedTests": 7,
+  "failedTests": 0,
+  "skippedTests": 0,
+  "failures": []
+}

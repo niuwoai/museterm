@@ -1,0 +1,368 @@
+{
+  "snapshots": [
+    {
+      "phase": "seed",
+      "observedAt": "2026-10-24T18:19:00+08:00",
+      "selectedTabID": "97ABCAF8-2F88-405B-99BB-6248BCA7534B",
+      "layout": {
+        "projects": [
+          {
+            "id": "6AD20655-1293-4332-84B7-3B29535C7D12",
+            "name": "Project",
+            "selectedTabID": "BB2738FE-3B41-40DE-BA01-57781915932A",
+            "tabs": [
+              {
+                "focusedTerminalID": "B55B6CCA-840B-4E73-8D05-2EA5BEE1004A",
+                "id": "BB2738FE-3B41-40DE-BA01-57781915932A",
+                "layout": {
+                  "terminal": {
+                    "_0": "B55B6CCA-840B-4E73-8D05-2EA5BEE1004A"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "directory": "/private/tmp/qterm-native-qa-281c1420d59f",
+            "id": "5CEBA062-A56B-462A-8A52-1ADFB4A8D9AE",
+            "name": "A project with a deliberately long name for sidebar layout verification",
+            "selectedTabID": "DC65FA17-EF80-47B5-93FF-9F5A608EA3F8",
+            "tabs": [
+              {
+                "focusedTerminalID": "97ABCAF8-2F88-405B-99BB-6248BCA7534B",
+                "id": "DC65FA17-EF80-47B5-93FF-9F5A608EA3F8",
+                "layout": {
+                  "split": {
+                    "axis": "vertical",
+                    "first": {
+                      "terminal": {
+                        "_0": "97ABCAF8-2F88-405B-99BB-6248BCA7534B"
+                      }
+                    },
+                    "id": "2F1A1749-037E-4411-9ADF-FE5B4F60E6B0",
+                    "ratio": 0.5,
+                    "second": {
+                      "terminal": {
+                        "_0": "CAE489EC-044B-4423-8D95-F032D9E1FC59"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "schemaVersion": 1,
+        "selectedProjectID": "5CEBA062-A56B-462A-8A52-1ADFB4A8D9AE"
+      },
+      "attention": [
+        {
+          "confidence": "high",
+          "context": {
+            "gateID": "question-1",
+            "sessionID": "B55B6CCA-840B-4E73-8D05-2EA5BEE1004A",
+            "taskID": "sidebar-display-fixture"
+          },
+          "createdAt": "2026-10-24T10:18:58Z",
+          "createdSequence": 25,
+          "id": "5C42D01F-AF51-4F30-AA6F-C81DF4637D87",
+          "instanceID": "824DA906-2760-4AF9-BF96-D1F57520E9E9",
+          "isStale": false,
+          "kind": "question",
+          "runID": "BBDA6A7D-9C06-4873-BAFA-3652730704C6",
+          "source": "integration",
+          "tabID": "97ABCAF8-2F88-405B-99BB-6248BCA7534B",
+          "version": 1
+        }
+      ],
+      "source": {
+        "id": "97ABCAF8-2F88-405B-99BB-6248BCA7534B",
+        "title": "qterm-native-qa-281c1420d59f",
+        "agent": {
+          "activity": "blocked",
+          "blockReason": "question",
+          "confidence": "high",
+          "context": {
+            "gateID": "question-1",
+            "sessionID": "B55B6CCA-840B-4E73-8D05-2EA5BEE1004A",
+            "taskID": "sidebar-display-fixture"
+          },
+          "expiresAt": "2026-10-24T10:20:58Z",
+          "instanceID": "824DA906-2760-4AF9-BF96-D1F57520E9E9",
+          "kind": "willdeep",
+          "reason": "reported",
+          "reportSequence": 1,
+          "ruleVersion": 2,
+          "runID": "BBDA6A7D-9C06-4873-BAFA-3652730704C6",
+          "source": "integration",
+          "updatedAt": "2026-10-24T10:18:58Z"
+        },
+        "runtime": {
+          "commands": [],
+          "connected": true,
+          "eventCursor": {
+            "appEpoch": "385200E8-0A8C-46CC-94FD-AC96381013F4",
+            "sequence": 25
+          },
+          "generation": "F608E104-08F7-40D5-9396-ACCF8A40D235",
+          "outputRevision": 8,
+          "pid": 76738
+        }
+      }
+    },
+    {
+      "phase": "refresh",
+      "observedAt": "2026-10-24T18:31:18+08:00",
+      "selectedTabID": "97ABCAF8-2F88-405B-99BB-6248BCA7534B",
+      "layout": {
+        "projects": [
+          {
+            "id": "6AD20655-1293-4332-84B7-3B29535C7D12",
+            "name": "Project",
+            "selectedTabID": "BB2738FE-3B41-40DE-BA01-57781915932A",
+            "tabs": [
+              {
+                "focusedTerminalID": "B55B6CCA-840B-4E73-8D05-2EA5BEE1004A",
+                "id": "BB2738FE-3B41-40DE-BA01-57781915932A",
+                "layout": {
+                  "terminal": {
+                    "_0": "B55B6CCA-840B-4E73-8D05-2EA5BEE1004A"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "directory": "/private/tmp/qterm-native-qa-281c1420d59f",
+            "id": "5CEBA062-A56B-462A-8A52-1ADFB4A8D9AE",
+            "name": "A project with a deliberately long name for sidebar layout verification",
+            "selectedTabID": "DC65FA17-EF80-47B5-93FF-9F5A608EA3F8",
+            "tabs": [
+              {
+                "focusedTerminalID": "97ABCAF8-2F88-405B-99BB-6248BCA7534B",
+                "id": "DC65FA17-EF80-47B5-93FF-9F5A608EA3F8",
+                "layout": {
+                  "split": {
+                    "axis": "vertical",
+                    "first": {
+                      "terminal": {
+                        "_0": "97ABCAF8-2F88-405B-99BB-6248BCA7534B"
+                      }
+                    },
+                    "id": "2F1A1749-037E-4411-9ADF-FE5B4F60E6B0",
+                    "ratio": 0.5,
+                    "second": {
+                      "terminal": {
+                        "_0": "CAE489EC-044B-4423-8D95-F032D9E1FC59"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "schemaVersion": 1,
+        "selectedProjectID": "5CEBA062-A56B-462A-8A52-1ADFB4A8D9AE"
+      },
+      "attention": [
+        {
+          "confidence": "high",
+          "context": {
+            "gateID": "question-1",
+            "sessionID": "B55B6CCA-840B-4E73-8D05-2EA5BEE1004A",
+            "taskID": "sidebar-display-fixture"
+          },
+          "createdAt": "2026-10-24T10:18:58Z",
+          "createdSequence": 25,
+          "id": "5C42D01F-AF51-4F30-AA6F-C81DF4637D87",
+          "instanceID": "824DA906-2760-4AF9-BF96-D1F57520E9E9",
+          "isStale": false,
+          "kind": "question",
+          "runID": "BBDA6A7D-9C06-4873-BAFA-3652730704C6",
+          "source": "integration",
+          "tabID": "97ABCAF8-2F88-405B-99BB-6248BCA7534B",
+          "version": 3
+        }
+      ],
+      "source": {
+        "id": "97ABCAF8-2F88-405B-99BB-6248BCA7534B",
+        "title": "qterm-native-qa-281c1420d59f",
+        "agent": {
+          "activity": "blocked",
+          "blockReason": "question",
+          "confidence": "high",
+          "context": {
+            "gateID": "question-1",
+            "sessionID": "B55B6CCA-840B-4E73-8D05-2EA5BEE1004A",
+            "taskID": "sidebar-display-fixture"
+          },
+          "expiresAt": "2026-10-24T10:33:18Z",
+          "instanceID": "824DA906-2760-4AF9-BF96-D1F57520E9E9",
+          "kind": "willdeep",
+          "reason": "reported",
+          "reportSequence": 2,
+          "ruleVersion": 2,
+          "runID": "BBDA6A7D-9C06-4873-BAFA-3652730704C6",
+          "source": "integration",
+          "updatedAt": "2026-10-24T10:31:18Z"
+        },
+        "runtime": {
+          "commands": [],
+          "connected": true,
+          "eventCursor": {
+            "appEpoch": "385200E8-0A8C-46CC-94FD-AC96381013F4",
+            "sequence": 45
+          },
+          "generation": "F608E104-08F7-40D5-9396-ACCF8A40D235",
+          "outputRevision": 12,
+          "pid": 76738
+        }
+      }
+    },
+    {
+      "phase": "capture",
+      "observedAt": "2026-10-24T18:31:47+08:00",
+      "selectedTabID": "97ABCAF8-2F88-405B-99BB-6248BCA7534B",
+      "layout": {
+        "projects": [
+          {
+            "id": "6AD20655-1293-4332-84B7-3B29535C7D12",
+            "name": "Project",
+            "selectedTabID": "BB2738FE-3B41-40DE-BA01-57781915932A",
+            "tabs": [
+              {
+                "focusedTerminalID": "B55B6CCA-840B-4E73-8D05-2EA5BEE1004A",
+                "id": "BB2738FE-3B41-40DE-BA01-57781915932A",
+                "layout": {
+                  "terminal": {
+                    "_0": "B55B6CCA-840B-4E73-8D05-2EA5BEE1004A"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "directory": "/private/tmp/qterm-native-qa-281c1420d59f",
+            "id": "5CEBA062-A56B-462A-8A52-1ADFB4A8D9AE",
+            "name": "A project with a deliberately long name for sidebar layout verification",
+            "selectedTabID": "DC65FA17-EF80-47B5-93FF-9F5A608EA3F8",
+            "tabs": [
+              {
+                "focusedTerminalID": "97ABCAF8-2F88-405B-99BB-6248BCA7534B",
+                "id": "DC65FA17-EF80-47B5-93FF-9F5A608EA3F8",
+                "layout": {
+                  "split": {
+                    "axis": "vertical",
+                    "first": {
+                      "terminal": {
+                        "_0": "97ABCAF8-2F88-405B-99BB-6248BCA7534B"
+                      }
+                    },
+                    "id": "2F1A1749-037E-4411-9ADF-FE5B4F60E6B0",
+                    "ratio": 0.5,
+                    "second": {
+                      "terminal": {
+                        "_0": "CAE489EC-044B-4423-8D95-F032D9E1FC59"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "schemaVersion": 1,
+        "selectedProjectID": "5CEBA062-A56B-462A-8A52-1ADFB4A8D9AE"
+      },
+      "attention": [
+        {
+          "confidence": "high",
+          "context": {
+            "gateID": "question-1",
+            "sessionID": "B55B6CCA-840B-4E73-8D05-2EA5BEE1004A",
+            "taskID": "sidebar-display-fixture"
+          },
+          "createdAt": "2026-10-24T10:18:58Z",
+          "createdSequence": 25,
+          "id": "5C42D01F-AF51-4F30-AA6F-C81DF4637D87",
+          "instanceID": "824DA906-2760-4AF9-BF96-D1F57520E9E9",
+          "isStale": false,
+          "kind": "question",
+          "runID": "BBDA6A7D-9C06-4873-BAFA-3652730704C6",
+          "source": "integration",
+          "tabID": "97ABCAF8-2F88-405B-99BB-6248BCA7534B",
+          "version": 3
+        }
+      ],
+      "source": {
+        "id": "97ABCAF8-2F88-405B-99BB-6248BCA7534B",
+        "title": "qterm-native-qa-281c1420d59f",
+        "agent": {
+          "activity": "blocked",
+          "blockReason": "question",
+          "confidence": "high",
+          "context": {
+            "gateID": "question-1",
+            "sessionID": "B55B6CCA-840B-4E73-8D05-2EA5BEE1004A",
+            "taskID": "sidebar-display-fixture"
+          },
+          "expiresAt": "2026-10-24T10:33:18Z",
+          "instanceID": "824DA906-2760-4AF9-BF96-D1F57520E9E9",
+          "kind": "willdeep",
+          "reason": "reported",
+          "reportSequence": 2,
+          "ruleVersion": 2,
+          "runID": "BBDA6A7D-9C06-4873-BAFA-3652730704C6",
+          "source": "integration",
+          "updatedAt": "2026-10-24T10:31:18Z"
+        },
+        "runtime": {
+          "commands": [],
+          "connected": true,
+          "eventCursor": {
+            "appEpoch": "385200E8-0A8C-46CC-94FD-AC96381013F4",
+            "sequence": 47
+          },
+          "generation": "F608E104-08F7-40D5-9396-ACCF8A40D235",
+          "outputRevision": 13,
+          "pid": 76738
+        }
+      }
+    }
+  ],
+  "version": "1.251.0-rc21",
+  "build": 336,
+  "language": "en",
+  "configuredSidebarWidth": 220,
+  "app": "/private/tmp/qterm-native-qa-281c1420d59f/QTermQA.app",
+  "bundleID": "im.some.qterm.goaltests.projectcli.281c1420d59f",
+  "sourceID": "97ABCAF8-2F88-405B-99BB-6248BCA7534B",
+  "originalSelectedID": "B55B6CCA-840B-4E73-8D05-2EA5BEE1004A",
+  "terminals": [
+    {
+      "id": "97ABCAF8-2F88-405B-99BB-6248BCA7534B",
+      "pid": 76738,
+      "generation": "F608E104-08F7-40D5-9396-ACCF8A40D235"
+    },
+    {
+      "id": "B55B6CCA-840B-4E73-8D05-2EA5BEE1004A",
+      "pid": 76466,
+      "generation": "82D7DADA-9C13-4710-8009-A04832150573"
+    },
+    {
+      "id": "CAE489EC-044B-4423-8D95-F032D9E1FC59",
+      "pid": 76782,
+      "generation": "D76FC1CB-B513-4D4F-BDAF-6C84D049946F"
+    }
+  ],
+  "scope": "Actual native sidebar; protocol Agent display fixture, no actual WillDeep model task",
+  "ownedCleanupAndCredentialRemovalVerified": true,
+  "visualChecks": {
+    "expanded220pt": "Long title truncated; shortcut Cmd+2 remained on one line; shell and Agent status on second row; project and global attention count both 1",
+    "collapsed": "Compact icons and project count observed; no expanded-title guarantee",
+    "actualWillDeepTask": false,
+    "language": "en",
+    "scope": "rc21 isolated native App visual observation; Chinese current run not verified"
+  }
+}

@@ -11,6 +11,18 @@ final class TerminalWaitCoordinatorTests: XCTestCase {
         return (registry, session)
     }
 
+    func testGracefulOwnerShutdownCompletesPendingWaits() throws {
+        let (registry, _) = fixture()
+        let spec = TerminalWaitSpec(condition: .events, after: registry.events.cursor)
+        try registry.waits.begin(id: UUID().uuidString, owner: owner, spec: spec)
+        registry.waits.shutdown()
+        XCTAssertEqual(registry.waits.pendingCount, 0)
+        let results = registry.waits.drainCompletions()
+        XCTAssertEqual(results.count, 1)
+        XCTAssertEqual(results.first?.outcome, .appExited)
+        XCTAssertTrue(registry.waits.drainCompletions().isEmpty)
+    }
+
     func testCommandWaitReturnsExactFailureAndImmediateCompletion() throws {
         let (registry, session) = fixture()
         session.startShellIntegratedCommand(command: "false", historySnapshot: "")

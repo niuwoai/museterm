@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-10-24T01:30:52+08:00",
+  "scope": "真实 SwiftTerm 测试窗口、产品后台控制与输入确认、既有 AI 控制及 MCP 等待回归；不是正常 App 退出重开验收",
+  "resultBundle": "/private/tmp/qterm-runtime-control-view-02.xcresult",
+  "passed": true,
+  "passedTests": 18,
+  "failedTests": 0,
+  "skippedTests": 0,
+  "failures": []
+}

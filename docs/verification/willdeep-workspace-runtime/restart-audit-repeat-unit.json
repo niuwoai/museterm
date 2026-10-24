@@ -1,0 +1,18 @@
+{
+  "result": "Failed",
+  "totalTestCount": 1,
+  "passedTests": 0,
+  "failedTests": 1,
+  "skippedTests": 0,
+  "testFailures": [
+    {
+      "failureText": "failed - Runtime view timed out at new process acknowledges input: connected=true,metadata=true,error=nil,inputError=input_context_changed,inputSequence=1,characters=56",
+      "targetName": "musetermTests",
+      "testIdentifier": 1,
+      "testIdentifierString": "TerminalRuntimeViewTests/testExitedRuntimeRestartCreatesNewGenerationAndRunsStartupOnce()",
+      "testIdentifierURL": "test://com.apple.xcode/museterm/musetermTests/TerminalRuntimeViewTests/testExitedRuntimeRestartCreatesNewGenerationAndRunsStartupOnce",
+      "testName": "testExitedRuntimeRestartCreatesNewGenerationAndRunsStartupOnce()"
+    }
+  ],
+  "resultBundle": "/private/tmp/qterm-rc26-restart-audit-repeat-01.xcresult"
+}

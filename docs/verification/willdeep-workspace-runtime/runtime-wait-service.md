@@ -1,0 +1,18 @@
+# 后台事件与有界等待验证
+
+通过：true，检查：10
+
+- service_epoch_and_readonly_native_baseline
+- independent_waiters_share_original_agent_without_consuming_each_other
+- pending_attention_wait_does_not_block_queries_or_reports
+- owner_scoped_and_early_cancellation
+- real_pty_output_revision_wait_and_input_continue_without_lease
+- timeout_and_wrong_epoch_future_cursor_are_explicit
+- per_owner_waiter_limit_and_bounded_cancel_all
+- bounded_event_journal_reports_cursor_expiry_for_reads_and_waits
+- agent_replacement_and_unsupported_command_authority_are_explicit
+- target_close_and_graceful_service_exit_publish_final_outcomes
+
+
+
+真实后台只读文件端点等待/Socket 输入；未包含通用 CLI/MCP 自动路由和命令块等待

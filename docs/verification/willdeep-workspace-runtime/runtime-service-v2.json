@@ -1,0 +1,26 @@
+{
+  "generatedAt": "2026-10-24T01:10:14+08:00",
+  "passed": true,
+  "failure": null,
+  "binarySHA256": "703b6064bd06fc9afe1823b81d20493ac2cdca507b8b0db889ad4faf56d96a3c",
+  "checks": [
+    "private_socket_and_capability",
+    "single_owner_without_killing_live_server",
+    "protocol_version_and_distinct_capability",
+    "bounded_launch_validation_and_exec_failure_leave_live_sessions_intact",
+    "frontend_process_exit_preserves_same_real_pty_pid_and_output",
+    "reattach_accepts_input_and_observes_real_echo_off",
+    "duplicate_ack_and_stale_sequence_do_not_repeat_input",
+    "human_reclaim_rejects_stale_ai_control",
+    "resize_reaches_real_pty",
+    "native_status_and_read_unresolved_approval_survive_ui_disconnect_without_input_authority",
+    "shared_gate_dedup_completion_and_private_event_journal",
+    "stream_subscription_and_detach",
+    "bounded_replay_explicit_gap_and_cursor_rejection",
+    "slow_consumer_disconnected_while_pty_and_fast_reader_continue",
+    "oversized_frame_disconnects_only_offending_client",
+    "explicit_close_removes_only_target"
+  ],
+  "scope": "独立真实 PTY 服务及共用 Agent/待处理/事件归约跨客户端；原生状态采用协议夹具，尚未接 QTerm UI 或产品安装路径",
+  "fixtureDirectory": null
+}

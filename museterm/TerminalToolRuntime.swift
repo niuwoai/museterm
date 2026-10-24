@@ -5,6 +5,14 @@ struct TerminalToolRuntime: Codable {
     let pid: Int32
     let version: String
     let cursor: TerminalEventCursor
+    var backend: TerminalToolBackendRuntime? = nil
+}
+
+struct TerminalToolBackendRuntime: Codable {
+    var schemaVersion = 1
+    let root: String
+    let cursor: TerminalEventCursor
+    var features: [String]? = nil
 }
 
 extension TerminalToolPaths {

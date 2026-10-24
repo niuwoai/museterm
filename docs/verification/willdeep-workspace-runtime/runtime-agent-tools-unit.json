@@ -1,0 +1,103 @@
+{
+  "version": "1.251.0-rc8",
+  "build": 323,
+  "exitStatus": 0,
+  "resultBundle": "/private/tmp/qterm-agent-route-full-02.xcresult",
+  "bundleID": "im.some.qterm.goaltests.QTerm21",
+  "summary": {
+    "devicesAndConfigurations": [
+      {
+        "device": {
+          "architecture": "arm64",
+          "deviceId": "00008112-000C103C3AF9401E",
+          "deviceName": "My Mac",
+          "modelName": "MacBook Pro",
+          "osBuildNumber": "26A434",
+          "osVersion": "27.0.1",
+          "platform": "macOS"
+        },
+        "expectedFailures": 0,
+        "failedTests": 0,
+        "passedTests": 558,
+        "skippedTests": 0,
+        "testPlanConfiguration": {
+          "configurationId": "1",
+          "configurationName": "Test Scheme Action"
+        }
+      }
+    ],
+    "environmentDescription": "museterm · Built with macOS 27.0.1",
+    "expectedFailures": 0,
+    "failedTests": 0,
+    "finishTime": 1792792765.578,
+    "passedTests": 558,
+    "result": "Passed",
+    "runtimeWarnings": [],
+    "skippedTests": 0,
+    "startTime": 1792792713.179,
+    "statistics": [],
+    "testFailures": [],
+    "title": "Test - museterm",
+    "topInsights": [
+      {
+        "category": "Longest Test Runs",
+        "impact": "47% of duration",
+        "text": "3 longest test runs with outlier durations exceeding 4.35s (three standard deviations)"
+      }
+    ],
+    "totalTestCount": 558
+  },
+  "previousFailedRun": {
+    "devicesAndConfigurations": [
+      {
+        "device": {
+          "architecture": "arm64",
+          "deviceId": "00008112-000C103C3AF9401E",
+          "deviceName": "My Mac",
+          "modelName": "MacBook Pro",
+          "osBuildNumber": "26A434",
+          "osVersion": "27.0.1",
+          "platform": "macOS"
+        },
+        "expectedFailures": 0,
+        "failedTests": 1,
+        "passedTests": 557,
+        "skippedTests": 0,
+        "testPlanConfiguration": {
+          "configurationId": "1",
+          "configurationName": "Test Scheme Action"
+        }
+      }
+    ],
+    "environmentDescription": "museterm · Built with macOS 27.0.1",
+    "expectedFailures": 0,
+    "failedTests": 1,
+    "finishTime": 1792792581.942,
+    "passedTests": 557,
+    "result": "Failed",
+    "runtimeWarnings": [],
+    "skippedTests": 0,
+    "startTime": 1792792500.915,
+    "statistics": [],
+    "testFailures": [
+      {
+        "failureText": "failed - Runtime view timed out at first rendered output: connected=true,metadata=true,error=nil,characters=44",
+        "targetName": "musetermTests",
+        "testIdentifier": 1,
+        "testIdentifierString": "TerminalRuntimeViewTests/testActualSwiftTermViewerDetachesAndRestoresOriginalPTY()",
+        "testIdentifierURL": "test://com.apple.xcode/museterm/musetermTests/TerminalRuntimeViewTests/testActualSwiftTermViewerDetachesAndRestoresOriginalPTY",
+        "testName": "testActualSwiftTermViewerDetachesAndRestoresOriginalPTY()"
+      }
+    ],
+    "title": "Test - museterm",
+    "topInsights": [
+      {
+        "category": "Longest Test Runs",
+        "impact": "49% of duration",
+        "text": "4 longest test runs with outlier durations exceeding 4.59s (three standard deviations)"
+      }
+    ],
+    "totalTestCount": 558
+  },
+  "readinessChange": "原恢复夹具仅等待订阅连接。保留首轮失败，改用真实 shell 明确就绪行；未放宽产品输入预检或重发输入。"
+}

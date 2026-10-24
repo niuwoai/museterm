@@ -5,6 +5,7 @@ enum TerminalAgentUITestFixture {
     static func applyIfRequested(workspace: TerminalWorkspace) {
         guard ProcessInfo.processInfo.arguments.contains("-ui-testing-agent-state"),
               let tab = workspace.selectedTab, tab.agentStatus == nil else { return }
+        if ProcessInfo.processInfo.arguments.contains("-ui-testing-project-workspace") { return }
         if ProcessInfo.processInfo.arguments.contains("-ui-testing-terminal-attention") {
             workspace.newTab()
             // Both callbacks must produce one inbox item and one unread projection.

@@ -16,13 +16,14 @@ struct TerminalHostView: NSViewRepresentable {
     @ObservedObject var session: TerminalSession
     @ObservedObject var preferences: TerminalPreferences
     let isActive: Bool
+    var focusesInput = true
 
     func makeNSView(context: Context) -> NSView {
         let controller = session.controller
         controller.setActive(isActive)
         DispatchQueue.main.async {
             controller.ensureProcessStarted()
-            if isActive {
+            if isActive && focusesInput {
                 controller.focusTerminal()
             }
         }
@@ -35,7 +36,7 @@ struct TerminalHostView: NSViewRepresentable {
         let didBecomeActive = session.controller.setActive(isActive)
         DispatchQueue.main.async {
             session.controller.ensureProcessStarted()
-            if isActive {
+            if isActive && focusesInput {
                 session.controller.focusTerminal()
                 // 只在切到前台时整屏重绘；打字时 session 频繁发布变更也会走到这里，
                 // 每次都全量重绘会白白吃 CPU。
@@ -59,6 +60,14 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private let terminalLeadingMarginView = NSView(frame: .zero)
     private let terminalTrailingMarginView = NSView(frame: .zero)
     private let terminalView = FocusableLocalProcessTerminalView(frame: .zero)
+    private(set) var runtimeHandle: TerminalRuntimeSessionHandle?
+    private(set) var runtimeInputErrorCode: String?
+    private var runtimeForegroundPID: pid_t?
+    private var runtimeExitWasReported = false
+    private var runtimeRestartExpected: TerminalRuntimeSessionInfo?
+    private var runtimeInputQueue: TerminalRuntimeInputQueue?
+    private var runtimeLaunchContext: (TerminalRuntimeLaunch, URL, URL)?
+    private var runtimeReady: (() -> Void)?
     private let startupCoverView = NSView(frame: .zero)
     private weak var session: TerminalSession?
     private var didStart = false
@@ -92,7 +101,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private var activeSessionTunnel: SessionTunnelBridge?
     private var activeSessionTunnelID: UUID?
     private let shellIntegrationParser = TerminalShellIntegrationParser()
-    private var pendingShellIntegrationEvents: [TerminalShellIntegrationEvent] = []
+    private var pendingShellIntegrationEvents: [(event: TerminalShellIntegrationEvent, commandID: UUID?)] = []
+    private var runtimeParsingOffset: UInt64?
     private weak var preferences: TerminalPreferences?
     private var pendingSafetyInputBytes: [UInt8] = []
     private let maxPendingSafetyInputBytes = 8_192
@@ -119,12 +129,13 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private var lastAgentSampleUptime: TimeInterval = -.infinity
 
     func sampleAgentForeground(now: Date = Date()) {
+        guard session?.runtimeOwnsAgent != true else { return }
         guard case .localShell = session?.launchConfiguration else { return }
         let uptime = ProcessInfo.processInfo.systemUptime
         guard uptime - lastAgentSampleUptime >= 1 else { return }
         lastAgentSampleUptime = uptime
-        guard didStart, terminalView.process.running else { return }
-        let pid = tcgetpgrp(terminalView.process.childfd)
+        guard didStart, terminalView.backendIsRunning else { return }
+        let pid = runtimeHandle == nil ? tcgetpgrp(terminalView.process.childfd) : (runtimeForegroundPID ?? 0)
         if agentForegroundPID != pid {
             agentForegroundPID = pid
             agentForegroundRunID = UUID()
@@ -151,6 +162,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
 
     func apply(preferences: TerminalPreferences) {
         self.preferences = preferences
+        runtimeHandle?.configureReminders(.init(preferences: preferences))
         layoutTerminalViews()
         applyScrollbackLines(preferences.scrollbackLines)
         applyGraphicsPolicy(cacheMegabytes: preferences.imageCacheMegabytes)
@@ -267,8 +279,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         beginStartupPromptDeduplication()
     }
 
-    func terminate() {
-        session?.releaseAIControl(reason: "terminal_closed")
+    func terminate(preservingRuntime: Bool = false) {
+        if !preservingRuntime { session?.releaseAIControl(reason: "terminal_closed") }
         isTerminating = true
         activeSessionTunnel?.forceCancel(error: nil)
         activeSessionTunnel = nil
@@ -283,10 +295,21 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             prewarmWindow?.orderOut(nil)
             prewarmWindow = nil
         }
-        terminalView.terminate()
+        startupPromptPollWorkItem?.cancel()
+        pendingStartWorkItem?.cancel()
+        runtimeReady = nil
+        runtimeInputQueue?.cancel()
+        if let runtimeHandle {
+            if preservingRuntime { runtimeHandle.detach() } else { runtimeHandle.closeTerminal() }
+        }
+        else { terminalView.terminate() }
     }
 
     func ensureProcessStarted() {
+        if TerminalRuntimeService.isEnabled {
+            startProcessIfNeeded()
+            return
+        }
         if canStartProcess {
             pendingStart = true
             schedulePendingProcessStartIfReady()
@@ -329,9 +352,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
 
     func reconnectSSH() {
         guard case .ssh = session?.launchConfiguration,
-              !terminalView.process.running else {
+              !terminalView.backendIsRunning else {
             return
         }
+        guard prepareRuntimeSSHReconnect() else { return }
         pendingSSHReconnectWorkItem?.cancel()
         pendingSSHReconnectWorkItem = nil
         sshReconnectAttemptCount = 0
@@ -341,6 +365,17 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         pendingStart = true
         resetSSHDiagnosticsForNewAttempt()
         schedulePendingProcessStartIfReady()
+    }
+
+    /// A lost viewer is not evidence that the backend process has exited.
+    private func prepareRuntimeSSHReconnect() -> Bool {
+        guard let handle = runtimeHandle else { return true }
+        guard let info = handle.info, !info.running else {
+            session?.runtimeConnectionIssue = .disconnected
+            return false
+        }
+        runtimeRestartExpected = info
+        return true
     }
 
     func focusTerminal() {
@@ -403,6 +438,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         let recentCommandBlocks = Array(session?.commandBlocks.suffix(50) ?? [])
         return TerminalToolTabSnapshot(
             agent: session?.agentStatus,
+            runtime: session?.runtimeInfo.map { .init(pid: $0.pid, generation: $0.generation,
+                connected: runtimeHandle?.connected == true, errorCode: runtimeHandle?.lastError?.diagnosticCode,
+                errorStage: runtimeHandle?.lastErrorStage, attachOnly: session?.runtimeAttachOnly == true ? true : nil,
+                eventCursor: runtimeHandle?.eventCursor, outputRevision: $0.outputRevision, commands: $0.commands) },
             aiControlled: session?.aiLease != nil,
             aiLeaseExpiresAt: session?.aiLease?.expiresAt,
             aiRequiresTakeover: session?.aiRequiresTakeover,
@@ -452,14 +491,15 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private var toolInputOwner: String?
 
     func sendToolInput(bytes: [UInt8], owner: String? = nil) throws {
+        guard runtimeHandle == nil else { throw TerminalAIControlError.busy }
         try session?.authorizeAIInput(owner: owner)
-        guard didStart, terminalView.process.running else {
+        guard didStart, terminalView.backendIsRunning else {
             throw TerminalToolError.processUnavailable
         }
         guard activeSessionTunnel == nil else {
             throw TerminalToolError.sessionTunnelActive
         }
-        try session?.archiveAIInput(bytes, echoEnabled: terminalView.terminalEchoEnabled)
+        if runtimeHandle == nil { try session?.archiveAIInput(bytes, echoEnabled: terminalView.terminalEchoEnabled) }
         isSendingToolInput = true
         toolInputOwner = owner
         defer {
@@ -470,12 +510,27 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         guard terminalView.didSendLastInput else { throw TerminalAIControlError.inputRejected }
     }
 
+    func sendToolInput(bytes: [UInt8], owner: String?, completion: @escaping (Result<Void, Error>) -> Void) {
+        do {
+            guard runtimeHandle != nil else {
+                try sendToolInput(bytes: bytes, owner: owner)
+                completion(.success(())); return
+            }
+            try session?.authorizeAIInput(owner: owner)
+            guard didStart, terminalView.backendIsRunning else { throw TerminalToolError.processUnavailable }
+            guard activeSessionTunnel == nil else { throw TerminalToolError.sessionTunnelActive }
+            guard runtimeInputQueue?.enqueue(bytes, source: .ai, owner: owner, completion: completion) == true else {
+                throw TerminalAIControlError.inputRejected
+            }
+        } catch { completion(.failure(error)) }
+    }
+
     func sendProcessInput(bytes: [UInt8]) {
         terminalView.send(source: terminalView, data: bytes[...])
     }
 
     var isProcessRunning: Bool {
-        didStart && terminalView.process.running
+        didStart && terminalView.backendIsRunning
     }
 
     func startZModemUpload(fileURLs: [URL]) {
@@ -487,7 +542,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             )
             return
         }
-        guard didStart, terminalView.process.running else {
+        guard didStart, terminalView.backendIsRunning else {
             reportFileTransferFailure(kind: .upload, reason: L10n.string("file_transfer.error.process_unavailable"))
             return
         }
@@ -530,7 +585,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             )
             return
         }
-        guard didStart, terminalView.process.running else {
+        guard didStart, terminalView.backendIsRunning else {
             reportFileTransferFailure(kind: .download, reason: L10n.string("file_transfer.error.process_unavailable"))
             return
         }
@@ -575,7 +630,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func startSessionTunnel(configuration: SessionTunnelConfiguration) throws {
-        guard didStart, terminalView.process.running else {
+        guard didStart, terminalView.backendIsRunning else {
             throw SessionTunnelStartError.processUnavailable
         }
         guard activeSessionTunnel == nil else {
@@ -601,10 +656,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 DispatchQueue.main.async {
                     guard let self,
                           self.activeSessionTunnelID == bridgeID,
-                          self.terminalView.process.running else {
+                          self.terminalView.backendIsRunning else {
                         return
                     }
-                    self.terminalView.process.send(data: bytes[...])
+                    self.terminalView.sendBackend(bytes[...])
                 }
             },
             onStatus: { [weak self] status in
@@ -623,8 +678,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                     self.session?.updateSessionTunnelStatus(failed)
                 } else {
                     self.session?.updateSessionTunnelStatus(nil)
-                    if !usesUITestFixture, self.terminalView.process.running {
-                        self.terminalView.process.send(data: [0x0D][...])
+                    if !usesUITestFixture, self.terminalView.backendIsRunning {
+                        self.terminalView.sendBackend([0x0D][...])
                     }
                 }
             }
@@ -660,7 +715,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func processTerminated(source: TerminalView, exitCode: Int32?) {
-        guard !terminalView.process.running else {
+        guard !terminalView.backendIsRunning else {
             session?.state = .running
             return
         }
@@ -718,6 +773,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.processDelegate = self
         terminalView.wantsLayer = true
         terminalView.onNeedsFocus = { [weak self] in
+            self?.session?.onPaneFocus?()
             self?.focusTerminal()
         }
         terminalView.onReadyForProcessStart = { [weak self] in
@@ -792,6 +848,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                     )
                 }
                 return true
+            }
+            if self.runtimeHandle != nil {
+                return true // Recording and command inference wait for the real PTY ACK.
             }
             self.session?.recordInputIfNeeded(data: data, echoEnabled: echoEnabled)
             // historySnapshot 是 @autoclosure：仅在回车/Ctrl-C 需要切分命令时才全量扫历史。
@@ -983,7 +1042,14 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
               activeSessionTunnel == nil else {
             return
         }
-        pendingShellIntegrationEvents.append(contentsOf: shellIntegrationParser.accept(data))
+        if let offset = runtimeParsingOffset, let handle = runtimeHandle,
+           handle.features.contains(TerminalRuntimeLimits.commandLifecycleFeature), let generation = handle.info?.generation {
+            pendingShellIntegrationEvents.append(contentsOf: shellIntegrationParser.acceptLocated(data, at: offset).map {
+                ($0.event, TerminalRuntimeCommandInfo.identity(generation: generation, markerOffset: $0.startOffset))
+            })
+        } else {
+            pendingShellIntegrationEvents.append(contentsOf: shellIntegrationParser.accept(data).map { ($0, nil) })
+        }
     }
 
     private func commitProcessOutputSnapshot() {
@@ -1029,11 +1095,12 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         pendingShellIntegrationEvents.removeAll(keepingCapacity: true)
 
         for event in events {
-            switch event {
+            switch event.event {
             case .commandStarted(let command):
                 session?.startShellIntegratedCommand(
                     command: command,
-                    historySnapshot: historySnapshot
+                    historySnapshot: historySnapshot,
+                    commandID: event.commandID
                 )
             case .commandFinished(let exitCode):
                 session?.finishActiveCommand(
@@ -1130,8 +1197,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 currentDirectory: currentDirectory,
                 onOutput: { [weak self] output in
                     DispatchQueue.main.async {
-                        guard let self, self.terminalView.process.running else { return }
-                        self.terminalView.send(source: self.terminalView, data: output[...])
+                        guard let self, self.terminalView.backendIsRunning else { return }
+                    self.terminalView.sendBackend(output[...])
                     }
                 },
                 onProgress: { [weak self] progress in
@@ -1287,6 +1354,15 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 ?? TerminalPreferences.defaultImageCacheMegabytes
         )
 
+        if let session, session.runtimeAttachOnly {
+            finishStartupPromptDeduplication()
+            startRuntime(.init(executable: "/qterm-attach-existing-only", directory: "/"),
+                root: session.runtimeRecoveryRoot ?? TerminalRuntimeService.rootDirectory) { [weak session] in
+                session?.markStartupCommandsFinished()
+            }
+            return
+        }
+
         switch session?.launchConfiguration ?? .localShell() {
         case .localShell(let startDirectory, let profile):
             let descriptor = Self.localShellLaunchDescriptor(profile: profile)
@@ -1296,10 +1372,21 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             // 先盖上遮罩，再启动进程：保证 shell 的第一条 PS1 输出抵达前画面已被遮住。
             beginStartupPromptDeduplication()
             session?.beginProcessRun()
+            if TerminalRuntimeService.isEnabled {
+                startRuntime(.init(executable: descriptor.executable, arguments: descriptor.args,
+                    executableName: descriptor.execName, environment: Self.runtimeEnvironment(descriptor.environment),
+                    directory: currentDirectory,
+                    columns: canStartProcess ? max(1, terminalColumns) : TerminalRuntimeLimits.defaultColumns,
+                    rows: canStartProcess ? max(1, terminalRows) : TerminalRuntimeLimits.defaultRows)) { [weak self] in
+                    if let profile { self?.drainStartupCommands(profile.normalized.startupCommands) }
+                    else { self?.session?.markStartupCommandsFinished() }
+                }
+                return
+            }
             terminalView.startProcess(
                 executable: descriptor.executable,
                 args: descriptor.args,
-                environment: descriptor.environment,
+                environment: session?.nativeAgentEnvironment(descriptor.environment) ?? descriptor.environment,
                 execName: descriptor.execName,
                 currentDirectory: currentDirectory
             )
@@ -1314,6 +1401,17 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 sshLastStartUptime = ProcessInfo.processInfo.systemUptime
                 let descriptor = try SSHConfigMaterializer.descriptor(for: profile)
                 session?.beginProcessRun()
+                if TerminalRuntimeService.isEnabled || runtimeHandle != nil {
+                    let startup = [RemoteShellIntegration.shellProbeCommand] + RemoteShellIntegration.startupCommands(for: profile) + descriptor.startupCommands
+                    startRuntime(.init(executable: descriptor.executable, arguments: descriptor.args,
+                        environment: Self.runtimeEnvironment(Self.environmentArray(shellPath: nil)),
+                        directory: FileManager.default.homeDirectoryForCurrentUser.path,
+                        columns: canStartProcess ? max(1, terminalColumns) : TerminalRuntimeLimits.defaultColumns,
+                        rows: canStartProcess ? max(1, terminalRows) : TerminalRuntimeLimits.defaultRows),
+                        root: runtimeLaunchContext?.1 ?? TerminalRuntimeService.rootDirectory,
+                        executable: runtimeLaunchContext?.2 ?? TerminalRuntimeService.executableURL) { [weak self] in self?.drainStartupCommands(startup) }
+                    return
+                }
                 terminalView.startProcess(
                     executable: descriptor.executable,
                     args: descriptor.args,
@@ -1382,10 +1480,11 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 guard let self,
                       !self.isTerminating,
                       case .ssh = self.session?.launchConfiguration,
-                      !self.terminalView.process.running else {
+                      !self.terminalView.backendIsRunning else {
                     return
                 }
                 self.terminalView.feed(text: "\(L10n.format("ssh.reconnect.attempting", attempt))\n")
+                guard self.prepareRuntimeSSHReconnect() else { return }
                 self.didStart = false
                 self.pendingStart = false
                 self.resetSSHDiagnosticsForNewAttempt()
@@ -1417,7 +1516,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             for command in commands {
                 try? await Task.sleep(nanoseconds: 450_000_000)
                 await MainActor.run {
-                    guard let self, self.terminalView.process.running else { return }
+                    guard let self, self.terminalView.backendIsRunning else { return }
                     self.terminalView.send(source: self.terminalView, data: Array((command + "\n").utf8)[...])
                 }
             }
@@ -1452,7 +1551,12 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
 
     private func applyStablePTYSize(newCols: Int, newRows: Int) {
         applyScrollbackLines(preferences?.scrollbackLines ?? TerminalPreferences.defaultScrollbackLines)
-        guard terminalView.process.running else { return }
+        guard terminalView.backendIsRunning else { return }
+        if let runtimeHandle {
+            runtimeHandle.resize(columns: newCols, rows: newRows)
+            noteStartupOutputActivity()
+            return
+        }
         var size = terminalView.getWindowSize()
         let _ = PseudoTerminalHelpers.setWinSize(
             masterPtyDescriptor: terminalView.process.childfd,
@@ -1463,6 +1567,177 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         noteStartupOutputActivity()
         sizeChanged(source: terminalView, newCols: newCols, newRows: newRows)
     }
+
+    private static func runtimeEnvironment(_ entries: [String]) -> [String: String] {
+        var result: [String: String] = [:]
+        for entry in entries {
+            guard let separator = entry.firstIndex(of: "=") else { continue }
+            result[String(entry[..<separator])] = String(entry[entry.index(after: separator)...])
+        }
+        result["QTERM_AGENT_CONTEXT"] = nil // The service creates and owns the bootstrap.
+        return result
+    }
+
+    func startRuntime(_ launch: TerminalRuntimeLaunch, root: URL = TerminalRuntimeService.rootDirectory,
+                      executable: URL = TerminalRuntimeService.executableURL,
+                      restarting previous: TerminalRuntimeSessionInfo? = nil, ready: @escaping () -> Void) {
+        guard let session else { return }
+        var launch = launch
+        if let preferences { launch.reminderPolicy = .init(preferences: preferences) }
+        let restarting = previous ?? runtimeRestartExpected
+        runtimeRestartExpected = nil
+        let restoring = restarting == nil && (session.runtimeRequiresExisting || session.runtimeGenerationToRestore != nil)
+        session.runtimeRequiresExisting = true
+        if restoring { finishStartupPromptDeduplication() }
+        didStart = true
+        runtimeLaunchContext = (launch, root, executable)
+        runtimeReady = ready
+        runtimeInputQueue?.cancel()
+        runtimeHandle?.detach()
+        runtimeExitWasReported = false
+        runtimeInputErrorCode = nil
+        let handle = TerminalRuntimeSessionHandle(id: session.id, root: root, executable: executable)
+        runtimeHandle = handle
+        handle.onRenderedOutput = { [weak session] in session?.onRuntimeOutputRendered?() }
+        session.runtimeConnectionIssue = .connecting
+        terminalView.externalIsRunning = { [weak handle] in handle?.info?.running == true }
+        // Trusted transport bytes (tunnel/ZMODEM/redraw) retain the old direct
+        // backend path. They are never command text or recording input. The
+        // service still enforces generation, human ownership and bounded input.
+        terminalView.externalBackendSend = { [weak self, weak handle] bytes in
+            guard let self, let handle, self.runtimeHandle === handle else { return false }
+            return handle.send(Data(bytes), source: .human) { [weak self, weak handle] result in
+                guard let self, let handle, self.runtimeHandle === handle else { return }
+                if case .failure(let error) = result { self.runtimeInputFailed(error) }
+            }
+        }
+        runtimeInputQueue = TerminalRuntimeInputQueue(handle: handle, approve: { [weak self, weak handle] bytes, echo, source, owner in
+            guard let self, let handle, self.runtimeHandle === handle else { return false }
+            self.isSendingToolInput = source == .ai
+            self.toolInputOwner = owner
+            defer { self.isSendingToolInput = false; self.toolInputOwner = nil }
+            return self.terminalView.onSendToProcess?(bytes, echo) ?? false
+        }, committed: { [weak self, weak handle] bytes, source, response in
+            guard let self, let handle, self.runtimeHandle === handle else { return }
+            self.runtimeInputErrorCode = nil
+            if self.session?.runtimeConnectionIssue == .inputRejected || self.session?.runtimeConnectionIssue == .inputTooLarge {
+                self.session?.runtimeConnectionIssue = nil
+            }
+            let echo = response.echoEnabled == true
+            self.session?.recordInputIfNeeded(data: bytes, echoEnabled: echo)
+            self.session?.observeProcessInput(data: bytes, echoEnabled: echo, historySnapshot: self.fullHistoryText())
+            self.updatePendingSafetyInput(data: bytes, echoEnabled: echo)
+            if source == .ai {
+                do { try self.session?.archiveAIInput(bytes, echoEnabled: echo) }
+                catch { NSLog("QTerm runtime input archive failed") }
+            }
+        }, failed: { [weak self, weak handle] error in
+            guard let self, let handle, self.runtimeHandle === handle else { return }
+            self.runtimeInputFailed(error)
+        })
+        terminalView.externalSend = { [weak self, weak handle] bytes, protocolTraffic in
+            guard let self, let handle else { return false }
+            if protocolTraffic {
+                let data = Data(bytes)
+                guard TerminalRuntimeReplyPolicy.allows(data) else { return false }
+                return handle.send(data, source: .protocolReply)
+            }
+            let accepted = self.runtimeInputQueue?.enqueue(bytes, source: .human, owner: nil) == true
+            if !accepted {
+                self.session?.runtimeConnectionIssue = TerminalRuntimeInputQueue.rejectedEnqueueIssue(
+                    connected: handle.connected, byteCount: bytes.count)
+            }
+            return accepted
+        }
+        terminalView.externalPaste = { [weak self, weak handle] bytes, text in
+            guard let self, let handle, self.runtimeHandle === handle else { return false }
+            let accepted = self.runtimeInputQueue?.enqueue(bytes, source: .human, owner: nil, validationBytes: text) == true
+            if !accepted {
+                self.session?.runtimeConnectionIssue = TerminalRuntimeInputQueue.rejectedEnqueueIssue(
+                    connected: handle.connected, byteCount: bytes.count)
+            }
+            return accepted
+        }
+        var didSynchronizeInitialSize = false
+        handle.onState = { [weak self, weak handle] info in
+            guard let self, let handle, self.runtimeHandle === handle, let session = self.session else { return }
+            if !didSynchronizeInitialSize, self.canStartProcess, info.running, let terminal = self.terminalView.terminal,
+               terminal.cols > 0, terminal.rows > 0 {
+                // Layout may have completed before a backend existed, when the
+                // resize callback intentionally skipped the unavailable PTY.
+                didSynchronizeInitialSize = true
+                if info.columns != terminal.cols || info.rows != terminal.rows {
+                    handle.resize(columns: terminal.cols, rows: terminal.rows)
+                }
+            }
+            if !handle.createdNewPTY { self.finishStartupPromptDeduplication() }
+            session.runtimeOwnsTerminalAttention = handle.features.contains(TerminalRuntimeLimits.terminalAttentionFeature)
+            if session.runtimeOwnsTerminalAttention { session.attentionStore?.markRuntimeAuthorityExternal(tabID: session.id) }
+            else if info.agent != nil || session.runtimeOwnsAgent { session.attentionStore?.markAgentAuthorityExternal(tabID: session.id) }
+            if let preferences = self.preferences { handle.configureReminders(.init(preferences: preferences)) }
+            session.applyRuntimeInfo(info)
+            if !info.running && !self.runtimeExitWasReported {
+                self.runtimeExitWasReported = true
+                self.processTerminated(source: self.terminalView, exitCode: info.exitStatus)
+            }
+        }
+        var didBecomeReady = false
+        handle.onOutput = { [weak self, weak handle] response, historicalBytes, consumed in
+            guard let self, let handle, self.runtimeHandle === handle, let session = self.session else { consumed(); return }
+            self.runtimeForegroundPID = response.foregroundPID
+            if response.hasGap == true { session.runtimeConnectionIssue = .outputGap }
+            else if session.runtimeConnectionIssue != .inputRejected && session.runtimeConnectionIssue != .inputTooLarge {
+                session.runtimeConnectionIssue = nil
+            }
+            if session.runtimeOwnsAgent || session.runtimeOwnsTerminalAttention {
+                session.attentionStore?.adoptAgentItems(response.attention ?? [], tabID: session.id, cursor: response.eventHead)
+            }
+            if response.hasGap == true { self.terminalView.feed(text: "\u{1b}[0m\u{1b}[2J\u{1b}[H") }
+            let data = response.data ?? Data()
+            if let end = response.cursor?.offset, end >= UInt64(data.count) {
+                self.runtimeParsingOffset = end - UInt64(data.count) + UInt64(min(data.count, max(0, historicalBytes)))
+            }
+            self.terminalView.receiveExternal(data, historicalBytes: historicalBytes, completion: consumed)
+            self.runtimeParsingOffset = nil
+            if !didBecomeReady {
+                didBecomeReady = true
+                let ready = self.runtimeReady; self.runtimeReady = nil
+                if restoring || !handle.createdNewPTY { session.markStartupCommandsFinished() } else { ready?() }
+            }
+        }
+        handle.onFailure = { [weak self, weak handle] _ in
+            guard let self, let handle, self.runtimeHandle === handle else { return }
+            self.session?.runtimeConnectionIssue = .disconnected
+        }
+        session.attentionStore?.externalAcknowledgement[session.id] = { [weak handle, weak session] id, version in
+            guard let handle, handle.connected else { return false }
+            handle.acknowledge(id: id, version: version) { result in
+                if case .failure(TerminalRuntimeConnectionError.rejected(let code)) = result,
+                   code == TerminalRuntimeSessionHandle.acknowledgementPendingCode { return }
+                if case .success(let response) = result, let session {
+                    session.attentionStore?.adoptAgentItems(response.attention ?? [], tabID: session.id, cursor: response.eventHead)
+                } else { session?.runtimeConnectionIssue = .disconnected }
+            }
+            return true
+        }
+        handle.start(launch, restoring: restarting == nil ? session.runtimeGenerationToRestore : nil, existingOnly: restoring,
+            renderedCursor: restarting == nil ? session.runtimeRenderedCursorToRestore : nil, restarting: restarting)
+    }
+
+    private func runtimeInputFailed(_ error: Error) {
+        runtimeInputErrorCode = (error as? TerminalRuntimeConnectionError)?.diagnosticCode ?? "input_rejected"
+        if error is TerminalAIControlError { session?.runtimeConnectionIssue = .inputRejected }
+        else if case TerminalRuntimeConnectionError.rejected = error { session?.runtimeConnectionIssue = .inputRejected }
+        else { session?.runtimeConnectionIssue = .disconnected }
+    }
+
+    func reconnectRuntime() {
+        if runtimeHandle?.info == nil, let (launch, root, executable) = runtimeLaunchContext {
+            startRuntime(launch, root: root, executable: executable, ready: runtimeReady ?? {})
+        } else { runtimeHandle?.reconnect() }
+    }
+
+    func detachRuntimeViewer() { runtimeHandle?.detach() }
 
     // 新建标签时，shell 打印 PS1 后常因启动期 SIGWINCH 或 p10k 实时提示符，把提示符
     // 在顶部重绘成多条。关键教训：绝不能在“输出还在抖动”时去发 ^L —— 那会和 WINCH 重绘
@@ -1509,7 +1784,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             finishStartupPromptDeduplication()
             return
         }
-        guard terminalView.process.running else {
+        guard terminalView.backendIsRunning else {
             finishStartupPromptDeduplication()
             return
         }
@@ -1518,7 +1793,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         if now >= startupHardDeadline {
             // 到硬上限，最后再尝试清一次（若仍重复），然后无论如何揭开。
             if startupRedrawCount < 3, visibleScreenLooksLikeDuplicatedStartupPrompt() {
-                terminalView.process.send(data: [0x0C][...])
+                terminalView.sendBackend([0x0C][...])
                 invalidateDisplay()
             }
             finishStartupPromptDeduplication()
@@ -1548,7 +1823,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 return
             }
             startupRedrawCount += 1
-            terminalView.process.send(data: [0x0C][...])
+            terminalView.sendBackend([0x0C][...])
             invalidateDisplay()
             // ^L 会产生输出并刷新安静计时；下一轮等它安静后复检。
             scheduleStartupPromptPoll(after: 0.1)
@@ -1770,6 +2045,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
 
     private static func environmentDictionary(shellPath: String?) -> [String: String] {
         var environment = ProcessInfo.processInfo.environment
+        environment["QTERM_AGENT_CONTEXT"] = nil
         environment["TERM"] = "xterm-256color"
         environment["LANG"] = environment["LANG"] ?? "en_US.UTF-8"
         environment["MUSETERM_TERMINAL"] = "1"
@@ -2154,809 +2430,4 @@ enum TerminalIMECommitPolicy {
             && returnKeyCodes.contains(keyCode)
             && modifiers.intersection(disallowedModifiers).isEmpty
     }
-}
-
-private final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
-    var onNeedsFocus: (() -> Void)?
-    var onReadyForProcessStart: (() -> Void)?
-    var onStableTerminalResize: ((_ cols: Int, _ rows: Int) -> Void)?
-    var onProcessInputSent: (() -> Void)?
-    var onTerminalBell: (() -> Void)?
-    var onTerminalTitle: ((_ title: String) -> Void)?
-    var onCurrentDirectory: ((_ directory: String?) -> Void)?
-    var shouldRecordInput: (() -> Bool)?
-    var shouldCopyOnSelect: (() -> Bool)?
-    var linkContext: (() -> TerminalLinkContext)?
-    var shouldOpenWebImagesInViewer: (() -> Bool)?
-    var onSendToProcess: ((_ data: [UInt8], _ echoEnabled: Bool) -> Bool)?
-    var onReceivedProcessData: ((_ data: ArraySlice<UInt8>) -> Bool)?
-    var onProcessOutputCommitted: (() -> Void)?
-    private var terminalDelegateRouter: TerminalDelegateRouter?
-    private var pendingResizeWorkItem: DispatchWorkItem?
-    private var imeReturnMonitor: Any?
-    private var cachedEchoEnabled: Bool?
-    private var cachedEchoCheckedAt: TimeInterval = 0
-    private var pendingEchoBytes: [UInt8] = []
-    private var selectionAutoscrollTimer: Timer?
-    private var selectionAutoscrollAction: TerminalSelectionAutoscroll?
-    private var lastSelectionDragEvent: NSEvent?
-    private var isTrackingMouseSelection = false
-    private var selectionChangedDuringMouseGesture = false
-    private var lastMouseUpLocation: NSPoint?
-    private var didRequestOpenLinkDuringMouseUp = false
-    private var linkNoticeView: NSView?
-    private var linkNoticeWorkItem: DispatchWorkItem?
-    private let linkNoticeDuration: TimeInterval = 2.4
-    private let linkNoticeFadeDuration: TimeInterval = 0.25
-    private let linkNoticeOffset: CGFloat = 14
-    private let maxEchoCacheAge: TimeInterval = 1.0
-    private let maxPendingEchoBytes = 2_048
-    private let selectionAutoscrollInterval: TimeInterval = 0.08
-
-    // #1 高频输出防卡：把 PTY 数据合批喂入终端解析器，按 runloop tick 限量 flush。
-    // 效果：原先“每来一片数据就同步 feed + 触发一次重绘”，多 tab 刷屏时把主线程压垮、
-    // 且积压无上限（杀掉源头后仍要逐行啃完 → 永久 100%、界面冻死）。
-    // 改为缓冲后合并喂入：多片合并成一次 feed → 一次重绘；每 tick 最多解析 maxFeedBytesPerFlush，
-    // 剩余留到下一 tick 并把 runloop 让给 UI 事件，主线程始终可响应、杀源后能快速排空恢复。
-    // 全程在主线程（dataReceived 由 LocalProcess 在 main queue 上回调），故无需加锁。
-    private var pendingFeedBytes: [UInt8] = []
-    private var feedFlushScheduled = false
-    private let maxFeedBytesPerFlush = 256 * 1024
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        installTerminalDelegateRouter()
-        installIMEReturnMonitor()
-    }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        installTerminalDelegateRouter()
-        installIMEReturnMonitor()
-    }
-
-    deinit {
-        if let imeReturnMonitor {
-            NSEvent.removeMonitor(imeReturnMonitor)
-        }
-        stopSelectionAutoscroll()
-    }
-
-    private func installIMEReturnMonitor() {
-        imeReturnMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self,
-                  event.window === self.window,
-                  self.window?.firstResponder === self,
-                  TerminalIMECommitPolicy.shouldForwardReturnAfterCommit(
-                      keyCode: event.keyCode,
-                      modifiers: event.modifierFlags,
-                      hadMarkedText: self.hasMarkedText(),
-                      hasMarkedText: false
-                  ) else { return event }
-
-            // The monitor runs before SwiftTerm's NSTextInputClient handles the
-            // key. Check on the next main-loop turn whether Return really ended
-            // composition, then forward the consumed Return to the PTY.
-            DispatchQueue.main.async { [weak self] in
-                guard let self, !self.hasMarkedText() else { return }
-                self.send(txt: "\r")
-            }
-            return event
-        }
-    }
-
-    private func installTerminalDelegateRouter() {
-        let router = TerminalDelegateRouter(owner: self)
-        terminalDelegateRouter = router
-        terminalDelegate = router
-    }
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        if window == nil {
-            stopSelectionAutoscroll()
-        }
-        DispatchQueue.main.async { [weak self] in
-            self?.requestFocus()
-            self?.onReadyForProcessStart?()
-        }
-    }
-
-    override func setFrameSize(_ newSize: NSSize) {
-        super.setFrameSize(newSize)
-        DispatchQueue.main.async { [weak self] in
-            self?.onReadyForProcessStart?()
-        }
-    }
-
-    func requestFocus() {
-        guard let window else { return }
-        window.makeFirstResponder(self)
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        stopSelectionAutoscroll()
-        requestFocus()
-        onNeedsFocus?()
-        isTrackingMouseSelection = true
-        selectionChangedDuringMouseGesture = false
-        super.mouseDown(with: event)
-    }
-
-    override func mouseDragged(with event: NSEvent) {
-        super.mouseDragged(with: event)
-        lastSelectionDragEvent = event
-        updateSelectionAutoscroll(for: event)
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        stopSelectionAutoscroll()
-        lastMouseUpLocation = convert(event.locationInWindow, from: nil)
-        didRequestOpenLinkDuringMouseUp = false
-        super.mouseUp(with: event)
-        if shouldTryBareFileNameLink(for: event) {
-            openBareFileNameLink(at: event)
-        }
-        finishMouseSelectionGesture()
-    }
-
-    override func selectionChanged(source: Terminal) {
-        super.selectionChanged(source: source)
-        if isTrackingMouseSelection {
-            selectionChangedDuringMouseGesture = true
-        }
-    }
-
-    private func finishMouseSelectionGesture() {
-        defer {
-            isTrackingMouseSelection = false
-            selectionChangedDuringMouseGesture = false
-        }
-        guard let text = TerminalCopyOnSelectPolicy.textToCopy(
-            isEnabled: shouldCopyOnSelect?() ?? false,
-            selectionChangedDuringGesture: selectionChangedDuringMouseGesture,
-            selection: getSelection()
-        ) else { return }
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
-    }
-
-    override func rightMouseDown(with event: NSEvent) {
-        stopSelectionAutoscroll()
-        requestFocus()
-        onNeedsFocus?()
-        super.rightMouseDown(with: event)
-    }
-
-    override func menu(for event: NSEvent) -> NSMenu? {
-        let menu = NSMenu()
-        let context = TerminalSelectionContext(selection: getSelection())
-        let escapedItem = NSMenuItem(
-            title: L10n.string("terminal.context.type_escaped_selection"),
-            action: #selector(typeShellEscapedSelection(_:)),
-            keyEquivalent: ""
-        )
-        escapedItem.target = self
-        escapedItem.isEnabled = true
-        menu.addItem(escapedItem)
-        addSelectionContextMenuItems(to: menu, context: context)
-        menu.addItem(.separator())
-        menu.addItem(withTitle: L10n.string("action.copy"), action: #selector(copy(_:)), keyEquivalent: "")
-        menu.addItem(withTitle: L10n.string("action.paste"), action: #selector(paste(_:)), keyEquivalent: "")
-        menu.addItem(withTitle: L10n.string("action.select_all"), action: #selector(selectAll(_:)), keyEquivalent: "")
-        return menu
-    }
-
-    @objc private func typeShellEscapedSelection(_ sender: Any) {
-        guard let text = TerminalShellArgumentEscaper.typedArgument(fromTerminalSelection: getSelection()) else {
-            NSSound.beep()
-            return
-        }
-        send(source: self, data: Array(text.utf8)[...])
-    }
-
-    private func addSelectionContextMenuItems(to menu: NSMenu, context: TerminalSelectionContext?) {
-        guard let context else { return }
-
-        var addedContextSection = false
-        func addContextSeparatorIfNeeded() {
-            guard !addedContextSection else { return }
-            menu.addItem(.separator())
-            addedContextSection = true
-        }
-
-        addContextSeparatorIfNeeded()
-        if let escaped = context.escapedPathArgument {
-            menu.addItem(makeCopyItem("terminal.context.copy_escaped_selection", text: escaped))
-        }
-        menu.addItem(makeCopyItem("terminal.context.copy_redacted_selection", text: RunbookSensitiveRedactor.redact(context.trimmedText)))
-        menu.addItem(makeCopyItem("terminal.context.copy_markdown_selection", text: context.markdownCodeBlock))
-        menu.addItem(makeCopyItem("terminal.context.copy_ai_prompt", text: context.aiPrompt))
-
-        if let url = context.normalizedURL {
-            addContextSeparatorIfNeeded()
-            menu.addItem(makeOpenURLItem("terminal.context.open_url", url: url))
-            menu.addItem(makeCopyItem("terminal.context.copy_curl_command", text: "curl -i \(TerminalShellArgumentEscaper.shellArgument(url.absoluteString))"))
-            menu.addItem(makeTypeCommandItem("terminal.context.type_curl_command", command: "curl -i \(TerminalShellArgumentEscaper.shellArgument(url.absoluteString))"))
-        }
-
-        if context.isLikelyPath, let escaped = context.escapedPathArgument {
-            addContextSeparatorIfNeeded()
-            menu.addItem(makeSubmenu(
-                "terminal.context.path_submenu",
-                items: pathMenuItems(context: context, escapedPath: escaped)
-            ))
-        }
-
-        if let port = context.port {
-            addContextSeparatorIfNeeded()
-            menu.addItem(makeSubmenu(
-                "terminal.context.port_submenu",
-                items: [
-                    makeOpenURLItem("terminal.context.open_localhost_port", url: URL(string: "http://127.0.0.1:\(port)")!),
-                    makeTypeCommandItem("terminal.context.type_port_lsof", command: "lsof -nP -iTCP:\(port) -sTCP:LISTEN"),
-                    makeCopyItem("terminal.context.copy_localhost_url", text: "http://127.0.0.1:\(port)")
-                ]
-            ))
-        }
-
-        if let pid = context.pid {
-            addContextSeparatorIfNeeded()
-            menu.addItem(makeSubmenu(
-                "terminal.context.pid_submenu",
-                items: [
-                    makeTypeCommandItem("terminal.context.type_pid_ps", command: "ps -p \(pid) -o pid,ppid,stat,etime,pcpu,pmem,command"),
-                    makeTypeCommandItem("terminal.context.type_pid_lsof", command: "lsof -p \(pid)"),
-                    makeTypeCommandItem("terminal.context.type_pid_kill", command: "kill \(pid)"),
-                    makeTypeCommandItem("terminal.context.type_pid_kill9", command: "kill -9 \(pid)")
-                ]
-            ))
-        }
-
-        if let hash = context.gitHash {
-            addContextSeparatorIfNeeded()
-            menu.addItem(makeSubmenu(
-                "terminal.context.git_submenu",
-                items: [
-                    makeTypeCommandItem("terminal.context.type_git_show_stat", command: "git show --stat \(hash)"),
-                    makeTypeCommandItem("terminal.context.type_git_show", command: "git show \(hash)")
-                ]
-            ))
-        }
-
-        if let prettyJSON = context.prettyJSON {
-            addContextSeparatorIfNeeded()
-            menu.addItem(makeSubmenu(
-                "terminal.context.json_submenu",
-                items: [
-                    makeCopyItem("terminal.context.copy_pretty_json", text: prettyJSON),
-                    makeTypeCommandItem("terminal.context.type_jq_command", command: "jq .")
-                ]
-            ))
-        }
-
-        if let searchArgument = context.searchCommandArgument {
-            addContextSeparatorIfNeeded()
-            menu.addItem(makeTypeCommandItem("terminal.context.type_rg_command", command: "rg \(searchArgument)"))
-        }
-
-        let transformItems = transformMenuItems(for: context)
-        if !transformItems.isEmpty {
-            addContextSeparatorIfNeeded()
-            menu.addItem(makeSubmenu("terminal.context.transform_submenu", items: transformItems))
-        }
-    }
-
-    private func pathMenuItems(context: TerminalSelectionContext, escapedPath: String) -> [NSMenuItem] {
-        var items: [NSMenuItem] = [
-            makeCopyItem("terminal.context.copy_escaped_path", text: escapedPath),
-            makeTypeCommandItem("terminal.context.type_ls_path", command: "ls -la \(escapedPath)"),
-            makeTypeCommandItem("terminal.context.type_stat_path", command: "stat \(escapedPath)"),
-            makeTypeCommandItem("terminal.context.type_file_path", command: "file \(escapedPath)")
-        ]
-        if let removeCommand = context.interactiveRemoveCommand {
-            items.append(makeTypeCommandItem("terminal.context.type_rm_path", command: removeCommand))
-        }
-        if let localPath = context.localPathCandidate,
-           FileManager.default.fileExists(atPath: localPath) {
-            items.insert(
-                makeRevealFileItem("terminal.context.reveal_in_finder", path: localPath),
-                at: 1
-            )
-        }
-        if context.isExistingLocalDirectory {
-            items.insert(
-                makeTypeCommandItem("terminal.context.type_cd_path", command: "cd \(escapedPath)"),
-                at: 1
-            )
-        }
-        return items
-    }
-
-    private func transformMenuItems(for context: TerminalSelectionContext) -> [NSMenuItem] {
-        var items: [NSMenuItem] = []
-        if let encoded = context.urlEncodedText, encoded != context.trimmedText {
-            items.append(makeCopyItem("terminal.context.copy_url_encoded", text: encoded))
-        }
-        if let decoded = context.urlDecodedText {
-            items.append(makeCopyItem("terminal.context.copy_url_decoded", text: decoded))
-        }
-        items.append(makeCopyItem("terminal.context.copy_base64_encoded", text: context.base64EncodedText))
-        if let decoded = context.base64DecodedText {
-            items.append(makeCopyItem("terminal.context.copy_base64_decoded", text: decoded))
-        }
-        return items
-    }
-
-    private func makeSubmenu(_ titleKey: String, items: [NSMenuItem]) -> NSMenuItem {
-        let item = NSMenuItem(title: L10n.string(titleKey), action: nil, keyEquivalent: "")
-        let submenu = NSMenu(title: L10n.string(titleKey))
-        items.forEach { submenu.addItem($0) }
-        item.submenu = submenu
-        return item
-    }
-
-    private func makeCopyItem(_ titleKey: String, text: String) -> NSMenuItem {
-        let item = NSMenuItem(title: L10n.string(titleKey), action: #selector(copyRepresentedText(_:)), keyEquivalent: "")
-        item.target = self
-        item.representedObject = text
-        return item
-    }
-
-    private func makeTypeCommandItem(_ titleKey: String, command: String) -> NSMenuItem {
-        let item = NSMenuItem(title: L10n.string(titleKey), action: #selector(typeRepresentedCommand(_:)), keyEquivalent: "")
-        item.target = self
-        item.representedObject = command
-        return item
-    }
-
-    private func makeOpenURLItem(_ titleKey: String, url: URL) -> NSMenuItem {
-        let item = NSMenuItem(title: L10n.string(titleKey), action: #selector(openRepresentedURL(_:)), keyEquivalent: "")
-        item.target = self
-        item.representedObject = url
-        return item
-    }
-
-    private func makeRevealFileItem(_ titleKey: String, path: String) -> NSMenuItem {
-        let item = NSMenuItem(title: L10n.string(titleKey), action: #selector(revealRepresentedFile(_:)), keyEquivalent: "")
-        item.target = self
-        item.representedObject = path
-        return item
-    }
-
-    @objc private func copyRepresentedText(_ sender: NSMenuItem) {
-        guard let text = sender.representedObject as? String else {
-            NSSound.beep()
-            return
-        }
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
-    }
-
-    @objc private func typeRepresentedCommand(_ sender: NSMenuItem) {
-        guard let command = sender.representedObject as? String else {
-            NSSound.beep()
-            return
-        }
-        send(source: self, data: Array(command.utf8)[...])
-    }
-
-    @objc private func openRepresentedURL(_ sender: NSMenuItem) {
-        guard let url = sender.representedObject as? URL else {
-            NSSound.beep()
-            return
-        }
-        NSWorkspace.shared.open(url)
-    }
-
-    @objc private func revealRepresentedFile(_ sender: NSMenuItem) {
-        guard let path = sender.representedObject as? String else {
-            NSSound.beep()
-            return
-        }
-        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
-    }
-
-    override func otherMouseDown(with event: NSEvent) {
-        stopSelectionAutoscroll()
-        requestFocus()
-        onNeedsFocus?()
-        super.otherMouseDown(with: event)
-    }
-
-    private func updateSelectionAutoscroll(for event: NSEvent) {
-        guard selectionActive else {
-            stopSelectionAutoscroll()
-            return
-        }
-
-        let point = convert(event.locationInWindow, from: nil)
-        guard let action = TerminalSelectionAutoscroll.action(pointerY: point.y, viewHeight: bounds.height) else {
-            stopSelectionAutoscroll()
-            return
-        }
-
-        selectionAutoscrollAction = action
-        guard selectionAutoscrollTimer == nil else { return }
-
-        let timer = Timer(timeInterval: selectionAutoscrollInterval, repeats: true) { [weak self] _ in
-            self?.handleSelectionAutoscrollTick()
-        }
-        selectionAutoscrollTimer = timer
-        RunLoop.main.add(timer, forMode: .common)
-    }
-
-    private func handleSelectionAutoscrollTick() {
-        guard selectionActive, let action = selectionAutoscrollAction else {
-            stopSelectionAutoscroll()
-            return
-        }
-
-        switch action.direction {
-        case .up:
-            scrollUp(lines: action.lines)
-        case .down:
-            scrollDown(lines: action.lines)
-        }
-
-        if let event = lastSelectionDragEvent {
-            super.mouseDragged(with: event)
-        }
-    }
-
-    private func stopSelectionAutoscroll() {
-        selectionAutoscrollTimer?.invalidate()
-        selectionAutoscrollTimer = nil
-        selectionAutoscrollAction = nil
-        lastSelectionDragEvent = nil
-    }
-
-    override func paste(_ sender: Any) {
-        onNeedsFocus?()
-        super.paste(sender)
-    }
-
-    private(set) var didSendLastInput = false
-
-    override func send(source: TerminalView, data: ArraySlice<UInt8>) {
-        didSendLastInput = false
-        let bytes = Array(data)
-        let echoEnabled = cachedTerminalEchoEnabled()
-        guard onSendToProcess?(bytes, echoEnabled) ?? true else { return }
-        onProcessInputSent?()
-        if shouldRecordInput?() == true {
-            if echoEnabled {
-                rememberExpectedEcho(bytes)
-            }
-        }
-        super.send(source: source, data: data)
-        didSendLastInput = true
-    }
-
-    // Emulator replies (cursor position, device attributes, etc.) are protocol traffic,
-    // not human input. Keep full-screen programs responsive while input is locked.
-    override func send(source: Terminal, data: ArraySlice<UInt8>) {
-        super.send(source: self, data: data)
-    }
-
-    fileprivate func terminalDidResize(newCols: Int, newRows: Int) {
-        pendingResizeWorkItem?.cancel()
-        guard process.running else { return }
-        let workItem = DispatchWorkItem { [weak self] in
-            guard let self, self.process.running else { return }
-            guard self.terminal.cols == newCols, self.terminal.rows == newRows else {
-                self.terminalDidResize(newCols: self.terminal.cols, newRows: self.terminal.rows)
-                return
-            }
-            self.onStableTerminalResize?(newCols, newRows)
-        }
-        pendingResizeWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18, execute: workItem)
-    }
-
-    fileprivate func terminalDidSetTitle(_ title: String) {
-        onTerminalTitle?(title)
-    }
-
-    fileprivate func terminalDidUpdateCurrentDirectory(_ directory: String?) {
-        onCurrentDirectory?(directory)
-    }
-
-    fileprivate func terminalDidSend(data: ArraySlice<UInt8>) {
-        send(source: self, data: data)
-    }
-
-    fileprivate func terminalDidCopyToClipboard(_ content: Data) {
-        guard let string = String(bytes: content, encoding: .utf8) else { return }
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.writeObjects([string as NSString])
-    }
-
-    fileprivate func terminalClipboardData() -> Data? {
-        NSPasteboard.general.string(forType: .string)?.data(using: .utf8)
-    }
-
-    fileprivate func terminalDidRequestOpenLink(_ link: String) {
-        didRequestOpenLinkDuringMouseUp = true
-        let context = linkContext?() ?? TerminalLinkContext(currentDirectory: nil, isRemoteSession: false)
-        switch TerminalLinkResolver.resolve(link, context: context) {
-        case .success(.webPage(let url)), .success(.otherScheme(let url)):
-            NSWorkspace.shared.open(url)
-        case .success(.webImage(let url)):
-            openWebImage(url)
-        case .success(.localItem(let url)):
-            NSWorkspace.shared.open(url)
-        case .success(.revealInFinder(let url)):
-            NSWorkspace.shared.activateFileViewerSelecting([url])
-            showLinkNotice(L10n.string("terminal.link.revealed_in_finder"))
-        case .failure(.remotePath):
-            NSSound.beep()
-            showLinkNotice(L10n.string("terminal.link.remote_path"))
-        case .failure(.notFound(let path)):
-            NSSound.beep()
-            showLinkNotice(L10n.format("terminal.link.not_found", path))
-        case .failure(.invalid):
-            NSSound.beep()
-            showLinkNotice(L10n.string("terminal.link.invalid"))
-        }
-    }
-
-    /// 只处理"⌘+单击、SwiftTerm 没识别出链接、也没拖出选区"的情况
-    private func shouldTryBareFileNameLink(for event: NSEvent) -> Bool {
-        event.modifierFlags.contains(.command)
-            && event.clickCount == 1
-            && !didRequestOpenLinkDuringMouseUp
-            && !selectionChangedDuringMouseGesture
-    }
-
-    /// 裸文件名兜底：只有本机确实存在该文件时才打开；找不到就安静地什么都不做，
-    /// 免得 ⌘+点到普通单词时也弹"找不到文件"
-    private func openBareFileNameLink(at event: NSEvent) {
-        guard let (column, row) = screenCell(for: event),
-              let cells = screenRowCharacters(row: row),
-              let word = TerminalLinkWordExtractor.candidate(in: cells, at: column) else { return }
-        let context = linkContext?() ?? TerminalLinkContext(currentDirectory: nil, isRemoteSession: false)
-        guard case .success(let target) = TerminalLinkResolver.resolve(word, context: context) else { return }
-        switch target {
-        case .localItem(let url):
-            NSWorkspace.shared.open(url)
-        case .revealInFinder(let url):
-            NSWorkspace.shared.activateFileViewerSelecting([url])
-            showLinkNotice(L10n.string("terminal.link.revealed_in_finder"))
-        case .webPage, .webImage, .otherScheme:
-            // 带 scheme 的链接 SwiftTerm 已经识别过；走到这里说明不是完整链接，不处理
-            break
-        }
-    }
-
-    /// 点击位置对应的可见区域（列, 行）。SwiftTerm 的格子尺寸不公开：行高由
-    /// getOptimalFrameSize 反推，列宽按 SwiftTerm 同样的"W 字宽 + 像素对齐"规则计算
-    private func screenCell(for event: NSEvent) -> (column: Int, row: Int)? {
-        let terminal = getTerminal()
-        guard terminal.cols > 0, terminal.rows > 0 else { return nil }
-        let cellHeight = getOptimalFrameSize().height / CGFloat(terminal.rows)
-        let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
-        let glyph = font.glyph(withName: "W")
-        let cellWidth = ceil(font.advancement(forGlyph: glyph).width * scale) / scale
-        guard cellWidth > 0, cellHeight > 0 else { return nil }
-        let point = convert(event.locationInWindow, from: nil)
-        let column = Int(point.x / cellWidth)
-        let row = Int((frame.height - point.y) / cellHeight)
-        guard (0..<terminal.cols).contains(column), (0..<terminal.rows).contains(row) else { return nil }
-        return (column, row)
-    }
-
-    /// 一格一个字符，下标与列号对齐；空格子和宽字符的占位格是 NUL，按分隔符处理
-    private func screenRowCharacters(row: Int) -> [Character]? {
-        let terminal = getTerminal()
-        guard let line = terminal.getLine(row: row) else { return nil }
-        let count = min(terminal.cols, line.count)
-        return (0..<count).map { terminal.getCharacter(for: line[$0]) }
-    }
-
-    private func openWebImage(_ url: URL) {
-        guard shouldOpenWebImagesInViewer?() ?? true else {
-            NSWorkspace.shared.open(url)
-            return
-        }
-        showLinkNotice(L10n.string("terminal.link.downloading_image"))
-        TerminalLinkImageDownloader.download(url) { [weak self] result in
-            switch result {
-            case .success(let fileURL):
-                self?.hideLinkNotice()
-                NSWorkspace.shared.open(fileURL)
-            case .failure(let error):
-                // 只记 host + path，query 里可能带 token
-                NSLog("QTerm image link download failed host=%@ path=%@ error=%@", url.host ?? "", url.path, String(describing: error))
-                NSWorkspace.shared.open(url)
-                self?.showLinkNotice(L10n.string("terminal.link.image_fallback_browser"))
-            }
-        }
-    }
-
-    /// 在点击位置附近浮一个小提示，几秒后淡出；不往终端里写字，避免污染输出
-    private func showLinkNotice(_ text: String) {
-        hideLinkNotice()
-        let label = NSTextField(labelWithString: text)
-        label.font = .systemFont(ofSize: NSFont.smallSystemFontSize, weight: .medium)
-        label.textColor = .white
-        label.lineBreakMode = .byTruncatingMiddle
-        label.maximumNumberOfLines = 1
-
-        let container = NSView()
-        container.wantsLayer = true
-        container.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.78).cgColor
-        container.layer?.cornerRadius = 6
-        container.addSubview(label)
-
-        let horizontalPadding: CGFloat = 10
-        let verticalPadding: CGFloat = 5
-        let maxWidth = max(bounds.width - linkNoticeOffset * 2, 120)
-        let labelSize = label.fittingSize
-        let width = min(labelSize.width + horizontalPadding * 2, maxWidth)
-        let height = labelSize.height + verticalPadding * 2
-        label.frame = NSRect(x: horizontalPadding, y: verticalPadding, width: width - horizontalPadding * 2, height: labelSize.height)
-
-        let anchor = lastMouseUpLocation ?? NSPoint(x: bounds.midX, y: bounds.midY)
-        let y = isFlipped ? anchor.y + linkNoticeOffset : anchor.y - linkNoticeOffset - height
-        let x = min(max(anchor.x - width / 2, linkNoticeOffset), max(bounds.width - width - linkNoticeOffset, linkNoticeOffset))
-        container.frame = NSRect(
-            x: x,
-            y: min(max(y, 0), max(bounds.height - height, 0)),
-            width: width,
-            height: height
-        )
-        addSubview(container)
-        linkNoticeView = container
-
-        let workItem = DispatchWorkItem { [weak self] in self?.hideLinkNotice(animated: true) }
-        linkNoticeWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + linkNoticeDuration, execute: workItem)
-    }
-
-    private func hideLinkNotice(animated: Bool = false) {
-        linkNoticeWorkItem?.cancel()
-        linkNoticeWorkItem = nil
-        guard let view = linkNoticeView else { return }
-        linkNoticeView = nil
-        guard animated else {
-            view.removeFromSuperview()
-            return
-        }
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = linkNoticeFadeDuration
-            view.animator().alphaValue = 0
-        }, completionHandler: {
-            view.removeFromSuperview()
-        })
-    }
-
-    fileprivate func terminalDidBell() {
-        NSSound.beep()
-        onTerminalBell?()
-    }
-
-    override func dataReceived(slice: ArraySlice<UInt8>) {
-        if onReceivedProcessData?(slice) == true {
-            return
-        }
-        if shouldRecordInput?() == true, !isExpectedEcho(slice) {
-            invalidateTerminalEchoCache()
-        }
-        // 到达时的 echo 检测 / onReceivedProcessData 已同步跑完（顺序敏感，保持原样）；
-        // 真正的 feed（解析+重绘）改为缓冲后合并限量 flush，见 flushPendingFeed()。
-        pendingFeedBytes.append(contentsOf: slice)
-        scheduleFeedFlush()
-    }
-
-    private func scheduleFeedFlush() {
-        guard !feedFlushScheduled else { return }
-        feedFlushScheduled = true
-        DispatchQueue.main.async { [weak self] in
-            self?.flushPendingFeed()
-        }
-    }
-
-    private func flushPendingFeed() {
-        feedFlushScheduled = false
-        guard !pendingFeedBytes.isEmpty else { return }
-        let end = min(pendingFeedBytes.count, maxFeedBytesPerFlush)
-        // super.dataReceived == feed(byteArray:)，纯流式解析，合批喂入与逐片喂入等价。
-        super.dataReceived(slice: pendingFeedBytes[0..<end])
-        pendingFeedBytes.removeFirst(end)
-        onProcessOutputCommitted?()
-        // 仍有积压 → 下一 tick 继续（让出 runloop 给 UI 事件，保持界面可响应）。
-        if !pendingFeedBytes.isEmpty {
-            scheduleFeedFlush()
-        }
-    }
-
-    var terminalEchoEnabled: Bool {
-        guard process.running else { return false }
-        var attributes = termios()
-        guard tcgetattr(process.childfd, &attributes) == 0 else { return false }
-        return (attributes.c_lflag & tcflag_t(ECHO)) != 0
-    }
-
-    private func invalidateTerminalEchoCache() {
-        cachedEchoEnabled = nil
-        cachedEchoCheckedAt = 0
-        pendingEchoBytes.removeAll(keepingCapacity: true)
-    }
-
-    private func cachedTerminalEchoEnabled() -> Bool {
-        let now = ProcessInfo.processInfo.systemUptime
-        if let cachedEchoEnabled, now - cachedEchoCheckedAt <= maxEchoCacheAge {
-            return cachedEchoEnabled
-        }
-        let fresh = terminalEchoEnabled
-        cachedEchoEnabled = fresh
-        cachedEchoCheckedAt = now
-        return fresh
-    }
-
-    private func rememberExpectedEcho(_ bytes: [UInt8]) {
-        guard !bytes.isEmpty else { return }
-        pendingEchoBytes.append(contentsOf: bytes)
-        if pendingEchoBytes.count > maxPendingEchoBytes {
-            pendingEchoBytes.removeFirst(pendingEchoBytes.count - maxPendingEchoBytes)
-        }
-    }
-
-    private func isExpectedEcho(_ slice: ArraySlice<UInt8>) -> Bool {
-        guard !slice.isEmpty, !pendingEchoBytes.isEmpty else { return false }
-        let bytes = Array(slice)
-        guard pendingEchoBytes.starts(with: bytes) else { return false }
-        pendingEchoBytes.removeFirst(bytes.count)
-        return true
-    }
-}
-
-private final class TerminalDelegateRouter: TerminalViewDelegate {
-    private weak var owner: FocusableLocalProcessTerminalView?
-
-    init(owner: FocusableLocalProcessTerminalView) {
-        self.owner = owner
-    }
-
-    func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
-        owner?.terminalDidResize(newCols: newCols, newRows: newRows)
-    }
-
-    func setTerminalTitle(source: TerminalView, title: String) {
-        owner?.terminalDidSetTitle(title)
-    }
-
-    func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {
-        owner?.terminalDidUpdateCurrentDirectory(directory)
-    }
-
-    func send(source: TerminalView, data: ArraySlice<UInt8>) {
-        owner?.terminalDidSend(data: data)
-    }
-
-    func scrolled(source: TerminalView, position: Double) {}
-
-    func requestOpenLink(source: TerminalView, link: String, params: [String: String]) {
-        owner?.terminalDidRequestOpenLink(link)
-    }
-
-    func bell(source: TerminalView) {
-        owner?.terminalDidBell()
-    }
-
-    func clipboardCopy(source: TerminalView, content: Data) {
-        owner?.terminalDidCopyToClipboard(content)
-    }
-
-    func clipboardRead(source: TerminalView) -> Data? {
-        owner?.terminalClipboardData()
-    }
-
-    func iTermContent(source: TerminalView, content: ArraySlice<UInt8>) {}
-
-    func rangeChanged(source: TerminalView, startY: Int, endY: Int) {}
 }
