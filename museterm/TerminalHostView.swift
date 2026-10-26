@@ -1651,7 +1651,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 return handle.send(data, source: .protocolReply)
             }
             let accepted = self.runtimeInputQueue?.enqueue(bytes, source: .human, owner: nil) == true
-            if !accepted {
+            if !accepted, !handle.reconnecting {
                 self.session?.runtimeConnectionIssue = TerminalRuntimeInputQueue.rejectedEnqueueIssue(
                     connected: handle.connected, byteCount: bytes.count)
             }
@@ -1719,6 +1719,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         handle.onFailure = { [weak self, weak handle] _ in
             guard let self, let handle, self.runtimeHandle === handle else { return }
             self.session?.runtimeConnectionIssue = .disconnected
+        }
+        handle.onRecovering = { [weak self, weak handle] in
+            guard let self, let handle, self.runtimeHandle === handle else { return }
+            if self.session?.runtimeConnectionIssue == .disconnected { self.session?.runtimeConnectionIssue = nil }
         }
         session.attentionStore?.externalAcknowledgement[session.id] = { [weak handle, weak session] id, version in
             guard let handle, handle.connected else { return false }

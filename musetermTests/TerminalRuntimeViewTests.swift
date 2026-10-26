@@ -5,6 +5,106 @@ import XCTest
 
 @MainActor
 final class TerminalRuntimeViewTests: XCTestCase {
+    func testReconnectPolicyBoundsRetriesAndRejectsIdentityChanges() {
+        var policy = TerminalRuntimeReconnectPolicy()
+        XCTAssertEqual(policy.nextDelay(for: TerminalRuntimeConnectionError.timedOut, healthyFor: 0), 0.25)
+        XCTAssertEqual(policy.nextDelay(for: TerminalRuntimeConnectionError.unavailable, healthyFor: 1), 1)
+        XCTAssertEqual(policy.nextDelay(for: TerminalRuntimeConnectionError.timedOut, healthyFor: 2), 3)
+        XCTAssertNil(policy.nextDelay(for: TerminalRuntimeConnectionError.unavailable, healthyFor: 0))
+        XCTAssertEqual(policy.nextDelay(for: TerminalRuntimeConnectionError.timedOut, healthyFor: 30), 0.25)
+        for error in [TerminalRuntimeConnectionError.serviceChanged, .invalidCapability, .invalidResponse,
+                      .incompatibleProtocol, .cancelled, .frameTooLarge, .rejected("control_changed")] {
+            XCTAssertNil(policy.nextDelay(for: error, healthyFor: 60))
+        }
+    }
+
+    func testReconnectTrimsLateAcknowledgedOutputAndHistoricalPrefix() {
+        let generation = UUID()
+        var response = TerminalRuntimeResponse(serviceEpoch: UUID(), id: UUID(), action: .subscribe)
+        response.cursor = .init(generation: generation, offset: 110)
+        response.data = Data("0123456789".utf8)
+        for (offset, expected, historical) in [(90, "0123456789", 7), (105, "56789", 2), (120, "", 0)] {
+            let (trimmed, remainingHistory) = TerminalRuntimeReplayBoundary.removingRenderedOverlap(
+                from: response, renderedThrough: .init(generation: generation, offset: UInt64(offset)), historicalBytes: 7)
+            XCTAssertEqual(trimmed.data, Data(expected.utf8))
+            XCTAssertEqual(remainingHistory, historical)
+            XCTAssertEqual(trimmed.cursor, response.cursor)
+        }
+        let (unchanged, _) = TerminalRuntimeReplayBoundary.removingRenderedOverlap(
+            from: response, renderedThrough: .init(generation: UUID(), offset: 110), historicalBytes: 7)
+        XCTAssertEqual(unchanged.data, response.data)
+    }
+
+    func testDetachCancelsScheduledSubscriptionRetry() async throws {
+        let (root, helper) = try await startService()
+        let handle = TerminalRuntimeSessionHandle(id: UUID(), root: root, executable: helper)
+        defer { handle.detach() }
+        var recoveries = 0
+        var failures = 0
+        var outputs = 0
+        handle.onOutput = { _, _, complete in outputs += 1; complete() }
+        handle.onFailure = { _ in failures += 1 }
+        handle.onRecovering = { [weak handle] in recoveries += 1; handle?.detach() }
+        handle.start(.init(executable: "/bin/sh", arguments: ["-c", "sleep 20"],
+            environment: ["PATH": "/usr/bin:/bin", "HOME": root.path], directory: root.path))
+        try await waitUntil { handle.connected }
+        handle.interruptSubscriptionForTesting()
+        try await waitUntil { recoveries == 1 }
+        let previousOutputs = outputs
+        try await Task.sleep(nanoseconds: 600_000_000)
+        XCTAssertEqual(outputs, previousOutputs)
+        XCTAssertEqual(recoveries, 1)
+        XCTAssertEqual(failures, 0)
+    }
+
+    func testSubscriptionAutomaticallyReconnectsWithoutDuplicatingOutputOrReplacingPTY() async throws {
+        let (root, helper) = try await startService()
+        let session = TerminalSession(sequence: 1)
+        attach(session, launch: .init(executable: "/bin/sh", arguments: ["-c", "printf '__RECONNECT_ONCE__'; sleep 20"],
+            environment: ["PATH": "/usr/bin:/bin", "HOME": root.path, "TERM": "xterm-256color"], directory: root.path), root: root, helper: helper)
+        try await waitUntil { session.controller.visibleScreenText().contains("__RECONNECT_ONCE__") }
+        let handle = try XCTUnwrap(session.controller.runtimeHandle)
+        let original = try XCTUnwrap(handle.info)
+        var recoveries = 0
+        let recovering = handle.onRecovering
+        handle.onRecovering = { recoveries += 1; recovering?() }
+        handle.interruptSubscriptionForTesting()
+        try await waitUntil("automatic reconnect") { recoveries == 1 && handle.connected }
+        XCTAssertEqual(handle.info?.pid, original.pid)
+        XCTAssertEqual(handle.info?.generation, original.generation)
+        XCTAssertNil(session.runtimeConnectionIssue)
+        XCTAssertNil(handle.lastError)
+        XCTAssertEqual(session.controller.visibleScreenText().components(separatedBy: "__RECONNECT_ONCE__").count, 2)
+    }
+
+    func testRepeatedSubscriptionFailuresExhaustBudgetThenManualReconnectRecoversSamePTY() async throws {
+        let (root, helper) = try await startService()
+        let handle = TerminalRuntimeSessionHandle(id: UUID(), root: root, executable: helper)
+        defer { handle.detach() }
+        var recoveries = 0
+        var failures = 0
+        var breakTransport = true
+        handle.onRecovering = { recoveries += 1 }
+        handle.onFailure = { _ in failures += 1 }
+        handle.onOutput = { [weak handle] _, _, completion in
+            completion()
+            if breakTransport { handle?.interruptSubscriptionForTesting() }
+        }
+        handle.start(.init(executable: "/bin/sh", arguments: ["-c", "sleep 20"],
+            environment: ["PATH": "/usr/bin:/bin", "HOME": root.path], directory: root.path))
+        try await waitUntil("retry budget exhausted") { failures == 1 }
+        let original = try XCTUnwrap(handle.info)
+        XCTAssertEqual(recoveries, 3)
+        XCTAssertFalse(handle.connected)
+        XCTAssertFalse(handle.reconnecting)
+        breakTransport = false
+        handle.reconnect()
+        try await waitUntil("manual recovery") { handle.connected }
+        XCTAssertEqual(handle.info?.pid, original.pid)
+        XCTAssertEqual(handle.info?.generation, original.generation)
+        XCTAssertEqual(failures, 1)
+    }
+
     func testDisconnectedInputRetainsReconnectIssue() {
         XCTAssertEqual(TerminalRuntimeInputQueue.rejectedEnqueueIssue(connected: false, byteCount: 1), .disconnected)
         XCTAssertEqual(TerminalRuntimeInputQueue.rejectedEnqueueIssue(connected: false,

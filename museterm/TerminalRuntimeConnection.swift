@@ -196,6 +196,13 @@ nonisolated final class TerminalRuntimeConnection {
         if descriptor >= 0 { _ = shutdown(descriptor, SHUT_RDWR) }
     }
 
+    #if DEBUG
+    func interruptTransportForTesting() {
+        stateLock.lock(); defer { stateLock.unlock() }
+        if descriptor >= 0 { _ = shutdown(descriptor, SHUT_RDWR) }
+    }
+    #endif
+
     /// Only the owning serial executor calls close().
     func close() {
         stateLock.lock(); defer { stateLock.unlock() }
