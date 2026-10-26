@@ -544,6 +544,10 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     // not human input. Keep full-screen programs responsive while input is locked.
     override func send(source: Terminal, data: ArraySlice<UInt8>) {
         guard !isReplayingHistoricalOutput else { return }
+        if TerminalMouseReportPolicy.isMouseReport(data) {
+            send(source: self, data: data)
+            return
+        }
         if let externalSend { _ = externalSend(Array(data), true); return }
         super.send(source: self, data: data)
     }
