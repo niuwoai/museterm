@@ -12,7 +12,24 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     private var externalFeedCompletion: (() -> Void)?
     private(set) var isReplayingHistoricalOutput = false
     private var historicalFeedRanges: [Range<Int>] = []
+    private var replayScreenModeUnknown = false
+    private var clearOrphanedReplayScreen = false
+    private var lastParsedRuntimeByte: UInt8?
     var backendIsRunning: Bool { externalIsRunning?() ?? process.running }
+
+    func beginTruncatedRuntimeReplay() {
+        // A truncated VT stream may have lost its alternate-screen entry.
+        // Keep an already-known alternate buffer's saved normal screen intact.
+        replayScreenModeUnknown = !getTerminal().isCurrentBufferAlternate
+    }
+
+    override func bufferActivated(source: Terminal) {
+        if replayScreenModeUnknown {
+            replayScreenModeUnknown = false
+            clearOrphanedReplayScreen = !source.isCurrentBufferAlternate
+        }
+        super.bufferActivated(source: source)
+    }
 
     func sendBackend(_ bytes: ArraySlice<UInt8>) {
         if let externalBackendSend { _ = externalBackendSend(Array(bytes)) }
@@ -807,7 +824,40 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     private func feedPendingRange(_ range: Range<Int>, historical: Bool) {
         isReplayingHistoricalOutput = historical
         defer { isReplayingHistoricalOutput = false }
+        var start = range.lowerBound
+        if replayScreenModeUnknown {
+            // DECRST ends in 'l'. Stop feeding at possible final bytes so the
+            // emulator can recognize the real command (including split CSI),
+            // then clean before any following shell output in the same frame.
+            // Do not recursively feed from the parser's bufferActivated callback.
+            for index in range where isPossibleScreenResetEnd(at: index, start: range.lowerBound) {
+                feedPendingBytes(start..<(index + 1))
+                start = index + 1
+                finishReplayScreenRecovery()
+                if !replayScreenModeUnknown { break }
+            }
+        }
+        if start < range.upperBound { feedPendingBytes(start..<range.upperBound) }
+        finishReplayScreenRecovery()
+    }
+
+    private func isPossibleScreenResetEnd(at index: Int, start: Int) -> Bool {
+        guard pendingFeedBytes[index] == 0x6c else { return false }
+        let previous = index > start ? pendingFeedBytes[index - 1] : lastParsedRuntimeByte
+        return previous == 0x3b || previous.map { (0x30...0x39).contains($0) } == true
+    }
+
+    private func feedPendingBytes(_ range: Range<Int>) {
         super.dataReceived(slice: pendingFeedBytes[range])
+        lastParsedRuntimeByte = pendingFeedBytes[range.upperBound - 1]
+    }
+
+    private func finishReplayScreenRecovery() {
+        guard clearOrphanedReplayScreen else { return }
+        clearOrphanedReplayScreen = false
+        // Erase only the uncertain viewport. Keep cursor state, scrollback,
+        // process identity and subsequent shell output; never inject PTY input.
+        feed(text: "\u{1b}[2J")
     }
 
     var terminalEchoEnabled: Bool {

@@ -101,6 +101,32 @@ final class TerminalRuntimeViewTests: XCTestCase {
             renderedThrough: .init(generation: UUID(), offset: 105)))
     }
 
+    func testTruncatedTUIReplayExitsToShellWithoutResidueOnOriginalPTY() async throws {
+        let (root, helper) = try await startService()
+        let original = TerminalSession(sequence: 1)
+        let program = "STDOUT.sync=true; system('stty','raw','-echo'); "
+            + "STDOUT.write(\"\\e[?1049h\" + ' ' * 1100000 + \"\\e[2J\\e[H__ALT_READY__\\e[12;1H__TUI_FOOTER__\"); "
+            + "STDIN.read(1); STDOUT.write(\"\\e[?1049l__SHELL_AFTER_TUI__\"); sleep 20"
+        let launch = TerminalRuntimeLaunch(executable: "/usr/bin/ruby", arguments: ["-e", program],
+            environment: ["PATH": "/usr/bin:/bin", "HOME": root.path, "TERM": "xterm-256color"], directory: root.path)
+        attach(original, launch: launch, root: root, helper: helper)
+        try await waitUntil("original alternate screen ready") { original.controller.visibleScreenText().contains("__TUI_FOOTER__") }
+        let info = try XCTUnwrap(original.runtimeInfo)
+        XCTAssertGreaterThan(info.outputOffset, UInt64(TerminalRuntimeOutputJournal.defaultCapacity))
+        original.controller.detachRuntimeViewer()
+        let restored = TerminalSession(sequence: 2, id: original.id)
+        restored.runtimeGenerationToRestore = info.generation
+        attach(restored, launch: launch, root: root, helper: helper)
+        try await waitUntil("truncated alternate replay complete") {
+            restored.controller.visibleScreenText().contains("__TUI_FOOTER__") && restored.runtimeRenderedCursor?.offset == info.outputOffset
+        }
+        restored.controller.sendProcessInput(bytes: [0x03])
+        try await waitUntil("shell after replayed TUI exit") { restored.controller.visibleScreenText().contains("__SHELL_AFTER_TUI__") }
+        XCTAssertFalse(restored.controller.visibleScreenText().contains("__TUI_FOOTER__"))
+        XCTAssertEqual(restored.runtimeInfo?.pid, info.pid)
+        XCTAssertEqual(restored.runtimeInfo?.generation, info.generation)
+    }
+
     func testMouseReportsReachActualPTYThroughHumanInputQueue() async throws {
         let (root, helper) = try await startService()
         let session = TerminalSession(sequence: 1)
