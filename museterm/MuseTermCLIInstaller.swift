@@ -198,7 +198,7 @@ def session_tunnels_payload(state)
   }
 end
 
-def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: nil, profile: nil, shortcut: nil, tunnel_name: nil, target_host: nil, target_port: nil, local_port: nil, timeout_seconds: 3.0, agent_kind: nil, agent_report: nil, event_cursor: nil, event_limit: nil, wait_spec: nil, attention_id: nil, attention_version: nil, project_request: nil)
+def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: nil, profile: nil, shortcut: nil, tunnel_name: nil, target_host: nil, target_port: nil, local_port: nil, timeout_seconds: 3.0, agent_kind: nil, agent_report: nil, event_cursor: nil, event_limit: nil, wait_spec: nil, attention_id: nil, attention_version: nil, project_request: nil, preview_request: nil)
   received = false
   timeout_seconds = timeout_seconds.to_f
   raise "timeout must be positive." if timeout_seconds <= 0
@@ -223,6 +223,7 @@ def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: 
     "controlID" => CONTROL_ID,
     "authToken" => (["report_agent_state", "wait_session", "list_attention"].include?(action) || (action == "project_layout" && project_request && project_request["operation"] == "list") ? nil : access_token),
     "projectRequest" => project_request,
+    "previewRequest" => preview_request,
     "waitSpec" => wait_spec, "attentionID" => attention_id, "attentionVersion" => attention_version,
     "agentKind" => agent_kind, "agentReport" => agent_report,
     "eventCursor" => event_cursor, "eventLimit" => event_limit
@@ -669,6 +670,7 @@ def mcp_tools
     *agent_mcp_tools,
     *wait_mcp_tools,
     *project_mcp_tools,
+    *preview_mcp_tools,
     {
       "name" => "help",
       "description" => "Read QTerm collaboration instructions first: takeover, background input, renewal, unlock, archives and release.",
@@ -857,6 +859,7 @@ end
 
 def call_tool(name, args)
   args ||= {}
+  return tool_result_text(JSON.pretty_generate(preview_tool(args))) if name == "preview"
   return tool_result_text(JSON.pretty_generate(project_tool(args))) if name == "project_layout"
   return tool_result_text(JSON.pretty_generate(wait_tool(args))) if name == "wait_session"
   if ["list_attention", "acknowledge_attention"].include?(name)
@@ -1003,6 +1006,7 @@ end
 \#(TerminalRuntimeCLI.script)
 \#(TerminalWaitCLI.script)
 \#(TerminalProjectCLI.script)
+\#(TerminalPreviewCLI.script)
 
 def command_help
   puts <<~HELP
@@ -1027,6 +1031,7 @@ def command_help
       qterm attention [read --item UUID --version N] [--tab UUID]
       qterm wait SPEC_JSON
       qterm project OPERATION [REQUEST_JSON]
+      qterm preview [--tab UUID] FILE_OR_--stdin_OR_--close
       qterm agent bind --tab UUID --kind claude|codex
       qterm agent report --binding PRIVATE_FILE --activity working|idle|blocked|unknown|exited [--block-reason approval|question|other] [--result completed|failed|interrupted|unknown]
       qterm agent status --tab UUID
@@ -1045,6 +1050,7 @@ begin
   when "attention" then command_attention(ARGV)
   when "wait" then command_wait(ARGV)
   when "project" then command_project(ARGV)
+  when "preview" then command_preview(ARGV)
   when "screen" then command_screen(ARGV)
   when "history" then command_history(ARGV)
   when "commands" then command_commands(ARGV)

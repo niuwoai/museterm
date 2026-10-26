@@ -123,6 +123,7 @@ final class SessionTunnelPresetTests: XCTestCase {
             "acknowledge_attention",
             "wait_session",
             "project_layout",
+            "preview",
             "report_agent_state",
             "get_agent_state",
             "read_session_events",

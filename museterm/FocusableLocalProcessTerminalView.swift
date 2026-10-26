@@ -65,6 +65,8 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     var shouldCopyOnSelect: (() -> Bool)?
     var linkContext: (() -> TerminalLinkContext)?
     var shouldOpenWebImagesInViewer: (() -> Bool)?
+    var onPreviewFile: ((URL) -> Void)?
+    var onPreviewMarkdown: ((String) -> Void)?
     var onSendToProcess: ((_ data: [UInt8], _ echoEnabled: Bool) -> Bool)?
     var onReceivedProcessData: ((_ data: ArraySlice<UInt8>) -> Bool)?
     var onProcessOutputCommitted: (() -> Void)?
@@ -269,6 +271,10 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
         }
         menu.addItem(makeCopyItem("terminal.context.copy_redacted_selection", text: RunbookSensitiveRedactor.redact(context.trimmedText)))
         menu.addItem(makeCopyItem("terminal.context.copy_markdown_selection", text: context.markdownCodeBlock))
+        let preview = NSMenuItem(title: L10n.string("preview.selection_action"), action: #selector(previewSelectedMarkdown), keyEquivalent: "")
+        preview.target = self
+        preview.representedObject = context.trimmedText
+        menu.addItem(preview)
         menu.addItem(makeCopyItem("terminal.context.copy_ai_prompt", text: context.aiPrompt))
 
         if let url = context.normalizedURL {
@@ -392,6 +398,16 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
         items.forEach { submenu.addItem($0) }
         item.submenu = submenu
         return item
+    }
+
+    @objc private func previewSelectedMarkdown(_ sender: NSMenuItem) {
+        guard let text = sender.representedObject as? String else { return }
+        onPreviewMarkdown?(text)
+    }
+
+    private func openLocalItem(_ url: URL) {
+        if TerminalPreviewLoader.supports(url), let onPreviewFile { onPreviewFile(url) }
+        else { NSWorkspace.shared.open(url) }
     }
 
     private func makeCopyItem(_ titleKey: String, text: String) -> NSMenuItem {
@@ -618,7 +634,7 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
         case .success(.webImage(let url)):
             openWebImage(url)
         case .success(.localItem(let url)):
-            NSWorkspace.shared.open(url)
+            openLocalItem(url)
         case .success(.revealInFinder(let url)):
             NSWorkspace.shared.activateFileViewerSelecting([url])
             showLinkNotice(L10n.string("terminal.link.revealed_in_finder"))
@@ -652,7 +668,7 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
         guard case .success(let target) = TerminalLinkResolver.resolve(word, context: context) else { return }
         switch target {
         case .localItem(let url):
-            NSWorkspace.shared.open(url)
+            openLocalItem(url)
         case .revealInFinder(let url):
             NSWorkspace.shared.activateFileViewerSelecting([url])
             showLinkNotice(L10n.string("terminal.link.revealed_in_finder"))
@@ -697,7 +713,8 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
             switch result {
             case .success(let fileURL):
                 self?.hideLinkNotice()
-                NSWorkspace.shared.open(fileURL)
+                if let preview = self?.onPreviewFile { preview(fileURL) }
+                else { NSWorkspace.shared.open(fileURL) }
             case .failure(let error):
                 // 只记 host + path，query 里可能带 token
                 NSLog("QTerm image link download failed host=%@ path=%@ error=%@", url.host ?? "", url.path, String(describing: error))

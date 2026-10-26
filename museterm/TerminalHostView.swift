@@ -812,6 +812,14 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.shouldOpenWebImagesInViewer = { [weak self] in
             self?.preferences?.openWebImagesInViewer ?? true
         }
+        terminalView.onPreviewFile = { [weak self] url in
+            guard let source = self?.session else { return }
+            TerminalPreviewCenter.shared.open(source: source, url: url)
+        }
+        terminalView.onPreviewMarkdown = { [weak self] text in
+            guard let source = self?.session else { return }
+            TerminalPreviewCenter.shared.open(source: source, text: text)
+        }
         terminalView.onSendToProcess = { [weak self] data, echoEnabled in
             guard let self else { return true }
             let fromTool = self.isSendingToolInput
