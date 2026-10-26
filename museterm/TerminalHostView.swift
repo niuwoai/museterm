@@ -1692,7 +1692,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             if session.runtimeOwnsAgent || session.runtimeOwnsTerminalAttention {
                 session.attentionStore?.adoptAgentItems(response.attention ?? [], tabID: session.id, cursor: response.eventHead)
             }
-            if response.hasGap == true { self.terminalView.feed(text: "\u{1b}[0m\u{1b}[2J\u{1b}[H") }
+            if response.hasGap == true {
+                self.terminalView.beginTruncatedRuntimeReplay()
+                self.terminalView.feed(text: "\u{1b}[0m\u{1b}[2J\u{1b}[H")
+            }
             let data = response.data ?? Data()
             if let end = response.cursor?.offset, end >= UInt64(data.count) {
                 self.runtimeParsingOffset = end - UInt64(data.count) + UInt64(min(data.count, max(0, historicalBytes)))
