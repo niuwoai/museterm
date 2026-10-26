@@ -16,6 +16,7 @@ final class TerminalRuntimeSessionHandle {
     private let io: TerminalRuntimeSessionIO
     private(set) var info: TerminalRuntimeSessionInfo?
     private(set) var connected = false
+    private(set) var reconnecting = false
     private(set) var lastError: TerminalRuntimeConnectionError?
     private(set) var lastErrorStage: String?
     private(set) var createdNewPTY = false
@@ -31,6 +32,7 @@ final class TerminalRuntimeSessionHandle {
     var onOutput: ((TerminalRuntimeResponse, Int, @escaping () -> Void) -> Void)?
     var onRenderedOutput: (() -> Void)?
     var onFailure: ((Error) -> Void)?
+    var onRecovering: (() -> Void)?
     private var pendingReminderPolicy: TerminalReminderPolicy?
     private var pendingAcknowledgements: Set<UUID> = []
 
@@ -52,10 +54,15 @@ final class TerminalRuntimeSessionHandle {
         io.onOutput = { [weak self] response, historicalBytes, completion in
             DispatchQueue.main.async {
                 guard let self else { completion(); return }
+                // Late AppKit acknowledgements can overlap frames queued by a retry.
+                let (response, historicalBytes) = TerminalRuntimeReplayBoundary.removingRenderedOverlap(
+                    from: response, renderedThrough: self.renderedCursor, historicalBytes: historicalBytes)
                 self.eventCursor = response.eventHead
                 if let info = response.session { self.accept(info, receivedOutput: true) }
                 let rendered = { [weak self] in
-                    if let self, let cursor = response.cursor, self.renderedCursor != cursor {
+                    if let self, let cursor = response.cursor, self.renderedCursor != cursor,
+                       self.renderedCursor == nil || self.renderedCursor?.generation != cursor.generation
+                        || self.renderedCursor!.offset < cursor.offset {
                         self.renderedCursor = cursor
                         self.onRenderedOutput?()
                     }
@@ -67,9 +74,19 @@ final class TerminalRuntimeSessionHandle {
         io.onFailure = { [weak self] error, stage in
             DispatchQueue.main.async {
                 self?.connected = false
+                self?.reconnecting = false
                 self?.lastError = (error as? TerminalRuntimeConnectionError) ?? .unavailable
                 self?.lastErrorStage = stage
                 self?.onFailure?(error)
+            }
+        }
+        io.onRecovering = { [weak self] error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.connected = false; self.reconnecting = true
+                self.lastError = (error as? TerminalRuntimeConnectionError) ?? .unavailable
+                self.lastErrorStage = "subscription"
+                self.onRecovering?()
             }
         }
     }
@@ -77,7 +94,7 @@ final class TerminalRuntimeSessionHandle {
     private func accept(_ info: TerminalRuntimeSessionInfo, receivedOutput: Bool = false) {
         guard self.info == nil || (self.info?.generation == info.generation && self.info!.revision <= info.revision) else { return }
         self.info = info
-        if receivedOutput { connected = true; lastError = nil; lastErrorStage = nil }
+        if receivedOutput { connected = true; reconnecting = false; lastError = nil; lastErrorStage = nil }
         onState?(info)
     }
 
@@ -135,7 +152,14 @@ final class TerminalRuntimeSessionHandle {
         }
     }
 
-    func reconnect() { io.restartReader() }
+    func reconnect() {
+        reconnecting = true
+        onRecovering?()
+        io.restartReader()
+    }
+    #if DEBUG
+    func interruptSubscriptionForTesting() { io.interruptSubscriptionForTesting() }
+    #endif
     func configureReminders(_ policy: TerminalReminderPolicy) {
         guard features.contains(TerminalRuntimeLimits.terminalAttentionFeature), let info,
               info.reminderPolicy != policy, pendingReminderPolicy != policy else { return }
@@ -214,6 +238,7 @@ nonisolated private final class TerminalRuntimeSessionIO: @unchecked Sendable {
     var onStarted: ((TerminalRuntimeSessionInfo, Bool, [String]) -> Void)?
     var onOutput: ((TerminalRuntimeResponse, Int, @escaping () -> Void) -> Void)?
     var onFailure: ((Error, String) -> Void)?
+    var onRecovering: ((Error) -> Void)?
 
     init(id: UUID, root: URL, executable: URL) { self.id = id; self.root = root; self.executable = executable }
 
@@ -279,34 +304,59 @@ nonisolated private final class TerminalRuntimeSessionIO: @unchecked Sendable {
         lock.unlock()
         reader.async { [self] in
             defer { lock.lock(); readerActive = false; readerConnection = nil; lock.unlock() }
-            do {
-                let connection = try TerminalRuntimeConnection(root: root)
-                defer { connection.close() }
-                lock.lock(); readerConnection = connection; let cancelled = stopped; lock.unlock()
-                if cancelled { connection.cancel(); return }
-                var request = TerminalRuntimeRequest(action: .subscribe)
-                request.sessionID = id; request.generation = initialInfo.generation; request.after = outputCursor
-                var response = try connection.request(request)
-                while !isStopped {
-                    guard response.serviceEpoch == expectedEpoch, response.session?.generation == initialInfo.generation else {
-                        throw TerminalRuntimeConnectionError.serviceChanged
-                    }
-                    let consumed = DispatchSemaphore(value: 0)
-                    let historicalBytes = try TerminalRuntimeReplayBoundary.historicalBytes(
-                        in: response, renderedThrough: historicalBoundary)
-                    onOutput?(response, historicalBytes, { consumed.signal() })
-                    let deadline = ProcessInfo.processInfo.systemUptime + TerminalRuntimeLimits.consumerAcknowledgementDeadline
-                    while consumed.wait(timeout: .now() + 0.1) == .timedOut {
+            var retry = TerminalRuntimeReconnectPolicy()
+            while !isStopped {
+                var connectedAt: TimeInterval?
+                var lastAcknowledgedAt: TimeInterval?
+                do {
+                    let connection = try TerminalRuntimeConnection(root: root)
+                    defer { connection.close() }
+                    lock.lock(); readerConnection = connection; let cancelled = stopped; lock.unlock()
+                    if cancelled { connection.cancel(); return }
+                    var request = TerminalRuntimeRequest(action: .subscribe)
+                    request.sessionID = id; request.generation = initialInfo.generation; request.after = outputCursor
+                    var response = try connection.request(request)
+                    while !isStopped {
+                        guard response.serviceEpoch == expectedEpoch, response.session?.generation == initialInfo.generation else {
+                            throw TerminalRuntimeConnectionError.serviceChanged
+                        }
+                        let consumed = DispatchSemaphore(value: 0)
+                        let historicalBytes = try TerminalRuntimeReplayBoundary.historicalBytes(
+                            in: response, renderedThrough: historicalBoundary)
+                        onOutput?(response, historicalBytes, { consumed.signal() })
+                        let deadline = ProcessInfo.processInfo.systemUptime + TerminalRuntimeLimits.consumerAcknowledgementDeadline
+                        while consumed.wait(timeout: .now() + 0.1) == .timedOut {
+                            if isStopped { return }
+                            guard ProcessInfo.processInfo.systemUptime < deadline else { throw TerminalRuntimeConnectionError.timedOut }
+                        }
+                        outputCursor = response.cursor
+                        lastAcknowledgedAt = ProcessInfo.processInfo.systemUptime
+                        if connectedAt == nil { connectedAt = lastAcknowledgedAt }
                         if isStopped { return }
-                        guard ProcessInfo.processInfo.systemUptime < deadline else { throw TerminalRuntimeConnectionError.timedOut }
+                        response = try connection.next(id: request.id, timeout: 60)
                     }
-                    outputCursor = response.cursor
-                    if isStopped { return }
-                    response = try connection.next(id: request.id, timeout: 60)
+                } catch {
+                    guard !isStopped else { return }
+                    let healthyFor = connectedAt.map { (lastAcknowledgedAt ?? $0) - $0 } ?? 0
+                    guard let delay = retry.nextDelay(for: error, healthyFor: healthyFor) else {
+                        onFailure?(error, "subscription"); return
+                    }
+                    onRecovering?(error)
+                    let deadline = ProcessInfo.processInfo.systemUptime + delay
+                    while !isStopped, ProcessInfo.processInfo.systemUptime < deadline {
+                        Thread.sleep(forTimeInterval: min(0.1, max(0, deadline - ProcessInfo.processInfo.systemUptime)))
+                    }
                 }
-            } catch { if !isStopped { onFailure?(error, "subscription") } }
+            }
         }
     }
+
+    #if DEBUG
+    func interruptSubscriptionForTesting() {
+        lock.lock(); let connection = readerConnection; lock.unlock()
+        connection?.interruptTransportForTesting()
+    }
+    #endif
 
     private func current(_ connection: TerminalRuntimeConnection, expected: TerminalRuntimeSessionInfo,
                          requiring feature: String? = nil) throws -> TerminalRuntimeSessionInfo {
