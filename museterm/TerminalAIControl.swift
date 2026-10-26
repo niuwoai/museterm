@@ -104,11 +104,13 @@ final class TerminalAIArchive {
 struct TerminalAIControlMask: View {
     @ObservedObject var tab: TerminalSession
     let skin: TerminalVisualSkin
+    private let backdropOpacity = 0.04
+    private let cardOpacity = 0.55
 
     var body: some View {
         if tab.aiLease != nil {
             ZStack {
-                skin.accent.opacity(0.10)
+                skin.accent.opacity(backdropOpacity)
                     .contentShape(Rectangle())
                     .onTapGesture { }
                 VStack(spacing: 12) {
@@ -116,6 +118,7 @@ struct TerminalAIControlMask: View {
                     Text(L10n.string("ai_control.locked")).font(.headline)
                     Text(L10n.string("ai_control.description"))
                         .font(.caption).multilineTextAlignment(.center)
+                        .frame(maxWidth: 480)
                     Button {
                         tab.releaseAIControl(reason: "human_unlock")
                     } label: {
@@ -124,7 +127,13 @@ struct TerminalAIControlMask: View {
                     .buttonStyle(.borderedProminent)
                 }
                 .padding(24)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                .background(Color(nsColor: skin.terminalBackground).opacity(cardOpacity),
+                            in: RoundedRectangle(cornerRadius: 16))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16)
+                        .strokeBorder(skin.hairline, lineWidth: 1)
+                        .allowsHitTesting(false)
+                }
             }
         }
     }
