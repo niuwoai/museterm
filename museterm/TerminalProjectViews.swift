@@ -17,60 +17,92 @@ struct TerminalProjectsSidebar: View {
     let compact: Bool
     let onDetach: (TerminalSession) -> Void
     @State private var editorPresentation: TerminalProjectEditorPresentation?
+    @State private var showsImport = false
+    @State private var collapsedProjects: Set<UUID> = []
+    @State private var showsProjects = true
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Button {
-                editorPresentation = .create
-            } label: { Label(L10n.string("project.create"), systemImage: "folder.badge.plus") }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("project-create")
-                .help(L10n.string("project.create"))
-            ForEach(workspace.projectLayout.projects) { project in
-                projectGroup(project)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 10) {
+                Button { showsProjects.toggle() } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: showsProjects ? "chevron.down" : "chevron.right").font(.system(size: 8))
+                        Text(L10n.string("project.section"))
+                    }
+                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                }
+                .help(L10n.string(showsProjects ? "project.collapse" : "project.expand"))
+                .accessibilityIdentifier("project-section-toggle")
+                Spacer(minLength: 0)
+                Button { showsImport = true } label: { Image(systemName: "square.and.arrow.down") }
+                    .help(L10n.string("project.import.title"))
+                    .accessibilityLabel(L10n.string("project.import.title"))
+                    .accessibilityIdentifier("project-import")
+                Button { editorPresentation = .create } label: { Image(systemName: "plus") }
+                    .help(L10n.string("project.create"))
+                    .accessibilityLabel(L10n.string("project.create"))
+                    .accessibilityIdentifier("project-create")
+            }
+            .buttonStyle(.plain).padding(.vertical, 2)
+            if showsProjects {
+                ForEach(workspace.projectLayout.projects) { project in
+                    projectGroup(project)
+                }
             }
         }
         .sheet(item: $editorPresentation) { presentation in
             TerminalProjectEditor(workspace: workspace, projectID: presentation.projectID)
         }
+        .sheet(isPresented: $showsImport) { TerminalProjectImportView(workspace: workspace) }
     }
 
     private func projectGroup(_ project: TerminalProject) -> some View {
         let agents = workspace.sessionRegistry.sessions.compactMapValues(\.agentStatus)
         let activity = TerminalProjectActivity(project: project, agents: agents, attention: workspace.sessionRegistry.attention.activeItems)
         return VStack(alignment: .leading, spacing: 4) {
-            Button { workspace.selectProject(project.id) } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: project.id == workspace.projectLayout.selectedProjectID ? "folder.fill" : "folder")
-                    Text(project.name).lineLimit(1)
-                    Spacer(minLength: 0)
-                    if activity.needsAnswer > 0 { Image(systemName: "questionmark.circle.fill").foregroundStyle(.orange) }
-                    else if activity.working > 0 { Image(systemName: "circle.dotted").foregroundStyle(.blue) }
-                    if activity.pending > 0 { Text(verbatim: "\(activity.pending)").monospacedDigit() }
+            if workspace.projectLayout.projects.count > 1 || project.directory != nil || project.name != L10n.string("project.default") {
+                projectHeader(project, activity: activity)
+            }
+            if !collapsedProjects.contains(project.id) {
+                ForEach(project.tabs) { layoutTab in
+                    if let tab = workspace.sessionRegistry.sessions[layoutTab.focusedTerminalID] {
+                        terminalRow(tab, layoutTab: layoutTab)
+                    }
                 }
-                .font(.caption.weight(.semibold))
-                .padding(.vertical, 4)
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("project-\(project.id)")
-            .help(L10n.format("project.status", activity.working, activity.needsAnswer, activity.pending))
-            .contextMenu {
-                Button(L10n.string("project.new_tab")) { workspace.selectProject(project.id); workspace.newTab(startDirectory: project.directory) }
-                Button(L10n.string("project.rename")) { editorPresentation = .rename(project.id) }
-                Divider()
-                Button(L10n.string("project.close.action"), role: .destructive) { workspace.closeProject(project.id) }
-            }
-            ForEach(project.tabs) { layoutTab in
-                if let tab = workspace.sessionRegistry.sessions[layoutTab.focusedTerminalID] {
-                    terminalRow(tab, layoutTab: layoutTab)
-                }
-            }
-            if project.tabs.isEmpty {
-                Button(L10n.string("project.new_tab")) { workspace.selectProject(project.id); workspace.newTab(startDirectory: project.directory) }
-                    .buttonStyle(.plain).font(.caption)
             }
         }
         .padding(.bottom, 4)
+    }
+
+    private func projectHeader(_ project: TerminalProject, activity: TerminalProjectActivity) -> some View {
+        Button { selectOrToggle(project) } label: {
+            HStack(spacing: 5) {
+                Image(systemName: collapsedProjects.contains(project.id) ? "chevron.right" : "chevron.down").font(.system(size: 8))
+                Image(systemName: project.id == workspace.projectLayout.selectedProjectID ? "folder.fill" : "folder")
+                Text(project.name).lineLimit(1)
+                Spacer(minLength: 0)
+                if activity.needsAnswer > 0 { Image(systemName: "questionmark.circle.fill").foregroundStyle(.orange) }
+                else if activity.working > 0 { Image(systemName: "circle.dotted").foregroundStyle(.blue) }
+                if activity.pending > 0 { Text(verbatim: "\(activity.pending)").monospacedDigit() }
+            }
+            .font(.caption.weight(.semibold)).padding(.vertical, 2)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("project-\(project.id)")
+        .help(L10n.format("project.status", activity.working, activity.needsAnswer, activity.pending))
+        .contextMenu {
+            Button(L10n.string("project.new_tab")) { workspace.selectProject(project.id); workspace.newTab(startDirectory: project.directory) }
+            Button(L10n.string("project.rename")) { editorPresentation = .rename(project.id) }
+            Divider()
+            Button(L10n.string("project.close.action"), role: .destructive) { workspace.closeProject(project.id) }
+        }
+    }
+
+    private func selectOrToggle(_ project: TerminalProject) {
+        if collapsedProjects.contains(project.id) { collapsedProjects.remove(project.id) }
+        else if workspace.projectLayout.selectedProjectID == project.id { collapsedProjects.insert(project.id) }
+        workspace.selectProject(project.id)
+        if project.tabs.isEmpty { workspace.newTab(startDirectory: project.directory) }
     }
 
     @ViewBuilder
