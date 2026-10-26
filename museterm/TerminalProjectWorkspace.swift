@@ -2,6 +2,25 @@ import AppKit
 import Foundation
 
 extension TerminalWorkspace {
+    /// Imported projects are bookmarks. No shell is spawned and focus stays on the current terminal.
+    @discardableResult
+    func importProjects(_ candidates: [TerminalProjectImportCandidate]) throws -> Int {
+        var layout = projectLayout
+        let selected = layout.selectedProjectID
+        var known = Set(layout.projects.compactMap { $0.directory.flatMap(TerminalProjectImportScanner.canonicalDirectory) })
+        var added = 0
+        for candidate in candidates {
+            guard let directory = TerminalProjectImportScanner.canonicalDirectory(candidate.directory),
+                  known.insert(directory).inserted else { continue }
+            _ = try layout.addProject(name: candidate.name, directory: directory)
+            added += 1
+        }
+        if let selected { layout.selectedProjectID = selected }
+        try layout.validate()
+        projectLayout = layout
+        return added
+    }
+
     func reconcileProjectLayout() {
         var layout = projectLayout
         let live = Set(tabs.map(\.id) + sessionRegistry.locations.filter { $0.value == .detached }.map(\.key))

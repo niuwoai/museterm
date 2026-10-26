@@ -2,16 +2,50 @@ import XCTest
 
 final class TerminalProjectUITests: XCTestCase {
     @MainActor
+    func testImportSearchAndCancelKeepOriginalTerminal() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        let root = URL(fileURLWithPath: "/private/tmp").appendingPathComponent("qterm-import-ui-\(UUID())")
+        app.launchEnvironment["QTERM_AGENT_TEST_TOOL_ROOT"] = root.path
+        app.launchArguments = ["-AppleLanguages", "(en)", "-terminal.showsTabList", "YES",
+            "-notifications.enabled", "NO", "-SUEnableAutomaticChecks", "NO"]
+        app.launch()
+        // Xcode's sandboxed runner can read this host-owned fixture, but only
+        // the unsandboxed QA application may create/write it. Retain for diagnostics.
+        defer { app.terminate() }
+        let before = try waitState(root) { ($0["tabs"] as? [[String: Any]])?.count == 1 }
+        app.buttons["project-import"].click()
+        let search = app.textFields["project-import-search"]
+        XCTAssertTrue(search.waitForExistence(timeout: 10))
+        search.click(); search.typeText("qterm-no-match-\(UUID())")
+        let confirm = app.buttons["project-import-confirm"]
+        XCTAssertTrue(confirm.exists)
+        XCTAssertFalse(confirm.isEnabled)
+        app.buttons["Cancel"].click()
+        XCTAssertFalse(search.exists)
+        let after = try waitState(root) { ($0["tabs"] as? [[String: Any]])?.count == 1 }
+        XCTAssertEqual(after["selectedTabID"] as? String, before["selectedTabID"] as? String)
+        XCTAssertEqual((after["tabs"] as? [[String: Any]])?.first?["id"] as? String,
+                       (before["tabs"] as? [[String: Any]])?.first?["id"] as? String)
+        let toggle = app.buttons["project-section-toggle"]
+        toggle.click()
+        XCTAssertFalse(app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "project-tab-")).firstMatch.exists)
+        XCTAssertTrue(app.buttons["pane-focus-\(try XCTUnwrap(before["selectedTabID"] as? String))"].exists)
+        toggle.click()
+        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "project-tab-")).firstMatch.exists)
+    }
+
+    @MainActor
     func testProjectSplitInputAndFocusStayOnTheCorrectTerminal() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("qterm-project-ui-\(UUID())")
+        let root = URL(fileURLWithPath: "/private/tmp").appendingPathComponent("qterm-project-ui-\(UUID())")
         app.launchEnvironment["QTERM_AGENT_TEST_TOOL_ROOT"] = root.path
         app.launchArguments = ["-AppleLanguages", "(en)", "-terminal.showsTabList", "YES",
             "-notifications.enabled", "NO", "-SUEnableAutomaticChecks", "NO",
             "-terminal.skipRunningTabCloseConfirmation", "YES", "-ui-testing-agent-state", "-ui-testing-project-workspace"]
         app.launch()
-        defer { app.terminate(); try? FileManager.default.removeItem(at: root) }
+        defer { app.terminate() }
         let initial = try waitState(root) { ($0["tabs"] as? [[String: Any]])?.count == 1 }
         let first = try XCTUnwrap((initial["tabs"] as? [[String: Any]])?.first?["id"] as? String)
         let split = app.buttons["pane-split-right-\(first)"]

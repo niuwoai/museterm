@@ -1,12 +1,14 @@
 # Product Overview
 
-> 最后更新：2026-10-26 | 当前版本：v1.251.0-rc34
+> 最后更新：2026-10-26 | 当前版本：v1.252.0-rc1
 
 ## 项目简介
 
 轻连（QTerm）是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建外壳界面，并通过 SwiftTerm 提供本地 shell 终端能力。
 
 ## 核心功能
+
+- 项目导入：从 Claude Code、Codex、WillDeep、Qoder、WorkBuddy、dsh 的本地目录元数据勾选导入，跨来源按真实路径去重；导入保持当前终端与焦点，点击分组才打开终端。侧栏采用单行图标入口并支持项目折叠，具体范围见 `docs/PROJECT_IMPORTS.md`。
 
 - Agent 标识优先显示 Codex、Claude Code、WillDeep 品牌图标，以小终端框区分 CLI；运行、等待与退出用小状态标记表达，完整名称及识别依据可悬停查看，缺少图标时回退名称。
 

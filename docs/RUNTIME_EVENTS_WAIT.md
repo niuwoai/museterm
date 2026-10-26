@@ -1,6 +1,6 @@
 # 独立后台事件与等待端点（开发中）
 
-版本：`1.251.0-rc34` / Build `348`。普通应用默认启用独立后台；测试宿主仍须显式选择隔离运行。本机安装未替换，rc28 完整回归 621/621，另有后补同名同目录项目回归 1/1 通过，未签名 Universal Release 构建及同一 Release 后台的 WillDeep/SSH 验证通过。
+版本：`1.252.0-rc1` / Build `348`。普通应用默认启用独立后台；测试宿主仍须显式选择隔离运行。本机安装未替换，rc28 完整回归 621/621，另有后补同名同目录项目回归 1/1 通过，未签名 Universal Release 构建及同一 Release 后台的 WillDeep/SSH 验证通过。
 
 通用 `qterm agent events`、`qterm agent status` 和 CLI/MCP 等待已按私有元数据自动选择后台端点，UI 退出或重开不改变已选择的服务游标。后台已持有基于 shell 标记的命令生命周期；原方案阶段实现与约定验收见[实施方案](WILLDEEP_WORKSPACE_RUNTIME_PLAN.md)及完成审计。
 
