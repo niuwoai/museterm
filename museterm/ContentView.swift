@@ -67,6 +67,9 @@ struct ContentView: View {
                         isVisible: rightPanelBinding(.tasks)
                     )
                 }
+                if rightPanel == nil {
+                    TerminalPreviewSidebar(sourceID: workspace.selectedID)
+                }
             }
 
             if commandPalettePresentation.isPresented {
@@ -92,6 +95,21 @@ struct ContentView: View {
             )
         )
         .focusedValue(\.terminalWorkspace, workspace)
+        .toolbar {
+            ToolbarItem {
+                Button {
+                    guard let source = workspace.selectedTab else { return }
+                    rightPanel = nil
+                    TerminalPreviewCenter.shared.chooseFile(source: source)
+                } label: { Image(systemName: "doc.richtext") }
+                .help(L10n.string("preview.open"))
+                .accessibilityLabel(L10n.string("preview.open"))
+                .accessibilityIdentifier("terminal-preview-open")
+            }
+        }
+        .onChange(of: workspace.tabs.map(\.id)) { [previousIDs = workspace.tabs.map(\.id)] current in
+            for id in previousIDs where !current.contains(id) { TerminalPreviewCenter.shared.close(id) }
+        }
         .sheet(isPresented: $isSessionTunnelSheetPresented) {
             if let selectedTab = workspace.selectedTab {
                 SessionTunnelCreateSheet(
@@ -125,6 +143,7 @@ struct ContentView: View {
             notificationCoordinator.attach(workspace: workspace, preferences: preferences)
             #if DEBUG
             TerminalAgentUITestFixture.applyIfRequested(workspace: workspace)
+            TerminalPreviewUITestFixture.applyIfRequested(workspace: workspace)
             #endif
             MuseTermScriptingRegistry.attach(
                 workspace: workspace,

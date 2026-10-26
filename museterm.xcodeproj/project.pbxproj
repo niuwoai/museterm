@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A25300010000000000000001 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = A25300010000000000000002 /* Markdown */; };
 		5CB51EA02FF2F2500010675C /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 5CB51E9F2FF2F2500010675C /* SwiftTerm */; };
 		8A9F219FE8C16A99E23EA90E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5C6103F847CC9EC58053615E /* Sparkle */; };
 /* End PBXBuildFile section */
@@ -81,6 +82,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5CB51EA02FF2F2500010675C /* SwiftTerm in Frameworks */,
+				A25300010000000000000001 /* Markdown in Frameworks */,
 				8A9F219FE8C16A99E23EA90E /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -144,6 +146,7 @@
 			name = museterm;
 			packageProductDependencies = (
 				5CB51E9F2FF2F2500010675C /* SwiftTerm */,
+				A25300010000000000000002 /* Markdown */,
 				5C6103F847CC9EC58053615E /* Sparkle */,
 			);
 			productName = museterm;
@@ -227,6 +230,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				5CB51E9E2FF2F2500010675C /* XCRemoteSwiftPackageReference "SwiftTerm" */,
+				A25300010000000000000003 /* XCRemoteSwiftPackageReference "swift-markdown" */,
 				93B5CCAF05C2E76BB42C3613 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -471,7 +475,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 350;
+				CURRENT_PROJECT_VERSION = 351;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -493,7 +497,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = "1.252.0-rc1";
+				MARKETING_VERSION = "1.253.0-rc1";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.museterm;
 				PRODUCT_MODULE_NAME = museterm;
 				PRODUCT_NAME = QTerm;
@@ -514,7 +518,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 350;
+				CURRENT_PROJECT_VERSION = 351;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -536,7 +540,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = "1.252.0-rc1";
+				MARKETING_VERSION = "1.253.0-rc1";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.museterm;
 				PRODUCT_MODULE_NAME = museterm;
 				PRODUCT_NAME = QTerm;
@@ -555,11 +559,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 350;
+				CURRENT_PROJECT_VERSION = 351;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = "1.252.0-rc1";
+				MARKETING_VERSION = "1.253.0-rc1";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -576,11 +580,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 350;
+				CURRENT_PROJECT_VERSION = 351;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = "1.252.0-rc1";
+				MARKETING_VERSION = "1.253.0-rc1";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -596,10 +600,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 350;
+				CURRENT_PROJECT_VERSION = 351;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = "1.252.0-rc1";
+				MARKETING_VERSION = "1.253.0-rc1";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -615,10 +619,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 350;
+				CURRENT_PROJECT_VERSION = 351;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = "1.252.0-rc1";
+				MARKETING_VERSION = "1.253.0-rc1";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -672,6 +676,11 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		A25300010000000000000003 /* XCRemoteSwiftPackageReference "swift-markdown" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/swiftlang/swift-markdown.git";
+			requirement = {kind = exactVersion; version = 0.6.0;};
+		};
 		5CB51E9E2FF2F2500010675C /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm.git";
@@ -691,6 +700,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		A25300010000000000000002 /* Markdown */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A25300010000000000000003 /* XCRemoteSwiftPackageReference "swift-markdown" */;
+			productName = Markdown;
+		};
 		5C6103F847CC9EC58053615E /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 93B5CCAF05C2E76BB42C3613 /* XCRemoteSwiftPackageReference "Sparkle" */;

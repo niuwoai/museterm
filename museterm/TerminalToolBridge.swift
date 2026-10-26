@@ -436,6 +436,7 @@ struct TerminalToolCommandBlockSnapshot: Codable, Equatable {
 }
 
 struct TerminalToolRequest: Codable {
+    var previewRequest: TerminalPreviewRequest? = nil
     var projectRequest: TerminalProjectToolRequest? = nil
     var nativeAgentToken: String? = nil
     var noResponse: Bool? = nil
@@ -1005,6 +1006,8 @@ final class TerminalToolBridge {
         }
 
         switch request.action {
+        case "preview":
+            return TerminalPreviewToolService.perform(request, workspace: workspace, snapshotSequence: snapshotSequence)
         case "takeover_tab", "renew_tab_control", "release_tab":
             do {
                 guard let owner = request.controlID, !owner.isEmpty, owner.count <= 80,
@@ -1302,6 +1305,7 @@ final class TerminalToolBridge {
     }
 
     private static let writeActions: Set<String> = [
+        "preview",
         "takeover_tab", "renew_tab_control", "release_tab",
         "create_tab",
         "open_ssh_profile",
