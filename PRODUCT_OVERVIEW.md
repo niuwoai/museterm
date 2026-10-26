@@ -1,12 +1,14 @@
 # Product Overview
 
-> 最后更新：2026-10-25 | 当前版本：v1.251.0-rc32
+> 最后更新：2026-10-26 | 当前版本：v1.251.0-rc33
 
 ## 项目简介
 
 轻连（QTerm）是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建外壳界面，并通过 SwiftTerm 提供本地 shell 终端能力。
 
 ## 核心功能
+
+- Agent 标识优先显示 Codex、Claude Code、WillDeep 品牌图标，以小终端框区分 CLI；运行、等待与退出用小状态标记表达，完整名称及识别依据可悬停查看，缺少图标时回退名称。
 
 - rc26 普通应用默认使用独立后台持有新终端；退出/重开界面接回原进程，显式关闭终端才终止该进程。退出前保存失败会取消退出并保留当前会话。旧 LocalProcess 运行会话不承诺无缝迁移，测试宿主仍需显式启用隔离后台。完整单测 621/621、未签名 Universal Release 构建及同一 Release 后台的真实 WillDeep/SSH 验证通过；Release App 未启动，本机应用尚未替换。当前权威验收索引见 `docs/verification/willdeep-workspace-runtime/README.md`，下文能力详述中保留的阶段状态以该索引为准。
 
