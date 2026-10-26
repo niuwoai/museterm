@@ -1476,3 +1476,7 @@
 "runtime.recovered_project" = "找回的后台终端";
 "runtime.recovered_terminal" = "后台终端";
 "runtime.attach_only" = "仅附着（原配置缺失）";
+
+"agent.surface.cli" = "CLI";
+"agent.surface.desktop" = "桌面版";
+"agent.identity.detail" = "%1$@ · %2$@";

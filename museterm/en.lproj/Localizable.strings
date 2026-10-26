@@ -1476,3 +1476,7 @@
 "runtime.recovered_project" = "Recovered terminals";
 "runtime.recovered_terminal" = "Retained terminal";
 "runtime.attach_only" = "Attach only (original configuration missing)";
+
+"agent.surface.cli" = "CLI";
+"agent.surface.desktop" = "Desktop";
+"agent.identity.detail" = "%1$@ · %2$@";
