@@ -101,6 +101,51 @@ final class TerminalRuntimeViewTests: XCTestCase {
             renderedThrough: .init(generation: UUID(), offset: 105)))
     }
 
+    func testMouseReportsReachActualPTYThroughHumanInputQueue() async throws {
+        let (root, helper) = try await startService()
+        let session = TerminalSession(sequence: 1)
+        let reports = ["\u{1b}[<0;5;6M", "\u{1b}[<0;5;6m", "\u{1b}[<64;5;6M", "\u{1b}[<65;5;6M"]
+        let expected = reports.joined()
+        let script = "stty raw -echo; printf '\\033[?1000h\\033[?1006h__MOUSE_READY\\n'; "
+            + "dd bs=1 count=\(expected.utf8.count) 2>/dev/null | od -An -tx1 | tr -d ' \\n'; "
+            + "printf '\\n__MOUSE_DONE\\n'; sleep 20"
+        attach(session, launch: .init(executable: "/bin/sh", arguments: ["-c", script],
+            environment: ["PATH": "/usr/bin:/bin", "HOME": root.path, "TERM": "xterm-256color"], directory: root.path), root: root, helper: helper)
+        try await waitUntil("mouse fixture ready") {
+            session.controller.runtimeHandle?.connected == true && session.controller.visibleScreenText().contains("__MOUSE_READY")
+        }
+        let view = try XCTUnwrap(session.controller.container.subviews.compactMap { $0 as? FocusableLocalProcessTerminalView }.first)
+        let terminal = view.getTerminal()
+        for flags in [0, 3, 64, 65] { terminal.sendEvent(buttonFlags: flags, x: 4, y: 5) }
+        try await waitUntil("actual mouse bytes received by PTY") {
+            session.controller.visibleScreenText().contains("__MOUSE_DONE")
+        }
+        let hex = expected.utf8.map { String(format: "%02x", $0) }.joined()
+        XCTAssertTrue(session.controller.visibleScreenText().filter { !$0.isWhitespace }.contains(hex))
+        XCTAssertNil(session.runtimeConnectionIssue)
+    }
+
+    func testBackendLeaseRejectsMouseWithoutBypassingOwnership() async throws {
+        let (root, helper) = try await startService()
+        let session = TerminalSession(sequence: 1)
+        attach(session, launch: .init(executable: "/bin/sh", arguments: ["-c", "stty raw -echo; printf '\\033[?1006h__MOUSE_LOCK_READY\\n'; sleep 20"],
+            environment: ["PATH": "/usr/bin:/bin", "HOME": root.path, "TERM": "xterm-256color"], directory: root.path), root: root, helper: helper)
+        try await waitUntil("mouse lease fixture ready") {
+            session.controller.runtimeHandle?.connected == true && session.controller.visibleScreenText().contains("__MOUSE_LOCK_READY")
+        }
+        let acquired = expectation(description: "mouse fixture takeover ACK")
+        session.changeAIControl(action: .acquireControl, owner: "mouse-fixture", archiveDirectory: root.appendingPathComponent("archives")) { result in
+            if case .failure(let error) = result { XCTFail("Acquire failed: \(error)") }
+            acquired.fulfill()
+        }
+        await fulfillment(of: [acquired], timeout: 5)
+        let view = try XCTUnwrap(session.controller.container.subviews.compactMap { $0 as? FocusableLocalProcessTerminalView }.first)
+        view.getTerminal().sendEvent(buttonFlags: 64, x: 4, y: 5)
+        try await waitUntil("locked mouse input rejected") { session.runtimeConnectionIssue == .inputRejected }
+        XCTAssertEqual(session.aiLease?.owner, "mouse-fixture")
+        XCTAssertFalse(TerminalRuntimeReplyPolicy.allows(Data("\u{1b}[<64;5;6M".utf8)))
+    }
+
     func testHistoricalFeedIsSilentWhileNewBytesInSameFrameRemainLive() async throws {
         let view = FocusableLocalProcessTerminalView(frame: .init(x: 0, y: 0, width: 800, height: 600))
         var bells = 0
