@@ -249,7 +249,11 @@ nonisolated private final class TerminalRuntimeSessionIO: @unchecked Sendable {
         commands.async { [self] in
             guard !isStopped else { return }
             do {
-                if generation == nil && !existingOnly && previous == nil { try TerminalRuntimeService.ensureRunning(root: root, executable: executable) }
+                // Restored sessions may deliberately be existing-only so a
+                // missing PTY is never recreated. The service itself still
+                // needs to be brought up before attempting that safe attach.
+                // ensureRunning is idempotent and never replaces a live service.
+                try TerminalRuntimeService.ensureRunning(root: root, executable: executable)
                 let connection = try TerminalRuntimeConnection(root: root)
                 defer { connection.close() }
                 let listed = try connection.request(.init(action: .list))
