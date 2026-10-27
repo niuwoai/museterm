@@ -1486,6 +1486,8 @@
 "runtime.issue.disconnected" = "终端连接暂不可用，请重新连接以确认原会话状态。";
 "runtime.issue.outputGap" = "较早输出已不完整；当前连接的是原会话，可调整窗口或手动重绘终端。";
 "runtime.reconnect" = "重新连接";
+"project.hidden_terminals" = "已隐藏终端 (%d)";
+"project.show_terminal" = "显示";
 "runtime.dismiss" = "关闭提示";
 "runtime.issue.inputRejected" = "输入未发送，请检查当前终端的控制归属。";
 "runtime.issue.inputTooLarge" = "输入过大，尚未发送；请分段粘贴。";

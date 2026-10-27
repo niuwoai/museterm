@@ -20,6 +20,7 @@ struct TerminalProjectsSidebar: View {
     @State private var showsImport = false
     @State private var collapsedProjects: Set<UUID> = []
     @State private var showsProjects = true
+    @State private var showsHiddenTerminals = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -49,6 +50,43 @@ struct TerminalProjectsSidebar: View {
                     projectGroup(project)
                 }
             }
+            let hiddenTabs = hiddenProjectTabs
+            if !hiddenTabs.isEmpty {
+                Button { showsHiddenTerminals.toggle() } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: showsHiddenTerminals ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 8))
+                        Text(L10n.format("project.hidden_terminals", hiddenTabs.count))
+                        Spacer(minLength: 0)
+                    }
+                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("project-hidden-terminals-toggle")
+                if showsHiddenTerminals {
+                    ForEach(hiddenTabs, id: \.id) { item in
+                        HStack(spacing: 6) {
+                            Image(systemName: "terminal.fill").foregroundStyle(.secondary)
+                            Text(workspace.sessionRegistry.sessions[item.layoutTab.focusedTerminalID]?.tabTitle ?? "")
+                                .lineLimit(1)
+                            Text(item.project.name).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                            Spacer(minLength: 0)
+                            Button(L10n.string("project.show_terminal")) {
+                                for id in item.layoutTab.layout.terminalIDs {
+                                    workspace.sessionRegistry.sessions[id]?.runtimeRestoreHidden = false
+                                }
+                                if let session = workspace.sessionRegistry.sessions[item.layoutTab.focusedTerminalID] {
+                                    workspace.select(session)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("project-show-hidden-\(item.id)")
+                        }
+                        .font(.caption)
+                        .padding(.leading, 14)
+                    }
+                }
+            }
         }
         .sheet(item: $editorPresentation) { presentation in
             TerminalProjectEditor(workspace: workspace, projectID: presentation.projectID)
@@ -65,13 +103,25 @@ struct TerminalProjectsSidebar: View {
             }
             if !collapsedProjects.contains(project.id) {
                 ForEach(project.tabs) { layoutTab in
-                    if let tab = workspace.sessionRegistry.sessions[layoutTab.focusedTerminalID] {
+                    if let tab = workspace.sessionRegistry.sessions[layoutTab.focusedTerminalID], !isHidden(layoutTab) {
                         terminalRow(tab, layoutTab: layoutTab)
                     }
                 }
             }
         }
         .padding(.bottom, 4)
+    }
+
+    private var hiddenProjectTabs: [(id: UUID, layoutTab: TerminalProjectTab, project: TerminalProject)] {
+        workspace.projectLayout.projects.flatMap { project in
+            project.tabs.compactMap { layoutTab in
+                isHidden(layoutTab) ? (layoutTab.id, layoutTab, project) : nil
+            }
+        }
+    }
+
+    private func isHidden(_ layoutTab: TerminalProjectTab) -> Bool {
+        layoutTab.layout.terminalIDs.contains { workspace.sessionRegistry.sessions[$0]?.runtimeRestoreHidden == true }
     }
 
     private func projectHeader(_ project: TerminalProject, activity: TerminalProjectActivity) -> some View {

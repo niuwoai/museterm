@@ -1683,6 +1683,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             if session.runtimeOwnsTerminalAttention { session.attentionStore?.markRuntimeAuthorityExternal(tabID: session.id) }
             else if info.agent != nil || session.runtimeOwnsAgent { session.attentionStore?.markAgentAuthorityExternal(tabID: session.id) }
             if let preferences = self.preferences { handle.configureReminders(.init(preferences: preferences)) }
+            session.runtimeRestoreHidden = false
             session.applyRuntimeInfo(info)
             if !info.running && !self.runtimeExitWasReported {
                 self.runtimeExitWasReported = true
@@ -1716,9 +1717,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 if restoring || !handle.createdNewPTY { session.markStartupCommandsFinished() } else { ready?() }
             }
         }
-        handle.onFailure = { [weak self, weak handle] _ in
+        handle.onFailure = { [weak self, weak handle, weak session] _ in
             guard let self, let handle, self.runtimeHandle === handle else { return }
-            self.session?.runtimeConnectionIssue = .disconnected
+            session?.runtimeConnectionIssue = .disconnected
+            if restoring && handle.lastErrorStage == "startup" { session?.runtimeRestoreHidden = true }
         }
         handle.onRecovering = { [weak self, weak handle] in
             guard let self, let handle, self.runtimeHandle === handle else { return }

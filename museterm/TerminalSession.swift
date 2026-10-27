@@ -319,6 +319,9 @@ final class TerminalSession: ObservableObject, Identifiable {
     let nativeAgentContext = TerminalNativeAgentContext()
     @Published private(set) var runtimeInfo: TerminalRuntimeSessionInfo?
     @Published var runtimeConnectionIssue: TerminalRuntimePresentationIssue?
+    /// Hidden only for the current app run after a restored Runtime session fails to reconnect.
+    /// It is intentionally not persisted so the next launch can retry recovery.
+    @Published var runtimeRestoreHidden = false
     private(set) var runtimeOwnsAgent = false
     var runtimeOwnsTerminalAttention = false
     var runtimeGenerationToRestore: UUID?
