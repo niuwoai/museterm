@@ -1,6 +1,6 @@
 import Foundation
 
-/// Reattach reads only. Never retries input or creates a replacement process.
+/// Retries transient Runtime connection failures. Never retries terminal input.
 nonisolated struct TerminalRuntimeReconnectPolicy {
     static let delays: [TimeInterval] = [0.25, 1, 3]
     static let stableInterval: TimeInterval = 30

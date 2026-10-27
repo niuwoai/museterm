@@ -1461,6 +1461,10 @@
 "project.close.title" = "关闭项目？";
 "project.close.message" = "关闭 %@ 将停止其中的 %d 个终端及运行中的进程。";
 "project.close.action" = "关闭";
+"project.delete.title" = "删除项目？";
+"project.delete.message" = "删除项目 %@ 将移除项目，并关闭其中的 %d 个终端及运行中的进程。";
+"project.delete.action" = "删除项目…";
+"project.delete.confirm_action" = "删除项目";
 "project.close_tab.title" = "关闭终端标签";
 "project.close_tab.message" = "这将停止该标签中的全部 %d 个终端分屏。";
 "attention.empty" = "暂无待处理事项";

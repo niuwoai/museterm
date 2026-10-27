@@ -94,7 +94,7 @@ struct TerminalProjectsSidebar: View {
             Button(L10n.string("project.new_tab")) { workspace.selectProject(project.id); workspace.newTab(startDirectory: project.directory) }
             Button(L10n.string("project.rename")) { editorPresentation = .rename(project.id) }
             Divider()
-            Button(L10n.string("project.close.action"), role: .destructive) { workspace.closeProject(project.id) }
+            Button(L10n.string("project.delete.action"), role: .destructive) { workspace.closeProject(project.id) }
         }
     }
 
