@@ -17,22 +17,32 @@ struct TerminalProjectCanvas: View {
                 }.zIndex(2)
             }
             ForEach(workspace.projectLayout.projects.flatMap(\.tabs)) { tab in
-                let visible = workspace.projectLayout.selectedTab?.id == tab.id
-                TerminalPaneTree(workspace: workspace, preferences: preferences, layout: tab.layout, visible: visible)
-                    .allowsHitTesting(visible)
-                    .accessibilityHidden(!visible)
-                    .opacity(visible ? 1 : 0)
-                    .zIndex(visible ? 1 : 0)
+                let hidden = tab.layout.terminalIDs.contains {
+                    workspace.sessionRegistry.sessions[$0]?.runtimeRestoreHidden == true
+                }
+                if !hidden {
+                    let visible = workspace.projectLayout.selectedTab?.id == tab.id
+                    TerminalPaneTree(workspace: workspace, preferences: preferences, layout: tab.layout, visible: visible)
+                        .allowsHitTesting(visible)
+                        .accessibilityHidden(!visible)
+                        .opacity(visible ? 1 : 0)
+                        .zIndex(visible ? 1 : 0)
+                }
             }
             if workspace.runtimeDiscoveryInProgress {
                 ProgressView(L10n.string("runtime.discovering"))
                     .padding().background(.regularMaterial).zIndex(3)
-            } else if workspace.projectLayout.selectedTab == nil {
+            } else if workspace.projectLayout.selectedTab == nil || selectedTabIsHidden {
                 Button(L10n.string("project.new_tab")) {
                     workspace.newTab(startDirectory: workspace.projectLayout.selectedProject?.directory)
                 }
             }
         }
+    }
+
+    private var selectedTabIsHidden: Bool {
+        guard let tab = workspace.projectLayout.selectedTab else { return false }
+        return tab.layout.terminalIDs.contains { workspace.sessionRegistry.sessions[$0]?.runtimeRestoreHidden == true }
     }
 }
 
