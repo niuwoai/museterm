@@ -247,58 +247,77 @@ nonisolated private final class TerminalRuntimeSessionIO: @unchecked Sendable {
     func start(_ launch: TerminalRuntimeLaunch, restoring generation: UUID?, existingOnly: Bool,
                renderedCursor: TerminalRuntimeOutputCursor?, restarting previous: TerminalRuntimeSessionInfo?) {
         commands.async { [self] in
-            guard !isStopped else { return }
-            do {
-                // Restored sessions may deliberately be existing-only so a
-                // missing PTY is never recreated. The service itself still
-                // needs to be brought up before attempting that safe attach.
-                // ensureRunning is idempotent and never replaces a live service.
-                try TerminalRuntimeService.ensureRunning(root: root, executable: executable)
-                let connection = try TerminalRuntimeConnection(root: root)
-                defer { connection.close() }
-                let listed = try connection.request(.init(action: .list))
-                let existing = listed.sessions?.first { $0.id == id }
-                let info: TerminalRuntimeSessionInfo
-                if let previous {
-                    guard listed.features?.contains(TerminalRuntimeLimits.restartExitedFeature) == true else {
-                        throw TerminalRuntimeConnectionError.incompatibleProtocol
-                    }
-                    guard previous.id == id, !previous.running, let existing,
-                          existing.generation == previous.generation else { throw TerminalRuntimeConnectionError.serviceChanged }
-                    var request = TerminalRuntimeRequest(action: .restartExited)
-                    request.sessionID = id; request.generation = previous.generation
-                    request.controlEpoch = previous.controlEpoch; request.launch = launch
-                    guard let restarted = try connection.request(request).session else { throw TerminalRuntimeConnectionError.invalidResponse }
-                    info = restarted
-                } else if let existing {
-                    guard generation == nil || generation == existing.generation else { throw TerminalRuntimeConnectionError.serviceChanged }
-                    info = existing
-                } else {
-                    guard generation == nil && !existingOnly else { throw TerminalRuntimeConnectionError.serviceChanged }
-                    var request = TerminalRuntimeRequest(action: .create)
-                    request.sessionID = id; request.launch = launch
-                    guard let created = try connection.request(request).session else { throw TerminalRuntimeConnectionError.invalidResponse }
-                    info = created
-                }
-                if let renderedCursor {
-                    guard renderedCursor.generation == info.generation, renderedCursor.offset <= info.outputOffset else {
-                        throw TerminalRuntimeConnectionError.serviceChanged
-                    }
-                }
-                lock.lock(); expectedEpoch = listed.serviceEpoch; initialInfo = info; historicalBoundary = renderedCursor; lock.unlock()
-                if isStopped {
-                    lock.lock(); let close = closeRequested; lock.unlock()
-                    if close {
-                        var request = TerminalRuntimeRequest(action: .close)
-                        request.sessionID = id; request.generation = info.generation; request.controlEpoch = info.controlEpoch
-                        _ = try connection.request(request)
-                    }
+            var retry = TerminalRuntimeReconnectPolicy()
+            while !isStopped {
+                do {
+                    try startAttempt(launch, restoring: generation, existingOnly: existingOnly,
+                                     renderedCursor: renderedCursor, restarting: previous)
                     return
+                } catch {
+                    guard !isStopped else { return }
+                    guard let delay = retry.nextDelay(for: error, healthyFor: 0) else {
+                        onFailure?(error, "startup")
+                        return
+                    }
+                    onRecovering?(error)
+                    let deadline = ProcessInfo.processInfo.systemUptime + delay
+                    while !isStopped, ProcessInfo.processInfo.systemUptime < deadline {
+                        Thread.sleep(forTimeInterval: min(0.1, max(0, deadline - ProcessInfo.processInfo.systemUptime)))
+                    }
                 }
-                onStarted?(info, existing == nil || previous != nil, listed.features ?? [])
-                restartReader()
-            } catch { if !isStopped { onFailure?(error, "startup") } }
+            }
         }
+    }
+
+    private func startAttempt(_ launch: TerminalRuntimeLaunch, restoring generation: UUID?, existingOnly: Bool,
+                              renderedCursor: TerminalRuntimeOutputCursor?, restarting previous: TerminalRuntimeSessionInfo?) throws {
+        // Restored sessions may deliberately be existing-only so a missing PTY
+        // is never recreated. The service still needs to start before attach.
+        // ensureRunning is idempotent and never replaces a live service.
+        try TerminalRuntimeService.ensureRunning(root: root, executable: executable)
+        let connection = try TerminalRuntimeConnection(root: root)
+        defer { connection.close() }
+        let listed = try connection.request(.init(action: .list))
+        let existing = listed.sessions?.first { $0.id == id }
+        let info: TerminalRuntimeSessionInfo
+        if let previous {
+            guard listed.features?.contains(TerminalRuntimeLimits.restartExitedFeature) == true else {
+                throw TerminalRuntimeConnectionError.incompatibleProtocol
+            }
+            guard previous.id == id, !previous.running, let existing,
+                  existing.generation == previous.generation else { throw TerminalRuntimeConnectionError.serviceChanged }
+            var request = TerminalRuntimeRequest(action: .restartExited)
+            request.sessionID = id; request.generation = previous.generation
+            request.controlEpoch = previous.controlEpoch; request.launch = launch
+            guard let restarted = try connection.request(request).session else { throw TerminalRuntimeConnectionError.invalidResponse }
+            info = restarted
+        } else if let existing {
+            guard generation == nil || generation == existing.generation else { throw TerminalRuntimeConnectionError.serviceChanged }
+            info = existing
+        } else {
+            guard generation == nil && !existingOnly else { throw TerminalRuntimeConnectionError.serviceChanged }
+            var request = TerminalRuntimeRequest(action: .create)
+            request.sessionID = id; request.launch = launch
+            guard let created = try connection.request(request).session else { throw TerminalRuntimeConnectionError.invalidResponse }
+            info = created
+        }
+        if let renderedCursor {
+            guard renderedCursor.generation == info.generation, renderedCursor.offset <= info.outputOffset else {
+                throw TerminalRuntimeConnectionError.serviceChanged
+            }
+        }
+        lock.lock(); expectedEpoch = listed.serviceEpoch; initialInfo = info; historicalBoundary = renderedCursor; lock.unlock()
+        if isStopped {
+            lock.lock(); let close = closeRequested; lock.unlock()
+            if close {
+                var request = TerminalRuntimeRequest(action: .close)
+                request.sessionID = id; request.generation = info.generation; request.controlEpoch = info.controlEpoch
+                _ = try connection.request(request)
+            }
+            return
+        }
+        onStarted?(info, existing == nil || previous != nil, listed.features ?? [])
+        restartReader()
     }
 
     func restartReader() {

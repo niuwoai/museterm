@@ -121,9 +121,9 @@ extension TerminalWorkspace {
         let targets = sessionRegistry.sessions.values.filter { project.tabs.flatMap { $0.layout.terminalIDs }.contains($0.id) }
         if !skipConfirmation && targets.contains(where: \.hasRunningProcess) {
             let alert = NSAlert()
-            alert.messageText = L10n.string("project.close.title")
-            alert.informativeText = L10n.format("project.close.message", project.name, targets.count)
-            alert.addButton(withTitle: L10n.string("project.close.action"))
+            alert.messageText = L10n.string("project.delete.title")
+            alert.informativeText = L10n.format("project.delete.message", project.name, targets.count)
+            alert.addButton(withTitle: L10n.string("project.delete.confirm_action"))
             alert.addButton(withTitle: L10n.string("action.cancel"))
             guard alert.runModal() == .alertFirstButtonReturn else { return false }
         }

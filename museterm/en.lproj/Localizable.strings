@@ -1461,6 +1461,10 @@
 "project.close.title" = "Close project?";
 "project.close.message" = "Closing %@ will stop its %d terminals and running processes.";
 "project.close.action" = "Close";
+"project.delete.title" = "Delete project?";
+"project.delete.message" = "Deleting %@ will remove the project and close its %d terminals and running processes.";
+"project.delete.action" = "Delete Project…";
+"project.delete.confirm_action" = "Delete Project";
 "project.close_tab.title" = "Close terminal tab";
 "project.close_tab.message" = "This will stop all %d terminal panes in this tab.";
 "attention.empty" = "Nothing needs attention";
