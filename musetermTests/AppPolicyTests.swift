@@ -310,6 +310,41 @@ final class AppPolicyTests: XCTestCase {
         XCTAssertEqual(reloaded.sidebarExpandedWidth, 420)
     }
 
+    func testSidebarSectionOrderAndVisibilityPersist() throws {
+        let suiteName = "museterm.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let preferences = TerminalPreferences(defaults: defaults)
+        XCTAssertEqual(preferences.sidebarSectionOrder, SidebarSectionKind.defaultOrder)
+        XCTAssertTrue(preferences.hiddenSidebarSections.isEmpty)
+        XCTAssertEqual(preferences.visibleSidebarSections, SidebarSectionKind.defaultOrder)
+
+        preferences.setSidebarSection(.shortcuts, visible: false)
+        preferences.moveSidebarSection(.sshHosts, direction: -1)
+        SidebarSectionOrder.applyDrop(of: .fileTransfer, onto: .quickPaths, in: preferences)
+
+        let reloaded = TerminalPreferences(defaults: defaults)
+        XCTAssertEqual(
+            reloaded.sidebarSectionOrder,
+            [.fileTransfer, .quickPaths, .learnedCommands, .shortcuts, .sshHosts, .profiles]
+        )
+        XCTAssertEqual(reloaded.hiddenSidebarSections, [.shortcuts])
+        XCTAssertFalse(reloaded.visibleSidebarSections.contains(.shortcuts))
+
+        reloaded.setSidebarSection(.shortcuts, visible: true)
+        XCTAssertTrue(reloaded.isSidebarSectionVisible(.shortcuts))
+        XCTAssertEqual(reloaded.visibleSidebarSections.first, .fileTransfer)
+    }
+
+    func testSidebarSectionOrderDropsUnknownValuesAndKeepsMissingSections() {
+        let normalized = SidebarSectionKind.normalizedOrder(["sshHosts", "nope", "sshHosts", "shortcuts"])
+        XCTAssertEqual(
+            normalized,
+            [.sshHosts, .shortcuts, .quickPaths, .learnedCommands, .fileTransfer, .profiles]
+        )
+    }
+
     func testLineNavigationShortcutsPersist() throws {
         let suiteName = "museterm.tests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))

@@ -1,9 +1,11 @@
-"app.name" = "轻连";
+"app.name" = "QTerm";
 "app.lightweight" = "轻快终端";
 "someim.update.check" = "检查更新…";
 
 "action.new_tab" = "新建标签";
+"action.new_tab.help" = "新建标签：用默认 Profile 开一个新的终端标签。";
 "action.new_tab_with_profile" = "按 Profile 新建标签";
+"action.new_tab_with_profile.help" = "按 Profile 新建标签：选择一个终端 Profile 再开标签。";
 "action.new_connection" = "新建连接";
 
 "profile.section" = "终端 Profile";
@@ -44,6 +46,7 @@
 "profile.make_default.help" = "默认 Profile 决定「+」新建标签的行为，且不可删除。";
 "action.settings" = "设置";
 "preview.open" = "预览图片或 Markdown";
+"preview.open.help" = "预览图片或 Markdown：选择一个文件，在侧边打开查看。";
 "preview.selection" = "选中的 Markdown";
 "preview.selection_action" = "预览选中内容为 Markdown";
 "preview.close" = "关闭预览";
@@ -94,7 +97,7 @@
 "action.save_workspace" = "保存工作区";
 "action.restore_workspace" = "恢复工作区";
 
-"menu.about" = "关于 轻连";
+"menu.about" = "关于 QTerm";
 "menu.settings" = "设置…";
 "menu.tab" = "标签";
 "terminal.context.type_escaped_selection" = "转义键入所选路径";
@@ -201,7 +204,7 @@
 "shortcut.auth.require" = "回放前验证本人";
 "shortcut.auth.require.help" = "打开后，点击回放、命令面板、MCP、CLI 和 AppleScript 都会先要求触控 ID。没有指纹或指纹不可用时，改用这台 Mac 的登录密码。";
 "shortcut.auth.automation" = "允许 AI 回放";
-"shortcut.auth.automation.help" = "关闭后，MCP、CLI 和 AppleScript 不能回放这条录制。你在轻连里自己点击仍然可以回放；若同时打开了验证本人，点击时也要先通过触控 ID。";
+"shortcut.auth.automation.help" = "关闭后，MCP、CLI 和 AppleScript 不能回放这条录制。你在 QTerm 里自己点击仍然可以回放；若同时打开了验证本人，点击时也要先通过触控 ID。";
 "shortcut.auth.reason" = "回放录制捷径“%@”前，请验证是你本人。";
 "shortcut.auth.use_password" = "使用密码";
 "shortcut.auth.error.not_playable" = "这条录制捷径没有可回放的内容。";
@@ -242,7 +245,7 @@
 "file_transfer.download.save_title" = "选择本机保存文件";
 "file_transfer.download.default_filename" = "downloaded-file";
 "file_transfer.download.prompt_title" = "下载远端文件";
-"file_transfer.download.prompt_message" = "本地保存位置已选好。现在输入远端文件路径，轻连 会检查远端 sz 是否可用。";
+"file_transfer.download.prompt_message" = "本地保存位置已选好。现在输入远端文件路径，QTerm 会检查远端 sz 是否可用。";
 "file_transfer.download.placeholder" = "/path/to/remote-file";
 "file_transfer.progress.with_percent" = "%@ · %d%%";
 "file_transfer.upload.checking" = "正在检查远端 rz…";
@@ -285,9 +288,9 @@
 "ssh.copy_command.copied" = "已复制 %@ 的 SSH 连接命令。";
 "ssh.copy_command.failed" = "复制 SSH 命令失败：%@";
 "ssh.config_preview.open" = "预览生效配置";
-"ssh.config_preview.open.help" = "查看 轻连 将为这个 Profile 生成的 OpenSSH 配置。";
+"ssh.config_preview.open.help" = "查看 QTerm 将为这个 Profile 生成的 OpenSSH 配置。";
 "ssh.config_preview.title" = "生效 OpenSSH 配置";
-"ssh.config_preview.subtitle" = "这是 轻连 会传给 OpenSSH 的生成配置。";
+"ssh.config_preview.subtitle" = "这是 QTerm 会传给 OpenSSH 的生成配置。";
 "ssh.config_preview.target_alias" = "目标别名";
 "ssh.config_preview.host_blocks" = "Host 块";
 "ssh.config_preview.lines" = "行数";
@@ -418,14 +421,14 @@
 "ssh.route_probe.command" = "%d. %@\n%@";
 "ssh.route_probe.dns" = "从本机解析 %@";
 "ssh.route_probe.port" = "从本机检查 TCP %@:%d";
-"ssh.route_probe.config" = "查看 轻连 生成的 OpenSSH 配置";
+"ssh.route_probe.config" = "查看 QTerm 生成的 OpenSSH 配置";
 "ssh.route_probe.verbose" = "用生成配置运行详细链路检查";
 "ssh.route_probe.verbose_jump" = "通过 OpenSSH 检查第 %d 跳 %@";
 "ssh.route_probe.verbose_target" = "通过 OpenSSH 检查目标 %@";
 "ssh.diagnostic_plan.open" = "诊断计划";
 "ssh.diagnostic_plan.open.help" = "预览这个主机的本机 SSH 检查步骤。";
 "ssh.diagnostic_plan.title" = "SSH 诊断计划";
-"ssh.diagnostic_plan.subtitle" = "这些检查应从本机执行。轻连 可以复制或填入命令，但是否按回车由你决定。";
+"ssh.diagnostic_plan.subtitle" = "这些检查应从本机执行。QTerm 可以复制或填入命令，但是否按回车由你决定。";
 "ssh.diagnostic_plan.empty" = "这个 Profile 缺少主机信息，暂时无法生成诊断计划。";
 "ssh.diagnostic_plan.kind.dns" = "DNS";
 "ssh.diagnostic_plan.kind.port" = "TCP";
@@ -488,7 +491,7 @@
 "ssh.diagnostic_recommendation.tcpFailure.summary" = "%@ 没能从本机连通对应端口。";
 "ssh.diagnostic_recommendation.tcpFailure.action" = "优先检查 VPN、安全组、防火墙、端口号和第一跳跳板机是否在线。";
 "ssh.diagnostic_recommendation.configFailure.title" = "OpenSSH 配置展开失败";
-"ssh.diagnostic_recommendation.configFailure.summary" = "%@ 没能干净展开 轻连 生成的配置。";
+"ssh.diagnostic_recommendation.configFailure.summary" = "%@ 没能干净展开 QTerm 生成的配置。";
 "ssh.diagnostic_recommendation.configFailure.action" = "检查高级 SSH 选项、密钥路径和生成配置里的 Host 块；先修配置再尝试连接。";
 "ssh.diagnostic_recommendation.verboseFailure.title" = "OpenSSH 详细检查失败";
 "ssh.diagnostic_recommendation.verboseFailure.summary" = "%@ 已到 OpenSSH 详细连接阶段，失败更可能来自认证、Host Key、跳板链路或远端策略。";
@@ -497,7 +500,7 @@
 "ssh.diagnostic_recommendation.needsAttention.summary" = "%@ 成功退出，但输出信号不足以自动判定。";
 "ssh.diagnostic_recommendation.needsAttention.action" = "检查证据行是否符合预期；必要时复制完整输出到诊断报告。";
 "ssh.diagnostic_recommendation.unknown.title" = "输出不足以判断";
-"ssh.diagnostic_recommendation.unknown.summary" = "%@ 的输出太少，轻连 还无法给出稳定结论。";
+"ssh.diagnostic_recommendation.unknown.summary" = "%@ 的输出太少，QTerm 还无法给出稳定结论。";
 "ssh.diagnostic_recommendation.unknown.action" = "重新复制完整命令输出，尤其保留最后几行错误、debug 或 exit status。";
 "ssh.route_result.status.passed" = "通过";
 "ssh.route_result.status.failed" = "失败";
@@ -514,16 +517,16 @@
 "ssh.route_result.verbose.passed" = "OpenSSH 详细检查已成功完成。";
 "ssh.route_result.verbose.failed" = "OpenSSH 详细检查失败。";
 "ssh.route_result.verbose.failed_issue" = "OpenSSH 详细检查失败：%@。";
-"ssh.route_result.passed_without_signal" = "命令成功退出，但 轻连 没识别到明确的成功信号。";
-"ssh.route_result.unknown" = "当前输出还不足以让 轻连 判断这次诊断结果。";
+"ssh.route_result.passed_without_signal" = "命令成功退出，但 QTerm 没识别到明确的成功信号。";
+"ssh.route_result.unknown" = "当前输出还不足以让 QTerm 判断这次诊断结果。";
 "ssh.error.launch_failed" = "SSH 启动失败：%@";
 "ssh.disconnect_reason.cleanExit" = "会话正常退出";
 "ssh.disconnect_reason.authenticationOrSecurityStopped" = "认证或主机安全问题使会话停止";
 "ssh.disconnect_reason.remoteClosedConnection" = "远端主动关闭了连接";
 "ssh.disconnect_reason.networkInterrupted" = "网络连接中断";
 "ssh.disconnect_reason.unknownFailure" = "退出看起来可能是临时问题，但原因不明确";
-"ssh.reconnect.scheduled" = "SSH 已断开。轻连 将自动重连：第 %d/%d 次，%d 秒后开始。";
-"ssh.reconnect.scheduled_with_reason" = "SSH 已断开（%@）。轻连 将自动重连：第 %d/%d 次，%d 秒后开始。";
+"ssh.reconnect.scheduled" = "SSH 已断开。QTerm 将自动重连：第 %d/%d 次，%d 秒后开始。";
+"ssh.reconnect.scheduled_with_reason" = "SSH 已断开（%@）。QTerm 将自动重连：第 %d/%d 次，%d 秒后开始。";
 "ssh.reconnect.attempting" = "正在重连 SSH 会话（第 %d 次）...";
 "ssh.reconnect.exhausted" = "SSH 自动重连已达到次数上限，已停止重试。";
 "ssh.reconnect.exhausted_with_reason" = "SSH 自动重连已达到次数上限，已停止重试（%@）。";
@@ -537,13 +540,13 @@
 "ssh.security_warning.hostKeyCheckingDisabled.title" = "已关闭主机指纹校验";
 "ssh.security_warning.hostKeyCheckingDisabled.summary" = "StrictHostKeyChecking off/no 会弱化服务器身份校验，可能掩盖中间人风险。";
 "ssh.security_warning.knownHostsDisabled.title" = "已关闭 known_hosts 记录";
-"ssh.security_warning.knownHostsDisabled.summary" = "把 known_hosts 写到 /dev/null 会导致 轻连/OpenSSH 无法记住可信服务器指纹。";
+"ssh.security_warning.knownHostsDisabled.summary" = "把 known_hosts 写到 /dev/null 会导致 QTerm/OpenSSH 无法记住可信服务器指纹。";
 "ssh.preflight_issue.duplicatePortForwardListener.title" = "端口转发监听冲突";
 "ssh.preflight_issue.duplicatePortForwardListener.summary" = "%@ 被重复使用，OpenSSH 只能为一个转发绑定同一个监听地址。";
 "ssh.preflight_issue.identityFileUnavailable.title" = "密钥文件不可用";
-"ssh.preflight_issue.identityFileUnavailable.summary" = "轻连 找不到 %@，连接前请检查路径和文件权限。";
+"ssh.preflight_issue.identityFileUnavailable.summary" = "QTerm 找不到 %@，连接前请检查路径和文件权限。";
 "ssh.preflight_issue.jumpIdentityFileUnavailable.title" = "跳转机密钥不可用";
-"ssh.preflight_issue.jumpIdentityFileUnavailable.summary" = "轻连 找不到 %@，这会影响对应跳转机认证。";
+"ssh.preflight_issue.jumpIdentityFileUnavailable.summary" = "QTerm 找不到 %@，这会影响对应跳转机认证。";
 "ssh.preflight_issue.identityFilePermissionsTooOpen.title" = "密钥文件权限过宽";
 "ssh.preflight_issue.identityFilePermissionsTooOpen.summary" = "%@。权限收紧前，OpenSSH 可能会忽略这个私钥。";
 "ssh.preflight_issue.jumpIdentityFilePermissionsTooOpen.title" = "跳转机密钥权限过宽";
@@ -563,7 +566,7 @@
 "ssh.capability.reconnect.disabled" = "自动重连：已关闭。";
 "ssh.capability.forward_failure.enabled" = "端口转发：绑定失败时中止 SSH 会话。";
 "ssh.capability.forward_failure.manual" = "端口转发：转发失败行为由高级 SSH 选项控制。";
-"ssh.diagnostic.message" = "轻连 SSH 检查：%@\n%@\n下一步：%@";
+"ssh.diagnostic.message" = "QTerm SSH 检查：%@\n%@\n下一步：%@";
 "ssh.diagnostic.permissionDenied.title" = "认证被拒绝";
 "ssh.diagnostic.permissionDenied.summary" = "服务器拒绝了当前密码、密钥或 agent 身份。";
 "ssh.diagnostic.permissionDenied.suggestion" = "检查用户名、选择的密钥、agent 状态，以及是否需要启用 IdentitiesOnly。";
@@ -573,7 +576,7 @@
 "ssh.diagnostic.hostKeyVerificationFailed.repair_known_location" = "修复向导：先通过云控制台或管理员核对 %@ 的新指纹；如果确认可信，再移除旧记录（%@）：\n%@";
 "ssh.diagnostic.hostKeyVerificationFailed.repair_unknown_location" = "修复向导：先通过云控制台或管理员核对 %@ 的新指纹；如果确认可信，再移除旧 known_hosts 记录：\n%@";
 "ssh.diagnostic.connectionTimedOut.title" = "连接超时";
-"ssh.diagnostic.connectionTimedOut.summary" = "轻连 在网络超时前没能连到 SSH 服务。";
+"ssh.diagnostic.connectionTimedOut.summary" = "QTerm 在网络超时前没能连到 SSH 服务。";
 "ssh.diagnostic.connectionTimedOut.suggestion" = "检查 VPN、防火墙、主机名、端口，以及每一跳 ProxyJump。";
 "ssh.diagnostic.connectionRefused.title" = "连接被拒绝";
 "ssh.diagnostic.connectionRefused.summary" = "目标主机有响应，但对应端口没有 SSH 服务接受连接。";
@@ -601,6 +604,7 @@
 "settings.tab.glass" = "毛玻璃";
 "settings.tab.floating_panel" = "悬浮面板";
 "settings.tab.behavior" = "行为";
+"settings.tab.sidebar" = "侧栏";
 "settings.tab.profiles" = "Profile";
 "settings.tab.notifications" = "通知";
 "settings.tab.ai" = "AI";
@@ -616,7 +620,7 @@
 "settings.profiles.summary" = "管理本地终端 Profile：shell、提示符风格、环境变量、启动命令与默认工作目录。默认 Profile 决定「+」新建标签的行为。";
 "settings.skin" = "皮肤";
 "settings.app_icon" = "App 图标";
-"settings.app_icon.footer" = "选择 轻连 运行时显示的 Dock 图标，重启后会自动恢复。";
+"settings.app_icon.footer" = "选择 QTerm 运行时显示的 Dock 图标，重启后会自动恢复。";
 "settings.fonts" = "字体";
 "settings.primary_font" = "主字体";
 "settings.fallback_font" = "回退字体（按顺序级联）";
@@ -636,6 +640,14 @@
 "settings.tint_opacity" = "染色强度";
 "settings.glow" = "柔光";
 "settings.behavior" = "行为";
+"settings.sidebar_sections" = "侧栏分区";
+"settings.sidebar_sections.summary" = "拖动侧栏分区的标题可以调整顺序，悬停标题可以把它隐藏。隐藏的分区在这里重新打开，顺序也在这里调整，改动马上反映到侧栏。";
+"settings.sidebar_sections.move_up" = "上移";
+"settings.sidebar_sections.move_down" = "下移";
+"settings.sidebar_sections.visible" = "在侧栏显示";
+"settings.sidebar_sections.visible.help" = "关闭后这个分区从侧栏消失，在这里可以重新打开。";
+"sidebar.section.drag.help" = "拖动调整这个分区的位置";
+"sidebar.section.hide.help" = "隐藏这个分区，可以在设置里重新打开";
 "settings.floating_panel" = "悬浮面板";
 "settings.floating_panel.help" = "标签「分离」成桌面悬浮面板后的透明度。数值越低越透，面板越能融入桌面。";
 "settings.floating_panel.opacity" = "面板不透明度";
@@ -690,7 +702,7 @@
 "settings.cursor_shape" = "光标样式";
 "settings.cursor_blink" = "光标闪烁";
 "settings.notifications" = "通知";
-"settings.notifications.summary" = "轻连 会尽量安静：当前标签不打扰，App 前台时非当前标签只显示小圆点，系统通知只在 App 不活跃时出现。";
+"settings.notifications.summary" = "QTerm 会尽量安静：当前标签不打扰，App 前台时非当前标签只显示小圆点，系统通知只在 App 不活跃时出现。";
 "settings.notifications.enabled" = "启用终端事件提醒";
 "settings.notifications.inactive_tab_badges" = "在非当前标签显示小圆点";
 "settings.notifications.request_permission" = "允许通知";
@@ -705,7 +717,7 @@
 "settings.notifications.failure_min_duration" = "失败最短耗时";
 "settings.notifications.cooldown" = "单标签冷却时间";
 "settings.notifications.include_command" = "包含脱敏后的命令文本";
-"settings.notifications.privacy_note" = "命令文本默认不进入通知。开启后，轻连 会先脱敏常见 token、密码和私钥内容，再发送通知。";
+"settings.notifications.privacy_note" = "命令文本默认不进入通知。开启后，QTerm 会先脱敏常见 token、密码和私钥内容，再发送通知。";
 "notifications.permission.allowed" = "已允许";
 "notifications.permission.denied" = "已拒绝";
 "notifications.permission.not_determined" = "需要授权";
@@ -729,7 +741,7 @@
 "settings.about.author_homepage" = "作者主页 · 83d.me";
 "settings.about.other_apps" = "Rocky 的其他 App";
 "settings.about.other_apps.summary" = "来自 83d 发布清单的一组 macOS 小伙伴。";
-"about.window.title" = "关于 轻连";
+"about.window.title" = "关于 QTerm";
 "settings.about.app.willDeep.name" = "WillDeep";
 "settings.about.app.willDeep.summary" = "专注写作与深度编辑。";
 "settings.about.app.timeBill.name" = "TimeBill";
@@ -777,7 +789,7 @@
 "settings.ai.api_key.clear_success" = "API Key 已从本机 Keychain 清除。";
 "settings.ai.privacy" = "后续 AI Explain 会优先使用结构化命令块；发送上下文前应允许用户确认和脱敏。";
 "settings.tools" = "MCP 与命令行";
-"settings.tools.summary" = "轻连在本机发布只读标签快照；修改状态的请求必须开启写入总开关，并通过客户端 Keychain 配对。";
+"settings.tools.summary" = "QTerm 在本机发布只读标签快照；修改状态的请求必须开启写入总开关，并通过客户端 Keychain 配对。";
 "settings.tools.access_control" = "本机访问控制";
 "settings.tools.allow_paired_writes" = "允许已配对客户端写入";
 "settings.tools.allow_paired_writes_desc" = "默认关闭。只读快照仍可访问；发送输入或按键、新建标签、打开 SSH 和回放捷径，必须同时开启此开关并通过 Keychain 配对。";
@@ -817,7 +829,7 @@
 "applescript.error.shortcut_automation_disabled" = "这条录制捷径已关闭 AI 回放，MCP、CLI 和 AppleScript 都不能播放它。";
 "applescript.error.timeout" = "命令执行超时。请确认标签已启用 shell integration，或增大 timeout 参数。";
 "applescript.error.close_cancelled" = "关闭标签被用户取消。";
-"tools.error.no_workspace" = "轻连 工作区尚未就绪。";
+"tools.error.no_workspace" = "QTerm 工作区尚未就绪。";
 "tools.error.empty_input" = "没有提供文本、按键或字节。";
 "tools.error.tab_not_found" = "没有匹配到标签：%@。";
 "tools.error.process_unavailable" = "终端进程尚未就绪。";
@@ -835,6 +847,7 @@
 "tools.response.shortcut_authentication_required" = "录制捷径“%@”需要你在这台 Mac 上通过触控 ID 后才会回放。";
 
 "command_inspector.title" = "命令搜索";
+"command_inspector.title.help" = "命令搜索：在当前终端里查找已经运行过的命令。";
 "command_inspector.no_tab" = "当前没有可用终端标签。";
 "command_inspector.empty" = "还没有匹配的命令块。运行几条命令后，可在这里搜索命令、目录和输出。";
 "command_inspector.search_placeholder" = "搜索命令、目录或输出";
@@ -859,8 +872,8 @@
 "command_inspector.copied_redacted_output" = "已复制脱敏后的输出。";
 "command_inspector.copied_ai_context" = "已复制 AI 上下文。";
 "command_inspector.copy_output_summary" = "复制有意义的输出摘要";
-"command_inspector.tooltip.copy_output_summary" = "复制 轻连 提炼出的紧凑输出摘要，例如错误、警告、路径、URL、JSON 或堆栈线索。";
-"command_inspector.tooltip.stage_command" = "把这条命令重新填入当前终端输入行，轻连 不会替你按回车执行。";
+"command_inspector.tooltip.copy_output_summary" = "复制 QTerm 提炼出的紧凑输出摘要，例如错误、警告、路径、URL、JSON 或堆栈线索。";
+"command_inspector.tooltip.stage_command" = "把这条命令重新填入当前终端输入行，QTerm 不会替你按回车执行。";
 "command_inspector.tooltip.explain_command" = "调用已配置的 AI Provider 解释这个命令块，包括命令意图、当前状态、风险点和下一步建议。";
 "command_inspector.copied_output_summary" = "已复制输出摘要。";
 "command_inspector.history_match" = "滚屏历史命中";
@@ -882,6 +895,7 @@
 "output_insight.commitHash" = "提交";
 
 "task_panel.title" = "任务与端口";
+"task_panel.title.help" = "任务与端口：查看正在运行的任务和本机监听的端口。";
 "task_panel.subtitle" = "本机服务与运行中命令";
 "task_panel.refresh" = "刷新端口列表";
 "task_panel.scanning" = "正在扫描本机监听端口…";
@@ -1010,7 +1024,7 @@
 "runbook.replay_copied" = "已复制回放脚本。";
 "runbook.command_staged" = "命令已填入终端，按回车执行。";
 "runbook.save_failed" = "保存失败：%@";
-"runbook.title" = "轻连 Runbook";
+"runbook.title" = "QTerm Runbook";
 "runbook.notes" = "备注";
 "runbook.replay_script" = "回放脚本";
 "runbook.stage_command" = "填入终端待执行";
@@ -1235,7 +1249,7 @@
 "safety.multiline.message" = "这次粘贴包含 %d 行非空内容。";
 "safety.multiline.reason" = "多行文本可能向终端一次提交多条命令。发送前请先确认预览内容符合预期。";
 "safety.multiline.remote_integration.title" = "启用 SSH 命令追踪？";
-"safety.multiline.remote_integration.message" = "轻连 想向当前 SSH 会话发送一段临时 shell hook，用来识别命令开始、命令结束和退出码。";
+"safety.multiline.remote_integration.message" = "QTerm 想向当前 SSH 会话发送一段临时 shell hook，用来识别命令开始、命令结束和退出码。";
 "safety.multiline.remote_integration.scope" = "这会支持命令历史、失败诊断、Runbook 和 AI Explain；不会写入远端启动文件，关闭当前会话后失效。";
 "safety.multiline.remote_integration.action" = "启用追踪";
 "safety.dangerous.title" = "确认高危命令";
@@ -1271,7 +1285,7 @@
 "command_palette.new_tab.subtitle" = "打开本地终端标签页";
 "command_palette.command_inspector.subtitle" = "搜索已记录的命令块";
 "command_palette.tasks.subtitle" = "查看服务器任务与监听端口";
-"command_palette.settings.subtitle" = "打开轻连设置";
+"command_palette.settings.subtitle" = "打开 QTerm 设置";
 
 "execution_context.local" = "本地";
 "execution_context.ssh" = "SSH";
@@ -1306,6 +1320,7 @@
 
 "session_tunnel.title" = "会话隧道";
 "session_tunnel.create.action" = "创建会话隧道";
+"session_tunnel.create.action.help" = "创建会话隧道：把当前会话里能到达的端口转到本机。";
 "session_tunnel.create.title" = "创建会话隧道";
 "session_tunnel.create.subtitle" = "通过当前已经登录的终端会话连接内网服务。";
 "session_tunnel.current_session" = "当前会话";

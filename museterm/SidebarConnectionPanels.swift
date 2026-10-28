@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct TerminalQuickPathSection: View {
     private static let collapsedFrequentCount = 3
@@ -27,7 +28,9 @@ struct TerminalQuickPathSection: View {
             title: L10n.string("quick_path.section"),
             systemImage: "folder",
             skin: skin,
-            initiallyExpanded: true
+            initiallyExpanded: true,
+            kind: .quickPaths,
+            preferences: workspace.preferences
         ) {
             HStack(spacing: 6) {
                 Button {
@@ -316,7 +319,9 @@ struct TerminalShortcutSection: View {
             title: L10n.string("shortcut.section"),
             systemImage: "record.circle",
             skin: skin,
-            initiallyExpanded: false
+            initiallyExpanded: false,
+            kind: .shortcuts,
+            preferences: workspace.preferences
         ) {
             HStack(spacing: 6) {
                 Button {
@@ -589,7 +594,9 @@ struct SSHProfilesSection: View {
             title: L10n.string("ssh.section"),
             systemImage: "network",
             skin: skin,
-            initiallyExpanded: false
+            initiallyExpanded: false,
+            kind: .sshHosts,
+            preferences: workspace.preferences
         ) {
             HStack(spacing: 6) {
                 Button {
@@ -1243,7 +1250,9 @@ struct FileTransferSection: View {
             title: L10n.string("file_transfer.section"),
             systemImage: "arrow.up.arrow.down.square",
             skin: skin,
-            initiallyExpanded: false
+            initiallyExpanded: false,
+            kind: .fileTransfer,
+            preferences: workspace.preferences
         ) {
             if let selectedTab = workspace.selectedTab {
                 FileTransferControls(workspace: workspace, tab: selectedTab, skin: skin)
@@ -1391,7 +1400,11 @@ struct SidebarSection<Content: View>: View {
     let title: String
     let systemImage: String
     let skin: TerminalVisualSkin
+    /// 有这个身份的分区可以被拖动排序、被隐藏；没有的只是普通折叠区。
+    let kind: SidebarSectionKind?
+    let preferences: TerminalPreferences?
     @State private var isExpanded: Bool
+    @State private var isHeaderHovering = false
     @ViewBuilder let content: Content
 
     init(
@@ -1399,11 +1412,15 @@ struct SidebarSection<Content: View>: View {
         systemImage: String,
         skin: TerminalVisualSkin,
         initiallyExpanded: Bool = true,
+        kind: SidebarSectionKind? = nil,
+        preferences: TerminalPreferences? = nil,
         @ViewBuilder content: () -> Content
     ) {
         self.title = title
         self.systemImage = systemImage
         self.skin = skin
+        self.kind = kind
+        self.preferences = preferences
         _isExpanded = State(initialValue: initiallyExpanded)
         self.content = content()
     }
@@ -1420,6 +1437,10 @@ struct SidebarSection<Content: View>: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Spacer(minLength: 4)
+                    if kind != nil {
+                        sectionHeaderActions
+                            .opacity(isHeaderHovering ? 1 : 0)
+                    }
                     Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                         .font(.system(size: 9, weight: .bold))
                         .foregroundStyle(.tertiary)
@@ -1427,6 +1448,15 @@ struct SidebarSection<Content: View>: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .onHover { isHeaderHovering = $0 }
+            .onDrag {
+                guard let kind else { return NSItemProvider() }
+                return NSItemProvider(object: kind.rawValue as NSString)
+            }
+            .onDrop(
+                of: [UTType.plainText],
+                delegate: SidebarSectionDropDelegate(target: kind, preferences: preferences)
+            )
 
             if isExpanded {
                 VStack(alignment: .leading, spacing: 7) {
@@ -1444,6 +1474,70 @@ struct SidebarSection<Content: View>: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .strokeBorder(skin.hairline.opacity(isExpanded ? 0.82 : 0.48), lineWidth: 1)
         )
+    }
+
+    /// 悬停才出现：拖动排序的把手，和把这个分区藏起来的按钮。
+    @ViewBuilder
+    private var sectionHeaderActions: some View {
+        Image(systemName: "line.3.horizontal")
+            .font(.system(size: 9, weight: .bold))
+            .foregroundStyle(.tertiary)
+            .help(L10n.string("sidebar.section.drag.help"))
+            .accessibilityLabel(L10n.string("sidebar.section.drag.help"))
+        Button {
+            guard let kind else { return }
+            preferences?.setSidebarSection(kind, visible: false)
+        } label: {
+            Image(systemName: "eye.slash")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.tertiary)
+                .frame(width: 14, height: 14)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(L10n.string("sidebar.section.hide.help"))
+        .accessibilityLabel(L10n.string("sidebar.section.hide.help"))
+    }
+}
+
+/// 把拖来的分区插到目标分区的位置。目标没有身份，或拖的不是分区，就不改顺序。
+private struct SidebarSectionDropDelegate: DropDelegate {
+    let target: SidebarSectionKind?
+    let preferences: TerminalPreferences?
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard let target, let preferences,
+              let provider = info.itemProviders(for: [UTType.plainText]).first else { return false }
+        provider.loadObject(ofClass: NSString.self) { object, _ in
+            guard let rawValue = object as? String,
+                  let dragged = SidebarSectionKind(rawValue: rawValue),
+                  dragged != target else { return }
+            DispatchQueue.main.async {
+                SidebarSectionOrder.applyDrop(of: dragged, onto: target, in: preferences)
+            }
+        }
+        return true
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: target == nil ? .forbidden : .move)
+    }
+}
+
+/// 拖放落点只改顺序，显隐不动。抽出来是为了能不靠界面就测它。
+enum SidebarSectionOrder {
+    static func applyDrop(
+        of dragged: SidebarSectionKind,
+        onto target: SidebarSectionKind,
+        in preferences: TerminalPreferences
+    ) {
+        guard dragged != target,
+              let from = preferences.sidebarSectionOrder.firstIndex(of: dragged),
+              let to = preferences.sidebarSectionOrder.firstIndex(of: target) else { return }
+        var reordered = preferences.sidebarSectionOrder
+        reordered.remove(at: from)
+        reordered.insert(dragged, at: to)
+        preferences.sidebarSectionOrder = reordered
     }
 }
 

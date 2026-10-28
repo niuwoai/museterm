@@ -99,6 +99,8 @@ struct SettingsView: View {
             floatingPanelSection
         case .behavior:
             behaviorSection
+        case .sidebar:
+            sidebarSectionSettings
         case .profiles:
             profilesSection
         case .notifications:
@@ -330,6 +332,66 @@ struct SettingsView: View {
             Divider().padding(.vertical, 4)
             RecommendationBlacklistManagerView(skin: preferences.skin)
         }
+    }
+
+    /// 侧栏分区的显示和顺序。开关和上下移动都直接改偏好，侧栏跟着变。
+    private var sidebarSectionSettings: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(L10n.string("settings.sidebar_sections"))
+                .font(.headline)
+            Text(L10n.string("settings.sidebar_sections.summary"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            ForEach(preferences.sidebarSectionOrder) { section in
+                sidebarSectionRow(section)
+            }
+        }
+    }
+
+    private func sidebarSectionRow(_ section: SidebarSectionKind) -> some View {
+        let isFirst = preferences.sidebarSectionOrder.first == section
+        let isLast = preferences.sidebarSectionOrder.last == section
+        return HStack(spacing: 8) {
+            Image(systemName: section.systemImage)
+                .frame(width: 18)
+                .foregroundStyle(.secondary)
+            Text(L10n.string(section.titleKey))
+                .font(.body)
+            Spacer(minLength: 8)
+            Button {
+                preferences.moveSidebarSection(section, direction: -1)
+            } label: {
+                Image(systemName: "chevron.up")
+            }
+            .buttonStyle(.borderless)
+            .disabled(isFirst)
+            .help(L10n.string("settings.sidebar_sections.move_up"))
+            Button {
+                preferences.moveSidebarSection(section, direction: 1)
+            } label: {
+                Image(systemName: "chevron.down")
+            }
+            .buttonStyle(.borderless)
+            .disabled(isLast)
+            .help(L10n.string("settings.sidebar_sections.move_down"))
+            Toggle(
+                L10n.string("settings.sidebar_sections.visible"),
+                isOn: Binding(
+                    get: { preferences.isSidebarSectionVisible(section) },
+                    set: { preferences.setSidebarSection(section, visible: $0) }
+                )
+            )
+            .toggleStyle(.switch)
+            .labelsHidden()
+            .help(L10n.string("settings.sidebar_sections.visible.help"))
+            .accessibilityLabel(L10n.string("settings.sidebar_sections.visible"))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(preferences.skin.controlFill.opacity(0.6))
+        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
     }
 
     private var scrollbackLinesRow: some View {
@@ -915,6 +977,7 @@ private enum SettingsTab: CaseIterable, Identifiable {
     case glass
     case floatingPanel
     case behavior
+    case sidebar
     case profiles
     case notifications
     case ai
@@ -930,6 +993,7 @@ private enum SettingsTab: CaseIterable, Identifiable {
         case .glass: return "settings.tab.glass"
         case .floatingPanel: return "settings.tab.floating_panel"
         case .behavior: return "settings.tab.behavior"
+        case .sidebar: return "settings.tab.sidebar"
         case .profiles: return "settings.tab.profiles"
         case .notifications: return "settings.tab.notifications"
         case .ai: return "settings.tab.ai"
@@ -945,6 +1009,7 @@ private enum SettingsTab: CaseIterable, Identifiable {
         case .glass: return "square.on.square.dashed"
         case .floatingPanel: return "macwindow.on.rectangle"
         case .behavior: return "keyboard"
+        case .sidebar: return "sidebar.left"
         case .profiles: return "person.crop.rectangle.stack"
         case .notifications: return "bell.badge"
         case .ai: return "sparkles"
@@ -979,7 +1044,7 @@ private enum SettingsGroup: CaseIterable, Identifiable {
         case .appearance:
             return [.appearance, .appIcon, .typography, .glass, .floatingPanel]
         case .terminal:
-            return [.behavior]
+            return [.behavior, .sidebar]
         case .connections:
             return [.profiles]
         case .notifications:

@@ -36,7 +36,8 @@ struct ContentView: View {
                     sshStore: sshStore,
                     profileStore: profileStore,
                     preferences: preferences,
-                    onCreateSessionTunnel: presentSessionTunnelSheet
+                    onCreateSessionTunnel: presentSessionTunnelSheet,
+                    onOpenPreview: openPreview
                 )
 
                 TerminalPaneView(
@@ -95,18 +96,6 @@ struct ContentView: View {
             )
         )
         .focusedValue(\.terminalWorkspace, workspace)
-        .toolbar {
-            ToolbarItem {
-                Button {
-                    guard let source = workspace.selectedTab else { return }
-                    rightPanel = nil
-                    TerminalPreviewCenter.shared.chooseFile(source: source)
-                } label: { Image(systemName: "doc.richtext") }
-                .help(L10n.string("preview.open"))
-                .accessibilityLabel(L10n.string("preview.open"))
-                .accessibilityIdentifier("terminal-preview-open")
-            }
-        }
         .onChange(of: workspace.tabs.map(\.id)) { [previousIDs = workspace.tabs.map(\.id)] current in
             for id in previousIDs where !current.contains(id) { TerminalPreviewCenter.shared.close(id) }
         }
@@ -196,6 +185,12 @@ struct ContentView: View {
         rightPanel = rightPanel == panel ? nil : panel
     }
 
+    private func openPreview() {
+        guard let source = workspace.selectedTab else { return }
+        rightPanel = nil
+        TerminalPreviewCenter.shared.chooseFile(source: source)
+    }
+
     private func presentSessionTunnelSheet() {
         guard let selectedTab = workspace.selectedTab else { return }
         if selectedTab.sessionTunnelStatus != nil {
@@ -230,6 +225,8 @@ private struct SidebarView: View {
     @ObservedObject var profileStore: TerminalProfileStore
     @ObservedObject var preferences: TerminalPreferences
     let onCreateSessionTunnel: () -> Void
+    /// 预览图片或 Markdown 的入口从窗口工具栏挪进了侧栏图标组，触发动作留在主视图。
+    let onOpenPreview: () -> Void
 
     private enum Layout {
         static let collapsedWidth: CGFloat = 88
@@ -252,33 +249,9 @@ private struct SidebarView: View {
                         LazyVStack(spacing: 8) {
                             TerminalProjectsSidebar(workspace: workspace, preferences: preferences, compact: false, onDetach: detach)
 
-                            TerminalQuickPathSection(workspace: workspace, skin: preferences.skin)
-
-                            LearnedCommandSidebarSection(
-                                workspace: workspace,
-                                sshStore: sshStore,
-                                skin: preferences.skin
-                            )
-
-                            TerminalShortcutSection(
-                                workspace: workspace,
-                                sshStore: sshStore,
-                                skin: preferences.skin
-                            )
-
-                            FileTransferSection(workspace: workspace, skin: preferences.skin)
-
-                            TerminalProfilesSection(
-                                workspace: workspace,
-                                store: profileStore,
-                                skin: preferences.skin
-                            )
-
-                            SSHProfilesSection(
-                                workspace: workspace,
-                                store: sshStore,
-                                skin: preferences.skin
-                            )
+                            ForEach(preferences.visibleSidebarSections) { section in
+                                sidebarSection(section)
+                            }
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
@@ -340,6 +313,24 @@ private struct SidebarView: View {
         .accessibilityLabel(L10n.string("action.settings"))
     }
 
+    @ViewBuilder
+    private func sidebarSection(_ section: SidebarSectionKind) -> some View {
+        switch section {
+        case .quickPaths:
+            TerminalQuickPathSection(workspace: workspace, skin: preferences.skin)
+        case .learnedCommands:
+            LearnedCommandSidebarSection(workspace: workspace, sshStore: sshStore, skin: preferences.skin)
+        case .shortcuts:
+            TerminalShortcutSection(workspace: workspace, sshStore: sshStore, skin: preferences.skin)
+        case .fileTransfer:
+            FileTransferSection(workspace: workspace, skin: preferences.skin)
+        case .profiles:
+            TerminalProfilesSection(workspace: workspace, store: profileStore, skin: preferences.skin)
+        case .sshHosts:
+            SSHProfilesSection(workspace: workspace, store: sshStore, skin: preferences.skin)
+        }
+    }
+
     private func detach(_ tab: TerminalSession) {
         DetachedTerminalPanelManager.shared.detach(
             tab,
@@ -369,28 +360,34 @@ private struct SidebarView: View {
                 }
 
                 HStack(spacing: 10) {
-                    IconButton(systemName: "plus", title: L10n.string("action.new_tab")) {
+                    IconButton(systemName: "plus", title: L10n.string("action.new_tab.help")) {
                         workspace.newTab()
                     }
                     ProfileNewTabMenu(workspace: workspace, store: profileStore)
                     IconButton(
                         systemName: "magnifyingglass",
-                        title: L10n.string("command_inspector.title")
+                        title: L10n.string("command_inspector.title.help")
                     ) {
                         NotificationCenter.default.post(name: .toggleCommandInspector, object: nil)
                     }
                     IconButton(
                         systemName: "server.rack",
-                        title: L10n.string("task_panel.title")
+                        title: L10n.string("task_panel.title.help")
                     ) {
                         NotificationCenter.default.post(name: .toggleTaskPortPanel, object: nil)
                     }
                     IconButton(
                         systemName: "arrow.left.arrow.right",
-                        title: L10n.string("session_tunnel.create.action"),
+                        title: L10n.string("session_tunnel.create.action.help"),
                         action: onCreateSessionTunnel
                     )
                     .accessibilityIdentifier("sessionTunnelCreateButton")
+                    IconButton(
+                        systemName: "doc.richtext",
+                        title: L10n.string("preview.open.help"),
+                        action: onOpenPreview
+                    )
+                    .accessibilityIdentifier("terminal-preview-open")
                     Spacer(minLength: 0)
                 }
             }
@@ -399,16 +396,22 @@ private struct SidebarView: View {
                 IconButton(systemName: "sidebar.right", title: L10n.string("action.show_tab_list")) {
                     preferences.showsTabList = true
                 }
-                IconButton(systemName: "plus", title: L10n.string("action.new_tab")) {
+                IconButton(systemName: "plus", title: L10n.string("action.new_tab.help")) {
                     workspace.newTab()
                 }
                 ProfileNewTabMenu(workspace: workspace, store: profileStore)
                 IconButton(
                     systemName: "arrow.left.arrow.right",
-                    title: L10n.string("session_tunnel.create.action"),
+                    title: L10n.string("session_tunnel.create.action.help"),
                     action: onCreateSessionTunnel
                 )
                 .accessibilityIdentifier("sessionTunnelCreateButton")
+                IconButton(
+                    systemName: "doc.richtext",
+                    title: L10n.string("preview.open.help"),
+                    action: onOpenPreview
+                )
+                .accessibilityIdentifier("terminal-preview-open")
             }
         }
     }
@@ -488,7 +491,7 @@ private struct ProfileNewTabMenu: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
-        .help(L10n.string("action.new_tab_with_profile"))
+        .help(L10n.string("action.new_tab_with_profile.help"))
         .accessibilityLabel(L10n.string("action.new_tab_with_profile"))
     }
 }

@@ -172,6 +172,8 @@ final class TerminalPreferences: ObservableObject {
         static let imageCacheMegabytes = "terminal.imageCacheMegabytes"
         static let showsTabList = "terminal.showsTabList"
         static let sidebarExpandedWidth = "terminal.sidebarExpandedWidth"
+        static let sidebarSectionOrder = "sidebar.sectionOrder"
+        static let hiddenSidebarSections = "sidebar.hiddenSections"
         static let cursorShape = "terminal.cursorShape"
         static let cursorBlink = "terminal.cursorBlink"
         static let appShortcuts = "terminal.shortcuts.app"
@@ -209,6 +211,34 @@ final class TerminalPreferences: ObservableObject {
     static let defaultImageCacheMegabytes = TerminalGraphicsPolicy.defaultCacheMegabytes
     static let maximumImageCacheMegabytes = TerminalGraphicsPolicy.maximumCacheMegabytes
     static let imageCacheStepMegabytes = TerminalGraphicsPolicy.cacheStepMegabytes
+    /// 侧栏里实际显示的分区，按用户排好的顺序，去掉隐藏的。
+    var visibleSidebarSections: [SidebarSectionKind] {
+        sidebarSectionOrder.filter { !hiddenSidebarSections.contains($0) }
+    }
+
+    func isSidebarSectionVisible(_ kind: SidebarSectionKind) -> Bool {
+        !hiddenSidebarSections.contains(kind)
+    }
+
+    func setSidebarSection(_ kind: SidebarSectionKind, visible: Bool) {
+        if visible {
+            hiddenSidebarSections.remove(kind)
+        } else {
+            hiddenSidebarSections.insert(kind)
+        }
+    }
+
+    /// 把分区在顺序里上移或下移一格。两端再移就停在原地。
+    func moveSidebarSection(_ kind: SidebarSectionKind, direction: Int) {
+        guard direction != 0,
+              let index = sidebarSectionOrder.firstIndex(of: kind) else { return }
+        let destination = index + (direction > 0 ? 1 : -1)
+        guard sidebarSectionOrder.indices.contains(destination) else { return }
+        var reordered = sidebarSectionOrder
+        reordered.swapAt(index, destination)
+        sidebarSectionOrder = reordered
+    }
+
     static let minimumSidebarExpandedWidth = 220.0
     static let defaultSidebarExpandedWidth = 220.0
     static let maximumSidebarExpandedWidth = 420.0
@@ -264,6 +294,23 @@ final class TerminalPreferences: ObservableObject {
         }
     }
     @Published var showsTabList: Bool { didSet { defaults.set(showsTabList, forKey: Keys.showsTabList) } }
+    /// 侧栏可排序分区的显示顺序。写入时收敛成一份完整、无重复的顺序。
+    @Published var sidebarSectionOrder: [SidebarSectionKind] {
+        didSet {
+            let normalized = SidebarSectionKind.normalizedOrder(sidebarSectionOrder.map(\.rawValue))
+            guard sidebarSectionOrder == normalized else {
+                sidebarSectionOrder = normalized
+                return
+            }
+            defaults.set(normalized.map(\.rawValue), forKey: Keys.sidebarSectionOrder)
+        }
+    }
+    /// 被用户隐藏的分区。顺序里仍然保留它们，重新打开时回到原来的位置。
+    @Published var hiddenSidebarSections: Set<SidebarSectionKind> {
+        didSet {
+            defaults.set(hiddenSidebarSections.map(\.rawValue).sorted(), forKey: Keys.hiddenSidebarSections)
+        }
+    }
     @Published var sidebarExpandedWidth: Double {
         didSet {
             let normalized = Self.clampedSidebarExpandedWidth(sidebarExpandedWidth)
@@ -352,6 +399,13 @@ final class TerminalPreferences: ObservableObject {
             defaults.object(forKey: Keys.imageCacheMegabytes) as? Int ?? Self.defaultImageCacheMegabytes
         )
         showsTabList = defaults.object(forKey: Keys.showsTabList) as? Bool ?? true
+        sidebarSectionOrder = SidebarSectionKind.normalizedOrder(
+            defaults.stringArray(forKey: Keys.sidebarSectionOrder) ?? []
+        )
+        hiddenSidebarSections = Set(
+            (defaults.stringArray(forKey: Keys.hiddenSidebarSections) ?? [])
+                .compactMap(SidebarSectionKind.init(rawValue:))
+        )
         sidebarExpandedWidth = Self.clampedSidebarExpandedWidth(
             defaults.object(forKey: Keys.sidebarExpandedWidth) as? Double ?? Self.defaultSidebarExpandedWidth
         )
