@@ -54,13 +54,14 @@ end tell
 | 命令 | 语法示例 | 说明 |
 |------|----------|------|
 | `open ssh profile` | `open ssh profile "prod-db"` | 按显示名打开 SSH 收藏，返回新 tab |
-| `play shortcut` | `play shortcut "deploy" in tab 1` | 回放录制的快捷方式；**含受保护输入（echo-off 密码段）的快捷方式一律拒绝** |
+| `play shortcut` | `play shortcut "deploy" in tab 1` | 回放录制的快捷方式。含受保护输入（echo-off 密码段）的一律拒绝；用户关闭了 AI 回放的也拒绝。要求验证本人的会先等触控 ID 或这台 Mac 的登录密码，取消、失败或超时都不回放 |
 | `command records` | `exit code of last command record of tab 1` | 查询最近命令及退出码 |
 
 ## 4. 安全边界（MUST）
 
 1. **写入总开关**：设置 › 工具 新增「允许 AppleScript 写入终端」（默认开启；macOS 本身还有 TCC 自动化授权弹窗把第一道关）。关闭后 `write text` / `send key` / `execute` / `play shortcut` 全部报错，只读能力（属性、命令记录）不受影响。
 2. **受保护输入永不外泄**：录制宏中 `requiresEchoOff` 的密码段不通过任何脚本接口回放或读取；`play shortcut` 遇到 `hasProtectedInput == true` 直接报错。
+3. **按条限制自动化**：`allowsAutomationPlayback == false` 的录制，`play shortcut`、MCP 和 CLI 一律拒绝（错误码 -31011）。`requiresUserAuthentication == true` 的录制先等用户通过触控 ID 或登录密码，未通过时报 -31012，不回放。
 3. 错误一律走 AppleScript 错误通道（自定义错误码 -31000 起），不静默吞掉。
 
 ## 5. 实现方案
@@ -73,7 +74,7 @@ end tell
   - 动词为 `NSScriptCommand` 子类；`execute` 用 `suspendExecution` / `resumeExecution(withResult:)` 挂起事件，主线程定时器轮询命令块完成。
   - `close tab` 使用独立命令类解析索引、tab 对象或 ID；`skipping confirmation` 缺省为 `false`，只有显式传 `true` 才绕过运行中标签确认。
   - 动作实现直接复用 Tool Bridge 同款内核：`TerminalWorkspace.sendToolInput`、`TerminalToolInput.bytes(forKey:)`、`TerminalHostController` 的屏幕/历史快照。
-- 错误码表：-31000 无工作区、-31001 找不到标签、-31002 写入被禁用、-31003 未知键名、-31004 进程不可用、-31005 找不到 SSH 收藏、-31006 找不到快捷方式、-31007 快捷方式含受保护输入、-31008 执行超时、-31009 空命令、-31010 关闭被取消。
+- 错误码表：-31000 无工作区、-31001 找不到标签、-31002 写入被禁用、-31003 未知键名、-31004 进程不可用、-31005 找不到 SSH 收藏、-31006 找不到快捷方式、-31007 快捷方式含受保护输入、-31008 执行超时、-31009 空命令、-31010 关闭被取消、-31011 这条录制关闭了 AI 回放、-31012 本人验证被取消、失败、超时或当前不可用。
 
 ## 6. 测试
 

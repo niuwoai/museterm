@@ -64,7 +64,7 @@
       <result type="execution result" description="Exit code, output tail and duration of the command."/>
     </command>
 
-    <command name="play shortcut" code="MTrmPsct" description="Replay a recorded shortcut. Shortcuts containing protected (echo-off) input are refused.">
+    <command name="play shortcut" code="MTrmPsct" description="Replay a recorded shortcut. Shortcuts containing protected (echo-off) input, and shortcuts the user disabled for automation, are refused. A shortcut that requires the user waits for Touch ID or the Mac login password before replaying.">
       <cocoa class="MuseTermPlayShortcutScriptCommand"/>
       <direct-parameter type="text" description="Title of the recorded shortcut."/>
       <parameter name="in" code="Ptab" type="tab" optional="yes" description="Target tab; defaults to the selected tab.">

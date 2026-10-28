@@ -472,6 +472,8 @@ struct TerminalToolShortcutSummary: Codable {
     let eventCount: Int
     let durationMilliseconds: Int
     let hasProtectedInput: Bool
+    let requiresUserAuthentication: Bool
+    let allowsAutomationPlayback: Bool
     let canPlay: Bool
     let createdAt: Date
     let updatedAt: Date
@@ -482,6 +484,8 @@ struct TerminalToolShortcutSummary: Codable {
         self.eventCount = shortcut.eventCount
         self.durationMilliseconds = shortcut.durationMilliseconds
         self.hasProtectedInput = shortcut.hasProtectedInput
+        self.requiresUserAuthentication = shortcut.requiresUserAuthentication
+        self.allowsAutomationPlayback = shortcut.allowsAutomationPlayback
         self.canPlay = canPlay
         self.createdAt = shortcut.createdAt
         self.updatedAt = shortcut.updatedAt
@@ -789,14 +793,19 @@ final class TerminalToolBridge {
 
         var handledCount = 0
         for file in files where file.pathExtension == "json" {
-            let response: TerminalToolResponse?
+            var response: TerminalToolResponse?
             var suppressResponse = false
             do {
                 let data = try Data(contentsOf: file)
                 let request = try decoder.decode(TerminalToolRequest.self, from: data)
                 suppressResponse = request.noResponse == true && ["cancel_wait", "cancel_all_waits"].contains(request.action)
-                if handleRuntimeAgentRequest(request) || handleRuntimeControlRequest(request) || handleRuntimeInputRequest(request) { response = nil }
-                else { response = try handleWaitRequest(request) ?? (request.action == "wait_session" ? nil : perform(request: request)) }
+                if handleRuntimeAgentRequest(request) || handleRuntimeControlRequest(request) || handleRuntimeInputRequest(request) {
+                    response = nil
+                } else if let waiting = try handleWaitRequest(request) {
+                    response = waiting
+                } else if request.action != "wait_session" {
+                    response = perform(request: request)
+                }
             } catch {
                 response = TerminalToolResponse(
                     id: file.deletingPathExtension().lastPathComponent,
@@ -942,7 +951,7 @@ final class TerminalToolBridge {
         }
     }
 
-    private func perform(request: TerminalToolRequest) -> TerminalToolResponse {
+    private func perform(request: TerminalToolRequest) -> TerminalToolResponse? {
         guard let workspace else {
             return TerminalToolResponse(
                 id: request.id,
@@ -1218,33 +1227,70 @@ final class TerminalToolBridge {
                     error: L10n.format("applescript.error.shortcut_not_found", title)
                 )
             }
-            guard MuseTermScriptingPolicy.canPlay(shortcut) else {
-                return TerminalToolResponse(
-                    id: request.id,
-                    ok: false,
-                    snapshotSequence: snapshotSequence,
-                    action: request.action,
-                    message: nil,
-                    error: L10n.string("applescript.error.shortcut_protected")
-                )
+            let requestID = request.id
+            let action = request.action
+            let selector = request.tab
+            let needsAuthentication = shortcut.requiresUserAuthentication
+                && MuseTermScriptingPolicy.canPlay(shortcut)
+            let reply = TerminalShortcutAutomationReply()
+            workspace.playAutomationShortcut(shortcut, in: selector, wait: 45) { [weak self] result in
+                guard let self else {
+                    reply.finish(.failure(TerminalShortcutPlaybackError.authenticationCancelled))
+                    return
+                }
+                switch result {
+                case .success(let tab):
+                    reply.finish(.success(TerminalToolResponse(
+                        id: requestID,
+                        ok: true,
+                        snapshotSequence: self.snapshotSequence,
+                        action: action,
+                        tabID: tab.id.uuidString,
+                        message: L10n.format("tools.response.shortcut_played", shortcut.title),
+                        error: nil
+                    )))
+                case .failure(let error):
+                    reply.finish(.failure(error))
+                }
             }
-            do {
-                let tab = try workspace.playToolShortcut(shortcut, in: request.tab)
+            if needsAuthentication {
+                DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                    let settled = reply.await(seconds: 45)
+                    DispatchQueue.main.async {
+                        guard let self else { return }
+                        switch settled {
+                        case .success(let response):
+                            self.write(response: response)
+                        case .failure(let error):
+                            self.write(response: TerminalToolResponse(
+                                id: requestID,
+                                ok: false,
+                                snapshotSequence: self.snapshotSequence,
+                                action: action,
+                                message: nil,
+                                error: error.localizedDescription
+                            ))
+                        }
+                    }
+                }
                 return TerminalToolResponse(
-                    id: request.id,
+                    id: requestID,
                     ok: true,
                     snapshotSequence: snapshotSequence,
-                    action: request.action,
-                    tabID: tab.id.uuidString,
-                    message: L10n.format("tools.response.shortcut_played", shortcut.title),
+                    action: action,
+                    message: L10n.format("tools.response.shortcut_authentication_required", shortcut.title),
                     error: nil
                 )
-            } catch {
+            }
+            switch reply.await(seconds: 45) {
+            case .success(let response):
+                return response
+            case .failure(let error):
                 return TerminalToolResponse(
-                    id: request.id,
+                    id: requestID,
                     ok: false,
                     snapshotSequence: snapshotSequence,
-                    action: request.action,
+                    action: action,
                     message: nil,
                     error: error.localizedDescription
                 )

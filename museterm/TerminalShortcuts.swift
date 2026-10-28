@@ -261,6 +261,12 @@ struct TerminalShortcut: Codable, Equatable, Identifiable {
     var events: [TerminalShortcutEvent]
     var hasProtectedInput: Bool
     var executionContext: TerminalExecutionContext? = nil
+    /// 为 true 时，本人点击和自动化回放都要先通过 Touch ID（或登录密码）。
+    /// 旧录制没有这个字段，解码后保持可直接回放。
+    var requiresUserAuthentication: Bool = false
+    /// 为 false 时，MCP、CLI 与 AppleScript 不能回放这条录制。
+    /// 本人在界面里点击不受影响。旧录制默认仍允许自动化，与既有行为一致。
+    var allowsAutomationPlayback: Bool = true
 
     var eventCount: Int { events.count }
     var isPlayable: Bool { !events.isEmpty }
@@ -273,6 +279,63 @@ struct TerminalShortcut: Codable, Equatable, Identifiable {
         copy.events = events.filter(\.isPlayable)
         copy.hasProtectedInput = copy.events.contains(where: \.requiresEchoOff)
         return copy
+    }
+
+    init(
+        id: UUID,
+        title: String,
+        createdAt: Date,
+        updatedAt: Date,
+        durationMilliseconds: Int,
+        events: [TerminalShortcutEvent],
+        hasProtectedInput: Bool,
+        executionContext: TerminalExecutionContext? = nil,
+        requiresUserAuthentication: Bool = false,
+        allowsAutomationPlayback: Bool = true
+    ) {
+        self.id = id
+        self.title = title
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.durationMilliseconds = durationMilliseconds
+        self.events = events
+        self.hasProtectedInput = hasProtectedInput
+        self.executionContext = executionContext
+        self.requiresUserAuthentication = requiresUserAuthentication
+        self.allowsAutomationPlayback = allowsAutomationPlayback
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case createdAt
+        case updatedAt
+        case durationMilliseconds
+        case events
+        case hasProtectedInput
+        case executionContext
+        case requiresUserAuthentication
+        case allowsAutomationPlayback
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+        durationMilliseconds = try container.decode(Int.self, forKey: .durationMilliseconds)
+        events = try container.decode([TerminalShortcutEvent].self, forKey: .events)
+        hasProtectedInput = try container.decode(Bool.self, forKey: .hasProtectedInput)
+        executionContext = try container.decodeIfPresent(TerminalExecutionContext.self, forKey: .executionContext)
+        requiresUserAuthentication = MuseTermScriptingPolicy.decodePlaybackFlag(
+            try container.decodeIfPresent(Bool.self, forKey: .requiresUserAuthentication),
+            default: false
+        )
+        allowsAutomationPlayback = MuseTermScriptingPolicy.decodePlaybackFlag(
+            try container.decodeIfPresent(Bool.self, forKey: .allowsAutomationPlayback),
+            default: true
+        )
     }
 }
 

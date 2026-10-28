@@ -198,10 +198,23 @@
 "shortcut.name" = "捷径名称";
 "shortcut.tooltip" = "%d 段输入 · %d 秒";
 "shortcut.actions.help" = "管理这条录制捷径。";
+"shortcut.auth.require" = "回放前验证本人";
+"shortcut.auth.require.help" = "打开后，点击回放、命令面板、MCP、CLI 和 AppleScript 都会先要求触控 ID。没有指纹或指纹不可用时，改用这台 Mac 的登录密码。";
+"shortcut.auth.automation" = "允许 AI 回放";
+"shortcut.auth.automation.help" = "关闭后，MCP、CLI 和 AppleScript 不能回放这条录制。你在轻连里自己点击仍然可以回放；若同时打开了验证本人，点击时也要先通过触控 ID。";
+"shortcut.auth.reason" = "回放录制捷径“%@”前，请验证是你本人。";
+"shortcut.auth.use_password" = "使用密码";
+"shortcut.auth.error.not_playable" = "这条录制捷径没有可回放的内容。";
+"shortcut.auth.error.cancelled" = "已取消本人验证，录制捷径没有回放。";
+"shortcut.auth.error.failed" = "本人验证没有通过，录制捷径没有回放。";
+"shortcut.auth.error.unavailable" = "这台 Mac 现在不能验证本人，录制捷径没有回放。";
+"shortcut.auth.error.busy" = "正在等待另一次本人验证，请先完成或取消它。";
+"shortcut.auth.error.timed_out" = "等待本人验证超时，录制捷径没有回放。";
 "shortcut.edit_help.title" = "写法速查";
 "shortcut.edit_help.text_input" = "文字输入：在 events 里加入 { \"delayMilliseconds\": 0, \"text\": \"whoami\\r\", \"bytes\": \"whoami\\r\", \"requiresEchoOff\": false }。";
 "shortcut.edit_help.password_input" = "密码输入：加入 { \"delayMilliseconds\": 0, \"requiresEchoOff\": true, \"protectedBytesReference\": \"prod-password\" }，实际密码在右侧选择这个名字后保存。";
 "shortcut.edit_help.wait" = "等待时间：把下一条事件的 delayMilliseconds 改成毫秒数，例如 200 表示等待 0.2 秒。";
+"shortcut.edit_help.access" = "回放限制：requiresUserAuthentication 为 true 时，回放前要先通过触控 ID；allowsAutomationPlayback 为 false 时，AI、CLI 和 AppleScript 不能回放。两条都可以不写，旧录制保持直接回放、并允许 AI 回放。";
 "shortcut.password.section" = "密码录入 / 修改";
 "shortcut.password.invalid_json" = "当前 JSON 暂时无法解析，修正后会显示可维护的密码名。";
 "shortcut.password.empty" = "JSON 中还没有受保护输入。先添加 requiresEchoOff 与 protectedBytesReference。";
@@ -801,6 +814,7 @@
 "applescript.error.profile_not_found" = "没有找到名为 %@ 的 SSH 收藏。";
 "applescript.error.shortcut_not_found" = "没有找到名为 %@ 的快捷方式。";
 "applescript.error.shortcut_protected" = "该快捷方式包含受保护输入（录制时处于回显关闭状态），禁止通过脚本回放。";
+"applescript.error.shortcut_automation_disabled" = "这条录制捷径已关闭 AI 回放，MCP、CLI 和 AppleScript 都不能播放它。";
 "applescript.error.timeout" = "命令执行超时。请确认标签已启用 shell integration，或增大 timeout 参数。";
 "applescript.error.close_cancelled" = "关闭标签被用户取消。";
 "tools.error.no_workspace" = "轻连 工作区尚未就绪。";
@@ -818,6 +832,7 @@
 "tools.response.tab_created" = "已新建标签页：%@。";
 "tools.response.ssh_profile_opened" = "已打开 SSH 配置：%@。";
 "tools.response.shortcut_played" = "已播放录制捷径：%@。";
+"tools.response.shortcut_authentication_required" = "录制捷径“%@”需要你在这台 Mac 上通过触控 ID 后才会回放。";
 
 "command_inspector.title" = "命令搜索";
 "command_inspector.no_tab" = "当前没有可用终端标签。";

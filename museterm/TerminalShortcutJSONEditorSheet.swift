@@ -74,6 +74,7 @@ struct TerminalShortcutJSONEditorSheet: View {
             helpLine("shortcut.edit_help.text_input")
             helpLine("shortcut.edit_help.password_input")
             helpLine("shortcut.edit_help.wait")
+            helpLine("shortcut.edit_help.access")
         }
         .padding(10)
         .background(Color.secondary.opacity(0.08))
