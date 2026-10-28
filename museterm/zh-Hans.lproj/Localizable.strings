@@ -845,6 +845,18 @@
 "tools.response.ssh_profile_opened" = "已打开 SSH 配置：%@。";
 "tools.response.shortcut_played" = "已播放录制捷径：%@。";
 "tools.response.shortcut_authentication_required" = "录制捷径“%@”需要你在这台 Mac 上通过触控 ID 后才会回放。";
+"tools.response.shortcut_saved" = "已保存录制捷径：%@。";
+"tools.error.shortcut_empty_title" = "录制捷径需要一个名称。";
+"tools.error.shortcut_title_too_long" = "录制捷径的名称不能超过 80 个字符。";
+"tools.error.shortcut_duplicate_title" = "已经有同名的录制捷径：%@。换一个名称，或用 replace 覆盖原有的那条。";
+"tools.error.shortcut_target_not_found" = "没有找到要修改的录制捷径：%@。";
+"tools.error.shortcut_ambiguous_target" = "有多条录制捷径都叫“%@”，请先在 QTerm 里改成不同的名称。";
+"tools.error.shortcut_protected_target" = "录制捷径“%@”含有受保护输入，不能通过工具覆盖。请在 QTerm 里编辑。";
+"tools.error.shortcut_no_steps" = "录制捷径至少要有一步输入。";
+"tools.error.shortcut_too_many_steps" = "录制捷径最多 %d 步。";
+"tools.error.shortcut_step_too_large" = "单步输入不能超过 %d 字节。";
+"tools.error.shortcut_too_many_bytes" = "录制捷径的输入总量超过了 64 KB。";
+"tools.error.shortcut_delay_out_of_range" = "每步的等待时间要在 0 到 %d 毫秒之间。";
 
 "command_inspector.title" = "命令搜索";
 "command_inspector.title.help" = "命令搜索：在当前终端里查找已经运行过的命令。";

@@ -141,6 +141,7 @@ final class SessionTunnelPresetTests: XCTestCase {
             "list_session_tunnel_presets",
             "stop_session_tunnel",
             "list_shortcuts",
+            "save_shortcut",
             "play_shortcut",
             "send_text",
             "send_key"

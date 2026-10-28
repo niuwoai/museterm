@@ -458,6 +458,10 @@ struct TerminalToolRequest: Codable {
     let directory: String?
     let profile: String?
     let shortcut: String?
+    let steps: [TerminalShortcutStep]?
+    let replace: String?
+    let requiresUserAuthentication: Bool?
+    let allowsAutomationPlayback: Bool?
     let tunnelName: String?
     let targetHost: String?
     let targetPort: Int?
@@ -1195,6 +1199,8 @@ final class TerminalToolBridge {
                     error: error.localizedDescription
                 )
             }
+        case "save_shortcut":
+            return saveShortcut(request, workspace: workspace)
         case "play_shortcut":
             do {
                 let tab = try workspace.toolTab(matching: request.tab)
@@ -1340,6 +1346,64 @@ final class TerminalToolBridge {
         }
     }
 
+    private func saveShortcut(_ request: TerminalToolRequest, workspace: TerminalWorkspace) -> TerminalToolResponse {
+        func rejected(_ error: Error) -> TerminalToolResponse {
+            TerminalToolResponse(
+                id: request.id,
+                ok: false,
+                snapshotSequence: snapshotSequence,
+                action: request.action,
+                message: nil,
+                error: error.localizedDescription
+            )
+        }
+
+        let title = request.shortcut?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let targetTitle = request.replace?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        var target: TerminalShortcut?
+        if !targetTitle.isEmpty {
+            let matches = workspace.shortcuts.filter {
+                $0.title == targetTitle || $0.title.localizedCaseInsensitiveCompare(targetTitle) == .orderedSame
+            }
+            guard let match = matches.first else {
+                return rejected(TerminalShortcutDraftError.targetNotFound(targetTitle))
+            }
+            guard matches.count == 1 else {
+                return rejected(TerminalShortcutDraftError.ambiguousTarget(targetTitle))
+            }
+            target = match
+        }
+
+        let otherTitles = workspace.shortcuts
+            .filter { $0.id != target?.id }
+            .map(\.title)
+        let shortcut: TerminalShortcut
+        do {
+            shortcut = try TerminalShortcutDraft.make(
+                title: title,
+                steps: request.steps ?? [],
+                replacing: target,
+                existingTitles: otherTitles,
+                requiresUserAuthentication: request.requiresUserAuthentication,
+                allowsAutomationPlayback: request.allowsAutomationPlayback
+            )
+        } catch {
+            return rejected(error)
+        }
+
+        workspace.upsertShortcut(shortcut)
+        let saved = workspace.shortcuts.first { $0.id == shortcut.id } ?? shortcut
+        return TerminalToolResponse(
+            id: request.id,
+            ok: true,
+            snapshotSequence: snapshotSequence,
+            action: request.action,
+            shortcuts: [TerminalToolShortcutSummary(shortcut: saved, canPlay: MuseTermScriptingPolicy.canPlay(saved))],
+            message: L10n.format("tools.response.shortcut_saved", saved.title),
+            error: nil
+        )
+    }
+
     private func write(response: TerminalToolResponse) {
         do {
             let data = try encoder.encode(response)
@@ -1356,6 +1420,7 @@ final class TerminalToolBridge {
         "create_tab",
         "open_ssh_profile",
         "play_shortcut",
+        "save_shortcut",
         "input",
         "send_text",
         "send_key",

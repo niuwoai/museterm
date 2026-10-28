@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.256.0-rc1] - 2026-10-28
+
+### Added
+- CLI 和 MCP 可以按步骤创建或覆盖录制捷径。MCP 新增 `save_shortcut`，CLI 对应 `qterm shortcut save --title TITLE --step TEXT`，用 `--replace` 覆盖已有捷径。每步默认补回车，不能写入密码或关回显输入，也不能覆盖含受保护输入的捷径。
+
 ## [1.255.0-rc2] - 2026-10-28
 
 ### Fixed

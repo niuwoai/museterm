@@ -198,7 +198,7 @@ def session_tunnels_payload(state)
   }
 end
 
-def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: nil, profile: nil, shortcut: nil, tunnel_name: nil, target_host: nil, target_port: nil, local_port: nil, timeout_seconds: 3.0, agent_kind: nil, agent_report: nil, event_cursor: nil, event_limit: nil, wait_spec: nil, attention_id: nil, attention_version: nil, project_request: nil, preview_request: nil)
+def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: nil, profile: nil, shortcut: nil, steps: nil, replace: nil, requires_user_authentication: nil, allows_automation_playback: nil, tunnel_name: nil, target_host: nil, target_port: nil, local_port: nil, timeout_seconds: 3.0, agent_kind: nil, agent_report: nil, event_cursor: nil, event_limit: nil, wait_spec: nil, attention_id: nil, attention_version: nil, project_request: nil, preview_request: nil)
   received = false
   timeout_seconds = timeout_seconds.to_f
   raise "timeout must be positive." if timeout_seconds <= 0
@@ -215,6 +215,10 @@ def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: 
     "directory" => directory,
     "profile" => profile,
     "shortcut" => shortcut,
+    "steps" => steps,
+    "replace" => replace,
+    "requiresUserAuthentication" => requires_user_authentication,
+    "allowsAutomationPlayback" => allows_automation_playback,
     "tunnelName" => tunnel_name,
     "targetHost" => target_host,
     "targetPort" => target_port,
@@ -512,6 +516,10 @@ def command_shortcuts(args)
 end
 
 def command_shortcut(args)
+  if args.first == "save"
+    command_shortcut_save(args.drop(1).to_a)
+    return
+  end
   tab_selector, _chars, json, rest, timeout = parse_common(args)
   shortcut = rest.join(" ")
   raise "shortcut requires a recorded shortcut title." if shortcut.empty?
@@ -519,6 +527,67 @@ def command_shortcut(args)
     action: "play_shortcut",
     tab: tab_selector,
     shortcut: shortcut,
+    timeout_seconds: timeout || 3.0
+  )
+  if json
+    print_json(response)
+    return
+  end
+  response["ok"] ? puts(response["message"] || "ok") : abort(response["error"] || "request failed")
+end
+
+def command_shortcut_save(args)
+  title = nil
+  replace = nil
+  steps = []
+  send_return = true
+  touch_id = nil
+  automation = nil
+  timeout = nil
+  json = false
+  index = 0
+  while index < args.length
+    arg = args[index]
+    case arg
+    when "--title"
+      index += 1
+      title = args[index]
+      raise "--title needs a value." if title.nil?
+    when "--replace"
+      index += 1
+      replace = args[index]
+      raise "--replace needs a value." if replace.nil?
+    when "--step"
+      index += 1
+      text = args[index]
+      raise "--step needs a value." if text.nil?
+      steps << text
+    when "--no-return"
+      send_return = false
+    when "--touch-id"
+      touch_id = true
+    when "--no-automation"
+      automation = false
+    when "--timeout"
+      index += 1
+      timeout = args[index]
+      raise "--timeout needs a value." if timeout.nil?
+    when "--json"
+      json = true
+    else
+      raise "Unknown shortcut save option: #{arg}"
+    end
+    index += 1
+  end
+  raise "shortcut save requires --title." if title.to_s.strip.empty?
+  raise "shortcut save requires at least one --step." if steps.empty?
+  response = send_request(
+    action: "save_shortcut",
+    shortcut: title,
+    steps: steps.map { |text| { "text" => text, "sendReturn" => send_return } },
+    replace: replace,
+    requires_user_authentication: touch_id,
+    allows_automation_playback: automation,
     timeout_seconds: timeout || 3.0
   )
   if json
@@ -817,6 +886,35 @@ def mcp_tools
       }
     },
     {
+      "name" => "save_shortcut",
+      "description" => "Create or replace a QTerm terminal shortcut from plain text steps. Each step is sent as typed, with a return appended unless sendReturn is false. Cannot store passwords or echo-off input, and refuses to replace a shortcut that already contains protected input. Requires paired tool write access.",
+      "inputSchema" => {
+        "type" => "object",
+        "required" => ["shortcut", "steps"],
+        "properties" => {
+          "shortcut" => { "type" => "string", "description" => "title for the shortcut, up to 80 characters" },
+          "replace" => { "type" => "string", "description" => "title of an existing shortcut to overwrite. Omit to create a new one." },
+          "steps" => {
+            "type" => "array",
+            "maxItems" => 24,
+            "description" => "ordered input steps, at most 24",
+            "items" => {
+              "type" => "object",
+              "required" => ["text"],
+              "properties" => {
+                "text" => { "type" => "string", "description" => "characters to send, up to 4096 bytes" },
+                "delayMilliseconds" => { "type" => "integer", "description" => "wait before this step, 0 to 300000. The first step never waits." },
+                "sendReturn" => { "type" => "boolean", "description" => "append a return. Defaults to true." }
+              }
+            }
+          },
+          "requiresUserAuthentication" => { "type" => "boolean", "description" => "ask for Touch ID before every replay. Omit to keep the current value when replacing, or false when creating." },
+          "allowsAutomationPlayback" => { "type" => "boolean", "description" => "allow MCP, CLI and AppleScript replay. Omit to keep the current value when replacing, or true when creating." },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to answer" }
+        }
+      }
+    },
+    {
       "name" => "play_shortcut",
       "description" => "Replay a recorded QTerm terminal shortcut in a tab. Shortcuts containing protected echo-off input, and shortcuts the user marked as not playable by AI, are refused. A shortcut that requires Touch ID waits for the user at the Mac before it replays; cancelling or failing authentication refuses the replay.",
       "inputSchema" => {
@@ -982,6 +1080,18 @@ def call_tool(name, args)
     )
     raise(response["error"] || "request failed") unless response["ok"]
     tool_result_text(JSON.pretty_generate(response))
+  when "save_shortcut"
+    response = send_request(
+      action: "save_shortcut",
+      shortcut: args.fetch("shortcut"),
+      steps: args.fetch("steps"),
+      replace: args["replace"],
+      requires_user_authentication: args["requiresUserAuthentication"],
+      allows_automation_playback: args["allowsAutomationPlayback"],
+      timeout_seconds: args["timeout"] || 3.0
+    )
+    raise(response["error"] || "request failed") unless response["ok"]
+    tool_result_text(JSON.pretty_generate(response))
   when "play_shortcut"
     response = send_request(
       action: "play_shortcut",
@@ -1031,6 +1141,7 @@ def command_help
       qterm tunnel stop [--tab selected|INDEX|ID] [--timeout SECONDS] [--json]
       qterm shortcuts [--timeout SECONDS] [--json]
       qterm shortcut [--tab selected|INDEX|ID] [--timeout SECONDS] [--json] SHORTCUT_TITLE
+      qterm shortcut save --title TITLE [--replace OLD_TITLE] [--no-return] [--touch-id] [--no-automation] --step TEXT [--step TEXT ...]
       qterm mcp
       qterm attention [read --item UUID --version N] [--tab UUID]
       qterm wait SPEC_JSON

@@ -2312,7 +2312,7 @@ final class TerminalWorkspace: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2, execute: workItem)
     }
 
-    private func upsertShortcut(_ shortcut: TerminalShortcut) {
+    func upsertShortcut(_ shortcut: TerminalShortcut) {
         for existingShortcut in shortcuts where existingShortcut.id == shortcut.id {
             TerminalShortcutStore.deleteProtectedInputs(for: existingShortcut)
         }
