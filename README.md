@@ -34,7 +34,7 @@ defaults delete im.some.museterm terminal.skipRunningTabCloseConfirmation
 
 ## 版本
 
-当前版本：`v1.254.0-rc1`
+当前版本：`v1.254.0-rc2`
 
 从旧版升级及现有会话保留方式见 [升级说明](docs/UPGRADING_QTERM_RUNTIME.md)。
 
