@@ -3,7 +3,9 @@
 "someim.update.check" = "Check for Updates…";
 
 "action.new_tab" = "New tab";
+"action.new_tab.help" = "New tab: open a terminal tab with the default profile.";
 "action.new_tab_with_profile" = "New tab from profile";
+"action.new_tab_with_profile.help" = "New tab from profile: pick a terminal profile, then open a tab.";
 
 "profile.section" = "Terminal Profiles";
 "profile.untitled" = "Untitled Profile";
@@ -44,6 +46,7 @@
 "action.new_connection" = "New connection";
 "action.settings" = "Settings";
 "preview.open" = "Preview image or Markdown";
+"preview.open.help" = "Preview image or Markdown: choose a file and open it beside the terminal.";
 "preview.selection" = "Selected Markdown";
 "preview.selection_action" = "Preview selection as Markdown";
 "preview.close" = "Close preview";
@@ -601,6 +604,7 @@
 "settings.tab.glass" = "Glass";
 "settings.tab.floating_panel" = "Floating Panel";
 "settings.tab.behavior" = "Behavior";
+"settings.tab.sidebar" = "Sidebar";
 "settings.tab.profiles" = "Profiles";
 "settings.tab.notifications" = "Alerts";
 "settings.tab.ai" = "AI";
@@ -636,6 +640,14 @@
 "settings.tint_opacity" = "Tint";
 "settings.glow" = "Glow";
 "settings.behavior" = "Behavior";
+"settings.sidebar_sections" = "Sidebar sections";
+"settings.sidebar_sections.summary" = "Drag a section title in the sidebar to reorder it, or hover the title to hide it. Hidden sections come back here, and the order changes here too. The sidebar updates immediately.";
+"settings.sidebar_sections.move_up" = "Move up";
+"settings.sidebar_sections.move_down" = "Move down";
+"settings.sidebar_sections.visible" = "Show in sidebar";
+"settings.sidebar_sections.visible.help" = "Turn off to remove this section from the sidebar. Turn it back on here.";
+"sidebar.section.drag.help" = "Drag to reorder this section";
+"sidebar.section.hide.help" = "Hide this section. Turn it back on in Settings.";
 "settings.floating_panel" = "Floating panel";
 "settings.floating_panel.help" = "Transparency for tabs detached into a floating desktop panel. Lower is more see-through so the panel blends into the desktop.";
 "settings.floating_panel.opacity" = "Panel opacity";
@@ -835,6 +847,7 @@
 "tools.response.shortcut_authentication_required" = "\"%@\" waits for your Touch ID on this Mac before it replays.";
 
 "command_inspector.title" = "Command Search";
+"command_inspector.title.help" = "Command search: find commands already run in the current terminal.";
 "command_inspector.no_tab" = "No terminal tab is available.";
 "command_inspector.empty" = "No matching command blocks yet. Run a few commands, then search commands, directories, and output here.";
 "command_inspector.search_placeholder" = "Search command, directory, or output";
@@ -882,6 +895,7 @@
 "output_insight.commitHash" = "Commit";
 
 "task_panel.title" = "Tasks and Ports";
+"task_panel.title.help" = "Tasks and ports: see running tasks and ports listening on this Mac.";
 "task_panel.subtitle" = "Local services and running commands";
 "task_panel.refresh" = "Refresh ports";
 "task_panel.scanning" = "Scanning local listening ports...";
@@ -1306,6 +1320,7 @@
 
 "session_tunnel.title" = "Session Tunnel";
 "session_tunnel.create.action" = "Create session tunnel";
+"session_tunnel.create.action.help" = "Create session tunnel: forward a port reachable from this session to this Mac.";
 "session_tunnel.create.title" = "Create Session Tunnel";
 "session_tunnel.create.subtitle" = "Reach an internal service through the terminal session that is already signed in.";
 "session_tunnel.current_session" = "Current session";

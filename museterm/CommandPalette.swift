@@ -550,7 +550,9 @@ struct LearnedCommandSidebarSection: View {
             title: L10n.string("learned_command.section"),
             systemImage: "bolt.fill",
             skin: skin,
-            initiallyExpanded: true
+            initiallyExpanded: true,
+            kind: .learnedCommands,
+            preferences: workspace.preferences
         ) {
             if commands.isEmpty {
                 Text(L10n.string("learned_command.empty"))

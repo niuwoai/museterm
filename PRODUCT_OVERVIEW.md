@@ -1,10 +1,10 @@
 # Product Overview
 
-> 最后更新：2026-10-28 | 当前版本：v1.254.0-rc2
+> 最后更新：2026-10-28 | 当前版本：v1.255.0-rc1
 
 ## 项目简介
 
-轻连（QTerm）是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建外壳界面，并通过 SwiftTerm 提供本地 shell 终端能力。
+QTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建外壳界面，并通过 SwiftTerm 提供本地 shell 终端能力。
 
 ## 核心功能
 

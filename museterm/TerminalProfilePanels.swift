@@ -8,10 +8,13 @@ struct TerminalProfilesSection: View {
     @State private var editingProfile: TerminalProfile?
 
     var body: some View {
-        ProfileDisclosureSection(
+        SidebarSection(
             title: L10n.string("profile.section"),
             systemImage: "person.crop.rectangle.stack",
-            skin: skin
+            skin: skin,
+            initiallyExpanded: false,
+            kind: .profiles,
+            preferences: workspace.preferences
         ) {
             HStack(spacing: 6) {
                 Button {
@@ -117,64 +120,6 @@ struct TerminalProfilesSection: View {
 }
 
 /// 轻量可折叠分区容器（与 SSH 区风格一致，但本文件自持，避免依赖 file-private 组件）。
-private struct ProfileDisclosureSection<Content: View>: View {
-    let title: String
-    let systemImage: String
-    let skin: TerminalVisualSkin
-    @State private var isExpanded = false
-    @ViewBuilder let content: Content
-
-    init(
-        title: String,
-        systemImage: String,
-        skin: TerminalVisualSkin,
-        @ViewBuilder content: () -> Content
-    ) {
-        self.title = title
-        self.systemImage = systemImage
-        self.skin = skin
-        self.content = content()
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.16)) {
-                    isExpanded.toggle()
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Label(title, systemImage: systemImage)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Spacer(minLength: 4)
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.tertiary)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            if isExpanded {
-                VStack(alignment: .leading, spacing: 7) {
-                    content
-                }
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-        .padding(.horizontal, 7)
-        .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(skin.controlFill.opacity(isExpanded ? 0.72 : 0.42))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(skin.hairline.opacity(isExpanded ? 0.82 : 0.48), lineWidth: 1)
-        )
-    }
-}
-
 /// 新建/编辑 Profile 的表单。
 struct TerminalProfileEditorSheet: View {
     @State private var id: UUID
