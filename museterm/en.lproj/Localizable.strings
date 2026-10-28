@@ -845,6 +845,18 @@
 "tools.response.ssh_profile_opened" = "Opened SSH profile: %@.";
 "tools.response.shortcut_played" = "Played shortcut: %@.";
 "tools.response.shortcut_authentication_required" = "\"%@\" waits for your Touch ID on this Mac before it replays.";
+"tools.response.shortcut_saved" = "Saved shortcut: %@.";
+"tools.error.shortcut_empty_title" = "A shortcut needs a title.";
+"tools.error.shortcut_title_too_long" = "A shortcut title cannot be longer than 80 characters.";
+"tools.error.shortcut_duplicate_title" = "A shortcut named \"%@\" already exists. Use another title, or pass replace to overwrite it.";
+"tools.error.shortcut_target_not_found" = "No shortcut named \"%@\" to replace.";
+"tools.error.shortcut_ambiguous_target" = "More than one shortcut is named \"%@\". Rename them in QTerm first.";
+"tools.error.shortcut_protected_target" = "\"%@\" contains protected input and cannot be overwritten by a tool. Edit it in QTerm.";
+"tools.error.shortcut_no_steps" = "A shortcut needs at least one input step.";
+"tools.error.shortcut_too_many_steps" = "A shortcut can have at most %d steps.";
+"tools.error.shortcut_step_too_large" = "A single step cannot exceed %d bytes.";
+"tools.error.shortcut_too_many_bytes" = "The shortcut input exceeds 64 KB in total.";
+"tools.error.shortcut_delay_out_of_range" = "Each step's wait must be between 0 and %d milliseconds.";
 
 "command_inspector.title" = "Command Search";
 "command_inspector.title.help" = "Command search: find commands already run in the current terminal.";

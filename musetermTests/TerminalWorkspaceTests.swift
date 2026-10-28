@@ -657,6 +657,139 @@ final class TerminalWorkspaceTests: XCTestCase {
         XCTAssertEqual(decoded.bytes, Array("ls -la\n".utf8))
     }
 
+    func testShortcutDraftBuildsEventsAndAppendsReturn() throws {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let shortcut = try TerminalShortcutDraft.make(
+            title: " Deploy ",
+            steps: [
+                TerminalShortcutStep(text: "git status", delayMilliseconds: 500, sendReturn: nil),
+                TerminalShortcutStep(text: "pwd", delayMilliseconds: 200, sendReturn: false)
+            ],
+            replacing: nil,
+            existingTitles: [],
+            requiresUserAuthentication: nil,
+            allowsAutomationPlayback: nil,
+            now: now
+        )
+
+        XCTAssertEqual(shortcut.title, "Deploy")
+        XCTAssertEqual(shortcut.events.count, 2)
+        XCTAssertEqual(shortcut.events.map(\.delayMilliseconds), [0, 200])
+        XCTAssertEqual(String(bytes: shortcut.events[0].bytes, encoding: .utf8), "git status\r")
+        XCTAssertEqual(String(bytes: shortcut.events[1].bytes, encoding: .utf8), "pwd")
+        XCTAssertFalse(shortcut.hasProtectedInput)
+        XCTAssertFalse(shortcut.requiresUserAuthentication)
+        XCTAssertTrue(shortcut.allowsAutomationPlayback)
+        XCTAssertEqual(shortcut.durationMilliseconds, 200)
+    }
+
+    func testShortcutDraftRejectsDuplicateTitleAndKeepsFlagsWhenReplacing() throws {
+        let original = shortcutFixture(title: "Deploy", protected: false)
+
+        XCTAssertThrowsError(
+            try TerminalShortcutDraft.make(
+                title: "deploy",
+                steps: [TerminalShortcutStep(text: "pwd", delayMilliseconds: nil, sendReturn: nil)],
+                replacing: nil,
+                existingTitles: ["Deploy"],
+                requiresUserAuthentication: nil,
+                allowsAutomationPlayback: nil
+            )
+        ) { error in
+            XCTAssertEqual(error as? TerminalShortcutDraftError, .duplicateTitle("deploy"))
+        }
+
+        let replaced = try TerminalShortcutDraft.make(
+            title: "Ship",
+            steps: [TerminalShortcutStep(text: "git push", delayMilliseconds: nil, sendReturn: true)],
+            replacing: original,
+            existingTitles: [],
+            requiresUserAuthentication: nil,
+            allowsAutomationPlayback: nil
+        )
+        XCTAssertEqual(replaced.id, original.id)
+        XCTAssertEqual(replaced.createdAt, original.createdAt)
+        XCTAssertTrue(replaced.requiresUserAuthentication)
+        XCTAssertFalse(replaced.allowsAutomationPlayback)
+    }
+
+    func testShortcutDraftRefusesProtectedTargetAndOutOfRangeInput() throws {
+        let protected = shortcutFixture(title: "Password", protected: true)
+        XCTAssertThrowsError(
+            try TerminalShortcutDraft.make(
+                title: "Password",
+                steps: [TerminalShortcutStep(text: "x", delayMilliseconds: nil, sendReturn: nil)],
+                replacing: protected,
+                existingTitles: [],
+                requiresUserAuthentication: nil,
+                allowsAutomationPlayback: nil
+            )
+        ) { error in
+            XCTAssertEqual(error as? TerminalShortcutDraftError, .protectedTarget("Password"))
+        }
+
+        XCTAssertThrowsError(
+            try TerminalShortcutDraft.make(
+                title: "Wait",
+                steps: [TerminalShortcutStep(text: "x", delayMilliseconds: 300_001, sendReturn: nil)],
+                replacing: nil,
+                existingTitles: [],
+                requiresUserAuthentication: nil,
+                allowsAutomationPlayback: nil
+            )
+        ) { error in
+            XCTAssertEqual(error as? TerminalShortcutDraftError, .delayOutOfRange(300_000))
+        }
+
+        XCTAssertThrowsError(
+            try TerminalShortcutDraft.make(
+                title: "Empty",
+                steps: [],
+                replacing: nil,
+                existingTitles: [],
+                requiresUserAuthentication: nil,
+                allowsAutomationPlayback: nil
+            )
+        ) { error in
+            XCTAssertEqual(error as? TerminalShortcutDraftError, .noSteps)
+        }
+
+        let oversized = String(repeating: "a", count: TerminalShortcutDraft.maxStepBytes + 1)
+        XCTAssertThrowsError(
+            try TerminalShortcutDraft.make(
+                title: "Big",
+                steps: [TerminalShortcutStep(text: oversized, delayMilliseconds: nil, sendReturn: false)],
+                replacing: nil,
+                existingTitles: [],
+                requiresUserAuthentication: nil,
+                allowsAutomationPlayback: nil
+            )
+        ) { error in
+            XCTAssertEqual(error as? TerminalShortcutDraftError, .stepTooLarge(TerminalShortcutDraft.maxStepBytes))
+        }
+    }
+
+    private func shortcutFixture(title: String, protected: Bool) -> TerminalShortcut {
+        TerminalShortcut(
+            id: UUID(),
+            title: title,
+            createdAt: Date(timeIntervalSince1970: 10),
+            updatedAt: Date(timeIntervalSince1970: 20),
+            durationMilliseconds: 100,
+            events: [
+                TerminalShortcutEvent(
+                    delayMilliseconds: 0,
+                    bytes: protected ? [] : Array("echo\n".utf8),
+                    requiresEchoOff: protected,
+                    protectedBytesReference: protected ? "secret" : nil
+                )
+            ],
+            hasProtectedInput: protected,
+            requiresUserAuthentication: true,
+            allowsAutomationPlayback: false
+        )
+    }
+
     func testTerminalShortcutPlaybackNormalizesLineFeedToCarriageReturn() {
         let bytes = Array("ssh host\npwd\r\nwhoami\r".utf8)
         let normalized = TerminalShortcutEvent.terminalPlaybackBytes(from: bytes)

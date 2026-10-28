@@ -339,6 +339,121 @@ struct TerminalShortcut: Codable, Equatable, Identifiable {
     }
 }
 
+struct TerminalShortcutStep: Codable, Equatable {
+    var text: String
+    var delayMilliseconds: Int?
+    var sendReturn: Bool?
+}
+
+enum TerminalShortcutDraftError: LocalizedError, Equatable {
+    case emptyTitle
+    case titleTooLong
+    case duplicateTitle(String)
+    case targetNotFound(String)
+    case ambiguousTarget(String)
+    case protectedTarget(String)
+    case noSteps
+    case tooManySteps(Int)
+    case stepTooLarge(Int)
+    case tooManyBytes
+    case delayOutOfRange(Int)
+
+    private var key: String {
+        switch self {
+        case .emptyTitle: return "tools.error.shortcut_empty_title"
+        case .titleTooLong: return "tools.error.shortcut_title_too_long"
+        case .duplicateTitle: return "tools.error.shortcut_duplicate_title"
+        case .targetNotFound: return "tools.error.shortcut_target_not_found"
+        case .ambiguousTarget: return "tools.error.shortcut_ambiguous_target"
+        case .protectedTarget: return "tools.error.shortcut_protected_target"
+        case .noSteps: return "tools.error.shortcut_no_steps"
+        case .tooManySteps: return "tools.error.shortcut_too_many_steps"
+        case .stepTooLarge: return "tools.error.shortcut_step_too_large"
+        case .tooManyBytes: return "tools.error.shortcut_too_many_bytes"
+        case .delayOutOfRange: return "tools.error.shortcut_delay_out_of_range"
+        }
+    }
+
+    var errorDescription: String? {
+        switch self {
+        case .emptyTitle, .titleTooLong, .noSteps, .tooManyBytes:
+            return L10n.string(key)
+        case .duplicateTitle(let title), .targetNotFound(let title), .ambiguousTarget(let title), .protectedTarget(let title):
+            return L10n.format(key, title)
+        case .tooManySteps(let limit), .stepTooLarge(let limit), .delayOutOfRange(let limit):
+            return L10n.format(key, limit)
+        }
+    }
+}
+
+enum TerminalShortcutDraft {
+    static let maxSteps = 24
+    static let maxStepBytes = 4_096
+    static let maxTotalBytes = 64 * 1_024
+    static let maxDelayMilliseconds = 300_000
+
+    static func make(
+        title rawTitle: String,
+        steps: [TerminalShortcutStep],
+        replacing target: TerminalShortcut?,
+        existingTitles: [String],
+        requiresUserAuthentication: Bool?,
+        allowsAutomationPlayback: Bool?,
+        now: Date = Date(),
+        id: UUID = UUID()
+    ) throws -> TerminalShortcut {
+        let title = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { throw TerminalShortcutDraftError.emptyTitle }
+        guard title.count <= 80 else { throw TerminalShortcutDraftError.titleTooLong }
+        if let target, target.hasProtectedInput {
+            throw TerminalShortcutDraftError.protectedTarget(target.title)
+        }
+        let taken = existingTitles.contains { candidate in
+            candidate.localizedCaseInsensitiveCompare(title) == .orderedSame
+        }
+        if taken { throw TerminalShortcutDraftError.duplicateTitle(title) }
+
+        guard !steps.isEmpty else { throw TerminalShortcutDraftError.noSteps }
+        guard steps.count <= maxSteps else { throw TerminalShortcutDraftError.tooManySteps(maxSteps) }
+
+        var events: [TerminalShortcutEvent] = []
+        var totalBytes = 0
+        for (offset, step) in steps.enumerated() {
+            let delay = step.delayMilliseconds ?? 0
+            guard (0...maxDelayMilliseconds).contains(delay) else {
+                throw TerminalShortcutDraftError.delayOutOfRange(maxDelayMilliseconds)
+            }
+            var bytes = Array(step.text.utf8)
+            if step.sendReturn ?? true {
+                bytes.append(0x0D)
+            }
+            guard !bytes.isEmpty else { throw TerminalShortcutDraftError.noSteps }
+            guard bytes.count <= maxStepBytes else { throw TerminalShortcutDraftError.stepTooLarge(maxStepBytes) }
+            totalBytes += bytes.count
+            guard totalBytes <= maxTotalBytes else { throw TerminalShortcutDraftError.tooManyBytes }
+            events.append(
+                TerminalShortcutEvent(
+                    delayMilliseconds: offset == 0 ? 0 : delay,
+                    bytes: bytes
+                )
+            )
+        }
+
+        let startedAt = now.addingTimeInterval(-Double(events.dropFirst().reduce(0) { $0 + $1.delayMilliseconds }) / 1000)
+        return TerminalShortcut(
+            id: target?.id ?? id,
+            title: title,
+            createdAt: target?.createdAt ?? startedAt,
+            updatedAt: now,
+            durationMilliseconds: max(0, Int(now.timeIntervalSince(startedAt) * 1000)),
+            events: events,
+            hasProtectedInput: false,
+            requiresUserAuthentication: requiresUserAuthentication ?? target?.requiresUserAuthentication ?? false,
+            allowsAutomationPlayback: allowsAutomationPlayback ?? target?.allowsAutomationPlayback ?? true
+        ).normalized
+    }
+}
+
 struct TerminalShortcutProtectedInput: Equatable, Identifiable {
     let shortcutID: UUID
     let shortcutTitle: String
