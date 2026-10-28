@@ -37,6 +37,8 @@ enum MuseTermScriptErrorCode {
     static let profileNotFound = -31005
     static let shortcutNotFound = -31006
     static let shortcutProtected = -31007
+    static let shortcutAutomationDisabled = -31011
+    static let shortcutAuthenticationFailed = -31012
     static let executionTimeout = -31008
     static let emptyInput = -31009
     static let closeCancelled = -31010
@@ -45,9 +47,22 @@ enum MuseTermScriptErrorCode {
 // MARK: - 纯逻辑（可单测）
 
 enum MuseTermScriptingPolicy {
-    // 含受保护输入（echo-off 密码段）的快捷方式禁止通过脚本接口回放。
+    // 自动化回放的拒绝顺序：空录制、受保护输入、用户关闭了 AI 回放。
+    // 需要本人验证的录制不在这里拒绝，调用方必须先完成 Touch ID。
+    nonisolated static func automationDenial(_ shortcut: TerminalShortcut) -> TerminalShortcutAutomationDenial? {
+        guard shortcut.isPlayable else { return .notPlayable }
+        if shortcut.hasProtectedInput { return .protectedInput }
+        if !shortcut.allowsAutomationPlayback { return .automationDisabled }
+        return nil
+    }
+
     nonisolated static func canPlay(_ shortcut: TerminalShortcut) -> Bool {
-        shortcut.isPlayable && !shortcut.hasProtectedInput
+        automationDenial(shortcut) == nil
+    }
+
+    // 旧录制没有新字段时保持原行为：不要求本人验证，也允许自动化回放。
+    nonisolated static func decodePlaybackFlag(_ value: Bool?, default defaultValue: Bool) -> Bool {
+        value ?? defaultValue
     }
 
     nonisolated static func clampedExecuteTimeout(_ requested: Int?) -> TimeInterval {
@@ -544,16 +559,52 @@ final class MuseTermPlayShortcutScriptCommand: NSScriptCommand {
                 L10n.format("applescript.error.shortcut_not_found", title)
             )
         }
-        guard MuseTermScriptingPolicy.canPlay(shortcut) else {
-            return museFail(
-                MuseTermScriptErrorCode.shortcutProtected,
-                L10n.string("applescript.error.shortcut_protected")
-            )
+        let needsAuthentication = shortcut.requiresUserAuthentication
+            && MuseTermScriptingPolicy.canPlay(shortcut)
+        let command = self
+        let reply = TerminalShortcutAutomationReply()
+        TerminalShortcutPlayback.begin(shortcut: shortcut, origin: .automation, invalidateAfter: 45) { result in
+            switch result {
+            case .success:
+                session.startProcessIfNeeded()
+                workspace.selectedID = session.id
+                session.playShortcut(shortcut)
+                reply.finish(.success(TerminalToolResponse(
+                    id: "applescript",
+                    ok: true,
+                    snapshotSequence: 0,
+                    message: nil,
+                    error: nil
+                )))
+            case .failure(let error):
+                reply.finish(.failure(error))
+            }
         }
-        session.startProcessIfNeeded()
-        workspace.selectedID = session.id
-        session.playShortcut(shortcut)
-        return nil
+        // 指纹对话框跑在主线程上。先挂起 Apple 事件，再在后台等结果，
+        // 对话框结束后恢复事件并带回成功或拒绝。
+        if needsAuthentication {
+            command.suspendExecution()
+            DispatchQueue.global(qos: .userInitiated).async {
+                let settled = reply.await(seconds: 45)
+                DispatchQueue.main.async {
+                    switch settled {
+                    case .success:
+                        command.resumeExecution(withResult: nil)
+                    case .failure(let error):
+                        command.scriptErrorNumber = error.scriptErrorCode
+                        command.scriptErrorString = error.localizedDescription
+                        command.resumeExecution(withResult: nil)
+                    }
+                }
+            }
+            return nil
+        }
+        switch reply.await(seconds: 45) {
+        case .success:
+            return nil
+        case .failure(let error):
+            return command.museFail(error.scriptErrorCode, error.localizedDescription)
+        }
     }
 }
 

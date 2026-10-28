@@ -198,10 +198,23 @@
 "shortcut.name" = "Recording name";
 "shortcut.tooltip" = "%d inputs · %d seconds";
 "shortcut.actions.help" = "Manage this recording.";
+"shortcut.auth.require" = "Verify it's you before replay";
+"shortcut.auth.require.help" = "When on, clicking replay, the command palette, MCP, the CLI, and AppleScript all ask for Touch ID first. If Touch ID is missing or unavailable, QTerm asks for this Mac's login password instead.";
+"shortcut.auth.automation" = "Allow AI replay";
+"shortcut.auth.automation.help" = "When off, MCP, the CLI, and AppleScript cannot replay this recording. Replaying it yourself in QTerm still works. If verification is also on, that replay asks for Touch ID too.";
+"shortcut.auth.reason" = "Confirm it is you before replaying \"%@\".";
+"shortcut.auth.use_password" = "Use Password";
+"shortcut.auth.error.not_playable" = "This recording has nothing to replay.";
+"shortcut.auth.error.cancelled" = "Verification was cancelled, so the recording was not replayed.";
+"shortcut.auth.error.failed" = "Verification failed, so the recording was not replayed.";
+"shortcut.auth.error.unavailable" = "This Mac cannot verify you right now, so the recording was not replayed.";
+"shortcut.auth.error.busy" = "Another verification is already waiting. Finish or cancel it first.";
+"shortcut.auth.error.timed_out" = "Verification timed out, so the recording was not replayed.";
 "shortcut.edit_help.title" = "Quick Reference";
 "shortcut.edit_help.text_input" = "Text input: add { \"delayMilliseconds\": 0, \"text\": \"whoami\\r\", \"bytes\": \"whoami\\r\", \"requiresEchoOff\": false } to events.";
 "shortcut.edit_help.password_input" = "Password input: add { \"delayMilliseconds\": 0, \"requiresEchoOff\": true, \"protectedBytesReference\": \"prod-password\" }, then choose that name on the right and save the real password.";
 "shortcut.edit_help.wait" = "Wait time: set delayMilliseconds on the next event, in milliseconds. For example, 200 waits 0.2 seconds.";
+"shortcut.edit_help.access" = "Replay limits: requiresUserAuthentication true asks for Touch ID before every replay. allowsAutomationPlayback false stops AI, the CLI, and AppleScript from replaying it. Both can be omitted. Older recordings still replay immediately and still allow AI replay.";
 "shortcut.password.section" = "Enter / Update Password";
 "shortcut.password.invalid_json" = "The current JSON cannot be parsed yet. Fix it to show editable password names.";
 "shortcut.password.empty" = "No protected input exists in this JSON yet. Add requiresEchoOff and protectedBytesReference first.";
@@ -801,6 +814,7 @@
 "applescript.error.profile_not_found" = "No SSH profile named %@ was found.";
 "applescript.error.shortcut_not_found" = "No shortcut named %@ was found.";
 "applescript.error.shortcut_protected" = "This shortcut contains protected input (recorded while echo was off) and cannot be replayed from scripts.";
+"applescript.error.shortcut_automation_disabled" = "AI replay is turned off for this recording, so MCP, the CLI, and AppleScript cannot play it.";
 "applescript.error.timeout" = "Command execution timed out. Make sure shell integration is active in the tab, or increase the timeout parameter.";
 "applescript.error.close_cancelled" = "Closing the tab was cancelled by the user.";
 "tools.error.no_workspace" = "QTerm workspace is not ready.";
@@ -818,6 +832,7 @@
 "tools.response.tab_created" = "Created tab: %@.";
 "tools.response.ssh_profile_opened" = "Opened SSH profile: %@.";
 "tools.response.shortcut_played" = "Played shortcut: %@.";
+"tools.response.shortcut_authentication_required" = "\"%@\" waits for your Touch ID on this Mac before it replays.";
 
 "command_inspector.title" = "Command Search";
 "command_inspector.no_tab" = "No terminal tab is available.";

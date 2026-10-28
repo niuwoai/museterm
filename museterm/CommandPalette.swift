@@ -439,7 +439,13 @@ struct CommandPaletteView: View {
                 }
             case .shortcut(let id):
                 if let shortcut = workspace.shortcuts.first(where: { $0.id == id }) {
-                    try workspace.playShortcutInRecordedContext(shortcut, sshProfiles: sshStore.profiles)
+                    close()
+                    workspace.playUserShortcut(shortcut, sshProfiles: sshStore.profiles) { result in
+                        if case .failure(let error) = result {
+                            showError(error)
+                        }
+                    }
+                    return
                 }
             case .learned(let id):
                 guard let record = workspace.learnedCommands.first(where: { $0.id == id }) else { return }

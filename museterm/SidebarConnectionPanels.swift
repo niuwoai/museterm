@@ -460,8 +460,17 @@ struct TerminalShortcutSection: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
                     Spacer(minLength: 2)
-                    if shortcut.hasProtectedInput {
+                    if shortcut.requiresUserAuthentication {
+                        Image(systemName: "touchid")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                    } else if shortcut.hasProtectedInput {
                         Image(systemName: "lock.shield")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                    }
+                    if !shortcut.allowsAutomationPlayback {
+                        Image(systemName: "person.fill.checkmark")
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
                     }
@@ -488,6 +497,10 @@ struct TerminalShortcutSection: View {
 
                 Divider()
 
+                shortcutAccessToggles(shortcut)
+
+                Divider()
+
                 Button(role: .destructive) {
                     deletionCandidate = shortcut
                 } label: {
@@ -511,12 +524,49 @@ struct TerminalShortcutSection: View {
     }
 
     private func playShortcut(_ shortcut: TerminalShortcut) {
-        do {
-            try workspace.playShortcutInRecordedContext(shortcut, sshProfiles: sshStore.profiles)
-        } catch {
-            NSSound.beep()
-            shortcutMessage = L10n.format("shortcut.context_error", error.localizedDescription)
+        workspace.playUserShortcut(shortcut, sshProfiles: sshStore.profiles) { result in
+            if case .failure(let error) = result {
+                NSSound.beep()
+                shortcutMessage = L10n.format("shortcut.context_error", error.localizedDescription)
+            }
         }
+    }
+
+    private func shortcutAccessToggles(_ shortcut: TerminalShortcut) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(isOn: shortcutFlag(
+                shortcut.requiresUserAuthentication,
+                shortcutID: shortcut.id,
+                update: workspace.setShortcutRequiresUserAuthentication
+            )) {
+                Label(L10n.string("shortcut.auth.require"), systemImage: "touchid")
+                    .font(.caption2)
+            }
+            .toggleStyle(.checkbox)
+            .help(L10n.string("shortcut.auth.require.help"))
+
+            Toggle(isOn: shortcutFlag(
+                shortcut.allowsAutomationPlayback,
+                shortcutID: shortcut.id,
+                update: workspace.setShortcutAllowsAutomationPlayback
+            )) {
+                Label(L10n.string("shortcut.auth.automation"), systemImage: "apple.terminal")
+                    .font(.caption2)
+            }
+            .toggleStyle(.checkbox)
+            .help(L10n.string("shortcut.auth.automation.help"))
+        }
+    }
+
+    private func shortcutFlag(
+        _ value: Bool,
+        shortcutID: UUID,
+        update: @escaping (Bool, UUID) -> Void
+    ) -> Binding<Bool> {
+        Binding(
+            get: { value },
+            set: { update($0, shortcutID) }
+        )
     }
 }
 

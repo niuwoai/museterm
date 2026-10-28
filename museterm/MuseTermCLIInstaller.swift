@@ -503,7 +503,11 @@ def command_shortcuts(args)
   end
   response.fetch("shortcuts", []).each do |shortcut|
     marker = shortcut["canPlay"] ? "playable" : "blocked"
-    puts "#{shortcut["title"]}\t#{shortcut["id"]}\t#{marker}"
+    flags = []
+    flags << "touch-id" if shortcut["requiresUserAuthentication"]
+    flags << "ai-off" unless shortcut.fetch("allowsAutomationPlayback", true)
+    suffix = flags.empty? ? "" : "\t#{flags.join(",")}"
+    puts "#{shortcut["title"]}\t#{shortcut["id"]}\t#{marker}#{suffix}"
   end
 end
 
@@ -804,7 +808,7 @@ def mcp_tools
     },
     {
       "name" => "list_shortcuts",
-      "description" => "List recorded QTerm terminal shortcuts with ids, titles, event counts, durations, and whether each can be replayed through MCP.",
+      "description" => "List recorded QTerm terminal shortcuts with ids, titles, event counts, durations, whether each can be replayed through MCP, whether replay requires the user's Touch ID, and whether AI replay is allowed.",
       "inputSchema" => {
         "type" => "object",
         "properties" => {
@@ -814,14 +818,14 @@ def mcp_tools
     },
     {
       "name" => "play_shortcut",
-      "description" => "Replay a recorded QTerm terminal shortcut in a tab. Shortcuts containing protected echo-off input are refused.",
+      "description" => "Replay a recorded QTerm terminal shortcut in a tab. Shortcuts containing protected echo-off input, and shortcuts the user marked as not playable by AI, are refused. A shortcut that requires Touch ID waits for the user at the Mac before it replays; cancelling or failing authentication refuses the replay.",
       "inputSchema" => {
         "type" => "object",
         "required" => ["shortcut"],
         "properties" => {
           "tab" => { "type" => "string", "description" => "selected, 1-based index, id prefix, or title" },
           "shortcut" => { "type" => "string", "description" => "recorded shortcut title" },
-          "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to answer" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for QTerm to answer. Shortcuts that require Touch ID need enough time for the person at the Mac to authenticate." },
           "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
         }
       }

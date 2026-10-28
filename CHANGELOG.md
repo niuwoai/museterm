@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.254.0-rc1] - 2026-10-28
+
+### Added
+- 每条录制捷径可以单独要求回放前验证本人：点击、命令面板、MCP、CLI 和 AppleScript 都会先弹触控 ID，没有可用指纹时改用这台 Mac 的登录密码。取消、失败或超时都不会回放。
+- 每条录制捷径可以单独关闭 AI 回放。关闭后 MCP、CLI 和 AppleScript 会被拒绝，本人在轻连里点击仍然可以回放；若同时要求验证本人，这次点击也要先通过触控 ID。
+- `list_shortcuts` 增加 `requiresUserAuthentication` 和 `allowsAutomationPlayback`，用来告诉外部工具这条录制能不能由 AI 回放、回放前会不会等本人验证。
+
 ## [1.253.0-rc6] - 2026-10-27
 
 ### Fixed

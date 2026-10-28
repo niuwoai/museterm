@@ -4,6 +4,8 @@
 <dict>
 	<key>NSAppleScriptEnabled</key>
 	<true/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>QTerm uses Touch ID to confirm it is you before replaying a recording you protected.</string>
 	<key>NSDesktopFolderUsageDescription</key>
 	<string>QTerm needs access to your Desktop folder so commands you run in the terminal can read and write files there.</string>
 	<key>NSDocumentsFolderUsageDescription</key>

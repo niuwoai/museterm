@@ -1911,6 +1911,23 @@ final class TerminalWorkspace: ObservableObject {
         objectWillChange.send()
     }
 
+    func setShortcutRequiresUserAuthentication(_ enabled: Bool, id: UUID) {
+        updateShortcut(id: id) { $0.requiresUserAuthentication = enabled }
+    }
+
+    func setShortcutAllowsAutomationPlayback(_ enabled: Bool, id: UUID) {
+        updateShortcut(id: id) { $0.allowsAutomationPlayback = enabled }
+    }
+
+    private func updateShortcut(id: UUID, mutate: (inout TerminalShortcut) -> Void) {
+        guard let index = shortcuts.firstIndex(where: { $0.id == id }) else { return }
+        var shortcut = shortcuts[index]
+        mutate(&shortcut)
+        shortcut.updatedAt = Date()
+        shortcuts[index] = shortcut.normalized
+        persistShortcuts()
+    }
+
     var discoverableLearnedCommands: [LearnedCommandRecord] {
         learnedCommands.filter { $0.isDiscoverable && !blacklistedCommands.contains($0.command) }
     }
@@ -1943,6 +1960,31 @@ final class TerminalWorkspace: ObservableObject {
         }
         let tab = try newTab(for: context, sshProfiles: sshProfiles)
         tab.execute(shortcut: shortcut, in: context)
+    }
+
+    /// 本人在界面里发起的回放。需要验证时先弹 Touch ID，通过后才播放。
+    func playUserShortcut(
+        _ shortcut: TerminalShortcut,
+        sshProfiles: [SSHConnectionProfile],
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        TerminalShortcutPlayback.begin(shortcut: shortcut, origin: .user, invalidateAfter: nil) { [weak self] result in
+            guard let self else {
+                completion(.failure(TerminalShortcutPlaybackError.authenticationCancelled))
+                return
+            }
+            switch result {
+            case .success:
+                do {
+                    try self.playShortcutInRecordedContext(shortcut, sshProfiles: sshProfiles)
+                    completion(.success(()))
+                } catch {
+                    completion(.failure(error))
+                }
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
     }
 
     func setLearnedCommandPinned(_ pinned: Bool, id: String) {
@@ -2066,6 +2108,35 @@ final class TerminalWorkspace: ObservableObject {
         tab.playShortcut(shortcut)
         objectWillChange.send()
         return tab
+    }
+
+    /// MCP / CLI 回放。先过自动化门禁，再按需要等本人按指纹，最后才播放。
+    func playAutomationShortcut(
+        _ shortcut: TerminalShortcut,
+        in selector: String?,
+        wait: TimeInterval,
+        completion: @escaping (Result<TerminalSession, TerminalShortcutPlaybackError>) -> Void
+    ) {
+        TerminalShortcutPlayback.begin(
+            shortcut: shortcut,
+            origin: .automation,
+            invalidateAfter: wait
+        ) { [weak self] result in
+            guard let self else {
+                completion(.failure(.authenticationCancelled))
+                return
+            }
+            switch result {
+            case .success:
+                do {
+                    completion(.success(try self.playToolShortcut(shortcut, in: selector)))
+                } catch {
+                    completion(.failure(.notPlayable))
+                }
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
     }
 
     func toolTab(matching selector: String?) throws -> TerminalSession {

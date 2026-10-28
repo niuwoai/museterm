@@ -186,6 +186,33 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(shortcut["canPlay"] as? Bool, true)
     }
 
+    func testCliShortcutsTextShowsAuthenticationFlags() throws {
+        let fixture = try makeMuseTermCLITestFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let result = try runMuseTermCLIRequestScript(
+            fixture.scriptURL,
+            home: fixture.root,
+            arguments: ["shortcuts", "--timeout", "1.5"],
+            response: [
+                "ok": true,
+                "shortcuts": [
+                    [
+                        "id": "shortcut-1",
+                        "title": "Deploy SSH",
+                        "canPlay": true,
+                        "requiresUserAuthentication": true,
+                        "allowsAutomationPlayback": false
+                    ]
+                ]
+            ]
+        )
+
+        XCTAssertTrue(
+            String(data: result.rawOutput, encoding: .utf8)?.contains("Deploy SSH\tshortcut-1\tplayable\ttouch-id,ai-off") == true
+        )
+    }
+
     func testCliCommandsReportsOutputTailTruncationMetadata() throws {
         let fixture = try makeMuseTermCLITestFixture()
         defer { try? FileManager.default.removeItem(at: fixture.root) }
@@ -2723,7 +2750,7 @@ final class musetermTests: XCTestCase {
         home: URL,
         arguments: [String],
         response: [String: Any]
-    ) throws -> (output: [String: Any], request: [String: Any]) {
+    ) throws -> (output: [String: Any], request: [String: Any], rawOutput: Data) {
         let process = Process()
         let output = Pipe()
         let errorOutput = Pipe()
@@ -2745,8 +2772,8 @@ final class musetermTests: XCTestCase {
             let message = String(data: errorData, encoding: .utf8) ?? "unknown CLI error"
             XCTFail("museterm CLI request failed: \(message)")
         }
-        let parsedOutput = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-        return (output: parsedOutput, request: request)
+        let parsedOutput = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+        return (output: parsedOutput, request: request, rawOutput: data)
     }
 
     private func runMuseTermMCPRequestWithToolResponse(
