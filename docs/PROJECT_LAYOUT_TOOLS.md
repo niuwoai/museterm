@@ -2,15 +2,15 @@
 
 版本：`1.252.0-rc1` / Build `348`。普通应用已默认启用独立后台；本机安装未替换，rc28 完整回归 621/621，另有后补同名同目录项目回归 1/1 通过，未签名 Universal Release 构建及同一 Release 后台的 WillDeep/SSH 验证通过。
 
-CLI 使用 `qterm project OPERATION [REQUEST_JSON]`；MCP 使用 `project_layout`，参数是同一个请求对象。`list` 直接查询在线 UI 的工作区，其他操作要求现有工具配对和“允许已授权客户端写入”开关；不授予 Agent 上报凭据额外权限，也不为操作布局获取或续租输入控制。
+CLI 使用 `museterm project OPERATION [REQUEST_JSON]`；MCP 使用 `project_layout`，参数是同一个请求对象。`list` 直接查询在线 UI 的工作区，其他操作要求现有工具配对和“允许已授权客户端写入”开关；不授予 Agent 上报凭据额外权限，也不为操作布局获取或续租输入控制。
 
 先读取响应中的 `projectResult`，从返回值取得准确 UUID。项目 ID、布局标签 ID、分屏 ID 和终端 ID 不同；原来的 `list_tabs` 仍按终端叶子列举，不能把它的终端 ID 当作布局标签 ID。
 
 ```sh
-qterm project list
-qterm project createProject '{"name":"review","directory":"/absolute/project/path"}'
-qterm project split '{"terminalID":"<returned-terminal-uuid>","axis":"vertical"}'
-qterm project moveTab '{"layoutTabID":"<returned-layout-tab-uuid>","projectID":"<returned-project-uuid>"}'
+museterm project list
+museterm project createProject '{"name":"review","directory":"/absolute/project/path"}'
+museterm project split '{"terminalID":"<returned-terminal-uuid>","axis":"vertical"}'
+museterm project moveTab '{"layoutTabID":"<returned-layout-tab-uuid>","projectID":"<returned-project-uuid>"}'
 ```
 
 示例路径必须替换成已存在的绝对目录；占位 UUID 必须替换成响应返回值。

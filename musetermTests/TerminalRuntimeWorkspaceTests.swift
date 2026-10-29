@@ -8,25 +8,25 @@ final class TerminalRuntimeWorkspaceTests: XCTestCase {
     }
 
     func testTestHostsKeepPersistentRuntimeExplicitlyOptedIn() {
-        XCTAssertFalse(TerminalRuntimeService.applicationActivation(arguments: [], environment: [:], bundleID: "im.some.qterm.goaltests.QTerm"))
+        XCTAssertFalse(TerminalRuntimeService.applicationActivation(arguments: [], environment: [:], bundleID: "im.some.museterm.goaltests.MuseTerm"))
         XCTAssertFalse(TerminalRuntimeService.applicationActivation(arguments: [],
             environment: ["XCTestConfigurationFilePath": "private-fixture"], bundleID: "im.some.museterm"))
         XCTAssertTrue(TerminalRuntimeService.applicationActivation(arguments: [],
-            environment: ["QTERM_UI_TEST_RUNTIME": "1", "QTERM_AGENT_TEST_TOOL_ROOT": "/private/tmp/private-fixture"],
-            bundleID: "im.some.qterm.goaltests.QTerm"))
+            environment: ["MUSETERM_UI_TEST_RUNTIME": "1", "MUSETERM_AGENT_TEST_TOOL_ROOT": "/private/tmp/private-fixture"],
+            bundleID: "im.some.museterm.goaltests.MuseTerm"))
     }
 
     func testNativeQAActivationRequiresIsolatedBundleAndExplicitRoot() {
-        let environment = ["QTERM_UI_TEST_RUNTIME": "1", "QTERM_AGENT_TEST_TOOL_ROOT": "/private/tmp/qa-tools"]
-        XCTAssertTrue(TerminalRuntimeService.testActivation(arguments: [], environment: environment, bundleID: "im.some.qterm.goaltests.QTerm"))
-        XCTAssertFalse(TerminalRuntimeService.testActivation(arguments: [], environment: environment, bundleID: "im.some.qterm"))
-        XCTAssertFalse(TerminalRuntimeService.testActivation(arguments: [], environment: ["QTERM_UI_TEST_RUNTIME": "1"], bundleID: "im.some.qterm.goaltests.QTerm"))
-        XCTAssertFalse(TerminalRuntimeService.testActivation(arguments: [], environment: ["QTERM_UI_TEST_RUNTIME": "1", "QTERM_AGENT_TEST_TOOL_ROOT": "relative"], bundleID: "im.some.qterm.goaltests.QTerm"))
+        let environment = ["MUSETERM_UI_TEST_RUNTIME": "1", "MUSETERM_AGENT_TEST_TOOL_ROOT": "/private/tmp/qa-tools"]
+        XCTAssertTrue(TerminalRuntimeService.testActivation(arguments: [], environment: environment, bundleID: "im.some.museterm.goaltests.MuseTerm"))
+        XCTAssertFalse(TerminalRuntimeService.testActivation(arguments: [], environment: environment, bundleID: "im.some.museterm"))
+        XCTAssertFalse(TerminalRuntimeService.testActivation(arguments: [], environment: ["MUSETERM_UI_TEST_RUNTIME": "1"], bundleID: "im.some.museterm.goaltests.MuseTerm"))
+        XCTAssertFalse(TerminalRuntimeService.testActivation(arguments: [], environment: ["MUSETERM_UI_TEST_RUNTIME": "1", "MUSETERM_AGENT_TEST_TOOL_ROOT": "relative"], bundleID: "im.some.museterm.goaltests.MuseTerm"))
     }
     private var root: URL!
 
     override func setUp() async throws {
-        root = FileManager.default.temporaryDirectory.appendingPathComponent("qterm-recovery-\(UUID())")
+        root = FileManager.default.temporaryDirectory.appendingPathComponent("museterm-recovery-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
     }
 

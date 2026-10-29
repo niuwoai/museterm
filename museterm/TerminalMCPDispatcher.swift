@@ -5,7 +5,7 @@ enum TerminalMCPDispatcher {
 def mcp_result(method, params)
   case method
   when "initialize"
-    {"protocolVersion" => "2024-11-05", "serverInfo" => {"name" => "qterm", "version" => "\#(AppVersion.value)"}, "capabilities" => {"tools" => {}}}
+    {"protocolVersion" => "2024-11-05", "serverInfo" => {"name" => "museterm", "version" => "\#(AppVersion.value)"}, "capabilities" => {"tools" => {}}}
   when "ping" then {}
   when "tools/list" then {"tools" => mcp_tools}
   when "tools/call" then call_tool(params.fetch("name"), params["arguments"] || {})
@@ -25,7 +25,7 @@ def command_mcp
         job = jobs[params["requestId"]]
         if job
           job[:cancelled] = true
-          job[:thread]&.raise(QTermWaitCancelled) if job[:thread]&.alive?
+          job[:thread]&.raise(MuseTermWaitCancelled) if job[:thread]&.alive?
         end
       end
       next
@@ -41,10 +41,10 @@ def command_mcp
       jobs_lock.synchronize { jobs[id] = job }
       thread = Thread.new(id, params, job) do |job_id, job_params, record|
         begin
-          raise QTermWaitCancelled if record[:cancelled]
+          raise MuseTermWaitCancelled if record[:cancelled]
           result = mcp_result("tools/call", job_params)
           write_mcp_message({"jsonrpc" => "2.0", "id" => job_id, "result" => result}) unless record[:cancelled]
-        rescue QTermWaitCancelled
+        rescue MuseTermWaitCancelled
           # MCP cancellation is fire-and-forget: do not send a cancelled response.
         rescue StandardError => error
           write_mcp_message({"jsonrpc" => "2.0", "id" => job_id, "error" => {"code" => -32000, "message" => error.message}}) unless record[:cancelled]
@@ -66,7 +66,7 @@ ensure
   threads = jobs_lock.synchronize do
     jobs.values.map do |job|
       job[:cancelled] = true
-      job[:thread]&.raise(QTermWaitCancelled) if job[:thread]&.alive?
+      job[:thread]&.raise(MuseTermWaitCancelled) if job[:thread]&.alive?
       job[:thread]
     end.compact
   end

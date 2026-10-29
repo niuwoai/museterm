@@ -447,7 +447,7 @@ final class TerminalSession: ObservableObject, Identifiable {
             try aiArchive?.flush()
             try aiArchive?.event(reason)
         } catch {
-            NSLog("QTerm AI archive could not be finalized: %@", error.localizedDescription)
+            NSLog("MuseTerm AI archive could not be finalized: %@", error.localizedDescription)
         }
         aiArchive = nil
         aiLease = nil
@@ -614,7 +614,7 @@ final class TerminalSession: ObservableObject, Identifiable {
     func detachForApplicationExit() {
         cancelRecording()
         do { try aiArchive?.flush(); try aiArchive?.event("viewer_detached") }
-        catch { NSLog("QTerm could not flush detached input archive") }
+        catch { NSLog("MuseTerm could not flush detached input archive") }
         guard didCreateController else { return }
         controller.terminate(preservingRuntime: true)
     }

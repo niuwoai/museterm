@@ -16,10 +16,10 @@ final class MuseTermScriptingTests: XCTestCase {
     func testSdefIsBundledAndWellFormed() throws {
         let document = try loadSdefDocument()
         XCTAssertEqual(document.rootElement()?.name, "dictionary")
-        XCTAssertEqual(document.rootElement()?.attribute(forName: "title")?.stringValue, "QTerm Terminology")
+        XCTAssertEqual(document.rootElement()?.attribute(forName: "title")?.stringValue, "MuseTerm Terminology")
         XCTAssertEqual(
             try document.nodes(forXPath: "//suite[@code='MTrm']/@name").first?.stringValue,
-            "QTerm Suite"
+            "MuseTerm Suite"
         )
     }
 

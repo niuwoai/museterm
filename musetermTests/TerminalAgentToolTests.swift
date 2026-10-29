@@ -85,14 +85,14 @@ final class TerminalAgentToolTests: XCTestCase {
     }
 
     func testLegacyToolStateDecodesWithoutNewFields() throws {
-        let json = #"{"schemaVersion":1,"app":"QTerm","version":"1.248.0-rc1","snapshotSequence":1,"updatedAt":0,"sessionTunnelPresets":[],"tabs":[]}"#
+        let json = #"{"schemaVersion":1,"app":"MuseTerm","version":"1.248.0-rc1","snapshotSequence":1,"updatedAt":0,"sessionTunnelPresets":[],"tabs":[]}"#
         let state = try JSONDecoder().decode(TerminalToolState.self, from: Data(json.utf8))
         XCTAssertNil(state.eventCursor)
         XCTAssertNil(state.sessions)
     }
 
     func testPrivateBridgeWriterAtomicallyReplacesWithOwnerOnlyPermissions() throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("qterm-private-write-\(UUID())")
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("museterm-private-write-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let destination = root.appendingPathComponent("response.json")

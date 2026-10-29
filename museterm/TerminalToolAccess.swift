@@ -2,7 +2,7 @@ import Foundation
 import Security
 
 enum TerminalToolAccess {
-    static let builtInClientID = "qterm-cli"
+    static let builtInClientID = "museterm-cli"
     static let keychainServiceName = "im.some.museterm.tool-access"
     static let auditFileName = "access-audit.jsonl"
 
@@ -11,7 +11,7 @@ enum TerminalToolAccess {
     }
 
     static func isPaired(clientID: String = builtInClientID) -> Bool {
-        !MuseTermKeychain.load(account: clientID, serviceName: keychainServiceName).isEmpty
+        !storedToken(clientID: clientID).isEmpty
     }
 
     @discardableResult
@@ -21,11 +21,18 @@ enum TerminalToolAccess {
             return false
         }
         let token = bytes.map { String(format: "%02x", $0) }.joined()
-        return MuseTermKeychain.save(token, account: clientID, serviceName: keychainServiceName)
+        let saved = MuseTermKeychain.save(token, account: clientID, serviceName: keychainServiceName)
+        if saved, clientID == builtInClientID {
+            MuseTermKeychain.delete(account: MuseTermLegacyCompatibility.legacyClientID, serviceName: keychainServiceName)
+        }
+        return saved
     }
 
     static func revoke(clientID: String = builtInClientID) {
         MuseTermKeychain.delete(account: clientID, serviceName: keychainServiceName)
+        if clientID == builtInClientID {
+            MuseTermKeychain.delete(account: MuseTermLegacyCompatibility.legacyClientID, serviceName: keychainServiceName)
+        }
     }
 
     static func authorizes(clientID: String?, token: String?) -> Bool {
@@ -36,9 +43,15 @@ enum TerminalToolAccess {
             token.utf8.count <= 256
         else { return false }
 
-        let expected = MuseTermKeychain.load(account: clientID, serviceName: keychainServiceName)
+        let expected = storedToken(clientID: clientID)
         guard !expected.isEmpty else { return false }
         return constantTimeEqual(expected, token)
+    }
+
+    private static func storedToken(clientID: String) -> String {
+        let token = MuseTermKeychain.load(account: clientID, serviceName: keychainServiceName)
+        guard token.isEmpty, clientID == builtInClientID else { return token }
+        return MuseTermKeychain.load(account: MuseTermLegacyCompatibility.legacyClientID, serviceName: keychainServiceName)
     }
 
     static func recordAuthorization(clientID: String?, action: String, allowed: Bool) {
@@ -65,7 +78,7 @@ enum TerminalToolAccess {
                 ofItemAtPath: auditFile.path
             )
         } catch {
-            NSLog("QTerm tool access audit failed: \(error.localizedDescription)")
+            NSLog("MuseTerm tool access audit failed: \(error.localizedDescription)")
         }
     }
 

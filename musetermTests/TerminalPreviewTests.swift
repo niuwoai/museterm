@@ -8,7 +8,7 @@ final class TerminalPreviewTests: XCTestCase {
     private let png = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/xcAAwMCAO6V2yEAAAAASUVORK5CYII=")!
 
     private func root() throws -> URL {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("qterm-preview-tests-\(UUID())")
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("museterm-preview-tests-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         addTeardownBlock { try FileManager.default.removeItem(at: root) }
         return root
@@ -114,7 +114,7 @@ final class TerminalPreviewTests: XCTestCase {
     }
 
     func testGeneratedCLIMCPPairingBackgroundScopeAndTimeout() async throws {
-        let root = try root(), domain = "QTermPreviewTests.\(UUID())"
+        let root = try root(), domain = "MuseTermPreviewTests.\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: domain))
         defer { defaults.removePersistentDomain(forName: domain) }
         let workspace = TerminalWorkspace(automaticallyStartProcesses: false, profileStore: nil)
@@ -123,7 +123,7 @@ final class TerminalPreviewTests: XCTestCase {
         let source = try XCTUnwrap(workspace.selectedTab)
         workspace.newTab(startDirectory: root.path)
         let selected = workspace.selectedID
-        let toolRoot = root.appendingPathComponent("Library/Application Support/QTerm/Tools")
+        let toolRoot = root.appendingPathComponent("Library/Application Support/MuseTerm/Tools")
         let bridge = TerminalToolBridge(rootDirectory: toolRoot)
         bridge.attach(workspace: workspace)
         defer { bridge.stop(); TerminalPreviewCenter.shared.close(source.id) }
@@ -133,7 +133,7 @@ final class TerminalPreviewTests: XCTestCase {
         }
         MuseTermKeychain._useTestStorage(true)
         defer { MuseTermKeychain._useTestStorage(false) }
-        XCTAssertTrue(MuseTermKeychain.save("preview-fixture-only", account: "qterm-cli", serviceName: TerminalToolAccess.keychainServiceName))
+        XCTAssertTrue(MuseTermKeychain.save("preview-fixture-only", account: "museterm-cli", serviceName: TerminalToolAccess.keychainServiceName))
         preferences.toolBridgeWritesEnabled = true
         let definitions = try XCTUnwrap(MuseTermCLIInstaller.script.components(separatedBy: "\ncommand = ARGV.shift").first)
         let report = root.appendingPathComponent("cli-report.md")

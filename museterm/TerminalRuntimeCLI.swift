@@ -92,7 +92,7 @@ def cancel_backend_wait(root, id)
   private_tool_request(File.join(root, "requests", "#{cancel_id}.json"),
     {"id" => cancel_id, "action" => "cancel_wait", "waitID" => id, "controlID" => CONTROL_ID, "noResponse" => true})
 rescue StandardError
-  warn "QTerm backend wait cancellation could not be delivered; its bounded timeout remains active."
+  warn "MuseTerm backend wait cancellation could not be delivered; its bounded timeout remains active."
 end
 
 def backend_endpoint_request(source, action, fields = {}, timeout_seconds: STATUS_RESPONSE_TIMEOUT, wait_spec: nil)

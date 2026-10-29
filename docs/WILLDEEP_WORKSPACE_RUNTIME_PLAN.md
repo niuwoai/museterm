@@ -1,25 +1,25 @@
 # WillDeep 原生接入、项目分组/分屏与独立终端后台实施方案
 
-制定日期：2026-10-23。基线：QTerm `1.250.0-rc2` / `c47838a`；WillDeep CLI 远程 develop `208b124` / `0.114.0-rc8`。
+制定日期：2026-10-23。基线：MuseTerm `1.250.0-rc2` / `c47838a`；WillDeep CLI 远程 develop `208b124` / `0.114.0-rc8`。
 
 本轮先完成设计，再按下列阶段直接实施；不包含发版或替换用户当前运行的应用。ask user、confirm、model selector 的 UI 外化继续暂缓。
 
 ## 目标与现有代码
 
-1. WillDeep CLI 在 QTerm 本地终端启动后自动建立状态专用接入，真实工作、审批、回答、完成、失败和取消驱动 QTerm 徽标/待处理/事件等待。离开 QTerm 时 CLI 保持原功能；不通过屏幕猜测 WillDeep 状态。
+1. WillDeep CLI 在 MuseTerm 本地终端启动后自动建立状态专用接入，真实工作、审批、回答、完成、失败和取消驱动 MuseTerm 徽标/待处理/事件等待。离开 MuseTerm 时 CLI 保持原功能；不通过屏幕猜测 WillDeep 状态。
 2. 项目分组持有标签，标签持有可拆分的终端布局，每个叶子仍是独立 TerminalSession。侧栏、待处理跳转、CLI/MCP、悬浮面板、保存恢复共享稳定的终端 UUID。
 3. 终端 PTY 和子进程由独立后台服务持有；关闭/重启 UI 不关闭会话。重新连接继续同一 PID、目录和字节流；明确关闭终端才终止进程。后台服务自身崩溃或系统重启不能声称任意进程原样恢复。
 
-QTerm 已有 `TerminalAgentMonitor`、`TerminalAttentionStore`、`TerminalWaitCoordinator`，CLI/MCP 通过 `TerminalToolBridge` 私有文件桥通信。`TerminalHostController` 和 `FocusableLocalProcessTerminalView` 目前直接持有 SwiftTerm LocalProcess，并在退出时 terminate；这正是保活需要替换的边界。`TerminalWorkspace.tabs` 目前是一层 TerminalSession 数组，`WorkspaceSnapshot` 仅保存标签入口与目录。
+MuseTerm 已有 `TerminalAgentMonitor`、`TerminalAttentionStore`、`TerminalWaitCoordinator`，CLI/MCP 通过 `TerminalToolBridge` 私有文件桥通信。`TerminalHostController` 和 `FocusableLocalProcessTerminalView` 目前直接持有 SwiftTerm LocalProcess，并在退出时 terminate；这正是保活需要替换的边界。`TerminalWorkspace.tabs` 目前是一层 TerminalSession 数组，`WorkspaceSnapshot` 仅保存标签入口与目录。
 
-WillDeep 最新 develop 已将真实执行交给自己的 Runtime。`notify::Notifier` 汇集任务与待人工决策通知，TUI 的 `runtime_ui` 汇入远程 Runtime 状态。本轮连接它们的语义状态；QTerm 终端后台与 WillDeep 任务 Runtime 是两个职责，不能用一个代替另一个。原 WillDeep 主检出含大量无关修改，接入在 `/private/tmp/qterm-willdeep-native` 独立分支实现。
+WillDeep 最新 develop 已将真实执行交给自己的 Runtime。`notify::Notifier` 汇集任务与待人工决策通知，TUI 的 `runtime_ui` 汇入远程 Runtime 状态。本轮连接它们的语义状态；MuseTerm 终端后台与 WillDeep 任务 Runtime 是两个职责，不能用一个代替另一个。原 WillDeep 主检出含大量无关修改，接入在 `/private/tmp/museterm-willdeep-native` 独立分支实现。
 
 ## 边界与不变量
 
-- WillDeep 的 session ID、task/run ID、QTerm terminal UUID、PTY 运行代次分别保存。切换 WillDeep 会话不能把上一会话结果错误归入下一会话。
+- WillDeep 的 session ID、task/run ID、MuseTerm terminal UUID、PTY 运行代次分别保存。切换 WillDeep 会话不能把上一会话结果错误归入下一会话。
 - 状态权限不授予输入、批准工具、回答问题或续租能力。终端只注入私有上下文文件路径，凭据不放 argv、快照、事件或日志。文件/目录采用 0600/0700；上下文关闭后撤销，旧实例报告拒绝。
 - 真实审批/提问未解决时持续 blocked；查看只标已读。取消独立于失败，idle 独立于成功。后台子 Agent 提醒不能把主任务误标为完成。
-- 上报异步、有界、可超时；QTerm 不在线或旧版本不支持时不阻塞模型、输入或退出。工作/阻塞状态定期心跳；过期显示 unknown。
+- 上报异步、有界、可超时；MuseTerm 不在线或旧版本不支持时不阻塞模型、输入或退出。工作/阻塞状态定期心跳；过期显示 unknown。
 - 项目、标签、终端各有稳定 UUID；移动和重排不改变终端身份。UI 焦点、CLI 输入目标与布局位置分离。
 - 后台服务仅接受当前用户访问的本机 Unix socket；限制请求大小、输出回放、消费者积压和会话数量。断开消费者不终止 PTY，慢消费者不使内存无限增长。
 - 后台服务版本独立协商；UI 升级连接兼容旧服务，不为对齐版本强杀进程。现有正在运行的 LocalProcess 不声称可以无缝迁移。
@@ -30,7 +30,7 @@ WillDeep 最新 develop 已将真实执行交给自己的 Runtime。`notify::Not
 | 阶段 | 实施内容 | 必须取得的证据 |
 |---|---|---|
 | 0：协议与基线 | 本方案、上下文/状态契约、跨仓库隔离、测试清单 | 两仓库基线、权限边界、阶段依赖明确；此阶段不修改产品源码 |
-| 1：WillDeep 原生状态 | QTerm 新增 willdeep 类型、终端专用上下文与状态绑定；CLI 原生异步报告器连接 Notifier/Runtime 状态，维持会话与运行归属 | 无 QTerm 环境不产生副作用；安全文件校验；审批/提问/工作/成功/失败/取消/退出、心跳、过期、替换和迟到报告测试；真实 CLI 到 QTerm 路径验收 |
+| 1：WillDeep 原生状态 | MuseTerm 新增 willdeep 类型、终端专用上下文与状态绑定；CLI 原生异步报告器连接 Notifier/Runtime 状态，维持会话与运行归属 | 无 MuseTerm 环境不产生副作用；安全文件校验；审批/提问/工作/成功/失败/取消/退出、心跳、过期、替换和迟到报告测试；真实 CLI 到 MuseTerm 路径验收 |
 | 2：项目与布局模型 | 项目/标签/分屏树，稳定终端 ID，迁移快照，项目状态汇总、选择与移动操作 | 多项目同名目录、移动/重排/关闭、旧快照、损坏快照、Agent/待处理汇总单测；工具仍准确定位终端 |
 | 3：项目和分屏界面 | 侧栏项目分组、增改/移动/关闭、水平/垂直拆分、拖动比例和焦点；待处理定位到叶子终端 | 真实 UI 创建两项目、多分屏、逐个输入、跳转待处理、关闭/撤销与保存恢复；不重复挂载同一 NSView；中英文、窄窗口和悬浮行为验证 |
 | 4：独立后台 PTY | 专用后台可执行程序，创建/列举/附着/输入/调整尺寸/关闭/订阅；SwiftTerm 接外部传输，保留终端协议处理与现有安全输入 | 服务创建真实 PTY；UI 客户端退出后原 PID/命令继续；重新附着收到持续输出、可输入、可 resize；恶意/超大请求、断连、慢消费者、显式关闭、并发启动测试 |
@@ -40,15 +40,15 @@ WillDeep 最新 develop 已将真实执行交给自己的 Runtime。`notify::Not
 
 ## 跨仓库接入契约
 
-第一版采用版本化的本机上下文文件发现通道，字段包含 `protocolVersion`、`tabID`、`root` 和状态专用 `token`。环境只传 `QTERM_AGENT_CONTEXT` 路径；应用运行代次由现有事件游标提供，不能把它当作持久终端 ID。QTerm 的现有配对控制 API 保留；原生状态端点只绑定当前终端的 WillDeep，绝不借用全局工具凭据。
+第一版采用版本化的本机上下文文件发现通道，字段包含 `protocolVersion`、`tabID`、`root` 和状态专用 `token`。环境只传 `MUSETERM_AGENT_CONTEXT` 路径；应用运行代次由现有事件游标提供，不能把它当作持久终端 ID。MuseTerm 的现有配对控制 API 保留；原生状态端点只绑定当前终端的 WillDeep，绝不借用全局工具凭据。
 
-CLI 绑定后使用独立 instance/run token 与递增序列报告；后台线程维持心跳、超时和清理。只上报枚举与归属元数据，不上传问题正文、命令、模型 key 或会话聊天。QTerm 第一阶段复用现有文件桥；独立服务阶段将权威状态与终端身份迁到服务，UI 重连从服务取新快照和游标，不能依靠 UI 内存维持保活期间的状态。
+CLI 绑定后使用独立 instance/run token 与递增序列报告；后台线程维持心跳、超时和清理。只上报枚举与归属元数据，不上传问题正文、命令、模型 key 或会话聊天。MuseTerm 第一阶段复用现有文件桥；独立服务阶段将权威状态与终端身份迁到服务，UI 重连从服务取新快照和游标，不能依靠 UI 内存维持保活期间的状态。
 
 WillDeep 状态映射：Working/Queued → working；WaitingApproval → blocked/approval；WaitingAnswer → blocked/question；Blocked → blocked/other；Done → idle + completed；Failed → idle + failed；Interrupted/Cancelled → idle + interrupted；Partial → idle + unknown；Unknown → unknown；纯 Idle → idle、不生成成功事项。最终实现需结合 root 任务、当前会话和 pending gate 归属过滤；按状态快照对齐，不能把任意后台通知当作当前终端主任务。
 
 ## 版本与交付
 
-功能开发版本：QTerm `1.251.0-rc1` / Build `316`；WillDeep CLI 工作区与 Web 版本同步为 `0.115.0-rc1`。按各仓库已有规则更新 Changelog 和产品概览；本轮保持在功能分支，不自动发布或安装。测试证据输出 JSON 与 Markdown，并区分已实现、已测试、真实跨进程验收与未完成项。
+功能开发版本：MuseTerm `1.251.0-rc1` / Build `316`；WillDeep CLI 工作区与 Web 版本同步为 `0.115.0-rc1`。按各仓库已有规则更新 Changelog 和产品概览；本轮保持在功能分支，不自动发布或安装。测试证据输出 JSON 与 Markdown，并区分已实现、已测试、真实跨进程验收与未完成项。
 
 ## 实施记录
 
@@ -57,7 +57,7 @@ WillDeep 状态映射：Working/Queued → working；WaitingApproval → blocked
 - `1.251.0-rc28` / Build `343`：跨项目待处理定位后自动收起弹层，实际不加 Escape 或分屏点击的直接粘贴只到原目标，原问题仅已读仍待回答；查看端退出/更新/重开保持原三个 PTY、布局及问题，最终自有会话/凭据已清理。
 - 当前完整回归 621/621，随后补充的同名同目录项目独立身份/提醒用例 1/1，Rust 原生模块离线 16/16；未签名 Universal Release 构建与同一 Release helper 的真实 WillDeep 连续性/当前 CLI 双等待、真实 SSH 10 项通过。
 - 逐项证据和范围见 verification/willdeep-workspace-runtime/completion-audit.md。历史失败原样保留；不声称额外系统通知投递、外部机器或所有界面组合已验证，不承诺后台崩溃/系统重启保留任意原进程。
-- WillDeep 原生接入保持在隔离检出，并交付含新增文件的源码补丁，在干净基线的一次性索引中应用检查通过。两仓库均未提交或发布，本机 QTerm 仍未替换，正常 Runtime 未操作。
+- WillDeep 原生接入保持在隔离检出，并交付含新增文件的源码补丁，在干净基线的一次性索引中应用检查通过。两仓库均未提交或发布，本机 MuseTerm 仍未替换，正常 Runtime 未操作。
 
 ### 最新：2026-10-24 重启输入就绪假设与最终候选回归
 
@@ -75,7 +75,7 @@ WillDeep 状态映射：Working/Queued → working；WaitingApproval → blocked
 ### 最新：2026-10-24 损坏端点与真实 SSH 传输
 
 - `1.251.0-rc24` / Build `339`：受控代理损坏真实服务响应，覆盖协议不兼容、非法 JSON、错误请求身份、响应超大和代次变化；拒绝后原后台/PTY 仍能执行命令，不触发替代启动。定向 5/5，完整 616/616，0 失败、0 跳过。
-- 实际 QTerm helper/PTY 和只监听回环的 OpenSSH 服务完成 10 项认证、查看端重连、实际 TCP 断连、显式新代次重新认证和错误密钥拒绝验证；错误认证不影响原重连进程。失败启动夹具也能回收 SSH 服务和临时密钥。
+- 实际 MuseTerm helper/PTY 和只监听回环的 OpenSSH 服务完成 10 项认证、查看端重连、实际 TCP 断连、显式新代次重新认证和错误密钥拒绝验证；错误认证不影响原重连进程。失败启动夹具也能回收 SSH 服务和临时密钥。
 - 保留 StrictModes，初始 `/private/tmp` 祖先目录被拒绝后改用权限合规的私有工作区目录，新增 Git 忽略且全部清理。没有修改系统远程登录或用户 SSH 配置。
 - 这不代替外部机器、GUI/Profile 和正式入口验收，也不覆盖所有历史版本。原间歇性输入拒绝继续保留诊断；整体目标保持推进。证据见 verification/willdeep-workspace-runtime/compatibility-and-authenticated-ssh.md。
 
@@ -141,11 +141,11 @@ WillDeep 状态映射：Working/Queued → working；WaitingApproval → blocked
 - 实际隔离原生 App 中另一个终端保持选中，后台原终端输出检查点保存后向已核对路径/PID 的 QA App 发 SIGKILL。UI 消失后原 zsh PTY 保持并接受新的测试命令；CUA 重开同一 App 后 UI 代次改变，原 PID/终端代次及原焦点保持，旧命令未重新进入实时命令块，离线命令正常识别。列表只显示原响铃并合并 2 次；实际点击后定位原终端，数字/列表/未读与后台一起清除。
 - 强制结束用例等待了检查点真正保存；不承诺主线程阻塞、保存失败或最新未保存窗口零丢失，不把内核文件写入当作系统断电恢复。该 GUI 用例是 zsh 普通提醒，尚未替代 WillDeep 审批强制结束联合验收。QA App 已退出，仅本轮两个测试终端及自有后台已回收。
 - 当前 Universal helper 通过 8 项提醒、11 项等待和 21 项后台回归；实际隔离 WillDeep/Runtime、本机 mock 模型及当前 CLI 的唯一审批与离线 31 秒双等待再次通过。真实 GUI 使用隔离 App 自带并签名的 helper，其 SHA 与独立 Universal 产物分开留证。
-- 仍需 WillDeep 审批强制结束联合场景、新建项目工具完整 GUI、多窗口/全布局、远端 SSH、旧服务和系统通知验收；还需审查合法最大会话数的元数据帧与在途重复已读边界。正常入口继续关闭，未提交、未发版、未替换本机 QTerm 或正常 WillDeep Runtime。
+- 仍需 WillDeep 审批强制结束联合场景、新建项目工具完整 GUI、多窗口/全布局、远端 SSH、旧服务和系统通知验收；还需审查合法最大会话数的元数据帧与在途重复已读边界。正常入口继续关闭，未提交、未发版、未替换本机 MuseTerm 或正常 WillDeep Runtime。
 
 ### 前一阶段：2026-10-24 项目布局 CLI/MCP 与后台创建入口
 
-- 开发版本 `1.251.0-rc13` / Build `328`。统一 `project_layout` 工具与 `qterm project OPERATION [REQUEST_JSON]` 提供 14 项操作，覆盖在线查询/项目活动聚合、创建、改名、单叶子或整标签移动、项目/标签重排、分屏/比例、定位及三种关闭范围。使用稳定 UUID，写操作复用配对与开关，不授予输入租约。
+- 开发版本 `1.251.0-rc13` / Build `328`。统一 `project_layout` 工具与 `museterm project OPERATION [REQUEST_JSON]` 提供 14 项操作，覆盖在线查询/项目活动聚合、创建、改名、单叶子或整标签移动、项目/标签重排、分屏/比例、定位及三种关闭范围。使用稳定 UUID，写操作复用配对与开关，不授予输入租约。
 - 默认操作保持原项目/可保留焦点与未读，不因暂时选中源叶子清除审批；整标签移动保留分屏树及全部身份。运行中关闭要求显式声明，响应只表示 processClosure:requested，后台 ACK 另查。目录必须有效，空项目创建标签沿用保存的项目目录；未知归属终端仍不能猜测配置后分屏重建。
 - 每个请求必须带 UI 运行代次和最多 60 秒的同机单调时钟有效期，CLI 自动填充并清理未接收的超时文件；范围缺失、过期、跨 UI 或可选布局修订不匹配时拒绝。实际检查发现 ProcessInfo uptime 与 Ruby 默认单调时钟基准不同，最终统一为 Darwin/Ruby CLOCK_MONOTONIC；最大有效期也会拒绝错误基准。客户端超时不能冒充已接受操作撤销，不自动重发写操作。
 - 独立后台启用时进程启动不再等待 NSView 挂载；未挂载使用默认 80×24，实际挂载后同步真实尺寸。已验证无窗口查看器不将 PTY 缩成极小尺寸；完整原生 App 中这条新入口尚需专项验收，不能以此声明所有后台新建流程已完。
@@ -160,7 +160,7 @@ WillDeep 状态映射：Working/Queued → working；WaitingApproval → blocked
 - 实时 UI 与服务共用事项 ID/版本/列表/红点，历史重放不再生成第二份事项；旧版本已读先刷新，不能清掉新版本。后台只读 `list_attention` 接入当前生成 CLI/MCP，UI 停止后仍可读取同一列表；已读权限仍经原配对 UI 路径。系统通知由在线 UI 投递，历史事项不补发系统通知。
 - 最终完整回归 582/582。真实 SwiftTerm 重连时同一个响铃事项保持 5 次，已读后列表与红点同时清除；禁用后无新事项，生成 CLI 在 UI 停止后仍返回后台同一 ID。原生语义去重后，旧列表夹具需从 working 改为明确 unknown 以验证兜底，前次完整 581/582 失败记录保留，未放宽产品规则。
 - 相同 Universal helper 通过 8 项实际提醒检查、11 项等待和 21 项既有后台回归；实际 WillDeep/隔离 Runtime、本机 mock 模型及当前 rc12 生成 CLI，在所有查看客户端脱离 31 秒后仍有唯一原审批，批准后双等待匹配同 task completed。首轮联调发现 BEL 与审批双计数，原失败、修复规则及最终复验分别留证，未通过修改验收数量绕过。
-- 完整项目工具操作、异常退出游标、远端 SSH、全布局/多窗口及系统通知真实投递仍需验收；正常后台入口保持关闭。未提交、未发版、未替换本机 QTerm 或正常 WillDeep Runtime。
+- 完整项目工具操作、异常退出游标、远端 SSH、全布局/多窗口及系统通知真实投递仍需验收；正常后台入口保持关闭。未提交、未发版、未替换本机 MuseTerm 或正常 WillDeep Runtime。
 
 ### 前一阶段：2026-10-24 后台命令生命周期
 
@@ -175,7 +175,7 @@ WillDeep 状态映射：Working/Queued → working；WaitingApproval → blocked
 - 开发版本 `1.251.0-rc10` / Build `325`。UI 私有运行元数据新增经过能力协商的后台端点/服务游标，终端快照公开服务游标与纯输出修订。通用事件读取、状态查询与等待自动选择已声明的后台；显式 UI 游标保留旧路径，端点失败不回退第二份权威。
 - 服务另写自己的私有 PID/运行代次元数据，避免 UI 退出或重开使后台等待错误结束；实际服务退出/重建产生独立 outcome。对外事件/等待时间递归转换为 RFC3339，不将 Foundation 时间误当 Unix 秒。
 - 最终完整回归 564/564。真实 UI 工具桥先发布实际服务描述，再停止处理和查看端；自有测试元数据模拟 UI PID 退出/代次变化，实际生成 CLI 仍正确读取并等待同一 Agent。MCP 等待不阻塞 ping，取消/EOF 后真实诊断 pendingWaits 为 0，且取消不产生 MCP 结果。
-- 相同 Universal helper 通过 10 项等待契约和 21 项后台回归；实际 WillDeep/隔离 Runtime 使用本机 mock 模型，原生文件等待及真实生成 QTerm CLI 的两个等待在全部查看客户端脱离 31 秒时都保持，批准后都匹配同 task 的明确 completed。helper 与 CLI 源 SHA 已绑定记录；CLI 元数据模拟无 UI，未代替实际 GUI/强杀复验。
+- 相同 Universal helper 通过 10 项等待契约和 21 项后台回归；实际 WillDeep/隔离 Runtime 使用本机 mock 模型，原生文件等待及真实生成 MuseTerm CLI 的两个等待在全部查看客户端脱离 31 秒时都保持，批准后都匹配同 task 的明确 completed。helper 与 CLI 源 SHA 已绑定记录；CLI 元数据模拟无 UI，未代替实际 GUI/强杀复验。
 - 后台命令块权威、普通提醒权威、其余项目工具路由、异常退出游标和全布局/多窗口/远端 SSH 联合验收仍未完成。正常入口关闭，未提交、未发版、未替换本机应用或正常 Runtime。
 
 ### 前一阶段：2026-10-24 后台事件与共享有界等待
@@ -200,7 +200,7 @@ WillDeep 状态映射：Working/Queued → working；WaitingApproval → blocked
 - 开发版本 `1.251.0-rc7` / Build `322`。工作区启动异步读取现存后台，会话发现本身不启动或替换服务；排除所有有效保存记录和当前窗口已认领的终端，主线程不执行 Socket 等待。没有恢复记录时先发现再决定是否新建默认 shell，避免与找回流程竞态。
 - 找回配置来源不明的终端保留原 UUID/代次，放入“找回的后台终端”，UI/工具公开仅附着标记；不猜测 SSH/Profile，不发送启动命令，不复制成可重新创建的本地配置。手动配置快照与配置继承分屏拒绝未知配置；正常保存仍保留仅附着身份。损坏记录保留原文件并显示问题，不覆盖。
 - 最终源码完整回归 554/554、0 失败、0 跳过。真实后台与 SwiftTerm 验证缺失记录时原 PTY 可继续输入、多窗口并发去重、未打开记录保留、损坏记录保留、无服务回退及仅附着私有记录校验。
-- 真实原生 QTerm + WillDeep CLI/Runtime（本机 mock 模型）联合通过：正常退出后暂移唯一自有恢复记录，确认 QA 进程消失至少 46.35 秒；自动找回同 PTY/PID/代次、同前台 WillDeep/task/gate/审批 ID，后台和 UI 各只有原终端。实际 y 后唯一完成；正常 /exit 后再次保存退出重开仍接回原 shell/代次和仅附着标记，原记录备份 SHA 保持。没有强杀 App 或重启后台，不宣称恢复已缺失的原布局/Profile。
+- 真实原生 MuseTerm + WillDeep CLI/Runtime（本机 mock 模型）联合通过：正常退出后暂移唯一自有恢复记录，确认 QA 进程消失至少 46.35 秒；自动找回同 PTY/PID/代次、同前台 WillDeep/task/gate/审批 ID，后台和 UI 各只有原终端。实际 y 后唯一完成；正常 /exit 后再次保存退出重开仍接回原 shell/代次和仅附着标记，原记录备份 SHA 保持。没有强杀 App 或重启后台，不宣称恢复已缺失的原布局/Profile。
 - 完整工具/事件路由、远端 SSH 故障/认证、全部布局和多窗口联合验收及正常入口仍未完成；未提交、未发版、未替换本机应用或重启正常 Runtime。
 
 ### 前一阶段：2026-10-24 已退出 PTY 重启与 SSH 重连
@@ -223,7 +223,7 @@ WillDeep 状态映射：Working/Queued → working；WaitingApproval → blocked
 - 开发版本 `1.251.0-rc4` / Build `319`。增加仅含安全元数据的失败阶段与私有后台诊断，捕获真实剪贴板失败：订阅 Socket 约 12 KB 积压在 5 秒触发 write_deadline，界面阶段为 subscription；原 PTY 仍存活。
 - 将输出订阅写预算和查看端消费确认预算独立为 30 秒，普通 RPC 仍为 5 秒，积压容量仍为 256 KB。没有重发输入、重建进程或放宽输入权限。旧 helper 相同 7 秒暂停回归确实失败，修复后同 Socket 完整收齐输出；新增实际主线程暂停测试通过。
 - 最新完整单测 541/541、实际窗口/PTY 专项 18/18、后台检查 21 项均通过。后台诊断需 UI capability，最多 32 条，恶意请求正文不进入记录；测试覆盖权限、容量和慢消费者断开仍不影响 PTY/快读取端。
-- 第六轮真实 QTerm + WillDeep（本机 mock 模型）剪贴板提交不再断连，不需要手动重连；审批中正常 Cmd+Q 后界面退出至少 67.87 秒，重开保持原 PTY PID/代次、前台 WillDeep PID 和同一审批 gate；实际确认后同任务完成，后台无异常断开记录。
+- 第六轮真实 MuseTerm + WillDeep（本机 mock 模型）剪贴板提交不再断连，不需要手动重连；审批中正常 Cmd+Q 后界面退出至少 67.87 秒，重开保持原 PTY PID/代次、前台 WillDeep PID 和同一审批 gate；实际确认后同任务完成，后台无异常断开记录。
 - **新增的明确未完成项**：全新 QA 只有一个终端，重开后除唯一原生审批外还出现“终端响铃”；已确认属于历史输出回放副作用，不能再解释为其他旧夹具提醒。恢复画面有历史绘制残留。后续需在回放边界处理副作用和显示状态，再验证总列表/数字及真实画面，不能把当前原生待处理单项断言当作全部 UI 通过。
 - 全目标尚未完成，正式后台入口仍默认关闭；SSH 重连、孤立会话发现、完整 CLI/MCP/事件路径等继续按原方案推进。本轮不提交、不发版、不替换本机应用。
 
@@ -231,8 +231,8 @@ WillDeep 状态映射：Working/Queued → working；WaitingApproval → blocked
 
 - 开发版本 `1.251.0-rc3` / Build `318`。修复项目标签内部默认菜单覆盖项目操作的问题，完整/紧凑行均注入同一项目菜单；真实原生界面已核验两种菜单，并实际完成移动、分屏、输入定位和单叶子显式关闭。
 - 真实 WillDeep 图形联合第三轮通过：使用 rc2 隔离 QA、真实 CLI/Runtime 和本机 mock 模型，逐键提交触发审批；正常 Cmd+Q 后界面退出至少 69.51 秒，重新打开仍是同一服务、PTY PID/代次、前台 WillDeep PID、task/gate 与唯一审批事项；实际按 y 后得到同任务唯一完成摘要，再通过 /exit 正常退场。证据见 `native-real-gui-keyboard`，不能等同于所有输入/视觉路径通过。
-- 第四轮剪贴板路径仍复现 unavailable 与回车未提交。原始 PTY 字节记录器收到完整粘贴起止/正文/CR；同步输入库和 crossterm 0.29 EventStream 最小程序也收到 Paste 和 Enter。尚未确定真实 WillDeep 与 QTerm 组合的断连原因，未按猜测修改产品输入实现；恢复时还观察到画面重放问题。
-- 项目菜单专项 20/20 通过。移动保留原终端 PID/代次，并由真实命令标记证明可继续输入；菜单分屏生成新叶子，标记只在新 PTY 出现；关闭早期遗留测试叶子后该后台 PTY 和夹具 CLI 被回收，分屏树正常收缩，其他会话及用户原 QTerm PID 保留。
+- 第四轮剪贴板路径仍复现 unavailable 与回车未提交。原始 PTY 字节记录器收到完整粘贴起止/正文/CR；同步输入库和 crossterm 0.29 EventStream 最小程序也收到 Paste 和 Enter。尚未确定真实 WillDeep 与 MuseTerm 组合的断连原因，未按猜测修改产品输入实现；恢复时还观察到画面重放问题。
+- 项目菜单专项 20/20 通过。移动保留原终端 PID/代次，并由真实命令标记证明可继续输入；菜单分屏生成新叶子，标记只在新 PTY 出现；关闭早期遗留测试叶子后该后台 PTY 和夹具 CLI 被回收，分屏树正常收缩，其他会话及用户原 MuseTerm PID 保留。
 - 持续推进真实输入/订阅断连、正确画面恢复、SSH 重连、孤立会话发现、完整 CLI/MCP/事件路径与正式后台入口；未提交、未发版、未替换本机应用，全目标保持未完成。
 
 ### 前一阶段：2026-10-24 原生图形复验与输入诊断
@@ -244,35 +244,35 @@ WillDeep 状态映射：Working/Queued → working；WaitingApproval → blocked
 - 普通 shell 原生恢复证据与完整 WillDeep 待审批恢复/确认仍是不同验收项。下一步先定位真实键盘/粘贴与订阅断连，再重跑同前台 WillDeep PID、同 gate 的完整 GUI 流程；其他 SSH 重连、孤立会话发现、工具/事件全路径和正式入口仍按原目标继续。本轮不提交、不发版、不替换本机应用。
 
 - 阶段 0：完成代码边界核对、WillDeep 干净隔离检出与本方案。其余阶段待实施和验收，不能据此文档判定功能已完成。
-- 阶段 1：两端状态协议、TUI Runtime 快照与本地任务报告器已实现；QTerm 首轮 31 项、Rust 原生模块首轮 10 项通过。真实 CLI/UI 跨进程、心跳/断连及无头运行覆盖尚待补齐，阶段未完成。
+- 阶段 1：两端状态协议、TUI Runtime 快照与本地任务报告器已实现；MuseTerm 首轮 31 项、Rust 原生模块首轮 10 项通过。真实 CLI/UI 跨进程、心跳/断连及无头运行覆盖尚待补齐，阶段未完成。
 - 阶段 2/3：项目/分屏纯模型、布局快照迁移与侧栏/画布接线已开始；纯模型首轮 6 项（与原生 4 项合计 10 项）通过，后续新增快照用例及最新 UI 仍需验证。尚未实现独立后台，不得把标签分离或配置快照称作后台保活。
 
 ### 继续验证记录
 
-- 项目/工作区相关测试已取得 60 项通过的阶段结果（`/private/tmp/qterm-project-workspace-01.xcresult`）；最新 UI 用例两次均未进入执行，runner 在启用自动化时超时，不能记为 UI 通过。
+- 项目/工作区相关测试已取得 60 项通过的阶段结果（`/private/tmp/museterm-project-workspace-01.xcresult`）；最新 UI 用例两次均未进入执行，runner 在启用自动化时超时，不能记为 UI 通过。
 - `scripts/verify_willdeep_native.rb` 现显式启动临时 Runtime 子进程并仅回收自有 PID，不调用通用 `daemon stop`，不触碰用户正常 Runtime。临时目录采用短路径以满足 Darwin Unix socket 限制。
 - 第六轮真实 TUI + PTY + 临时 Runtime + mock 模型/状态桥记录到审批、丢 ACK 重试、30 秒心跳与完成，且同一 gate/task 身份稳定。但报告中也出现完成前的合成任务 interrupted，暴露 Runtime 前端结束路径误按本地任务处理；因此该轮不能作为完整通过证据。已修正按 local_mode 判断，并新增反误报断言，等待新版二进制重验。
 - 新增退出前发送最后状态，以及无头 CLI 按真实 turn/task/gate 报告的代码；相关编译/测试尚在执行。后台 PTY 服务仍未实现，目标保持未完成。
 - Rust 最新原生状态单测 16/16 通过，包含 Runtime 结束不误报本地中断、退出前发送最终结果和保留 Runtime 任务；夹具响应已改为原子发布，避免读取半截 JSON。实际新版二进制构建仍需完成后重跑 TUI 与两种无头模式。
-- QTerm 原生状态/项目布局/输出缓冲 18/18 通过（`/private/tmp/qterm-runtime-output-native-layout-01.xcresult`）。输出缓冲测试覆盖回绕、分段读取、淘汰缺口、代次不匹配、未来游标、容量限制及原始 VT/二进制字节不改写。
+- MuseTerm 原生状态/项目布局/输出缓冲 18/18 通过（`/private/tmp/museterm-runtime-output-native-layout-01.xcresult`）。输出缓冲测试覆盖回绕、分段读取、淘汰缺口、代次不匹配、未来游标、容量限制及原始 VT/二进制字节不改写。
 - `FocusableLocalProcessTerminalView` 已从宿主控制器文件拆出，为外部 PTY 传输留出边界；拆分后的编译与回归仍待结果。该结构调整与环形缓冲不等于独立后台已完成。
-- 最新实际 CLI TUI、无头完成、无头待审批三种模式均通过；TUI 误报中断已消除。拆分后编译/缓冲 5 项和准确选中的输入法提交 2 项通过。脱敏 JSON/Markdown 报告及失败说明见 [验证索引](verification/willdeep-workspace-runtime/README.md)。状态桥仍为测试夹具，真实 QTerm 联调、分屏 UI 和独立后台联合验收尚未完成。
+- 最新实际 CLI TUI、无头完成、无头待审批三种模式均通过；TUI 误报中断已消除。拆分后编译/缓冲 5 项和准确选中的输入法提交 2 项通过。脱敏 JSON/Markdown 报告及失败说明见 [验证索引](verification/willdeep-workspace-runtime/README.md)。状态桥仍为测试夹具，真实 MuseTerm 联调、分屏 UI 和独立后台联合验收尚未完成。
 
 ### 2026-10-24：独立后台与 WillDeep 联合推进
 
 - `tools/terminal-runtime/` 已实现独立真实 PTY 服务，`scripts/build_terminal_runtime.rb` 可构建 Universal helper。包括 peer UID/私有 capability/协议版本、独占启动、创建/列举/输入/尺寸/关闭/订阅、有界回放、慢消费者、输入去重与控制代次。终端 argv/env 在 fork 前准备，子进程 exec 前不调用 Swift/Foundation。
-- 服务注入自己的私有 `QTERM_AGENT_CONTEXT`，通过单独的 native-tools 文件端点接受状态绑定/报告；不会授予 UI/input capability。Agent、事件与待处理归约从界面文件中拆出并复用，服务持有其权威状态。界面侧纯协议和状态模型显式不隔离到主线程，`TerminalRuntimeConnection` 通过有界、可取消、带超时的 Socket 连接通信，不自动重发输入。
+- 服务注入自己的私有 `MUSETERM_AGENT_CONTEXT`，通过单独的 native-tools 文件端点接受状态绑定/报告；不会授予 UI/input capability。Agent、事件与待处理归约从界面文件中拆出并复用，服务持有其权威状态。界面侧纯协议和状态模型显式不隔离到主线程，`TerminalRuntimeConnection` 通过有界、可取消、带超时的 Socket 连接通信，不自动重发输入。
 - 最新服务跨进程、生产 Swift 连接器、实际 WillDeep CLI 与实际服务联合三组验证通过，报告 SHA256 绑定同一 Universal helper。实际 WillDeep 验证中全部 UI 客户端断开超过 31 秒，原 PID/待审批仍存活且唯一，重连确认后得到同一任务的完成摘要。
 - 共用状态/事件/待处理/输出缓冲等 43 项应用专项通过。实际后台驱动需回答设备状态查询，防止 CLI 的媒体能力探测争抢 stdin；这是测试驱动协议完整性要求，后续 SwiftTerm 接入必须保留设备回复路径。
-- 阶段 4 服务核心取得证据；产品接入仍未完成。下一步是 helper 构建/服务发现、SwiftTerm 外部传输、安全输入与设备回复、退出时仅断开 UI、稳定 UUID 恢复原 PTY、权威待处理/事件镜像和 CLI/MCP 路由。还需解决项目分组/分屏 UI、悬浮归属和工具动作，并在真实 QTerm 界面完成阶段 5。不得将本轮服务验证记为完整目标完成。
+- 阶段 4 服务核心取得证据；产品接入仍未完成。下一步是 helper 构建/服务发现、SwiftTerm 外部传输、安全输入与设备回复、退出时仅断开 UI、稳定 UUID 恢复原 PTY、权威待处理/事件镜像和 CLI/MCP 路由。还需解决项目分组/分屏 UI、悬浮归属和工具动作，并在真实 MuseTerm 界面完成阶段 5。不得将本轮服务验证记为完整目标完成。
 
 ### 2026-10-24：SwiftTerm 接入与后台控制
 
-- helper 已打入隔离应用，真实 SwiftTerm 窗口已接外部传输；窗口脱离后使用相同 UUID/generation 重新连接原 PID，启动描述符不会重开替代 shell。四项窗口/策略测试通过（`qterm-runtime-view-04.xcresult`），不是正常应用退出重开验收。
+- helper 已打入隔离应用，真实 SwiftTerm 窗口已接外部传输；窗口脱离后使用相同 UUID/generation 重新连接原 PID，启动描述符不会重开替代 shell。四项窗口/策略测试通过（`museterm-runtime-view-04.xcresult`），不是正常应用退出重开验收。
 - 协议 2 增加快照 revision、受限设备回复通道和 inbox 事件游标；旧输出帧不能回退控制状态或撤销已读 ACK。实际 WillDeep 与协议 2 后台联合通过，全部 UI 客户端断开 31 秒后保持原 PID、同一 gate，确认后完成；报告 `native-real-backend-v2.json`。
 - 产品租约从后台投影，异步接管/续租/释放按服务 ACK 返回，人工解锁不提前撤掉蒙层。不同 owner 不能释放他人租约，进程结束清理租约；实际 AI 输入在服务端续租。CLI/MCP 后台控制和输入不再将 UI 入队当作成功；18 项专项及随后 517 项完整单测通过，含真实工具文件桥权限/接管/输入执行/释放/旧输入拒绝。
 - 新增静默订阅 15 秒心跳与续租广播测试，发现并修复首包被静默时间误判写超时的问题；新 Universal helper 的 18 项服务检查及实际 WillDeep 31 秒全客户端脱离测试均通过，两份报告绑定相同 SHA。正常应用退出重开仍不是本轮证据范围。
-- 当前 embedded helper 与真实 SwiftTerm 窗口最新 7 项专项通过（`qterm-runtime-idle-view-01.xcresult`），包括静默 6 秒后首包仍送达原 PID；证据记录为 `runtime-idle-view.json`。本机再次回读仍为 `1.250.0-rc1` / Build 314，未替换应用。
+- 当前 embedded helper 与真实 SwiftTerm 窗口最新 7 项专项通过（`museterm-runtime-idle-view-01.xcresult`），包括静默 6 秒后首包仍送达原 PID；证据记录为 `runtime-idle-view.json`。本机再次回读仍为 `1.250.0-rc1` / Build 314，未替换应用。
 - helper 模块缓存改为稳定私有目录并加构建锁；同源码 arm64 swiftc 冷构建 172.38 秒、热构建 19.29 秒，三项缓存/锁安全契约通过。该数字仅表示 helper 编译，不能推导整个测试或正式发布提速。
 - 正常产品入口仍为旧后端；仅隔离测试入口启用独立后台。退出保存/恢复、输入安全 echo 预检、普通提醒和 Agent 权威统一、完整 CLI/MCP 路由、分屏界面/焦点与悬浮归属等仍需完成，不能标记全目标完成。
 
@@ -291,5 +291,5 @@ WillDeep 状态映射：Working/Queued → working；WaitingApproval → blocked
 - 恢复已有 AI 租约后，首次授权输入先建立新的私有 JSONL 存档，记录 viewer_reattached；实际 echo-off 输入只记录省略事件，原文不进入存档。工具快照新增原 PTY PID/代次/连接状态，供完整重启验收定位身份。应用最终退出通知不再清除退出标志，避免销毁悬浮窗口时退回终止进程的路径。
 - 输入专项初轮的两项失败来自夹具误假定交互式 sh 开启 echo。实际行编辑器关闭了 echo，故改用显式 `stty sane echo` 的真实 PTY 命令读取循环，再执行 echo 切换；保留真实开/关、写前拒绝和无执行断言。修正后 64 项输入/控制/安全分析/隧道/ZMODEM 专项通过，当前完整应用单测 536/536 通过。
 - 当前 Universal 后台的 20 项服务检查与实际 WillDeep 联调均通过，报告绑定同一 SHA；包括预检/写前拒绝错误上下文、静默心跳、全部客户端断开 31 秒后同 PID/同 gate 并确认完成。新增私有 `shutdownIfEmpty` 用于所有终端已显式关闭后的维护退出，活会话存在时拒绝；原生状态端点仍为协议 1，不获得输入或退出服务的权限。
-- 已编写完整 App 正常 Cmd+Q/再次启动/分屏身份恢复的 UI 用例及自有后台清理，但 `qterm-runtime-app-relaunch-ui-01.xcresult` 在启用自动化模式时超时，测试方法未执行，不能记为 UI 通过。现有原生自动化启动接口不支持直接传入测试参数，替代复验入口仍需配置；没有改用生产应用验证，也没有替换本机 QTerm。
+- 已编写完整 App 正常 Cmd+Q/再次启动/分屏身份恢复的 UI 用例及自有后台清理，但 `museterm-runtime-app-relaunch-ui-01.xcresult` 在启用自动化模式时超时，测试方法未执行，不能记为 UI 通过。现有原生自动化启动接口不支持直接传入测试参数，替代复验入口仍需配置；没有改用生产应用验证，也没有替换本机 MuseTerm。
 - 输入预检与恢复后存档的窗口路径已有证据；仍需完整安全确认/隧道/ZMODEM 端到端、SSH 重连、后台孤立会话发现、Agent/普通提醒/事件等待与 CLI/MCP 全路径、完整 App 多窗口/悬浮/分屏及 WillDeep 图形联合验收。正常产品后台保持默认关闭，全目标未完成。

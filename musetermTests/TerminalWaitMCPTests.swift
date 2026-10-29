@@ -9,14 +9,14 @@ final class TerminalWaitMCPTests: XCTestCase {
         let process: Process
         let input: Pipe
         let output: Pipe
-        var requests: URL { root.appendingPathComponent("Library/Application Support/QTerm/Tools/requests") }
-        var responses: URL { root.appendingPathComponent("Library/Application Support/QTerm/Tools/responses") }
+        var requests: URL { root.appendingPathComponent("Library/Application Support/MuseTerm/Tools/requests") }
+        var responses: URL { root.appendingPathComponent("Library/Application Support/MuseTerm/Tools/responses") }
     }
 
     private func fixture() throws -> Fixture {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("qterm-wait-mcp-\(UUID())")
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("museterm-wait-mcp-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        let script = root.appendingPathComponent("qterm.rb")
+        let script = root.appendingPathComponent("museterm.rb")
         let definitions = try XCTUnwrap(MuseTermCLIInstaller.script.components(separatedBy: "\ncommand = ARGV.shift").first)
         try (definitions + "\ndef access_token; nil; end\ncommand_mcp\n").write(to: script, atomically: true, encoding: .utf8)
         let process = Process()

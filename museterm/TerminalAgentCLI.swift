@@ -125,7 +125,7 @@ def command_agent(args)
   end
   action = {"bind" => "bind_agent", "report" => "report_agent_state", "status" => "get_agent_state",
     "events" => "read_session_events"}[operation]
-  raise "Use qterm agent bind|report|status|events." unless action
+  raise "Use museterm agent bind|report|status|events." unless action
   print_json(agent_request(action, options))
 end
 

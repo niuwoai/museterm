@@ -60,7 +60,7 @@ final class TerminalAgentBadgeTests: XCTestCase {
             let image = try render(gallery)
             let bitmap = try XCTUnwrap(NSBitmapImageRep(data: XCTUnwrap(image.tiffRepresentation)))
             let data = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
-            let name = "qterm-rc33-agent-badges-\(scheme == .dark ? "dark" : "light")"
+            let name = "museterm-rc33-agent-badges-\(scheme == .dark ? "dark" : "light")"
             try data.write(to: URL(fileURLWithPath: "/private/tmp/\(name).png"))
             let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.png")
             attachment.name = name

@@ -25,7 +25,7 @@ enum TerminalAgentUITestFixture {
                 }
             }
         } catch {
-            NSLog("QTerm agent UI fixture could not initialize")
+            NSLog("MuseTerm agent UI fixture could not initialize")
         }
     }
 }

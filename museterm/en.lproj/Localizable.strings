@@ -1,4 +1,4 @@
-"app.name" = "QTerm";
+"app.name" = "MuseTerm";
 "app.lightweight" = "Light terminal";
 "someim.update.check" = "Check for Updates…";
 
@@ -97,7 +97,7 @@
 "action.save_workspace" = "Save Workspace";
 "action.restore_workspace" = "Restore Workspace";
 
-"menu.about" = "About QTerm";
+"menu.about" = "About MuseTerm";
 "menu.settings" = "Settings…";
 "menu.tab" = "Tab";
 "terminal.context.type_escaped_selection" = "Type Escaped Selection";
@@ -202,9 +202,9 @@
 "shortcut.tooltip" = "%d inputs · %d seconds";
 "shortcut.actions.help" = "Manage this recording.";
 "shortcut.auth.require" = "Verify it's you before replay";
-"shortcut.auth.require.help" = "When on, clicking replay, the command palette, MCP, the CLI, and AppleScript all ask for Touch ID first. If Touch ID is missing or unavailable, QTerm asks for this Mac's login password instead.";
+"shortcut.auth.require.help" = "When on, clicking replay, the command palette, MCP, the CLI, and AppleScript all ask for Touch ID first. If Touch ID is missing or unavailable, MuseTerm asks for this Mac's login password instead.";
 "shortcut.auth.automation" = "Allow AI replay";
-"shortcut.auth.automation.help" = "When off, MCP, the CLI, and AppleScript cannot replay this recording. Replaying it yourself in QTerm still works. If verification is also on, that replay asks for Touch ID too.";
+"shortcut.auth.automation.help" = "When off, MCP, the CLI, and AppleScript cannot replay this recording. Replaying it yourself in MuseTerm still works. If verification is also on, that replay asks for Touch ID too.";
 "shortcut.auth.reason" = "Confirm it is you before replaying \"%@\".";
 "shortcut.auth.use_password" = "Use Password";
 "shortcut.auth.error.not_playable" = "This recording has nothing to replay.";
@@ -245,7 +245,7 @@
 "file_transfer.download.save_title" = "Choose local save file";
 "file_transfer.download.default_filename" = "downloaded-file";
 "file_transfer.download.prompt_title" = "Download remote file";
-"file_transfer.download.prompt_message" = "The local save file is selected. Now enter the remote file path; QTerm will check whether remote sz is available.";
+"file_transfer.download.prompt_message" = "The local save file is selected. Now enter the remote file path; MuseTerm will check whether remote sz is available.";
 "file_transfer.download.placeholder" = "/path/to/remote-file";
 "file_transfer.progress.with_percent" = "%@ · %d%%";
 "file_transfer.upload.checking" = "Checking remote rz…";
@@ -288,14 +288,14 @@
 "ssh.copy_command.copied" = "Copied SSH connection command for %@.";
 "ssh.copy_command.failed" = "Failed to copy SSH command: %@";
 "ssh.config_preview.open" = "Preview effective config";
-"ssh.config_preview.open.help" = "Show the OpenSSH config QTerm will generate for this profile.";
+"ssh.config_preview.open.help" = "Show the OpenSSH config MuseTerm will generate for this profile.";
 "ssh.config_preview.title" = "Effective OpenSSH config";
-"ssh.config_preview.subtitle" = "This is the generated config QTerm passes to OpenSSH for this profile.";
+"ssh.config_preview.subtitle" = "This is the generated config MuseTerm passes to OpenSSH for this profile.";
 "ssh.config_preview.target_alias" = "Target alias";
 "ssh.config_preview.host_blocks" = "Host blocks";
 "ssh.config_preview.lines" = "Lines";
 "ssh.config_preview.commands" = "Local check commands";
-"ssh.config_preview.commands.help" = "QTerm writes the current generated config before copying commands. These commands only check DNS, TCP, and OpenSSH parsing from this Mac.";
+"ssh.config_preview.commands.help" = "MuseTerm writes the current generated config before copying commands. These commands only check DNS, TCP, and OpenSSH parsing from this Mac.";
 "ssh.config_preview.copy_commands" = "Copy all commands";
 "ssh.config_preview.copy_results" = "Copy results";
 "ssh.config_preview.clear_results" = "Clear results";
@@ -428,7 +428,7 @@
 "ssh.diagnostic_plan.open" = "Diagnostic plan";
 "ssh.diagnostic_plan.open.help" = "Preview local SSH checks for this host.";
 "ssh.diagnostic_plan.title" = "SSH diagnostic plan";
-"ssh.diagnostic_plan.subtitle" = "These checks run from this Mac. QTerm can copy or stage them, but you decide when to press Return.";
+"ssh.diagnostic_plan.subtitle" = "These checks run from this Mac. MuseTerm can copy or stage them, but you decide when to press Return.";
 "ssh.diagnostic_plan.empty" = "This profile does not have enough host information for a diagnostic plan.";
 "ssh.diagnostic_plan.kind.dns" = "DNS";
 "ssh.diagnostic_plan.kind.port" = "TCP";
@@ -491,7 +491,7 @@
 "ssh.diagnostic_recommendation.tcpFailure.summary" = "%@ could not reach the target port from this Mac.";
 "ssh.diagnostic_recommendation.tcpFailure.action" = "Check VPN, security groups, firewalls, the port number, and whether the first jump host is online.";
 "ssh.diagnostic_recommendation.configFailure.title" = "OpenSSH config expansion failed";
-"ssh.diagnostic_recommendation.configFailure.summary" = "%@ could not expand QTerm's generated config cleanly.";
+"ssh.diagnostic_recommendation.configFailure.summary" = "%@ could not expand MuseTerm's generated config cleanly.";
 "ssh.diagnostic_recommendation.configFailure.action" = "Review advanced SSH options, key paths, and generated Host blocks before retrying the connection.";
 "ssh.diagnostic_recommendation.verboseFailure.title" = "Verbose OpenSSH check failed";
 "ssh.diagnostic_recommendation.verboseFailure.summary" = "%@ reached the verbose OpenSSH stage, so the failure is more likely authentication, host key, jump route, or remote policy.";
@@ -500,7 +500,7 @@
 "ssh.diagnostic_recommendation.needsAttention.summary" = "%@ exited successfully, but the output did not contain a strong automatic signal.";
 "ssh.diagnostic_recommendation.needsAttention.action" = "Check whether the evidence line matches what you expected; copy the full output into the report if needed.";
 "ssh.diagnostic_recommendation.unknown.title" = "Not enough output to decide";
-"ssh.diagnostic_recommendation.unknown.summary" = "%@ did not provide enough output for QTerm to classify it confidently.";
+"ssh.diagnostic_recommendation.unknown.summary" = "%@ did not provide enough output for MuseTerm to classify it confidently.";
 "ssh.diagnostic_recommendation.unknown.action" = "Copy the full command output again, especially the final error, debug, or exit status lines.";
 "ssh.route_result.status.passed" = "Passed";
 "ssh.route_result.status.failed" = "Failed";
@@ -517,16 +517,16 @@
 "ssh.route_result.verbose.passed" = "The verbose OpenSSH check completed successfully.";
 "ssh.route_result.verbose.failed" = "The verbose OpenSSH check failed.";
 "ssh.route_result.verbose.failed_issue" = "The verbose OpenSSH check failed: %@.";
-"ssh.route_result.passed_without_signal" = "The command exited successfully, but QTerm did not recognize a specific success signal.";
-"ssh.route_result.unknown" = "QTerm does not have enough output to classify this diagnostic result yet.";
+"ssh.route_result.passed_without_signal" = "The command exited successfully, but MuseTerm did not recognize a specific success signal.";
+"ssh.route_result.unknown" = "MuseTerm does not have enough output to classify this diagnostic result yet.";
 "ssh.error.launch_failed" = "SSH launch failed: %@";
 "ssh.disconnect_reason.cleanExit" = "clean exit";
 "ssh.disconnect_reason.authenticationOrSecurityStopped" = "authentication or host security stopped the session";
 "ssh.disconnect_reason.remoteClosedConnection" = "the remote side closed the connection";
 "ssh.disconnect_reason.networkInterrupted" = "the network connection was interrupted";
 "ssh.disconnect_reason.unknownFailure" = "the exit looked transient but the reason was unclear";
-"ssh.reconnect.scheduled" = "SSH disconnected. QTerm will reconnect: attempt %d/%d in %d seconds.";
-"ssh.reconnect.scheduled_with_reason" = "SSH disconnected (%@). QTerm will reconnect: attempt %d/%d in %d seconds.";
+"ssh.reconnect.scheduled" = "SSH disconnected. MuseTerm will reconnect: attempt %d/%d in %d seconds.";
+"ssh.reconnect.scheduled_with_reason" = "SSH disconnected (%@). MuseTerm will reconnect: attempt %d/%d in %d seconds.";
 "ssh.reconnect.attempting" = "Reconnecting SSH session (%d)...";
 "ssh.reconnect.exhausted" = "SSH automatic reconnect stopped after reaching the retry limit.";
 "ssh.reconnect.exhausted_with_reason" = "SSH automatic reconnect stopped after reaching the retry limit (%@).";
@@ -540,13 +540,13 @@
 "ssh.security_warning.hostKeyCheckingDisabled.title" = "Host key checking is disabled";
 "ssh.security_warning.hostKeyCheckingDisabled.summary" = "StrictHostKeyChecking off/no weakens server identity checks and can hide man-in-the-middle risk.";
 "ssh.security_warning.knownHostsDisabled.title" = "Known hosts storage is disabled";
-"ssh.security_warning.knownHostsDisabled.summary" = "Writing known hosts to /dev/null prevents QTerm/OpenSSH from remembering trusted server fingerprints.";
+"ssh.security_warning.knownHostsDisabled.summary" = "Writing known hosts to /dev/null prevents MuseTerm/OpenSSH from remembering trusted server fingerprints.";
 "ssh.preflight_issue.duplicatePortForwardListener.title" = "Port forward listener conflict";
 "ssh.preflight_issue.duplicatePortForwardListener.summary" = "%@ is reused. OpenSSH can bind one listener address to only one forward.";
 "ssh.preflight_issue.identityFileUnavailable.title" = "Identity file is unavailable";
-"ssh.preflight_issue.identityFileUnavailable.summary" = "QTerm cannot find %@. Check the path and file permissions before connecting.";
+"ssh.preflight_issue.identityFileUnavailable.summary" = "MuseTerm cannot find %@. Check the path and file permissions before connecting.";
 "ssh.preflight_issue.jumpIdentityFileUnavailable.title" = "Jump host identity file is unavailable";
-"ssh.preflight_issue.jumpIdentityFileUnavailable.summary" = "QTerm cannot find %@, which may break authentication for that jump host.";
+"ssh.preflight_issue.jumpIdentityFileUnavailable.summary" = "MuseTerm cannot find %@, which may break authentication for that jump host.";
 "ssh.preflight_issue.identityFilePermissionsTooOpen.title" = "Identity file permissions are too open";
 "ssh.preflight_issue.identityFilePermissionsTooOpen.summary" = "%@. OpenSSH may ignore this private key until it is restricted.";
 "ssh.preflight_issue.jumpIdentityFilePermissionsTooOpen.title" = "Jump host identity file permissions are too open";
@@ -566,7 +566,7 @@
 "ssh.capability.reconnect.disabled" = "Auto reconnect: off.";
 "ssh.capability.forward_failure.enabled" = "Port forwards: fail the SSH session if binding fails.";
 "ssh.capability.forward_failure.manual" = "Port forwards: forwarding failure behavior is controlled by advanced SSH options.";
-"ssh.diagnostic.message" = "QTerm SSH check: %@\n%@\nNext: %@";
+"ssh.diagnostic.message" = "MuseTerm SSH check: %@\n%@\nNext: %@";
 "ssh.diagnostic.permissionDenied.title" = "Authentication was rejected";
 "ssh.diagnostic.permissionDenied.summary" = "The server refused the offered password, key, or agent identity.";
 "ssh.diagnostic.permissionDenied.suggestion" = "Check the username, selected identity file, agent state, and whether IdentitiesOnly should be enabled.";
@@ -576,7 +576,7 @@
 "ssh.diagnostic.hostKeyVerificationFailed.repair_known_location" = "Repair guide: first verify the new fingerprint for %@ through your cloud console or administrator. If it is trusted, remove the old record (%@):\n%@";
 "ssh.diagnostic.hostKeyVerificationFailed.repair_unknown_location" = "Repair guide: first verify the new fingerprint for %@ through your cloud console or administrator. If it is trusted, remove the old known_hosts record:\n%@";
 "ssh.diagnostic.connectionTimedOut.title" = "Connection timed out";
-"ssh.diagnostic.connectionTimedOut.summary" = "QTerm could not reach the SSH service before the network timeout.";
+"ssh.diagnostic.connectionTimedOut.summary" = "MuseTerm could not reach the SSH service before the network timeout.";
 "ssh.diagnostic.connectionTimedOut.suggestion" = "Check VPN, firewall, hostname, port, and every ProxyJump hop.";
 "ssh.diagnostic.connectionRefused.title" = "Connection refused";
 "ssh.diagnostic.connectionRefused.summary" = "The host responded, but no SSH service accepted the connection on that port.";
@@ -620,7 +620,7 @@
 "settings.profiles.summary" = "Manage local terminal profiles: shell, prompt style, environment variables, startup commands, and default working directory. The default profile drives the “+” new-tab button.";
 "settings.skin" = "Skin";
 "settings.app_icon" = "App icon";
-"settings.app_icon.footer" = "Choose the Dock icon used while QTerm is running. The choice is restored on launch.";
+"settings.app_icon.footer" = "Choose the Dock icon used while MuseTerm is running. The choice is restored on launch.";
 "settings.fonts" = "Fonts";
 "settings.primary_font" = "Primary font";
 "settings.fallback_font" = "Fallback fonts (cascade order)";
@@ -702,7 +702,7 @@
 "settings.cursor_shape" = "Cursor style";
 "settings.cursor_blink" = "Blink cursor";
 "settings.notifications" = "Notifications";
-"settings.notifications.summary" = "QTerm keeps alerts quiet while you are working: active tabs stay silent, inactive tabs get a dot, and system notifications are reserved for when the app is not active.";
+"settings.notifications.summary" = "MuseTerm keeps alerts quiet while you are working: active tabs stay silent, inactive tabs get a dot, and system notifications are reserved for when the app is not active.";
 "settings.notifications.enabled" = "Enable terminal event alerts";
 "settings.notifications.inactive_tab_badges" = "Show a dot on inactive tabs";
 "settings.notifications.request_permission" = "Allow notifications";
@@ -717,7 +717,7 @@
 "settings.notifications.failure_min_duration" = "Failure minimum duration";
 "settings.notifications.cooldown" = "Cooldown per tab";
 "settings.notifications.include_command" = "Include redacted command text";
-"settings.notifications.privacy_note" = "Command text is off by default. If enabled, QTerm redacts common tokens, passwords, and private keys before sending notification content.";
+"settings.notifications.privacy_note" = "Command text is off by default. If enabled, MuseTerm redacts common tokens, passwords, and private keys before sending notification content.";
 "notifications.permission.allowed" = "Allowed";
 "notifications.permission.denied" = "Denied";
 "notifications.permission.not_determined" = "Needs permission";
@@ -741,7 +741,7 @@
 "settings.about.author_homepage" = "Author homepage · 83d.me";
 "settings.about.other_apps" = "More apps by Rocky";
 "settings.about.other_apps.summary" = "A small shelf of sibling macOS apps from the 83d release catalog.";
-"about.window.title" = "About QTerm";
+"about.window.title" = "About MuseTerm";
 "settings.about.app.willDeep.name" = "WillDeep";
 "settings.about.app.willDeep.summary" = "Focused writing and deep editing.";
 "settings.about.app.timeBill.name" = "TimeBill";
@@ -789,18 +789,18 @@
 "settings.ai.api_key.clear_success" = "API key cleared from local Keychain.";
 "settings.ai.privacy" = "Future AI Explain features should use structured command blocks first and ask before sending or de-redacting context.";
 "settings.tools" = "MCP & command line";
-"settings.tools.summary" = "QTerm publishes local tab snapshots for read-only integrations. Mutating requests require an enabled write gate and a paired Keychain client.";
+"settings.tools.summary" = "MuseTerm publishes local tab snapshots for read-only integrations. Mutating requests require an enabled write gate and a paired Keychain client.";
 "settings.tools.access_control" = "Local access control";
 "settings.tools.allow_paired_writes" = "Allow paired clients to write";
 "settings.tools.allow_paired_writes_desc" = "Off by default. Read-only snapshots remain available, while input, keys, new tabs, SSH opens, and shortcut playback require both this switch and a valid Keychain pairing.";
 "settings.tools.client_paired" = "Paired";
 "settings.tools.client_unpaired" = "Read only";
-"settings.tools.client_name" = "qterm-cli";
-"settings.tools.pair_client" = "Pair qterm CLI";
-"settings.tools.revoke_client" = "Revoke qterm CLI";
-"settings.tools.client_pair_success" = "qterm CLI was paired through Keychain.";
+"settings.tools.client_name" = "museterm-cli";
+"settings.tools.pair_client" = "Pair museterm CLI";
+"settings.tools.revoke_client" = "Revoke museterm CLI";
+"settings.tools.client_pair_success" = "museterm CLI was paired through Keychain.";
 "settings.tools.client_pair_failed" = "Could not create the Keychain pairing.";
-"settings.tools.client_revoked" = "qterm CLI write access was revoked.";
+"settings.tools.client_revoked" = "museterm CLI write access was revoked.";
 "settings.tools.audit_path" = "Access audit log";
 "settings.tools.install_path" = "CLI install path";
 "settings.tools.state_path" = "Local bridge data";
@@ -810,16 +810,16 @@
 "settings.tools.copy_path_failed" = "Could not copy the CLI path. Please try again.";
 "settings.tools.installed" = "Installed";
 "settings.tools.not_installed" = "Not installed";
-"settings.tools.install_success" = "Installed qterm at %@. Add ~/.local/bin to PATH if your shell cannot find it.";
+"settings.tools.install_success" = "Installed museterm at %@. Add ~/.local/bin to PATH if your shell cannot find it.";
 "settings.tools.install_failed" = "Install failed: %@";
 "settings.tools.commands" = "CLI examples";
-"settings.tools.command_examples" = "qterm tabs\nqterm screen --tab selected --chars 4000\nqterm history --tab 1 --chars 12000\nqterm commands --tab selected --chars 4000\nqterm input --tab selected \"ls -la\"\nqterm key --tab selected enter\nqterm key --tab selected ctrl-c\nqterm tab ~/Sites\nqterm ssh \"Production Server\"\nqterm shortcuts --json\nqterm shortcut --tab selected \"Connect SSH\"";
+"settings.tools.command_examples" = "museterm tabs\nmuseterm screen --tab selected --chars 4000\nmuseterm history --tab 1 --chars 12000\nmuseterm commands --tab selected --chars 4000\nmuseterm input --tab selected \"ls -la\"\nmuseterm key --tab selected enter\nmuseterm key --tab selected ctrl-c\nmuseterm tab ~/Sites\nmuseterm ssh \"Production Server\"\nmuseterm shortcuts --json\nmuseterm shortcut --tab selected \"Connect SSH\"";
 "settings.tools.mcp" = "MCP configuration";
-"settings.tools.mcp_config" = "{\"mcpServers\":{\"qterm\":{\"command\":\"qterm\",\"args\":[\"mcp\"]}}}";
+"settings.tools.mcp_config" = "{\"mcpServers\":{\"museterm\":{\"command\":\"museterm\",\"args\":[\"mcp\"]}}}";
 "settings.tools.applescript_input" = "Allow AppleScript to Type into Terminals";
 "settings.tools.applescript_input_desc" = "When off, AppleScript write text / send key / execute / play shortcut are refused; reading screen, history, and command records still works. The macOS Automation permission prompt remains the first gate.";
 "settings.tools.applescript" = "AppleScript examples";
-"settings.tools.applescript_examples" = "tell application \"QTerm\"\n  create tab in directory \"~/Sites\"\n  write text \"ls -la\" to tab 1\n  send key \"ctrl-c\" to selected tab\n  get contents of selected tab\n  execute \"git status\" in tab 1 timeout 60\n  exit code of last command record of tab 1\nend tell";
+"settings.tools.applescript_examples" = "tell application \"MuseTerm\"\n  create tab in directory \"~/Sites\"\n  write text \"ls -la\" to tab 1\n  send key \"ctrl-c\" to selected tab\n  get contents of selected tab\n  execute \"git status\" in tab 1 timeout 60\n  exit code of last command record of tab 1\nend tell";
 "applescript.error.input_disabled" = "AppleScript input is disabled in Settings › Tools.";
 "applescript.error.empty_input" = "Nothing was provided.";
 "applescript.error.unknown_key" = "Unknown key name: %@. Available: enter, tab, escape, backspace, ctrl-c, ctrl-d, ctrl-z, ctrl-l, up, down, left, right.";
@@ -829,7 +829,7 @@
 "applescript.error.shortcut_automation_disabled" = "AI replay is turned off for this recording, so MCP, the CLI, and AppleScript cannot play it.";
 "applescript.error.timeout" = "Command execution timed out. Make sure shell integration is active in the tab, or increase the timeout parameter.";
 "applescript.error.close_cancelled" = "Closing the tab was cancelled by the user.";
-"tools.error.no_workspace" = "QTerm workspace is not ready.";
+"tools.error.no_workspace" = "MuseTerm workspace is not ready.";
 "tools.error.empty_input" = "No text, key, or bytes were provided.";
 "tools.error.tab_not_found" = "No tab matched %@.";
 "tools.error.process_unavailable" = "The terminal process is not ready.";
@@ -850,8 +850,8 @@
 "tools.error.shortcut_title_too_long" = "A shortcut title cannot be longer than 80 characters.";
 "tools.error.shortcut_duplicate_title" = "A shortcut named \"%@\" already exists. Use another title, or pass replace to overwrite it.";
 "tools.error.shortcut_target_not_found" = "No shortcut named \"%@\" to replace.";
-"tools.error.shortcut_ambiguous_target" = "More than one shortcut is named \"%@\". Rename them in QTerm first.";
-"tools.error.shortcut_protected_target" = "\"%@\" contains protected input and cannot be overwritten by a tool. Edit it in QTerm.";
+"tools.error.shortcut_ambiguous_target" = "More than one shortcut is named \"%@\". Rename them in MuseTerm first.";
+"tools.error.shortcut_protected_target" = "\"%@\" contains protected input and cannot be overwritten by a tool. Edit it in MuseTerm.";
 "tools.error.shortcut_no_steps" = "A shortcut needs at least one input step.";
 "tools.error.shortcut_too_many_steps" = "A shortcut can have at most %d steps.";
 "tools.error.shortcut_step_too_large" = "A single step cannot exceed %d bytes.";
@@ -884,8 +884,8 @@
 "command_inspector.copied_redacted_output" = "Redacted output copied.";
 "command_inspector.copied_ai_context" = "AI context copied.";
 "command_inspector.copy_output_summary" = "Copy meaningful output summary";
-"command_inspector.tooltip.copy_output_summary" = "Copy QTerm's compact summary of meaningful output, such as errors, warnings, paths, URLs, JSON, or stack traces.";
-"command_inspector.tooltip.stage_command" = "Place this command back into the current terminal input line. QTerm does not press Return for you.";
+"command_inspector.tooltip.copy_output_summary" = "Copy MuseTerm's compact summary of meaningful output, such as errors, warnings, paths, URLs, JSON, or stack traces.";
+"command_inspector.tooltip.stage_command" = "Place this command back into the current terminal input line. MuseTerm does not press Return for you.";
 "command_inspector.tooltip.explain_command" = "Ask the configured AI provider to explain this command block, including intent, status, risks, and suggested next steps.";
 "command_inspector.copied_output_summary" = "Output summary copied.";
 "command_inspector.history_match" = "Scrollback Match";
@@ -1036,7 +1036,7 @@
 "runbook.replay_copied" = "Replay script copied.";
 "runbook.command_staged" = "Command staged in the terminal. Press Return to run it.";
 "runbook.save_failed" = "Save failed: %@";
-"runbook.title" = "QTerm Runbook";
+"runbook.title" = "MuseTerm Runbook";
 "runbook.notes" = "Notes";
 "runbook.replay_script" = "Replay script";
 "runbook.stage_command" = "Stage command in terminal";
@@ -1261,7 +1261,7 @@
 "safety.multiline.message" = "This paste contains %d non-empty lines.";
 "safety.multiline.reason" = "Multi-line text can submit more than one command to the terminal. Review the preview before sending.";
 "safety.multiline.remote_integration.title" = "Enable SSH command tracking?";
-"safety.multiline.remote_integration.message" = "QTerm wants to send a temporary shell hook to this SSH session so it can detect command start, command finish, and exit status.";
+"safety.multiline.remote_integration.message" = "MuseTerm wants to send a temporary shell hook to this SSH session so it can detect command start, command finish, and exit status.";
 "safety.multiline.remote_integration.scope" = "This powers command history, failed-command diagnostics, Runbook, and AI Explain. It does not write to remote startup files and expires when this session closes.";
 "safety.multiline.remote_integration.action" = "Enable Tracking";
 "safety.dangerous.title" = "Confirm dangerous command";
@@ -1297,7 +1297,7 @@
 "command_palette.new_tab.subtitle" = "Open a local terminal tab";
 "command_palette.command_inspector.subtitle" = "Search recorded command blocks";
 "command_palette.tasks.subtitle" = "Show server tasks and listening ports";
-"command_palette.settings.subtitle" = "Open QTerm preferences";
+"command_palette.settings.subtitle" = "Open MuseTerm preferences";
 
 "execution_context.local" = "Local";
 "execution_context.ssh" = "SSH";
@@ -1445,7 +1445,7 @@
 "ai_control.description" = "Observe safely. Unlock to take over input; AI writes will stop. Unlock does not stop a running command. The lock expires after 120 seconds without input or renewal.";
 "ai_control.unlock" = "Unlock and take control";
 "ai_control.updated" = "Tab control updated. Use list_tabs to inspect the lease.";
-"ai_control.error.owned" = "This tab is controlled by another MCP session. Wait for release or unlock it in QTerm.";
+"ai_control.error.owned" = "This tab is controlled by another MCP session. Wait for release or unlock it in MuseTerm.";
 "ai_control.error.retake" = "No valid lease. Use an explicit tab UUID and take over again; coordinate with the human after an unexpected release.";
 "ai_control.error.busy" = "AI control cannot overlap shortcut playback, file transfer or a session tunnel. Release control or finish the active operation first.";
 "ai_control.error.input_rejected" = "Input was not sent: control was released or the terminal safety check rejected it.";
@@ -1534,7 +1534,7 @@
 "runtime.issue.inputRejected" = "Input was not sent. Check who currently controls this terminal.";
 "runtime.issue.inputTooLarge" = "Input was too large and was not sent. Paste it in smaller parts.";
 "runtime.workspace.save_failed" = "Could not save terminal workspace";
-"runtime.workspace.exit_cancelled" = "QTerm has kept this window open. Check available disk space and folder access, then quit again. Background terminals have not been closed.";
+"runtime.workspace.exit_cancelled" = "MuseTerm has kept this window open. Check available disk space and folder access, then quit again. Background terminals have not been closed.";
 "runtime.workspace.recovery_issue" = "Some workspace state could not be read or saved. The original recovery file has been retained. Check disk space and folder access before quitting.";
 "runtime.workspace.show_panel" = "Show floating terminal";
 "runtime.workspace.reattach" = "Return terminal to this window";

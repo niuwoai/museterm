@@ -11,8 +11,8 @@ require "timeout"
 require "tmpdir"
 
 TARGET = ARGV.fetch(0, "root@h1.niuwoai.com")
-REPORT_JSON = File.expand_path("../reports/qterm_zmodem_live_test.json", __dir__)
-REPORT_MARKDOWN = File.expand_path("../reports/qterm_zmodem_live_test.md", __dir__)
+REPORT_JSON = File.expand_path("../reports/museterm_zmodem_live_test.json", __dir__)
+REPORT_MARKDOWN = File.expand_path("../reports/museterm_zmodem_live_test.md", __dir__)
 TIMEOUT_SECONDS = 45
 
 def capture!(*command)
@@ -53,8 +53,8 @@ end
 
 started_at = Time.now.utc
 run_id = SecureRandom.hex(8)
-remote_directory = "/tmp/qterm-zmodem-live-#{run_id}"
-local_directory = File.join(Dir.tmpdir, "qterm-zmodem-live-#{run_id}")
+remote_directory = "/tmp/museterm-zmodem-live-#{run_id}"
+local_directory = File.join(Dir.tmpdir, "museterm-zmodem-live-#{run_id}")
 upload_file = File.join(local_directory, "upload.bin")
 download_file = File.join(local_directory, "download", "upload.bin")
 results = []
@@ -112,7 +112,7 @@ report = {
 FileUtils.mkdir_p(File.dirname(REPORT_JSON))
 File.write(REPORT_JSON, JSON.pretty_generate(report) + "\n")
 markdown = [
-  "# QTerm ZMODEM Live Test",
+  "# MuseTerm ZMODEM Live Test",
   "",
   "- Target: `#{TARGET}`",
   "- Scope: direct SSH PTY/ZMODEM transport harness (`sz` ↔ remote `rz`, remote `sz` ↔ local `rz`)",

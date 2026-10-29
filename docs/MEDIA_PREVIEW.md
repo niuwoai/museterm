@@ -8,13 +8,13 @@ Markdown 支持标题、表格、代码块、引用、列表、任务列表、�
 
 ## Agent 入口
 
-启用并配对 QTerm 工具写入权限，先用 `qterm tabs --json` 查询来源终端的完整 UUID：
+启用并配对 MuseTerm 工具写入权限，先用 `museterm tabs --json` 查询来源终端的完整 UUID：
 
 ```sh
-qterm preview --tab UUID /absolute/path/report.md
-qterm preview --tab UUID /absolute/path/screenshot.png
-qterm preview --tab UUID --stdin < report.md
-qterm preview --tab UUID --close
+museterm preview --tab UUID /absolute/path/report.md
+museterm preview --tab UUID /absolute/path/screenshot.png
+museterm preview --tab UUID --stdin < report.md
+museterm preview --tab UUID --close
 ```
 
 MCP 工具 `preview` 接受 `tab` 和 `path`、`markdown`、`close:true` 三选一。来源 UUID 必填，UI 在线且请求未过期才接受；成功响应表示已接收，实际加载状态和错误在预览区展示。对后台标签的请求不会切换当前标签，也不获取输入控制租约。SSH 标签只接受 Markdown 正文，不把远程文件路径误作本机路径。

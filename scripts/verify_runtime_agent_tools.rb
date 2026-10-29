@@ -27,7 +27,7 @@ def target(info)
 end
 
 binary = File.expand_path(ARGV.fetch(0))
-prefix = File.expand_path(ARGV.fetch(1, "/private/tmp/qterm-agent-tools"))
+prefix = File.expand_path(ARGV.fetch(1, "/private/tmp/museterm-agent-tools"))
 root = Dir.mktmpdir("qrt-agent-tools-", "/private/tmp")
 File.chmod(0o700, root)
 server = nil

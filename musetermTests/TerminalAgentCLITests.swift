@@ -4,7 +4,7 @@ import XCTest
 @MainActor
 final class TerminalAgentCLITests: XCTestCase {
     private func runRuby(_ body: String) throws -> [String: Any] {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("qterm-agent-cli-\(UUID())")
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("museterm-agent-cli-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let definitions = try XCTUnwrap(MuseTermCLIInstaller.script.components(separatedBy: "\ncommand = ARGV.shift").first)
@@ -111,7 +111,7 @@ worker = Thread.new do
       next
     end
     request = JSON.parse(File.read(path))
-    response = {"id" => request["id"], "action" => request["action"], "ok" => true, "appName" => "QTerm",
+    response = {"id" => request["id"], "action" => request["action"], "ok" => true, "appName" => "MuseTerm",
       "agent" => {"updatedAt" => 0, "expiresAt" => 120, "activity" => request.dig("agentReport", "activity")}}
     File.open(File.join(endpoint, "responses", "#{request['id']}.json"), File::WRONLY | File::CREAT | File::EXCL, 0o600) { |file| file.write(JSON.generate(response)) }
     break
@@ -130,7 +130,7 @@ puts JSON.generate({"ok" => response["ok"], "activity" => response.dig("agent", 
         XCTAssertEqual(result["ok"] as? Bool, true)
         XCTAssertEqual(result["activity"] as? String, "working")
         XCTAssertEqual(result["updatedAt"] as? String, "2001-01-01T00:00:00Z")
-        XCTAssertEqual(result["app"] as? String, "QTerm")
+        XCTAssertEqual(result["app"] as? String, "MuseTerm")
         XCTAssertEqual(result["requests"] as? Int, 0)
         XCTAssertEqual(result["responses"] as? Int, 0)
         XCTAssertEqual(result["leaked"] as? Bool, false)

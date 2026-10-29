@@ -30,7 +30,7 @@ final class TerminalAgentReliabilityTests: XCTestCase {
     }
 
     func testResponseRetentionRemovesAbandonedFilesButKeepsFreshReplies() throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("qterm-retention-\(UUID())")
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("museterm-retention-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let old = root.appendingPathComponent("abandoned.json")

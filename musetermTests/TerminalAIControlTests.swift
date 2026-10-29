@@ -3,7 +3,7 @@ import XCTest
 
 final class TerminalAIControlTests: XCTestCase {
     private func temporaryDirectory() -> URL {
-        FileManager.default.temporaryDirectory.appendingPathComponent("qterm-ai-\(UUID())")
+        FileManager.default.temporaryDirectory.appendingPathComponent("museterm-ai-\(UUID())")
     }
 
     func testLeaseExcludesOtherOwnersAndCanBeRenewed() throws {
@@ -123,7 +123,7 @@ final class TerminalAIControlTests: XCTestCase {
         try target.takeAIControl(owner: "first", archiveDirectory: directory)
         XCTAssertThrowsError(try target.controller.sendToolInput(bytes: Array("human\r".utf8)))
         _ = try workspace.sendToolInput(to: target.id.uuidString,
-            bytes: Array("printf 'qterm_background_ok\\n'\r".utf8), owner: "first")
+            bytes: Array("printf 'museterm_background_ok\\n'\r".utf8), owner: "first")
         XCTAssertEqual(workspace.selectedID, selected.id)
         target.releaseAIControl(reason: "human_unlock")
         XCTAssertThrowsError(try workspace.sendToolInput(to: target.id.uuidString, bytes: [0x0D], owner: "first"))

@@ -8,7 +8,7 @@ struct SomeIMUpdateConfigurationTests {
     func stableAppcastURLMatchesMuchtokenContract() {
         #expect(
             SomeIMUpdateConfiguration.feedURL?.absoluteString ==
-                "https://some.im/api/v1/public/app-updates/appcast.xml?app_id=qterm&platform=macos&channel=stable"
+                "https://some.im/api/v1/public/app-updates/appcast.xml?app_id=museterm&platform=macos&channel=stable"
         )
     }
 }

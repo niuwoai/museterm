@@ -198,7 +198,7 @@ struct TerminalProjectsSidebar: View {
             ForEach(workspace.projectLayout.projects) { project in
                 Button(project.name) {
                     do { try workspace.moveTerminal(tab.id, to: project.id) }
-                    catch { NSLog("QTerm project terminal move failed") }
+                    catch { NSLog("MuseTerm project terminal move failed") }
                 }
             }
         }
@@ -208,7 +208,7 @@ struct TerminalProjectsSidebar: View {
 
     private func split(_ tab: TerminalSession, axis: TerminalSplitAxis) {
         do { try workspace.splitTerminal(tab.id, axis: axis) }
-        catch { NSLog("QTerm project terminal split failed") }
+        catch { NSLog("MuseTerm project terminal split failed") }
     }
 }
 

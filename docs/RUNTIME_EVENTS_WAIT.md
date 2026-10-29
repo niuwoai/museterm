@@ -2,7 +2,7 @@
 
 版本：`1.252.0-rc1` / Build `348`。普通应用默认启用独立后台；测试宿主仍须显式选择隔离运行。本机安装未替换，rc28 完整回归 621/621，另有后补同名同目录项目回归 1/1 通过，未签名 Universal Release 构建及同一 Release 后台的 WillDeep/SSH 验证通过。
 
-通用 `qterm agent events`、`qterm agent status` 和 CLI/MCP 等待已按私有元数据自动选择后台端点，UI 退出或重开不改变已选择的服务游标。后台已持有基于 shell 标记的命令生命周期；原方案阶段实现与约定验收见[实施方案](WILLDEEP_WORKSPACE_RUNTIME_PLAN.md)及完成审计。
+通用 `museterm agent events`、`museterm agent status` 和 CLI/MCP 等待已按私有元数据自动选择后台端点，UI 退出或重开不改变已选择的服务游标。后台已持有基于 shell 标记的命令生命周期；原方案阶段实现与约定验收见[实施方案](WILLDEEP_WORKSPACE_RUNTIME_PLAN.md)及完成审计。
 
 rc27 的输入写前校验分别返回 `input_echo_changed`、`input_foreground_changed`，表示预检后安全上下文变化，输入序号尚未消耗，不会自动重发。旧后台仍可能返回 `input_context_changed`，客户端保持普通拒绝处理。订阅连接成功表示可传输，不代表交互 shell 已完成初始化或启动命令已执行。
 
@@ -18,11 +18,11 @@ rc27 的输入写前校验分别返回 `input_echo_changed`、`input_foreground_
 
 | 元数据 | 用途 |
 |---|---|
-| `qterm tabs.eventCursor` | 原 UI 事件中心游标 |
+| `museterm tabs.eventCursor` | 原 UI 事件中心游标 |
 | `tabs[].runtime.eventCursor` | 该后台终端的服务游标 |
 | `tabs[].runtime.outputRevision` | 该后台终端实际 PTY 输出修订，供 `outputChanged` 使用 |
 | `tabs[].runtime.commands` | 最近 8 条后台命令元数据，含稳定 ID、进程代次、标记偏移、时间、状态及可选退出码；不含命令正文 |
-| `qterm agent events.eventBatch.nextCursor` | 自动选定来源的新基线/下一页游标 |
+| `museterm agent events.eventBatch.nextCursor` | 自动选定来源的新基线/下一页游标 |
 
 `snapshotSequence` 不能替代上述游标。私有后台端点还有自己的 `runtime.json`，包含服务 PID/代次和启动游标；等待期间可据此识别服务退出或重建。该启动游标不是持续更新的事件头，重建后需重新查询状态和当前事件基线。
 

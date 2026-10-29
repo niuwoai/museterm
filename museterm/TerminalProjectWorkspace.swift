@@ -26,7 +26,7 @@ extension TerminalWorkspace {
         let live = Set(tabs.map(\.id) + sessionRegistry.locations.filter { $0.value == .detached }.map(\.key))
         for terminal in layout.terminalIDs where !live.contains(terminal) {
             do { try layout.remove(terminal: terminal) }
-            catch { NSLog("QTerm could not reconcile removed layout terminal") }
+            catch { NSLog("MuseTerm could not reconcile removed layout terminal") }
         }
         for tab in tabs where !layout.terminalIDs.contains(tab.id) {
             do {
@@ -35,7 +35,7 @@ extension TerminalWorkspace {
                 } else {
                     try layout.addTab(terminal: tab.id, projectID: layout.selectedProjectID ?? layout.projects[0].id)
                 }
-            } catch { NSLog("QTerm could not reconcile new layout terminal") }
+            } catch { NSLog("MuseTerm could not reconcile new layout terminal") }
             tab.onPaneFocus = { [weak self, weak tab] in
                 guard let self, let tab, self.selectedID != tab.id, self.tabs.contains(where: { $0.id == tab.id }) else { return }
                 self.select(tab)
@@ -47,7 +47,7 @@ extension TerminalWorkspace {
     func selectProjectTerminal(_ id: UUID) {
         guard projectLayout.location(of: id) != nil else { return }
         do { try projectLayout.select(terminal: id) }
-        catch { NSLog("QTerm could not select project terminal") }
+        catch { NSLog("MuseTerm could not select project terminal") }
     }
 
     func selectProject(_ id: UUID) {
@@ -96,7 +96,7 @@ extension TerminalWorkspace {
 
     func resizeSplit(_ id: UUID, ratio: Double) {
         do { try projectLayout.resize(splitID: id, ratio: ratio) }
-        catch { NSLog("QTerm could not resize terminal split") }
+        catch { NSLog("MuseTerm could not resize terminal split") }
     }
 
     @discardableResult
@@ -129,7 +129,7 @@ extension TerminalWorkspace {
         }
         for target in targets { closeProjectTerminal(target) }
         do { _ = try projectLayout.removeProject(id) }
-        catch { NSLog("QTerm could not remove closed project"); return false }
+        catch { NSLog("MuseTerm could not remove closed project"); return false }
         selectedID = projectLayout.focusedTerminalID
         return true
     }

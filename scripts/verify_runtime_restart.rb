@@ -27,7 +27,7 @@ def accepted(response)
 end
 
 binary = File.expand_path(ARGV.fetch(0))
-prefix = File.expand_path(ARGV.fetch(1, "/private/tmp/qterm-runtime-restart"))
+prefix = File.expand_path(ARGV.fetch(1, "/private/tmp/museterm-runtime-restart"))
 root = Dir.mktmpdir("qrt-restart-", "/private/tmp")
 File.chmod(0o700, root)
 server = nil
@@ -58,7 +58,7 @@ begin
     raise "Stale identity accepted" unless response["error"] == expected
   end
   checks << "stale_generation_and_control_rejected"
-  failed = client.request("restartExited", previous.merge("launch" => replacement_launch.merge("executable" => "/qterm-no-such-program")))
+  failed = client.request("restartExited", previous.merge("launch" => replacement_launch.merge("executable" => "/museterm-no-such-program")))
   raise "Invalid exec accepted" unless failed["error"] == "process_launch_failed"
   retained = accepted(client.request("list")).fetch("sessions").find { |item| item["id"] == original["id"] }
   raise "Failed launch destroyed recovery record" unless retained["generation"] == original["generation"] && retained["pid"] == original["pid"]

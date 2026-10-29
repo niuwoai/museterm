@@ -1,10 +1,10 @@
 # AI 辅助右下角操作按钮 Design QA（1.239.0-rc11）
 
 - source visual truth path: `/Users/rocky/.codex/visualizations/2026/08/06/019fd4c9-d011-71c3-b072-99bd2c012da3/museterm-ai-assistant/rc10-bottom-context.png`
-- implementation screenshot path: `/var/folders/np/rjc0y5w52x324x21pv6g33440000gp/T/com.openai.sky.CUAService/QTerm Screenshot 2026-08-06 at 10.32.39 AM.jpeg`
+- implementation screenshot path: `/var/folders/np/rjc0y5w52x324x21pv6g33440000gp/T/com.openai.sky.CUAService/MuseTerm Screenshot 2026-08-06 at 10.32.39 AM.jpeg`
 - focused implementation path: `/Users/rocky/.codex/visualizations/2026/08/06/019fd4c9-d011-71c3-b072-99bd2c012da3/museterm-ai-assistant/rc11-bottom-actions.png`
 - combined comparison path: `/Users/rocky/.codex/visualizations/2026/08/06/019fd4c9-d011-71c3-b072-99bd2c012da3/museterm-ai-assistant/rc11-layout-comparison.png`
-- viewport: QTerm 主窗口 1167 × 768 px；源与实现聚焦裁切均为 942 × 143 px；另复验约 902 × 768 px 窄窗口
+- viewport: MuseTerm 主窗口 1167 × 768 px；源与实现聚焦裁切均为 942 × 143 px；另复验约 902 × 768 px 窄窗口
 - CSS size / density normalization: 原生 macOS App，无 CSS viewport；源与实现裁切保持相同 942 px 原始宽度，未拉伸纵横比
 - state: 浅色皮肤；本地 zsh；AI 辅助输入 7 行并停留在最多 5 行的滚动状态
 
@@ -12,7 +12,7 @@
 
 - 字体与排版：正文、上下文与按钮图标继续使用原有系统字体和 SF Symbols；上下文与操作按钮在同一基线上。
 - 间距与布局节奏：生成与关闭按钮从右上移到右下，和左侧终端上下文组成完整底部行；按钮间与上下文间使用固定 10 pt 间距。
-- 颜色与视觉令牌：材质背景、强调色、次要文字色、描边和阴影全部复用 QTerm 现有皮肤。
+- 颜色与视觉令牌：材质背景、强调色、次要文字色、描边和阴影全部复用 MuseTerm 现有皮肤。
 - 图像与资产质量：没有新增位图或替代资产；生成和关闭继续使用原有 SF Symbols，清晰度与状态样式保持一致。
 - 文案与内容：上下文仍完整包含本地/远程标识、用户与主机、当前目录和 shell；没有新增硬编码可见文案。
 - 响应行为：正常与窄窗口下按钮保持完整，空间不足时仅中间截断上下文；正文继续获得整行输入宽度。
@@ -55,10 +55,10 @@ final result: passed
 # AI 辅助底部上下文行 Design QA（1.239.0-rc10）
 
 - source visual truth path: `/Users/rocky/.codex/visualizations/2026/08/06/019fd4c9-d011-71c3-b072-99bd2c012da3/museterm-ai-assistant/rc9-five-line-context.png`
-- implementation screenshot path: `/var/folders/np/rjc0y5w52x324x21pv6g33440000gp/T/com.openai.sky.CUAService/QTerm Screenshot 2026-08-06 at 10.26.28 AM.jpeg`
+- implementation screenshot path: `/var/folders/np/rjc0y5w52x324x21pv6g33440000gp/T/com.openai.sky.CUAService/MuseTerm Screenshot 2026-08-06 at 10.26.28 AM.jpeg`
 - focused implementation path: `/Users/rocky/.codex/visualizations/2026/08/06/019fd4c9-d011-71c3-b072-99bd2c012da3/museterm-ai-assistant/rc10-bottom-context.png`
 - combined comparison path: `/Users/rocky/.codex/visualizations/2026/08/06/019fd4c9-d011-71c3-b072-99bd2c012da3/museterm-ai-assistant/rc10-layout-comparison.png`
-- viewport: QTerm 主窗口 1167 × 768 px；源与实现聚焦裁切均为 942 × 143 px；另复验约 902 × 768 px 窄窗口
+- viewport: MuseTerm 主窗口 1167 × 768 px；源与实现聚焦裁切均为 942 × 143 px；另复验约 902 × 768 px 窄窗口
 - CSS size / density normalization: 原生 macOS App，无 CSS viewport；源与实现裁切保持相同 942 px 原始宽度，未拉伸纵横比
 - state: 浅色皮肤；本地 zsh；AI 辅助输入 7 行并停留在最多 5 行的滚动状态
 
@@ -66,7 +66,7 @@ final result: passed
 
 - 字体与排版：输入正文与上下文继续使用原有系统字体和字号；上下文改为正文下方的 caption 独立行，层级更清楚。
 - 间距与布局节奏：正文与上下文仅保留 4 pt 间距；主机、目录信息不再占用正文横向空间，生成和关闭按钮固定在右上。
-- 颜色与视觉令牌：材质、描边、阴影、强调色和次要文字色完全复用 QTerm 现有皮肤，没有新增视觉令牌。
+- 颜色与视觉令牌：材质、描边、阴影、强调色和次要文字色完全复用 MuseTerm 现有皮肤，没有新增视觉令牌。
 - 图像与资产质量：继续使用原有 SF Symbols；没有新增位图、替代图标或低清资产。
 - 文案与内容：终端上下文内容没有删减，仍包含本地/远程标识、用户与主机、当前目录和 shell；没有新增硬编码界面文案。
 - 响应行为：正常与窄窗口下正文均使用按钮之外的完整可用宽度；超过 5 行后内部滚动，上下文始终位于最下面一行。
@@ -109,10 +109,10 @@ final result: passed
 # AI 辅助终端上下文常驻 Design QA（1.239.0-rc9）
 
 - source visual truth path: `/var/folders/np/rjc0y5w52x324x21pv6g33440000gp/T/codex-clipboard-6da6cb31-80d6-4ac3-bb18-320385b3334e.png`
-- implementation screenshot path: `/var/folders/np/rjc0y5w52x324x21pv6g33440000gp/T/com.openai.sky.CUAService/QTerm Screenshot 2026-08-06 at 10.18.34 AM.jpeg`
+- implementation screenshot path: `/var/folders/np/rjc0y5w52x324x21pv6g33440000gp/T/com.openai.sky.CUAService/MuseTerm Screenshot 2026-08-06 at 10.18.34 AM.jpeg`
 - focused implementation path: `/Users/rocky/.codex/visualizations/2026/08/06/019fd4c9-d011-71c3-b072-99bd2c012da3/museterm-ai-assistant/rc9-five-line-context.png`
 - combined comparison path: `/Users/rocky/.codex/visualizations/2026/08/06/019fd4c9-d011-71c3-b072-99bd2c012da3/museterm-ai-assistant/rc9-reference-comparison.png`
-- viewport: QTerm 主窗口 1167 × 768 px；源截图 942 × 64 px；实现聚焦裁切 942 × 143 px；组合图 942 × 207 px
+- viewport: MuseTerm 主窗口 1167 × 768 px；源截图 942 × 64 px；实现聚焦裁切 942 × 143 px；组合图 942 × 207 px
 - CSS size / density normalization: 原生 macOS App，无 CSS viewport；源截图与实现裁切均保持 942 px 原始宽度，未拉伸纵横比
 - state: 浅色皮肤；本地 zsh；AI 辅助输入框聚焦；实现输入 7 行并停留在最多 5 行的滚动状态
 
@@ -120,7 +120,7 @@ final result: passed
 
 - 字体与排版：上下文继续使用原有系统 caption 字体，输入区继续使用现有正文样式；没有新增字体、字重或硬编码界面文案。
 - 间距与布局节奏：上下文区域获得 190～380 pt 的稳定宽度与更高布局优先级，长输入不会再将它挤出提示条；生成与关闭按钮位置保持稳定。
-- 颜色与视觉令牌：材质背景、浅色描边、强调色与次要文字色均复用现有 QTerm 皮肤，没有引入新颜色。
+- 颜色与视觉令牌：材质背景、浅色描边、强调色与次要文字色均复用现有 MuseTerm 皮肤，没有引入新颜色。
 - 内容完整性：正常窗口宽度下完整显示“本地 · 用户@主机 · 当前目录 · shell”；极窄宽度下从中间截断，并通过 Help 提供完整文本。
 - 响应行为：单行状态保持原有紧凑高度；输入超过 5 行后仅输入区内部滚动，上下文仍常驻右侧。
 
@@ -162,10 +162,10 @@ final result: passed
 # AI 辅助输入条自适应 Design QA（1.239.0-rc7）
 
 - source visual truth path: `/var/folders/np/rjc0y5w52x324x21pv6g33440000gp/T/codex-clipboard-b67af152-3d2a-4f43-ad4a-496fe61d0c5f.png`
-- implementation screenshot path: `/var/folders/np/rjc0y5w52x324x21pv6g33440000gp/T/com.openai.sky.CUAService/QTerm Screenshot 2026-08-06 at 10.02.05 AM.jpeg`
+- implementation screenshot path: `/var/folders/np/rjc0y5w52x324x21pv6g33440000gp/T/com.openai.sky.CUAService/MuseTerm Screenshot 2026-08-06 at 10.02.05 AM.jpeg`
 - focused implementation path: `/Users/rocky/.codex/visualizations/2026/08/06/019fd4c9-d011-71c3-b072-99bd2c012da3/museterm-ai-assistant/ai-assistant-five-line-implementation.png`
 - combined comparison path: `/Users/rocky/.codex/visualizations/2026/08/06/019fd4c9-d011-71c3-b072-99bd2c012da3/museterm-ai-assistant/ai-assistant-reference-comparison.png`
-- viewport: QTerm 主窗口 1167 × 768 px；源截图 933 × 75 px；实现聚焦裁切归一化为 933 × 126 px；组合图 933 × 201 px
+- viewport: MuseTerm 主窗口 1167 × 768 px；源截图 933 × 75 px；实现聚焦裁切归一化为 933 × 126 px；组合图 933 × 201 px
 - CSS size / density normalization: 原生 macOS App，无 CSS viewport；源截图与实现裁切均按 1× 像素宽度归一化到 933 px，未拉伸纵横比
 - state: 浅色皮肤；本地 zsh；AI 辅助输入框聚焦；实现输入超出 5 行并停留在文本末尾
 
@@ -173,7 +173,7 @@ final result: passed
 
 - 字体与排版：实现继续使用原有系统字体、字号与行高；长文本自然折行，当前可见 5 行，未出现截断、省略号或单行横向挤压。
 - 间距与布局节奏：输入条保留原来的水平内边距、圆角、描边与阴影；高度只随正文增加，右侧上下文、生成和关闭控件保持稳定，没有被正文推离可视区域。
-- 颜色与视觉令牌：材质背景、强调色、主次文字色和边框均沿用现有 QTerm 皮肤，和源截图一致。
+- 颜色与视觉令牌：材质背景、强调色、主次文字色和边框均沿用现有 MuseTerm 皮肤，和源截图一致。
 - 图像与资产质量：该组件没有位图资产；闪光、生成、关闭继续使用原有 SF Symbols，没有新增替代图形或低清资源。
 - 文案与内容：占位文案与上下文文案继续走现有 i18n；本次没有新增硬编码界面文案。
 - 响应行为：1～5 行由多行 TextField 驱动输入条自适应增高；超过 5 行后高度保持不变，焦点跟随插入点在输入区内纵向滚动。
@@ -216,17 +216,17 @@ final result: passed
 # AI 命令助手 Design QA
 
 - source visual truth path: `/Users/rocky/.codex/generated_images/019f64ee-48f7-7ec1-a3f7-e33e952e9e76/exec-77ed86fd-23a0-42e5-b039-1444798994b3.png`
-- implementation screenshot path: `/var/folders/np/rjc0y5w52x324x21pv6g33440000gp/T/com.openai.sky.CUAService/QTerm Screenshot 2026-07-15 at 7.58.57 PM.jpeg`
+- implementation screenshot path: `/var/folders/np/rjc0y5w52x324x21pv6g33440000gp/T/com.openai.sky.CUAService/MuseTerm Screenshot 2026-07-15 at 7.58.57 PM.jpeg`
 - combined comparison path: `/Users/rocky/.codex/visualizations/2026/07/15/019f64ee-48f7-7ec1-a3f7-e33e952e9e76/ai-command-design-qa-comparison-pass3.png`
-- viewport: QTerm 主窗口 1160 × 768；参考图为 1488 × 1056 的六阶段交互板
+- viewport: MuseTerm 主窗口 1160 × 768；参考图为 1488 × 1056 的六阶段交互板
 - state: 浅色主题；本地 zsh；AI 已返回两个只读候选；右上浮层打开；终端画布尺寸未改变
 
 ## Full-view comparison evidence
 
 - 信息架构：实现保持参考图的“终端原位工作”流程：底部自然语言输入条切换为终端右上浮层，浮层内依次显示完整上下文、不会自动执行的信任提示、候选命令、解释、风险标签和操作按钮。
-- 字体与排版：界面沿用 QTerm 的系统字体；上下文和命令使用等宽字体，标题、正文、辅助说明与风险标签层级清楚。候选命令最多三行、解释最多五行，避免长内容挤坏浮层。
+- 字体与排版：界面沿用 MuseTerm 的系统字体；上下文和命令使用等宽字体，标题、正文、辅助说明与风险标签层级清楚。候选命令最多三行、解释最多五行，避免长内容挤坏浮层。
 - 间距与布局节奏：最终浮层固定在终端画布右上，宽 470 pt、上边距 24 pt、右边距 22 pt；内容按实际高度收缩，不再出现大块无意义空白，也不会把终端挤成分栏。
-- 颜色与视觉令牌：实现复用当前 QTerm 皮肤的材质、发丝线、阴影和强调色；风险使用语义色，浅色背景下文字、边框和按钮对比清楚。
+- 颜色与视觉令牌：实现复用当前 MuseTerm 皮肤的材质、发丝线、阴影和强调色；风险使用语义色，浅色背景下文字、边框和按钮对比清楚。
 - 图像与资产质量：该流程没有品牌位图或插画；实现统一使用 SF Symbols，图标清晰、风格一致，没有手绘 SVG、字符图标或占位图。
 - 文案与内容：输入提示、关闭后果、上下文、风险和“填入当前终端”均为独立可理解的产品文案，全部走中英文 i18n。当前是本地环境，因此没有伪造参考图里的 `PROD` 标签。
 - 状态与行为：浮层 z-index 高于终端与右侧工具面板；点击 `×` 或按 `Esc` 会取消生成并结束本轮；填入只发送命令字节，不发送 Return。
@@ -276,12 +276,12 @@ final result: passed
 - source visual truth path: `/Users/rocky/.codex/generated_images/019f7a9a-2a32-7923-af50-7d3a6e7d9524/exec-dba4eadc-8a1f-49b1-94f4-44b59a1c3457.png`
 - implementation screenshot path: `/Users/rocky/.codex/visualizations/2026/07/19/019f7a9a-2a32-7923-af50-7d3a6e7d9524/session-tunnel-implementation.png`
 - combined comparison path: `/Users/rocky/.codex/visualizations/2026/07/19/019f7a9a-2a32-7923-af50-7d3a6e7d9524/session-tunnel-comparison.png`
-- viewport: 2880 × 1800 Retina 桌面截图；QTerm 主窗口约 2445 × 1570 px
+- viewport: 2880 × 1800 Retina 桌面截图；MuseTerm 主窗口约 2445 × 1570 px
 - state: Midnight 深色皮肤；会话隧道运行中；终端蒙版、右侧检查器和停止操作同时可见
 
 ## Full-view comparison evidence
 
-- 信息架构：实现保留参考图的三栏结构，在现有 QTerm 左侧工作区与中央终端之外新增右侧会话隧道检查器；运行状态、服务名称、三段路由、指标、连接列表、关闭警告和停止操作顺序一致。
+- 信息架构：实现保留参考图的三栏结构，在现有 MuseTerm 左侧工作区与中央终端之外新增右侧会话隧道检查器；运行状态、服务名称、三段路由、指标、连接列表、关闭警告和停止操作顺序一致。
 - 字体与排版：复用应用系统字体与等宽端点文本；状态、服务名、路由标题、端点和次要指标形成稳定层级，英文长主机名保持单行并正确截断。
 - 间距与布局节奏：检查器宽度与现有右侧工具面板一致；顶部标题、14 pt 内容内边距、18 pt 分组间距和固定底部操作区在大窗口下仍保持紧凑。
 - 颜色与视觉令牌：实现遵循用户选择的 Midnight 皮肤，绿色表达运行状态，橙色表达关闭标签风险，停止按钮使用现有检查器的边框按钮样式与 destructive 语义；发丝线、卡片背景和强调色来自现有设计系统。
@@ -292,14 +292,14 @@ final result: passed
 
 ## Focused region comparison evidence
 
-纵向组合图把参考图放在上方、实现截图裁切放在下方并统一为 1400 px 宽。可以直接对照中央蒙版与右侧检查器：核心结构、状态颜色、端点层级、固定底部警告和停止按钮均与设计意图一致；实现按现有 QTerm 深色设计系统落地，没有机械复制参考图的浅色表面。
+纵向组合图把参考图放在上方、实现截图裁切放在下方并统一为 1400 px 宽。可以直接对照中央蒙版与右侧检查器：核心结构、状态颜色、端点层级、固定底部警告和停止按钮均与设计意图一致；实现按现有 MuseTerm 深色设计系统落地，没有机械复制参考图的浅色表面。
 
 ## Findings
 
 - 最终复验没有可执行的 P0、P1 或 P2 视觉问题。
-- P3：参考图用竖向连线强化三段路由，实现采用系统图标加分隔线，视觉更贴合 QTerm 现有检查器；信息完整性不受影响。
-- P3：参考图将停止按钮直接渲染为红色，实现沿用 QTerm 检查器的主题强调色，但保留 destructive 角色与独立橙色关闭警告；不影响操作辨识与可访问性。
-- P3：自动化截图包含桌面背景和其他窗口边缘；QTerm 窗口本身无遮挡，裁切后的组合对照已隔离核心实现区域。
+- P3：参考图用竖向连线强化三段路由，实现采用系统图标加分隔线，视觉更贴合 MuseTerm 现有检查器；信息完整性不受影响。
+- P3：参考图将停止按钮直接渲染为红色，实现沿用 MuseTerm 检查器的主题强调色，但保留 destructive 角色与独立橙色关闭警告；不影响操作辨识与可访问性。
+- P3：自动化截图包含桌面背景和其他窗口边缘；MuseTerm 窗口本身无遮挡，裁切后的组合对照已隔离核心实现区域。
 
 ## Primary interactions tested
 

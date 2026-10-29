@@ -168,7 +168,7 @@ final class TerminalRuntimeViewTests: XCTestCase {
         let root = URL(fileURLWithPath: "/private/tmp/qrv-\(UUID().uuidString.prefix(12))", isDirectory: true)
         self.root = root
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
-        let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/qterm-runtime")
+        let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/museterm-runtime")
         XCTAssertTrue(FileManager.default.isExecutableFile(atPath: helper.path), "Embedded helper must be built and signed with the application")
         let process = Process()
         self.process = process
@@ -347,7 +347,7 @@ final class TerminalRuntimeViewTests: XCTestCase {
         let restored = TerminalSession(sequence: 2, id: original.id)
         restored.runtimeGenerationToRestore = info.generation
         // A valid attach must ignore this launch descriptor and keep the old PID.
-        let mustNotLaunch = TerminalRuntimeLaunch(executable: "/qterm-must-not-launch", directory: root.path)
+        let mustNotLaunch = TerminalRuntimeLaunch(executable: "/museterm-must-not-launch", directory: root.path)
         attach(restored, launch: mustNotLaunch, root: root, helper: helper)
         try await waitUntil("restored viewer subscription") { restored.controller.runtimeHandle?.connected == true }
         XCTAssertEqual(restored.runtimeInfo?.pid, info.pid)
@@ -725,7 +725,7 @@ final class TerminalRuntimeViewTests: XCTestCase {
         window.isReleasedWhenClosed = false; window.contentView = controller.container
         controller.layoutTerminalViews(); windows.append(window); viewers.append(controller)
         var startupWasCalled = false
-        controller.startRuntime(.init(executable: "/qterm-must-never-launch", directory: root.path), root: root, executable: helper) {
+        controller.startRuntime(.init(executable: "/museterm-must-never-launch", directory: root.path), root: root, executable: helper) {
             startupWasCalled = true
         }
         try await waitUntil("workspace recovered PTY") { controller.runtimeHandle?.connected == true }
@@ -762,7 +762,7 @@ final class TerminalRuntimeViewTests: XCTestCase {
         original.controller.detachRuntimeViewer()
         let recovered = TerminalSession(sequence: 2, id: original.id)
         var startupWasCalled = false
-        attach(recovered, launch: .init(executable: "/qterm-do-not-relaunch", directory: root.path), root: root, helper: helper) {
+        attach(recovered, launch: .init(executable: "/museterm-do-not-relaunch", directory: root.path), root: root, helper: helper) {
             startupWasCalled = true
         }
         try await waitUntil("existing PTY discovered by UUID") { recovered.controller.runtimeHandle?.connected == true }
@@ -1291,7 +1291,7 @@ final class TerminalRuntimeViewTests: XCTestCase {
     private func offlineEventFixture() async throws -> OfflineEventFixture {
         let (root, helper) = try await startService()
         let home = root.appendingPathComponent("cli-home")
-        let toolRoot = home.appendingPathComponent("Library/Application Support/QTerm/Tools")
+        let toolRoot = home.appendingPathComponent("Library/Application Support/MuseTerm/Tools")
         let workspace = TerminalWorkspace(automaticallyStartProcesses: false, profileStore: nil)
         let session = try XCTUnwrap(workspace.selectedTab)
         attach(session, launch: .init(executable: "/bin/sh", arguments: ["-c", Self.echoControlledShell],

@@ -5,8 +5,8 @@ final class TerminalPreviewUITests: XCTestCase {
     func testMarkdownSourceDetachDockImageAndTerminalInput() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
-        let root = URL(fileURLWithPath: "/private/tmp/qterm-preview-ui-\(UUID())")
-        app.launchEnvironment["QTERM_AGENT_TEST_TOOL_ROOT"] = root.path
+        let root = URL(fileURLWithPath: "/private/tmp/museterm-preview-ui-\(UUID())")
+        app.launchEnvironment["MUSETERM_AGENT_TEST_TOOL_ROOT"] = root.path
         app.launchArguments = ["-AppleLanguages", "(en)", "-notifications.enabled", "NO",
             "-SUEnableAutomaticChecks", "NO", "-ui-testing-preview"]
         app.launch()

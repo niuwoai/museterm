@@ -3,7 +3,7 @@ import Sparkle
 import SwiftUI
 
 enum SomeIMUpdateConfiguration {
-    nonisolated static let appID = "qterm"
+    nonisolated static let appID = "museterm"
     nonisolated static let platform = "macos"
     nonisolated static let channel = "stable"
 

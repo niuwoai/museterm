@@ -22,7 +22,7 @@ def ssh_target(info)
 end
 
 binary = File.expand_path(ARGV.fetch(0))
-prefix = File.expand_path(ARGV.fetch(1, "/private/tmp/qterm-authenticated-ssh"))
+prefix = File.expand_path(ARGV.fetch(1, "/private/tmp/museterm-authenticated-ssh"))
 root = Dir.mktmpdir("qrs-", "/private/tmp")
 File.chmod(0700, root)
 fixture = nil
@@ -139,7 +139,7 @@ ensure
 end
 report = {"generatedAt" => Time.now.iso8601, "version" => version, "passed" => failure.nil?, "failure" => failure,
   "checks" => checks, "helperSHA256" => Digest::SHA256.file(binary).hexdigest, "ephemeralKeysRemoved" => fixture.nil? || !File.exist?(fixture.root),
-  "scope" => "Actual authenticated loopback OpenSSH through real QTerm backend/PTYS with controlled network drop; not external remote server or GUI/Profile acceptance"}
+  "scope" => "Actual authenticated loopback OpenSSH through real MuseTerm backend/PTYS with controlled network drop; not external remote server or GUI/Profile acceptance"}
 File.write(prefix + ".json", JSON.pretty_generate(report) + "\n")
 File.write(prefix + ".md", (["# 真实 SSH 认证、断连与显式重连", "", "通过：#{report['passed']}，检查：#{checks.length}", "", report["scope"], ""] + checks.map { |c| "- #{c}" } + ["", failure.to_s, ""]).join("\n"))
 puts JSON.generate(report)

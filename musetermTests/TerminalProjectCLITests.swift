@@ -4,7 +4,7 @@ import XCTest
 @MainActor
 final class TerminalProjectCLITests: XCTestCase {
     func testQuietLayoutRenameAndResizePublishWithoutTerminalOutput() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("qterm-project-state-\(UUID())")
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("museterm-project-state-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
         let workspace = TerminalWorkspace(automaticallyStartProcesses: false, profileStore: nil)
         let terminal = try XCTUnwrap(workspace.selectedTab)
@@ -47,8 +47,8 @@ final class TerminalProjectCLITests: XCTestCase {
     }
 
     func testTimedOutProjectRequestIsRemovedBeforeUICanReceiveItLater() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("qterm-project-timeout-\(UUID())")
-        let toolRoot = root.appendingPathComponent("Library/Application Support/QTerm/Tools")
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("museterm-project-timeout-\(UUID())")
+        let toolRoot = root.appendingPathComponent("Library/Application Support/MuseTerm/Tools")
         defer { try? FileManager.default.removeItem(at: root) }
         let workspace = TerminalWorkspace(automaticallyStartProcesses: false, profileStore: nil)
         let bridge = TerminalToolBridge(rootDirectory: toolRoot)
@@ -65,7 +65,7 @@ final class TerminalProjectCLITests: XCTestCase {
         failed = begin
           project_tool({"operation" => "createProject", "name" => "must-not-arrive-later", "timeout" => 0.2}); false
         rescue => error
-          error.message == "QTerm did not answer the tool request in time."
+          error.message == "MuseTerm did not answer the tool request in time."
         end
         puts JSON.generate({"timedOut" => failed, "requests" => Dir.glob(File.join(REQUESTS, "*.json")).length})
         """
@@ -89,10 +89,10 @@ final class TerminalProjectCLITests: XCTestCase {
     }
 
     func testGeneratedCLIAndMCPUseActualPairedBridgeAndKeepFocus() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("qterm-project-cli-\(UUID())")
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("museterm-project-cli-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
         defer { try? FileManager.default.removeItem(at: root) }
-        let defaultsName = "QTermProjectTools.\(UUID())"
+        let defaultsName = "MuseTermProjectTools.\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: defaultsName))
         defer { defaults.removePersistentDomain(forName: defaultsName) }
         let preferences = TerminalPreferences(defaults: defaults)
@@ -100,15 +100,15 @@ final class TerminalProjectCLITests: XCTestCase {
         let workspace = TerminalWorkspace(automaticallyStartProcesses: false, profileStore: nil)
         workspace.preferences = preferences
         let original = try XCTUnwrap(workspace.selectedID)
-        let toolRoot = root.appendingPathComponent("Library/Application Support/QTerm/Tools")
+        let toolRoot = root.appendingPathComponent("Library/Application Support/MuseTerm/Tools")
         let bridge = TerminalToolBridge(rootDirectory: toolRoot)
         bridge.attach(workspace: workspace)
         defer { bridge.stop() }
         MuseTermKeychain._useTestStorage(true)
         defer { MuseTermKeychain._useTestStorage(false) }
-        XCTAssertTrue(MuseTermKeychain.save("project-fixture-only", account: "qterm-cli", serviceName: TerminalToolAccess.keychainServiceName))
+        XCTAssertTrue(MuseTermKeychain.save("project-fixture-only", account: "museterm-cli", serviceName: TerminalToolAccess.keychainServiceName))
         let deniedID = UUID().uuidString
-        let disabledRequest: [String: Any] = ["id": deniedID, "action": "project_layout", "clientID": "qterm-cli",
+        let disabledRequest: [String: Any] = ["id": deniedID, "action": "project_layout", "clientID": "museterm-cli",
             "authToken": "project-fixture-only", "projectRequest": ["operation": "createProject", "name": "disabled",
                 "uiEpoch": workspace.sessionRegistry.events.appEpoch.uuidString,
                 "deadlineMonotonic": TerminalProjectToolService.requestMonotonicTime() + 5]]

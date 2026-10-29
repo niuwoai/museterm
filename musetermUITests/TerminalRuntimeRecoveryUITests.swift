@@ -7,10 +7,10 @@ final class TerminalRuntimeRecoveryUITests: XCTestCase {
     func testNormalApplicationQuitAndRelaunchPreserveOriginalPTYAndSplit() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
-        let tools = FileManager.default.temporaryDirectory.appendingPathComponent("qterm-recovery-ui-\(UUID())")
+        let tools = FileManager.default.temporaryDirectory.appendingPathComponent("museterm-recovery-ui-\(UUID())")
         let hash = SHA256.hash(data: Data(tools.path.utf8)).prefix(10).map { String(format: "%02x", $0) }.joined()
         let backend = URL(fileURLWithPath: "/private/tmp/qrt-ui-\(getuid())-\(hash)")
-        app.launchEnvironment["QTERM_AGENT_TEST_TOOL_ROOT"] = tools.path
+        app.launchEnvironment["MUSETERM_AGENT_TEST_TOOL_ROOT"] = tools.path
         app.launchArguments = ["-AppleLanguages", "(en)", "-terminal.showsTabList", "YES",
             "-notifications.enabled", "NO", "-SUEnableAutomaticChecks", "NO",
             "-terminal.skipRunningTabCloseConfirmation", "YES", "-ui-testing-agent-state",

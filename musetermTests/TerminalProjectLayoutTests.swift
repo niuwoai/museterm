@@ -4,7 +4,7 @@ import XCTest
 @MainActor
 final class TerminalProjectLayoutTests: XCTestCase {
     func testSplittingLocalTerminalInheritsOSC7DirectoryWithHostname() throws {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("qterm cwd \(UUID())")
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("museterm cwd \(UUID())")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
         defer { try? FileManager.default.removeItem(at: directory) }
         var uri = URLComponents()

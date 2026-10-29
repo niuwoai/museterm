@@ -21,7 +21,7 @@ private struct RuntimeNativeResponse: Encodable {
     let action: String
     let version = AppVersion.value
     let schemaVersion = 1
-    let appName = "QTerm"
+    let appName = "MuseTerm"
     var snapshotSequence: UInt64
     var ok = true
     var agentGrant: TerminalAgentGrant?
@@ -99,7 +99,7 @@ final class RuntimeNativeBridge {
             var response = RuntimeNativeResponse(id: result.waitID, action: "wait_session", snapshotSequence: events.sequence)
             response.waitResult = result
             do { try writePrivate(encoder.encode(response), name: result.waitID) }
-            catch { NSLog("QTerm runtime could not publish a bounded wait result") }
+            catch { NSLog("MuseTerm runtime could not publish a bounded wait result") }
         }
         visit(responses, limit: 32) { url in
             var stat = Darwin.stat()

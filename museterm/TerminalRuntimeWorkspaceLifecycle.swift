@@ -29,9 +29,9 @@ final class TerminalRuntimeWorkspaceLifecycle {
             for id in try store.recordIDs() where !claimed.contains(id) {
                 claimed.insert(id)
                 do { recovered = try store.load(id); break }
-                catch { failed = true; NSLog("QTerm retained an unreadable workspace recovery record") }
+                catch { failed = true; NSLog("MuseTerm retained an unreadable workspace recovery record") }
             }
-        } catch { failed = true; NSLog("QTerm could not read workspace recovery directory") }
+        } catch { failed = true; NSLog("MuseTerm could not read workspace recovery directory") }
         let workspace = TerminalWorkspace(automaticallyStartProcesses: automaticallyStartProcesses,
             restoringRuntimeRecord: recovered, deferInitialTab: recovered == nil)
         workspace.runtimeRecoveryIssue = failed
@@ -65,7 +65,7 @@ final class TerminalRuntimeWorkspaceLifecycle {
                 // Reserve terminals in other, as-yet unopened windows too.
                 for id in try store.recordIDs() {
                     do { reserved.formUnion(try store.load(id).snapshot.tabs.compactMap(\.terminalID)) }
-                    catch { workspace.runtimeRecoveryIssue = true; NSLog("QTerm retained an unreadable recovery record during discovery") }
+                    catch { workspace.runtimeRecoveryIssue = true; NSLog("MuseTerm retained an unreadable recovery record during discovery") }
                 }
                 switch result {
                 case .success(let sessions):
@@ -73,12 +73,12 @@ final class TerminalRuntimeWorkspaceLifecycle {
                 case .failure(let error):
                     if case TerminalRuntimeConnectionError.unavailable = error {} else {
                         workspace.runtimeRecoveryIssue = true
-                        NSLog("QTerm could not discover retained terminal sessions")
+                        NSLog("MuseTerm could not discover retained terminal sessions")
                     }
                 }
             } catch {
                 workspace.runtimeRecoveryIssue = true
-                NSLog("QTerm could not recover retained terminals")
+                NSLog("MuseTerm could not recover retained terminals")
             }
             if workspace.sessionRegistry.sessions.isEmpty { workspace.newTab() }
             schedule(workspace)
@@ -100,7 +100,7 @@ final class TerminalRuntimeWorkspaceLifecycle {
         workspace.onRuntimeRecordRemovalNeeded = { [weak self, weak workspace] in
             guard let self, let workspace else { return }
             do { try self.persist(workspace) }
-            catch { workspace.runtimeRecoveryIssue = true; NSLog("QTerm could not remove a closed workspace recovery record") }
+            catch { workspace.runtimeRecoveryIssue = true; NSLog("MuseTerm could not remove a closed workspace recovery record") }
         }
         schedule(workspace)
     }
@@ -121,7 +121,7 @@ final class TerminalRuntimeWorkspaceLifecycle {
         let work = DispatchWorkItem { [weak self, weak workspace] in
             guard let self, let workspace else { return }
             do { try self.persist(workspace) }
-            catch { workspace.runtimeRecoveryIssue = true; NSLog("QTerm could not save workspace recovery record") }
+            catch { workspace.runtimeRecoveryIssue = true; NSLog("MuseTerm could not save workspace recovery record") }
         }
         pending[id] = work
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.persistenceDelay, execute: work)
@@ -135,7 +135,7 @@ final class TerminalRuntimeWorkspaceLifecycle {
         let work = DispatchWorkItem { [weak self, weak workspace] in
             guard let self, let workspace else { return }
             do { try self.persist(workspace) }
-            catch { workspace.runtimeRecoveryIssue = true; NSLog("QTerm could not save rendered output checkpoint") }
+            catch { workspace.runtimeRecoveryIssue = true; NSLog("MuseTerm could not save rendered output checkpoint") }
         }
         renderedPending[id] = work
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.persistenceDelay, execute: work)

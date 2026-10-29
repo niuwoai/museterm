@@ -274,8 +274,7 @@ enum LearnedCommandStore {
         #endif
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
-        return base.appendingPathComponent("QTerm", isDirectory: true)
-            .appendingPathComponent("LearnedCommands", isDirectory: true)
+        return MuseTermLegacyCompatibility.directory("LearnedCommands", base: base)
     }
 
     static var fileURL: URL {
@@ -293,7 +292,7 @@ enum LearnedCommandStore {
             decoder.dateDecodingStrategy = .iso8601
             return prepared(try decoder.decode([LearnedCommandRecord].self, from: Data(contentsOf: fileURL)))
         } catch {
-            NSLog("QTerm learned command load failed: \(error.localizedDescription)")
+            NSLog("MuseTerm learned command load failed: \(error.localizedDescription)")
             return []
         }
     }
@@ -332,7 +331,7 @@ enum LearnedCommandStore {
                 options: .atomic
             )
         } catch {
-            NSLog("QTerm learned command save failed: \(error.localizedDescription)")
+            NSLog("MuseTerm learned command save failed: \(error.localizedDescription)")
         }
     }
 }
@@ -346,7 +345,7 @@ enum LearnedCommandBlacklistStore {
         do {
             return Set(try JSONDecoder().decode([String].self, from: Data(contentsOf: url)))
         } catch {
-            NSLog("QTerm learned command blacklist load failed: \(error.localizedDescription)")
+            NSLog("MuseTerm learned command blacklist load failed: \(error.localizedDescription)")
             return []
         }
     }
@@ -362,7 +361,7 @@ enum LearnedCommandBlacklistStore {
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             try encoder.encode(commands.sorted()).write(to: url, options: .atomic)
         } catch {
-            NSLog("QTerm learned command blacklist save failed: \(error.localizedDescription)")
+            NSLog("MuseTerm learned command blacklist save failed: \(error.localizedDescription)")
         }
     }
 }

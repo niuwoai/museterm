@@ -53,7 +53,7 @@ def wait_for(seconds = 10)
 end
 
 binary = File.expand_path(ARGV.fetch(0))
-prefix = File.expand_path(ARGV.fetch(1, "/private/tmp/qterm-runtime-probe"))
+prefix = File.expand_path(ARGV.fetch(1, "/private/tmp/museterm-runtime-probe"))
 root = Dir.mktmpdir("qrt-", "/private/tmp")
 File.chmod(0o700, root)
 checks = []
@@ -134,7 +134,7 @@ begin
     "environment" => {"PATH" => "/usr/bin:/bin"}, "columns" => 80, "rows" => 24}
   raise "Unbounded argument count accepted" unless client.request("create", {"launch" => rejected_launch})["error"] == "invalid_request"
   rejected_launch["arguments"] = []
-  rejected_launch["executable"] = "/qterm-test-no-executable"
+  rejected_launch["executable"] = "/museterm-test-no-executable"
   raise "Failed exec was reported as a live PTY" unless client.request("create", {"launch" => rejected_launch})["error"] == "process_launch_failed"
   remaining = ensure_ok(client.request("list")).fetch("sessions")
   raise "Failed launch changed existing sessions" unless remaining.length == 1 && remaining.first["id"] == session["id"]
@@ -191,7 +191,7 @@ begin
 
   # The status bridge and inbox now belong to the same independent process as
   # the PTY. Closing a UI connection must not retire its Agent or active gate.
-  session = ensure_ok(client.request("input", target(session).merge("source" => "human", "data" => Base64.strict_encode64("printf '__CONTEXT:%s\\n' \"$QTERM_AGENT_CONTEXT\"\n")))).fetch("session")
+  session = ensure_ok(client.request("input", target(session).merge("source" => "human", "data" => Base64.strict_encode64("printf '__CONTEXT:%s\\n' \"$MUSETERM_AGENT_CONTEXT\"\n")))).fetch("session")
   wait_for { read_output.call; output.include?("__CONTEXT:") }
   context_path = output[/__CONTEXT:([^\r\n]+)/, 1]
   raise "Context escaped private fixture" unless File.realpath(context_path).start_with?(root + "/native-tools/native-agent-contexts/")
@@ -353,7 +353,7 @@ ensure
   end
   report = {"generatedAt" => Time.now.iso8601, "passed" => passed, "failure" => failure,
     "binarySHA256" => Digest::SHA256.file(binary).hexdigest, "checks" => checks,
-    "scope" => "独立真实 PTY 服务及共用 Agent/待处理/事件归约跨客户端；原生状态采用协议夹具，尚未接 QTerm UI 或产品安装路径",
+    "scope" => "独立真实 PTY 服务及共用 Agent/待处理/事件归约跨客户端；原生状态采用协议夹具，尚未接 MuseTerm UI 或产品安装路径",
     "fixtureDirectory" => passed ? nil : root}
   FileUtils.mkdir_p(File.dirname(prefix))
   File.write(prefix + ".json", JSON.pretty_generate(report) + "\n")

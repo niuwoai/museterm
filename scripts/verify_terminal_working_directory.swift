@@ -4,8 +4,8 @@ import Foundation
 @main
 struct WorkingDirectoryProbe {
     static func main() throws {
-        let prefix = CommandLine.arguments.dropFirst().first ?? "/private/tmp/qterm-working-directory"
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("qterm-cwd-\(UUID())")
+        let prefix = CommandLine.arguments.dropFirst().first ?? "/private/tmp/museterm-working-directory"
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("museterm-cwd-\(UUID())")
         let directory = root.appendingPathComponent("space 项目")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         var checks: [[String: Any]] = []

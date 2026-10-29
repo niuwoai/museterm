@@ -109,7 +109,7 @@ final class TerminalProjectToolTests: XCTestCase {
         let before = workspace.projectLayout
         let stale = try perform(.init(operation: .createProject, name: "stale", expectedEpoch: UUID(), expectedRevision: 0), workspace)
         XCTAssertEqual(stale.error, "project_layout_changed")
-        let invalid = try perform(.init(operation: .createProject, name: "invalid", directory: "/qterm-does-not-exist-\(UUID())"), workspace)
+        let invalid = try perform(.init(operation: .createProject, name: "invalid", directory: "/museterm-does-not-exist-\(UUID())"), workspace)
         XCTAssertEqual(invalid.error, "invalid_project_request")
         let foreign = try perform(.init(operation: .list, workspaceID: UUID()), workspace)
         XCTAssertEqual(foreign.error, "project_target_unavailable")
