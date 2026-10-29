@@ -5,6 +5,7 @@
 ### Changed
 - 产品统一更名为 MuseTerm：应用、CLI/MCP、后台程序、环境变量、日志、自动更新频道与发布产物使用新标识。Bundle ID 保持 im.some.museterm。
 - 旧 QTerm 数据目录和 CLI 配对保留兼容读取；现有 WillDeep 状态桥继续接受旧环境变量，避免更名中断已有会话或授权。
+- 原生 WillDeep 验证脚本同步提供新旧环境变量，并在启动独立 daemon 和后台终端时清除临时上下文，保持验证入口可用。
 - 网站与 Homebrew 改用 museterm，旧 cask 通过重命名映射迁移。
 
 ## [1.256.0-rc1] - 2026-10-28
