@@ -222,8 +222,8 @@ nonisolated private final class TerminalRuntimeSessionIO: @unchecked Sendable {
     let id: UUID
     let root: URL
     let executable: URL
-    private let commands = DispatchQueue(label: "im.some.qterm.runtime.commands")
-    private let reader = DispatchQueue(label: "im.some.qterm.runtime.output")
+    private let commands = DispatchQueue(label: "im.some.museterm.runtime.commands")
+    private let reader = DispatchQueue(label: "im.some.museterm.runtime.output")
     private let lock = NSLock()
     private var stopped = false
     private var closeRequested = false

@@ -20,7 +20,7 @@ end
 
 def command_project(args)
   operation = args.shift || "list"
-  raise "Use qterm project OPERATION [REQUEST_JSON]." if args.length > 1
+  raise "Use museterm project OPERATION [REQUEST_JSON]." if args.length > 1
   fields = args.empty? ? {} : JSON.parse(args.shift)
   raise "Project request must be an object." unless fields.is_a?(Hash)
   print_json(project_tool(fields.merge("operation" => operation)))

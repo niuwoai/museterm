@@ -32,7 +32,7 @@ if qa_ui && %w[resume finish].any? { |name| File.exist?("#{prefix}.#{name}") }
   abort "QA checkpoint files already exist; use a new report prefix"
 end
 backend_binary = if qa_ui
-  File.join(qa_metadata.fetch("app"), "Contents/Helpers/qterm-runtime")
+  File.join(qa_metadata.fetch("app"), "Contents/Helpers/museterm-runtime")
 elsif use_backend
   File.expand_path(ARGV.fetch(3))
 end
@@ -113,9 +113,9 @@ provider = Thread.new do
       requests += 1
       message = if requests == 1 && mode != "headless-complete"
         {"role" => "assistant", "content" => nil, "tool_calls" => [{"id" => "native-probe-call", "type" => "function",
-          "function" => {"name" => "run_command", "arguments" => JSON.generate({"command" => "printf qterm_native_probe"})}}]}
+          "function" => {"name" => "run_command", "arguments" => JSON.generate({"command" => "printf museterm_native_probe"})}}]}
       else
-        {"role" => "assistant", "content" => "qterm_native_complete"}
+        {"role" => "assistant", "content" => "museterm_native_complete"}
       end
       if input["stream"]
         delta = message.dup
@@ -145,7 +145,7 @@ config = ["version = 1", 'default_provider = "mock"', "", "[agent]", 'approval =
   "api_base = \"http://127.0.0.1:#{port}/v1\"", 'api_key = "integration-test-only"', 'model = "mock-model"', ""].join("\n")
 write_private(File.join(root, "config.toml"), config)
 env = ENV.keys.grep(/\A(?:WILLDEEP_|OPENAI_|ANTHROPIC_)/).to_h { |key| [key, nil] }
-env.merge!("WILLDEEP_HOME" => File.join(root, "home"), "QTERM_AGENT_CONTEXT" => File.join(root, "context.json"),
+env.merge!("WILLDEEP_HOME" => File.join(root, "home"), "MUSETERM_AGENT_CONTEXT" => File.join(root, "context.json"),
   "WILLDEEP_NO_UPDATE_CHECK" => "1", "TERM" => "xterm-256color")
 transcript = "".b
 child = nil
@@ -180,7 +180,7 @@ begin
   runtime_lock = SecureRandom.hex(16)
   write_private(File.join(runtime_directory, "daemon.lock"),
     JSON.generate({"token" => runtime_lock, "created_at" => Time.now.to_i}))
-  runtime_env = env.merge("WILLDEEP_DAEMON_LOCK_TOKEN" => runtime_lock, "QTERM_AGENT_CONTEXT" => nil)
+  runtime_env = env.merge("WILLDEEP_DAEMON_LOCK_TOKEN" => runtime_lock, "MUSETERM_AGENT_CONTEXT" => nil)
   runtime_log = File.open(File.join(root, "runtime.log"), File::WRONLY | File::CREAT | File::EXCL, 0o600)
   runtime_child = Process.spawn(runtime_env, binary, "--config", File.join(root, "config.toml"), "daemon", "run",
     in: File::NULL, out: runtime_log, err: runtime_log)
@@ -213,11 +213,11 @@ begin
   arguments = ["--config", File.join(root, "config.toml"), "--workspace", File.join(root, "workspace"), "--new-session"]
   arguments += ["--no-tui", "Run the native integration probe."] unless tui_mode
   if use_backend
-    backend_root = qa_ui ? qa_metadata.fetch("backend") : File.join(root, "qterm")
+    backend_root = qa_ui ? qa_metadata.fetch("backend") : File.join(root, "museterm")
     if qa_ui
       qa_root = File.realpath(qa_metadata.fetch("root"))
       tools_root = File.join(qa_root, "Tools")
-      raise "Not an isolated QA fixture" unless qa_root.match?(%r{\A/private/tmp/qterm-native-qa-[0-9a-f]+\z})
+      raise "Not an isolated QA fixture" unless qa_root.match?(%r{\A/private/tmp/museterm-native-qa-[0-9a-f]+\z})
       [qa_root, tools_root, backend_root].each do |path|
         info = File.lstat(path)
         raise "Unsafe QA directory" unless info.directory? && info.uid == Process.uid && info.mode & 0o077 == 0
@@ -225,18 +225,18 @@ begin
       expected_root = "/private/tmp/qrt-ui-#{Process.uid}-#{Digest::SHA256.hexdigest(tools_root)[0, 20]}"
       raise "QA backend namespace mismatch" unless backend_root == expected_root && qa_metadata.fetch("tools") == tools_root
     else
-      backend_log = File.open(File.join(root, "qterm-runtime.log"), File::WRONLY | File::CREAT | File::EXCL, 0o600)
+      backend_log = File.open(File.join(root, "museterm-runtime.log"), File::WRONLY | File::CREAT | File::EXCL, 0o600)
       backend_child = Process.spawn(backend_binary, "--root", backend_root, in: File::NULL, out: backend_log, err: backend_log)
       backend_log.close
       deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 10
       until File.socket?(File.join(backend_root, "runtime.sock")) && File.file?(File.join(backend_root, "ui-capability"))
-        raise "Owned QTerm backend exited" if Process.waitpid(backend_child, Process::WNOHANG)
-        raise "Owned QTerm backend startup timed out" if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+        raise "Owned MuseTerm backend exited" if Process.waitpid(backend_child, Process::WNOHANG)
+        raise "Owned MuseTerm backend startup timed out" if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
         sleep 0.05
       end
     end
     checked = lambda do |response|
-      raise "QTerm backend rejected #{response['action']}: #{response['error']}" unless response["ok"]
+      raise "MuseTerm backend rejected #{response['action']}: #{response['error']}" unless response["ok"]
       response
     end
     backend_client = RuntimeProbeClient.new(backend_root)
@@ -260,7 +260,7 @@ begin
       previous_agent_instance = previous_agent&.fetch("instanceID", nil)
       inspection = checked.call(backend_client.request("inspectInput", {"sessionID" => backend_session.fetch("id"), "generation" => backend_session.fetch("generation")}))
       raise "QA terminal is not an idle shell" unless inspection["foregroundPID"] == backend_session["pid"]
-      launch_environment = env.reject { |key, _| key == "QTERM_AGENT_CONTEXT" }.merge("HOME" => File.join(root, "home"))
+      launch_environment = env.reject { |key, _| key == "MUSETERM_AGENT_CONTEXT" }.merge("HOME" => File.join(root, "home"))
       command = ["/usr/bin/env"] + launch_environment.filter_map { |key, value| value.nil? ? ["-u", key] : nil }.flatten
       command += launch_environment.filter_map { |key, value| "#{key}=#{value}" unless value.nil? }
       command += [binary] + arguments
@@ -379,7 +379,7 @@ begin
         backend_wait_client.consumed(backend_wait_id)
         if wait_cli
           home = File.join(root, "event-cli-home")
-          tools = File.join(home, "Library/Application Support/QTerm/Tools")
+          tools = File.join(home, "Library/Application Support/MuseTerm/Tools")
           FileUtils.mkdir_p(tools, mode: 0o700)
           ui_epoch = SecureRandom.uuid
           metadata = {"appEpoch" => ui_epoch, "pid" => 2147483647, "version" => capability_snapshot.fetch("version"),
@@ -563,11 +563,11 @@ ensure
   provider.join(3)
   write_private(File.join(root, "terminal.bin"), mutex.synchronize { transcript }) unless passed
   report = {"generatedAt" => Time.now.iso8601, "mode" => mode, "passed" => passed, "failure" => failure,
-    "scope" => qa_ui ? "实际隔离 QTerm 图形界面 + WillDeep CLI/Runtime；本机 mock 模型；所有输入由原生界面执行，界面动作与退出时长另存独立证据" : (use_backend ? "实际 WillDeep CLI/Runtime + 独立 QTerm 后台真实 PTY/状态桥/待处理；本机 mock 模型；尚非 QTerm 图形界面联调" : "实际 WillDeep TUI/Runtime + PTY；本机模型与状态桥夹具；不等同 QTerm UI 联调或后台保活验收"),
+    "scope" => qa_ui ? "实际隔离 MuseTerm 图形界面 + WillDeep CLI/Runtime；本机 mock 模型；所有输入由原生界面执行，界面动作与退出时长另存独立证据" : (use_backend ? "实际 WillDeep CLI/Runtime + 独立 MuseTerm 后台真实 PTY/状态桥/待处理；本机 mock 模型；尚非 MuseTerm 图形界面联调" : "实际 WillDeep TUI/Runtime + PTY；本机模型与状态桥夹具；不等同 MuseTerm UI 联调或后台保活验收"),
     "fixtureDirectory" => passed ? nil : root,
     "binarySHA256" => Digest::SHA256.file(binary).hexdigest, "modelRequests" => requests,
     "frontendExitStatus" => frontend_exit_status,
-    "qtermBackendSHA256" => use_backend ? Digest::SHA256.file(backend_binary).hexdigest : nil,
+    "musetermBackendSHA256" => use_backend ? Digest::SHA256.file(backend_binary).hexdigest : nil,
     "allUIClientsDetachedSeconds" => qa_ui ? nil : backend_disconnected_seconds,
     "backendInputDiagnostics" => backend_input_diagnostics,
     "backendWaitResult" => backend_wait_result,

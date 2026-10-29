@@ -1364,7 +1364,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
 
         if let session, session.runtimeAttachOnly {
             finishStartupPromptDeduplication()
-            startRuntime(.init(executable: "/qterm-attach-existing-only", directory: "/"),
+            startRuntime(.init(executable: "/museterm-attach-existing-only", directory: "/"),
                 root: session.runtimeRecoveryRoot ?? TerminalRuntimeService.rootDirectory) { [weak session] in
                 session?.markStartupCommandsFinished()
             }
@@ -1582,7 +1582,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             guard let separator = entry.firstIndex(of: "=") else { continue }
             result[String(entry[..<separator])] = String(entry[entry.index(after: separator)...])
         }
-        result["QTERM_AGENT_CONTEXT"] = nil // The service creates and owns the bootstrap.
+        result["MUSETERM_AGENT_CONTEXT"] = nil // The service creates and owns the bootstrap.
+        result["QTERM_AGENT_CONTEXT"] = nil
         return result
     }
 
@@ -1637,7 +1638,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             self.updatePendingSafetyInput(data: bytes, echoEnabled: echo)
             if source == .ai {
                 do { try self.session?.archiveAIInput(bytes, echoEnabled: echo) }
-                catch { NSLog("QTerm runtime input archive failed") }
+                catch { NSLog("MuseTerm runtime input archive failed") }
             }
         }, failed: { [weak self, weak handle] error in
             guard let self, let handle, self.runtimeHandle === handle else { return }
@@ -2062,6 +2063,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
 
     private static func environmentDictionary(shellPath: String?) -> [String: String] {
         var environment = ProcessInfo.processInfo.environment
+        environment["MUSETERM_AGENT_CONTEXT"] = nil
         environment["QTERM_AGENT_CONTEXT"] = nil
         environment["TERM"] = "xterm-256color"
         environment["LANG"] = environment["LANG"] ?? "en_US.UTF-8"

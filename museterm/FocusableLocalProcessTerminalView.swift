@@ -717,7 +717,7 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
                 else { NSWorkspace.shared.open(fileURL) }
             case .failure(let error):
                 // 只记 host + path，query 里可能带 token
-                NSLog("QTerm image link download failed host=%@ path=%@ error=%@", url.host ?? "", url.path, String(describing: error))
+                NSLog("MuseTerm image link download failed host=%@ path=%@ error=%@", url.host ?? "", url.path, String(describing: error))
                 NSWorkspace.shared.open(url)
                 self?.showLinkNotice(L10n.string("terminal.link.image_fallback_browser"))
             }

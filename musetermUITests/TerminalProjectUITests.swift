@@ -5,8 +5,8 @@ final class TerminalProjectUITests: XCTestCase {
     func testImportSearchAndCancelKeepOriginalTerminal() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
-        let root = URL(fileURLWithPath: "/private/tmp").appendingPathComponent("qterm-import-ui-\(UUID())")
-        app.launchEnvironment["QTERM_AGENT_TEST_TOOL_ROOT"] = root.path
+        let root = URL(fileURLWithPath: "/private/tmp").appendingPathComponent("museterm-import-ui-\(UUID())")
+        app.launchEnvironment["MUSETERM_AGENT_TEST_TOOL_ROOT"] = root.path
         app.launchArguments = ["-AppleLanguages", "(en)", "-terminal.showsTabList", "YES",
             "-notifications.enabled", "NO", "-SUEnableAutomaticChecks", "NO"]
         app.launch()
@@ -17,7 +17,7 @@ final class TerminalProjectUITests: XCTestCase {
         app.buttons["project-import"].click()
         let search = app.textFields["project-import-search"]
         XCTAssertTrue(search.waitForExistence(timeout: 10))
-        search.click(); search.typeText("qterm-no-match-\(UUID())")
+        search.click(); search.typeText("museterm-no-match-\(UUID())")
         let confirm = app.buttons["project-import-confirm"]
         XCTAssertTrue(confirm.exists)
         XCTAssertFalse(confirm.isEnabled)
@@ -39,8 +39,8 @@ final class TerminalProjectUITests: XCTestCase {
     func testProjectSplitInputAndFocusStayOnTheCorrectTerminal() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
-        let root = URL(fileURLWithPath: "/private/tmp").appendingPathComponent("qterm-project-ui-\(UUID())")
-        app.launchEnvironment["QTERM_AGENT_TEST_TOOL_ROOT"] = root.path
+        let root = URL(fileURLWithPath: "/private/tmp").appendingPathComponent("museterm-project-ui-\(UUID())")
+        app.launchEnvironment["MUSETERM_AGENT_TEST_TOOL_ROOT"] = root.path
         app.launchArguments = ["-AppleLanguages", "(en)", "-terminal.showsTabList", "YES",
             "-notifications.enabled", "NO", "-SUEnableAutomaticChecks", "NO",
             "-terminal.skipRunningTabCloseConfirmation", "YES", "-ui-testing-agent-state", "-ui-testing-project-workspace"]
@@ -58,17 +58,17 @@ final class TerminalProjectUITests: XCTestCase {
         XCTAssertTrue(firstFocus.exists)
         XCTAssertTrue(secondFocus.exists)
         firstFocus.click()
-        app.typeText("printf qterm_first_pane_ok\n")
+        app.typeText("printf museterm_first_pane_ok\n")
         _ = try waitState(root) { state in
             (state["tabs"] as? [[String: Any]])?.first { $0["id"] as? String == first }?["screen"] as? String != nil
                 && (state["selectedTabID"] as? String) == first
-                && ((state["tabs"] as? [[String: Any]])?.first { $0["id"] as? String == first }?["screen"] as? String)?.contains("qterm_first_pane_ok") == true
+                && ((state["tabs"] as? [[String: Any]])?.first { $0["id"] as? String == first }?["screen"] as? String)?.contains("museterm_first_pane_ok") == true
         }
         secondFocus.click()
-        app.typeText("printf qterm_second_pane_ok\n")
+        app.typeText("printf museterm_second_pane_ok\n")
         _ = try waitState(root) { state in
             (state["selectedTabID"] as? String) == second
-                && ((state["tabs"] as? [[String: Any]])?.first { $0["id"] as? String == second }?["screen"] as? String)?.contains("qterm_second_pane_ok") == true
+                && ((state["tabs"] as? [[String: Any]])?.first { $0["id"] as? String == second }?["screen"] as? String)?.contains("museterm_second_pane_ok") == true
         }
         app.buttons["pane-split-down-\(second)"].click()
         _ = try waitState(root) { ($0["tabs"] as? [[String: Any]])?.count == 3 }

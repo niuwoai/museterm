@@ -17,7 +17,7 @@ FileUtils.mkdir_p(File.dirname(output))
 # output is only a literal allowance, so dynamic module-cache/lock children
 # must live in the target's script scratch area rather than DerivedSources.
 scratch_root = ENV["TEMP_DIR"] || ENV["DERIVED_FILE_DIR"]
-build_root = scratch_root ? File.join(scratch_root, "QTermRuntimeBuild") : "/private/tmp/qterm-runtime-build-#{Process.uid}"
+build_root = scratch_root ? File.join(scratch_root, "MuseTermRuntimeBuild") : "/private/tmp/museterm-runtime-build-#{Process.uid}"
 FileUtils.mkdir_p(build_root, mode: 0o700)
 attributes = File.lstat(build_root)
 abort "Runtime cache root must be an owned directory" unless attributes.directory? && !attributes.symlink? && attributes.uid == Process.uid
@@ -26,7 +26,7 @@ cache_lock = File.open(File.join(build_root, "build.lock"), File::RDWR | File::C
 abort "Runtime cache lock must be a private owned file" unless cache_lock.stat.file? && cache_lock.stat.uid == Process.uid && cache_lock.stat.mode & 0o077 == 0
 cache_lock.flock(File::LOCK_EX)
 measurements = []
-Dir.mktmpdir("qterm-runtime-build-", build_root) do |temporary|
+Dir.mktmpdir("museterm-runtime-build-", build_root) do |temporary|
   binaries = architectures.map do |architecture|
     object = File.join(temporary, "pty-#{architecture}.o")
     binary = File.join(temporary, "runtime-#{architecture}")
@@ -77,7 +77,7 @@ end
 cache_lock.close
 File.chmod(0o755, output)
 puts "Built #{output} (#{architectures.join(', ')})"
-if (prefix = ENV["QTERM_RUNTIME_BUILD_REPORT"])
+if (prefix = ENV["MUSETERM_RUNTIME_BUILD_REPORT"])
   report = {"generatedAt" => Time.now.iso8601, "scope" => "helper compilation only; not test, signing or release acceleration", "measurements" => measurements}
   FileUtils.mkdir_p(File.dirname(prefix))
   File.write(prefix + ".json", JSON.pretty_generate(report) + "\n")

@@ -24,7 +24,7 @@ final class musetermTests: XCTestCase {
             arguments: ["input", "--json", "--timeout", "1.5", "--tab", "tab-1", "echo ok"],
             response: [
                 "schemaVersion": 1,
-                "app": "QTerm",
+                "app": "MuseTerm",
                 "version": "test",
                 "ok": true,
                 "snapshotSequence": 43,
@@ -47,25 +47,25 @@ final class musetermTests: XCTestCase {
     func testCliInstallerScriptExposesMCPAndTerminalCommands() {
         let script = MuseTermCLIInstaller.script
 
-        XCTAssertEqual(MuseTermCLIInstaller.installURL.lastPathComponent, "qterm")
+        XCTAssertEqual(MuseTermCLIInstaller.installURL.lastPathComponent, "museterm")
         // The test host uses a private tool root; the installed CLI still targets
         // the production location unless its fixture explicitly overrides ROOT.
-        XCTAssertTrue(script.contains("ROOT = File.expand_path(\"~/Library/Application Support/QTerm/Tools\")"))
-        XCTAssertTrue(script.contains("qterm tabs"))
-        XCTAssertTrue(script.contains("qterm screen"))
-        XCTAssertTrue(script.contains("qterm history"))
+        XCTAssertTrue(script.contains("ROOT = File.expand_path(\"~/Library/Application Support/MuseTerm/Tools\")"))
+        XCTAssertTrue(script.contains("museterm tabs"))
+        XCTAssertTrue(script.contains("museterm screen"))
+        XCTAssertTrue(script.contains("museterm history"))
         XCTAssertTrue(script.contains("[--json]"))
         XCTAssertTrue(script.contains("\"metadata\" => { \"type\" => \"boolean\""))
         XCTAssertTrue(script.contains("text_payload(state, tab, \"screen\", args[\"chars\"])"))
         XCTAssertTrue(script.contains("text_payload(state, tab, \"history\", args[\"chars\"])"))
-        XCTAssertTrue(script.contains("qterm input"))
-        XCTAssertTrue(script.contains("qterm key"))
-        XCTAssertTrue(script.contains("qterm tab"))
-        XCTAssertTrue(script.contains("qterm ssh"))
-        XCTAssertTrue(script.contains("qterm shortcuts"))
-        XCTAssertTrue(script.contains("qterm shortcut"))
-        XCTAssertTrue(script.contains("\"name\" => \"qterm\""))
-        XCTAssertFalse(script.contains("museterm tabs"))
+        XCTAssertTrue(script.contains("museterm input"))
+        XCTAssertTrue(script.contains("museterm key"))
+        XCTAssertTrue(script.contains("museterm tab"))
+        XCTAssertTrue(script.contains("museterm ssh"))
+        XCTAssertTrue(script.contains("museterm shortcuts"))
+        XCTAssertTrue(script.contains("museterm shortcut"))
+        XCTAssertTrue(script.contains("\"name\" => \"museterm\""))
+        XCTAssertFalse(script.contains("qterm tabs"))
         XCTAssertTrue(script.contains("print_json(response)"))
         XCTAssertTrue(script.contains("--timeout SECONDS"))
         XCTAssertTrue(script.contains("FileUtils.chmod(0o700, [ROOT, REQUESTS, RESPONSES])"))
@@ -100,7 +100,7 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(script.contains("send_key"))
     }
 
-    func testMCPInitializeUsesQTermServerName() throws {
+    func testMCPInitializeUsesMuseTermServerName() throws {
         let fixture = try makeMuseTermCLITestFixture()
         defer { try? FileManager.default.removeItem(at: fixture.root) }
 
@@ -117,7 +117,7 @@ final class musetermTests: XCTestCase {
         let result = try XCTUnwrap(response["result"] as? [String: Any])
         let serverInfo = try XCTUnwrap(result["serverInfo"] as? [String: Any])
 
-        XCTAssertEqual(serverInfo["name"] as? String, "qterm")
+        XCTAssertEqual(serverInfo["name"] as? String, "museterm")
         XCTAssertEqual(serverInfo["version"] as? String, AppVersion.value)
     }
 
@@ -131,7 +131,7 @@ final class musetermTests: XCTestCase {
             arguments: ["tab", "--json", "--timeout", "1.5", "/tmp/project"],
             response: [
                 "schemaVersion": 1,
-                "app": "QTerm",
+                "app": "MuseTerm",
                 "version": "test",
                 "ok": true,
                 "snapshotSequence": 45,
@@ -158,7 +158,7 @@ final class musetermTests: XCTestCase {
             arguments: ["shortcuts", "--json", "--timeout", "1.5"],
             response: [
                 "schemaVersion": 1,
-                "app": "QTerm",
+                "app": "MuseTerm",
                 "version": "test",
                 "ok": true,
                 "snapshotSequence": 47,
@@ -220,7 +220,7 @@ final class musetermTests: XCTestCase {
         let limited = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["commands", "--chars", "3"])
         let limitedCommand = try XCTUnwrap((limited["commands"] as? [[String: Any]])?.first)
         XCTAssertEqual(limited["schemaVersion"] as? Int, 1)
-        XCTAssertEqual(limited["app"] as? String, "QTerm")
+        XCTAssertEqual(limited["app"] as? String, "MuseTerm")
         XCTAssertEqual(limited["version"] as? String, "test")
         XCTAssertEqual(limited["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(limited["tabID"] as? String, "tab-1")
@@ -257,7 +257,7 @@ final class musetermTests: XCTestCase {
 
         let screen = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["screen", "--chars", "4", "--json"])
         XCTAssertEqual(screen["schemaVersion"] as? Int, 1)
-        XCTAssertEqual(screen["app"] as? String, "QTerm")
+        XCTAssertEqual(screen["app"] as? String, "MuseTerm")
         XCTAssertEqual(screen["version"] as? String, "test")
         XCTAssertEqual(screen["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(screen["shellName"] as? String, "zsh")
@@ -271,7 +271,7 @@ final class musetermTests: XCTestCase {
         XCTAssertEqual(screen["truncated"] as? Bool, true)
 
         let history = try runMuseTermCLIScript(fixture.scriptURL, home: fixture.root, arguments: ["history", "--json"])
-        XCTAssertEqual(history["app"] as? String, "QTerm")
+        XCTAssertEqual(history["app"] as? String, "MuseTerm")
         XCTAssertEqual(history["version"] as? String, "test")
         XCTAssertEqual(history["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(history["shellName"] as? String, "zsh")
@@ -436,7 +436,7 @@ final class musetermTests: XCTestCase {
         let command = try XCTUnwrap(commands.first)
 
         XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
-        XCTAssertEqual(payload["app"] as? String, "QTerm")
+        XCTAssertEqual(payload["app"] as? String, "MuseTerm")
         XCTAssertEqual(payload["version"] as? String, "test")
         XCTAssertEqual(payload["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(payload["tabID"] as? String, "tab-1")
@@ -475,7 +475,7 @@ final class musetermTests: XCTestCase {
             ],
             response: [
                 "schemaVersion": 1,
-                "app": "QTerm",
+                "app": "MuseTerm",
                 "version": "test",
                 "ok": true,
                 "snapshotSequence": 44,
@@ -522,7 +522,7 @@ final class musetermTests: XCTestCase {
             ],
             response: [
                 "schemaVersion": 1,
-                "app": "QTerm",
+                "app": "MuseTerm",
                 "version": "test",
                 "ok": true,
                 "snapshotSequence": 48,
@@ -582,7 +582,7 @@ final class musetermTests: XCTestCase {
             ],
             response: [
                 "schemaVersion": 1,
-                "app": "QTerm",
+                "app": "MuseTerm",
                 "version": "test",
                 "ok": true,
                 "snapshotSequence": 46,
@@ -636,7 +636,7 @@ final class musetermTests: XCTestCase {
         )
 
         XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
-        XCTAssertEqual(payload["app"] as? String, "QTerm")
+        XCTAssertEqual(payload["app"] as? String, "MuseTerm")
         XCTAssertEqual(payload["version"] as? String, "test")
         XCTAssertEqual(payload["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(payload["shellName"] as? String, "zsh")
@@ -677,7 +677,7 @@ final class musetermTests: XCTestCase {
         )
 
         XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
-        XCTAssertEqual(payload["app"] as? String, "QTerm")
+        XCTAssertEqual(payload["app"] as? String, "MuseTerm")
         XCTAssertEqual(payload["version"] as? String, "test")
         XCTAssertEqual(payload["snapshotSequence"] as? Int, 42)
         XCTAssertEqual(payload["shellName"] as? String, "zsh")
@@ -721,7 +721,7 @@ final class musetermTests: XCTestCase {
 
         XCTAssertEqual(payload["schemaVersion"] as? Int, 1)
         XCTAssertEqual(payload["snapshotSequence"] as? Int, 42)
-        XCTAssertEqual(payload["app"] as? String, "QTerm")
+        XCTAssertEqual(payload["app"] as? String, "MuseTerm")
         XCTAssertEqual(payload["version"] as? String, "test")
         XCTAssertEqual(payload["selectedTabID"] as? String, "tab-1")
         XCTAssertEqual(tab["id"] as? String, "tab-1")
@@ -808,7 +808,7 @@ final class musetermTests: XCTestCase {
             ],
             response: [
                 "schemaVersion": 1,
-                "app": "QTerm",
+                "app": "MuseTerm",
                 "version": "test",
                 "ok": true,
                 "snapshotSequence": 49,
@@ -874,7 +874,7 @@ final class musetermTests: XCTestCase {
             ],
             response: [
                 "schemaVersion": 1,
-                "app": "QTerm",
+                "app": "MuseTerm",
                 "version": "test",
                 "ok": true,
                 "snapshotSequence": 50,
@@ -962,7 +962,7 @@ final class musetermTests: XCTestCase {
         let suggestedNextAction = try XCTUnwrap(encodedDiagnostics["suggestedNextAction"] as? [String: Any])
         let priorityFactors = try XCTUnwrap(encodedDiagnostics["diagnosticPriorityFactors"] as? [String])
         let state = TerminalToolState(
-            app: "QTerm",
+            app: "MuseTerm",
             version: "test",
             snapshotSequence: 7,
             updatedAt: Date(timeIntervalSince1970: 130),
@@ -2851,7 +2851,7 @@ final class musetermTests: XCTestCase {
 
     private func answerNextToolRequest(home: URL, response: [String: Any]) throws -> [String: Any] {
         let tools = home
-            .appendingPathComponent("Library/Application Support/QTerm/Tools", isDirectory: true)
+            .appendingPathComponent("Library/Application Support/MuseTerm/Tools", isDirectory: true)
         let requests = tools.appendingPathComponent("requests", isDirectory: true)
         let responses = tools.appendingPathComponent("responses", isDirectory: true)
         let deadline = Date().addingTimeInterval(Self.cliToolRequestTimeout)
@@ -2898,10 +2898,10 @@ final class musetermTests: XCTestCase {
         let root = manager.temporaryDirectory
             .appendingPathComponent("museterm-cli-tests-\(UUID().uuidString)", isDirectory: true)
         let tools = root
-            .appendingPathComponent("Library/Application Support/QTerm/Tools", isDirectory: true)
+            .appendingPathComponent("Library/Application Support/MuseTerm/Tools", isDirectory: true)
         try manager.createDirectory(at: tools, withIntermediateDirectories: true)
 
-        let scriptURL = root.appendingPathComponent("qterm")
+        let scriptURL = root.appendingPathComponent("museterm")
         try MuseTermCLIInstaller.script.write(to: scriptURL, atomically: true, encoding: .utf8)
 
         let defaultCommandBlocks: [[String: Any]] = [
@@ -2947,7 +2947,7 @@ final class musetermTests: XCTestCase {
 
         let state: [String: Any] = [
             "schemaVersion": 1,
-            "app": "QTerm",
+            "app": "MuseTerm",
             "version": "test",
             "snapshotSequence": 42,
             "selectedTabID": "tab-1",

@@ -5,8 +5,8 @@ final class TerminalAgentUITests: XCTestCase {
     func testOrdinaryReminderUnifiesBadgeListAndCount() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
-        let tools = FileManager.default.temporaryDirectory.appendingPathComponent("qterm-ordinary-ui-\(UUID())")
-        app.launchEnvironment["QTERM_AGENT_TEST_TOOL_ROOT"] = tools.path
+        let tools = FileManager.default.temporaryDirectory.appendingPathComponent("museterm-ordinary-ui-\(UUID())")
+        app.launchEnvironment["MUSETERM_AGENT_TEST_TOOL_ROOT"] = tools.path
         app.launchArguments = ["-AppleLanguages", "(en)", "-terminal.showsTabList", "YES",
             "-notifications.enabled", "YES", "-notifications.showInactiveTabBadges", "YES",
             "-ui-testing-agent-state", "-ui-testing-terminal-attention"]
@@ -45,8 +45,8 @@ final class TerminalAgentUITests: XCTestCase {
     func testAgentBadgeSurvivesSidebarToggleWithoutInputTakeover() throws {
         let app = XCUIApplication()
         continueAfterFailure = false
-        let tools = FileManager.default.temporaryDirectory.appendingPathComponent("qterm-agent-ui-\(UUID())")
-        app.launchEnvironment["QTERM_AGENT_TEST_TOOL_ROOT"] = tools.path
+        let tools = FileManager.default.temporaryDirectory.appendingPathComponent("museterm-agent-ui-\(UUID())")
+        app.launchEnvironment["MUSETERM_AGENT_TEST_TOOL_ROOT"] = tools.path
         defer { try? FileManager.default.removeItem(at: tools) }
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US",
             "-terminal.showsTabList", "YES", "-agent.monitoringEnabled", "YES", "-notifications.enabled", "NO", "-ui-testing-agent-state"]
@@ -75,8 +75,8 @@ final class TerminalAgentUITests: XCTestCase {
     func testReadQuestionRemainsInAttentionListAndCompactEntryIsAccessible() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
-        let tools = FileManager.default.temporaryDirectory.appendingPathComponent("qterm-attention-ui-\(UUID())")
-        app.launchEnvironment["QTERM_AGENT_TEST_TOOL_ROOT"] = tools.path
+        let tools = FileManager.default.temporaryDirectory.appendingPathComponent("museterm-attention-ui-\(UUID())")
+        app.launchEnvironment["MUSETERM_AGENT_TEST_TOOL_ROOT"] = tools.path
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US",
             "-terminal.showsTabList", "YES", "-agent.monitoringEnabled", "YES", "-notifications.enabled", "NO", "-ui-testing-agent-state"]
         app.launch()

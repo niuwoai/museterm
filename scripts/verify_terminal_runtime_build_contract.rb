@@ -6,7 +6,7 @@ require "open3"
 require "time"
 
 builder = File.expand_path("build_terminal_runtime.rb", __dir__)
-prefix = File.expand_path(ARGV.fetch(0, "/private/tmp/qterm-runtime-build-contract"))
+prefix = File.expand_path(ARGV.fetch(0, "/private/tmp/museterm-runtime-build-contract"))
 results = []
 Dir.mktmpdir("qrt-build-contract-", "/private/tmp") do |root|
   output = File.join(root, "runtime")
@@ -23,11 +23,11 @@ Dir.mktmpdir("qrt-build-contract-", "/private/tmp") do |root|
   FileUtils.mkdir_p(victim, mode: 0o700)
   derived = File.join(root, "derived-symlink")
   FileUtils.mkdir_p(derived)
-  File.symlink(victim, File.join(derived, "QTermRuntimeBuild"))
+  File.symlink(victim, File.join(derived, "MuseTermRuntimeBuild"))
   run.call("cache_root_symlink_is_rejected_before_compilation", derived, "arm64") { |message| message.include?("Runtime cache root must be an owned directory") }
 
   derived = File.join(root, "derived-lock")
-  cache = File.join(derived, "QTermRuntimeBuild")
+  cache = File.join(derived, "MuseTermRuntimeBuild")
   FileUtils.mkdir_p(cache, mode: 0o700)
   protected = File.join(root, "protected")
   File.write(protected, sentinel)
@@ -37,7 +37,7 @@ Dir.mktmpdir("qrt-build-contract-", "/private/tmp") do |root|
 
   temporary = File.join(root, "xcode-temporary")
   FileUtils.mkdir_p(temporary, mode: 0o700)
-  File.symlink(victim, File.join(temporary, "QTermRuntimeBuild"))
+  File.symlink(victim, File.join(temporary, "MuseTermRuntimeBuild"))
   run.call("xcode_temp_root_precedes_derived_sources_without_weakening_symlink_guard", derived, "arm64",
     {"TEMP_DIR" => temporary}) { |message| message.include?("Runtime cache root must be an owned directory") }
   results.last["passed"] &&= File.read(protected) == sentinel

@@ -169,7 +169,7 @@ struct TerminalShortcutBridge: NSViewRepresentable {
             do {
                 _ = try workspace.sendToolInput(to: "selected", bytes: action.bytes)
             } catch {
-                NSLog("QTerm shortcut %@ failed: %@", String(describing: action), error.localizedDescription)
+                NSLog("MuseTerm shortcut %@ failed: %@", String(describing: action), error.localizedDescription)
             }
         }
     }

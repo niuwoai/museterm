@@ -290,7 +290,7 @@ enum TerminalProjectToolService {
                workspace.projectLayout.projects[position.0].id == projectID {
                 workspace.selectedID = terminalID
                 do { try workspace.projectLayout.select(terminal: terminalID) }
-                catch { NSLog("QTerm could not restore project tool selection") }
+                catch { NSLog("MuseTerm could not restore project tool selection") }
             } else { workspace.selectedID = workspace.projectLayout.focusedTerminalID }
         }
     }

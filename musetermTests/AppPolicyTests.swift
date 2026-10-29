@@ -587,7 +587,7 @@ final class AppPolicyTests: XCTestCase {
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         XCTAssertEqual(object["schemaVersion"] as? Int, 1)
-        XCTAssertEqual(object["app"] as? String, "QTerm")
+        XCTAssertEqual(object["app"] as? String, "MuseTerm")
         XCTAssertEqual(object["version"] as? String, "test")
         XCTAssertEqual(object["id"] as? String, "request-1")
         XCTAssertEqual(object["ok"] as? Bool, true)

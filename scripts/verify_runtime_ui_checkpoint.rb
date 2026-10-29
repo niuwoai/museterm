@@ -9,11 +9,11 @@ phase, metadata_path, terminal_id = ARGV
 abort "Use start|kill|offline|resume|acknowledged|cleanup QA_METADATA TERMINAL_UUID" unless %w[start kill offline resume acknowledged cleanup].include?(phase)
 metadata = JSON.parse(File.read(metadata_path))
 root = metadata.fetch("root")
-abort "Only a private owned QA root is allowed" unless root.start_with?("/private/tmp/qterm-native-qa-") && File.lstat(root).uid == Process.uid && File.stat(root).mode & 0o077 == 0
+abort "Only a private owned QA root is allowed" unless root.start_with?("/private/tmp/museterm-native-qa-") && File.lstat(root).uid == Process.uid && File.stat(root).mode & 0o077 == 0
 app = metadata.fetch("app")
-abort "Unexpected QA app path" unless app == File.join(root, "QTermQA.app")
+abort "Unexpected QA app path" unless app == File.join(root, "MuseTermQA.app")
 identifier, _, status = Open3.capture3("/usr/libexec/PlistBuddy", "-c", "Print :CFBundleIdentifier", File.join(app, "Contents/Info.plist"))
-abort "Only an isolated goaltests app is allowed" unless status.success? && identifier.strip.start_with?("im.some.qterm.goaltests")
+abort "Only an isolated goaltests app is allowed" unless status.success? && identifier.strip.start_with?("im.some.museterm.goaltests")
 abort "Use an exact terminal UUID" unless terminal_id&.match?(/\A[0-9A-Fa-f-]{36}\z/)
 trace_path = File.join(root, "checkpoint-crash.json")
 trace = File.file?(trace_path) ? JSON.parse(File.read(trace_path)) : {}
@@ -66,7 +66,7 @@ begin
       "appPIDBefore" => runtime.fetch("pid"), "uiEpochBefore" => runtime.fetch("appEpoch"),
       "original" => original.slice("id", "pid", "generation"), "sessionIDs" => call.call("list").fetch("sessions").map { |value| value["id"] },
       "selectedBefore" => ui_state.call["selectedTabID"], "baseline" => baseline,
-      "helperSHA256" => Digest::SHA256.file(File.join(app, "Contents/Helpers/qterm-runtime")).hexdigest}
+      "helperSHA256" => Digest::SHA256.file(File.join(app, "Contents/Helpers/museterm-runtime")).hexdigest}
     input.call("cd '#{root}'; printf '\\a__QA_CP_START\\n'; n=0; while [ ! -f '#{root}/stop-qa' ] && [ \"$n\" -lt 300 ]; do printf '__QA_CP_TICK_%s\\n' \"$n\"; n=$((n+1)); sleep 0.05; done; printf '__QA_CP_DONE\\n'")
     first = await_ui_checkpoint { value = saved.call; value if value && value["offset"] > baseline["offset"] }
     second = await_ui_checkpoint { value = saved.call; value if value && value["offset"] > first["offset"] }
@@ -83,7 +83,7 @@ begin
   when "kill"
     pid = trace.fetch("appPIDBefore")
     command, _, status = Open3.capture3("/bin/ps", "-p", pid.to_s, "-o", "command=")
-    raise "PID is not the owned isolated QA app" unless status.success? && command.strip.start_with?(File.join(app, "Contents/MacOS/QTerm"))
+    raise "PID is not the owned isolated QA app" unless status.success? && command.strip.start_with?(File.join(app, "Contents/MacOS/MuseTerm"))
     Process.kill("KILL", pid)
     await_ui_checkpoint do
       begin

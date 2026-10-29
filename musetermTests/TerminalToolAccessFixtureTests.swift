@@ -4,7 +4,7 @@ import XCTest
 #if DEBUG
 final class TerminalToolAccessFixtureTests: XCTestCase {
     private func fixture() throws -> (URL, URL) {
-        let parent = URL(fileURLWithPath: "/private/tmp/qterm-native-qa-fixture-\(UUID())")
+        let parent = URL(fileURLWithPath: "/private/tmp/museterm-native-qa-fixture-\(UUID())")
         let root = parent.appendingPathComponent("Tools", isDirectory: true)
         try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: false,
             attributes: [.posixPermissions: 0o700])
@@ -12,7 +12,7 @@ final class TerminalToolAccessFixtureTests: XCTestCase {
             attributes: [.posixPermissions: 0o700])
         let file = root.appendingPathComponent(TerminalToolAccessTestFixture.fileName)
         let data = try JSONEncoder().encode(TerminalToolAccessTestFixture.Credentials(
-            clientID: "qterm-qa-fixture", token: String(repeating: "a", count: 64)))
+            clientID: "museterm-qa-fixture", token: String(repeating: "a", count: 64)))
         try TerminalToolPrivateWriter.write(data, to: file)
         return (parent, root)
     }
@@ -20,7 +20,7 @@ final class TerminalToolAccessFixtureTests: XCTestCase {
     func testPrivateFixtureCredentialsCanBeRead() throws {
         let (parent, root) = try fixture()
         defer { try? FileManager.default.removeItem(at: parent) }
-        XCTAssertEqual(try TerminalToolAccessTestFixture.load(root: root).clientID, "qterm-qa-fixture")
+        XCTAssertEqual(try TerminalToolAccessTestFixture.load(root: root).clientID, "museterm-qa-fixture")
     }
 
     func testBroadPermissionsOrSymlinkAreRejected() throws {
@@ -41,7 +41,7 @@ final class TerminalToolAccessFixtureTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: parent) }
         let file = root.appendingPathComponent(TerminalToolAccessTestFixture.fileName)
         let data = try JSONEncoder().encode(TerminalToolAccessTestFixture.Credentials(
-            clientID: "qterm-cli", token: String(repeating: "a", count: 64)))
+            clientID: "museterm-cli", token: String(repeating: "a", count: 64)))
         try TerminalToolPrivateWriter.write(data, to: file)
         XCTAssertThrowsError(try TerminalToolAccessTestFixture.load(root: root))
         try TerminalToolPrivateWriter.write(Data(repeating: 65, count: 2_000), to: file)

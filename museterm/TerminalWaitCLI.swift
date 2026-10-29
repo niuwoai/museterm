@@ -2,7 +2,7 @@ import Foundation
 
 enum TerminalWaitCLI {
     static let script = #"""
-class QTermWaitCancelled < StandardError; end
+class MuseTermWaitCancelled < StandardError; end
 
 def wait_runtime_result(id, spec)
   runtime_path = File.join(ROOT, "runtime.json")
@@ -103,7 +103,7 @@ def command_attention(args)
 end
 
 def command_wait(args)
-  raise "Use qterm wait SPEC_JSON." unless args.length == 1
+  raise "Use museterm wait SPEC_JSON." unless args.length == 1
   print_json(wait_tool({"spec" => JSON.parse(args.first)}))
 rescue JSON::ParserError
   raise "Invalid wait specification JSON."

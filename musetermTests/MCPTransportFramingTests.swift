@@ -20,7 +20,7 @@ final class MCPTransportFramingTests: XCTestCase {
         let result = try XCTUnwrap(response["result"] as? [String: Any])
         XCTAssertEqual(result["protocolVersion"] as? String, "2024-11-05")
         let serverInfo = try XCTUnwrap(result["serverInfo"] as? [String: Any])
-        XCTAssertEqual(serverInfo["name"] as? String, "qterm")
+        XCTAssertEqual(serverInfo["name"] as? String, "museterm")
     }
 
     func testMCPStillAnswersContentLengthFraming() throws {
@@ -115,7 +115,7 @@ final class MCPTransportFramingTests: XCTestCase {
             ]))
         }
         try input.fileHandleForWriting.close()
-        let root = fixture.root.appendingPathComponent("Library/Application Support/QTerm/Tools")
+        let root = fixture.root.appendingPathComponent("Library/Application Support/MuseTerm/Tools")
         let requests = root.appendingPathComponent("requests")
         let responses = root.appendingPathComponent("responses")
         var actions: [String] = []
@@ -164,17 +164,17 @@ final class MCPTransportFramingTests: XCTestCase {
 
     private func makeFixture() throws -> (root: URL, scriptURL: URL) {
         let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("qterm-framing-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("museterm-framing-\(UUID().uuidString)", isDirectory: true)
         let tools = root.appendingPathComponent(
-            "Library/Application Support/QTerm/Tools",
+            "Library/Application Support/MuseTerm/Tools",
             isDirectory: true
         )
         try FileManager.default.createDirectory(at: tools, withIntermediateDirectories: true)
-        let scriptURL = root.appendingPathComponent("qterm")
+        let scriptURL = root.appendingPathComponent("museterm")
         try MuseTermCLIInstaller.script.write(to: scriptURL, atomically: true, encoding: .utf8)
         let state: [String: Any] = [
             "schemaVersion": 1,
-            "app": "QTerm",
+            "app": "MuseTerm",
             "version": "test",
             "snapshotSequence": 7,
             "selectedTabID": "tab-1",

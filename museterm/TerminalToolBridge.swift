@@ -1,7 +1,7 @@
 import Foundation
 
 struct TerminalToolPaths {
-    static let supportDirectoryName = "QTerm/Tools"
+    static let supportDirectoryName = "MuseTerm/Tools"
     static let stateFileName = "state.json"
     static let requestDirectoryName = "requests"
     static let responseDirectoryName = "responses"
@@ -10,7 +10,7 @@ struct TerminalToolPaths {
         #if DEBUG
         ProcessInfo.processInfo.arguments.contains("-ui-testing-agent-state")
             || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-            || Bundle.main.bundleIdentifier?.hasPrefix("im.some.qterm.goaltests") == true
+            || Bundle.main.bundleIdentifier?.hasPrefix("im.some.museterm.goaltests") == true
         #else
         false
         #endif
@@ -19,14 +19,14 @@ struct TerminalToolPaths {
     static var rootDirectory: URL {
         #if DEBUG
         if isIsolatedTesting {
-            let path = ProcessInfo.processInfo.environment["QTERM_AGENT_TEST_TOOL_ROOT"]
+            let path = ProcessInfo.processInfo.environment["MUSETERM_AGENT_TEST_TOOL_ROOT"]
             return path.map { URL(fileURLWithPath: $0, isDirectory: true) }
-                ?? FileManager.default.temporaryDirectory.appendingPathComponent("qterm-agent-ui-\(ProcessInfo.processInfo.processIdentifier)")
+                ?? FileManager.default.temporaryDirectory.appendingPathComponent("museterm-agent-ui-\(ProcessInfo.processInfo.processIdentifier)")
         }
         #endif
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
-        return base.appendingPathComponent(supportDirectoryName, isDirectory: true)
+        return MuseTermLegacyCompatibility.directory("Tools", base: base)
     }
 
     static var stateFile: URL {
@@ -520,7 +520,7 @@ struct TerminalToolResponse: Codable {
 
     init(
         schemaVersion: Int = 1,
-        app: String = "QTerm",
+        app: String = "MuseTerm",
         version: String = AppVersion.value,
         id: String,
         ok: Bool,
@@ -645,7 +645,7 @@ final class TerminalToolBridge {
             try location.prepare()
             writeStateIfNeeded(force: true)
         } catch {
-            NSLog("QTerm tool bridge failed to prepare directories: \(error.localizedDescription)")
+            NSLog("MuseTerm tool bridge failed to prepare directories: \(error.localizedDescription)")
         }
 
         guard timer == nil else { return }
@@ -676,14 +676,14 @@ final class TerminalToolBridge {
                 let url = location.runtimeFile
                 stateWriteQueue.async {
                     do { try TerminalToolPrivateWriter.write(data, to: url) }
-                    catch { NSLog("QTerm could not write runtime metadata") }
+                    catch { NSLog("MuseTerm could not write runtime metadata") }
                 }
-            } catch { NSLog("QTerm could not encode runtime metadata") }
+            } catch { NSLog("MuseTerm could not encode runtime metadata") }
         }
         if Date().timeIntervalSince(lastResponsePrune) >= 30 {
             lastResponsePrune = Date()
             do { try TerminalToolResponseRetention.prune(directory: location.responseDirectory) }
-            catch { NSLog("QTerm could not prune expired tool responses") }
+            catch { NSLog("MuseTerm could not prune expired tool responses") }
         }
         if let registry = workspace?.sessionRegistry {
             registry.setAgentMonitoringEnabled(workspace?.preferences?.agentMonitoringEnabled ?? true)
@@ -750,7 +750,7 @@ final class TerminalToolBridge {
         guard let workspace else { return }
         snapshotSequence += 1
         var state = TerminalToolState(
-            app: "QTerm",
+            app: "MuseTerm",
             version: AppVersion.value,
             snapshotSequence: snapshotSequence,
             updatedAt: Date(),
@@ -772,7 +772,7 @@ final class TerminalToolBridge {
             encoder.dateEncodingStrategy = .iso8601
             data = try encoder.encode(state)
         } catch {
-            NSLog("QTerm tool bridge failed to encode state: \(error.localizedDescription)")
+            NSLog("MuseTerm tool bridge failed to encode state: \(error.localizedDescription)")
             return
         }
         let destination = location.stateFile
@@ -780,7 +780,7 @@ final class TerminalToolBridge {
             do {
                 try TerminalToolPrivateWriter.write(data, to: destination)
             } catch {
-                NSLog("QTerm tool bridge failed to write state: \(error.localizedDescription)")
+                NSLog("MuseTerm tool bridge failed to write state: \(error.localizedDescription)")
             }
         }
     }
@@ -1410,7 +1410,7 @@ final class TerminalToolBridge {
             let url = location.responseDirectory.appendingPathComponent("\(response.id).json")
             try TerminalToolPrivateWriter.write(data, to: url)
         } catch {
-            NSLog("QTerm tool bridge failed to write response: \(error.localizedDescription)")
+            NSLog("MuseTerm tool bridge failed to write response: \(error.localizedDescription)")
         }
     }
 

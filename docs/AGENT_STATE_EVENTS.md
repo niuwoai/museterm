@@ -1,6 +1,6 @@
 # 会话事件、Agent 状态与待处理（阶段 0–4）
 
-基础能力基线：`1.250.0-rc2`，Build `315`。普通终端提醒统一与去重见 [rc2 验证报告](../reports/terminal_attention_unification.md)；阶段 0–4 的 `rc1` 证据见 [验证报告](../reports/agent_state_phase234.md)，发行产物见 [GitHub Releases](https://github.com/niuwoai/qterm/releases)。
+基础能力基线：`1.250.0-rc2`，Build `315`。普通终端提醒统一与去重见 [rc2 验证报告](../reports/terminal_attention_unification.md)；阶段 0–4 的 `rc1` 证据见 [验证报告](../reports/agent_state_phase234.md)，发行产物见 [GitHub Releases](https://github.com/niuwoai/museterm/releases)。
 
 当前工作区开发版为 `1.252.0-rc1` / Build `348`。普通应用入口已默认启用独立后台，测试宿主仍需显式选择隔离运行；本机安装尚未替换，rc28 完整回归 621/621，另有后补同名同目录项目回归 1/1 通过，未签名 Universal Release 构建及同一 Release 后台的 WillDeep/SSH 验证通过。后台新绑定由服务持有，与 WillDeep 原生上报共用状态；其私有绑定文件保存状态专用上报端点，后续 CLI/MCP 报告直接送到后台，不依赖 UI 查看端或请求处理。绑定与按 UUID 查询仍经现有 UI 工具入口；通用 CLI/MCP 状态、事件读取与有界等待已根据私有元数据自动选定后台，UI 重开不改变服务游标；显式 UI 游标仍走旧路径。后台已接管基于 shell 标记的命令生命周期与精确命令等待；普通提醒也已由后台生成并统一投影，分类阈值有 ACK 更新；项目布局操作已接入在线 UI 工具桥；原方案要求的主窗口/悬浮、中英文窄侧栏、跨项目待处理定位、正常退出及强制结束后同身份恢复分别已有实证；全部组合未穷举。详见[后台实施与验收](WILLDEEP_WORKSPACE_RUNTIME_PLAN.md)。
 
@@ -18,16 +18,16 @@
 
 这里提供显式接入协议，不自动修改 Claude/Codex 用户配置，不声称已安装它们的原生生命周期钩子。上报客户端只需要状态绑定凭据；不会获得输入权限，也不会续租输入控制权。绑定必须通过已有工具客户端配对认证，与“允许写入终端”开关相互独立。
 
-1. 使用 `qterm tabs` 获取终端 UUID。分离会话也可从返回的 `sessions` 元数据获取。
-2. 执行 `qterm agent bind --tab UUID --kind codex`（或 `claude`），显式创建新实例。返回状态及本机私有 `bindingFile` 路径，不返回凭据本身。绑定文件为 `0600`，目录为 `0700`。
+1. 使用 `museterm tabs` 获取终端 UUID。分离会话也可从返回的 `sessions` 元数据获取。
+2. 执行 `museterm agent bind --tab UUID --kind codex`（或 `claude`），显式创建新实例。返回状态及本机私有 `bindingFile` 路径，不返回凭据本身。绑定文件为 `0600`，目录为 `0700`。
 3. 由接入脚本在生命周期变化时调用：
 
 ```sh
-qterm agent report --binding PRIVATE_FILE --activity working
-qterm agent report --binding PRIVATE_FILE --activity blocked --block-reason approval
-qterm agent report --binding PRIVATE_FILE --activity blocked --block-reason question
-qterm agent report --binding PRIVATE_FILE --activity idle --result completed
-qterm agent status --tab UUID
+museterm agent report --binding PRIVATE_FILE --activity working
+museterm agent report --binding PRIVATE_FILE --activity blocked --block-reason approval
+museterm agent report --binding PRIVATE_FILE --activity blocked --block-reason question
+museterm agent report --binding PRIVATE_FILE --activity idle --result completed
+museterm agent status --tab UUID
 ```
 
 `PRIVATE_FILE` 替换为绑定返回的路径，并按 shell 规则引用路径。不要把文件内容复制到日志、聊天、Git 或环境示例中。每次重新绑定都会使旧凭据失效；旧文件不会自动覆盖，因此迟到的旧钩子不能冒充新任务。报告序号由 CLI 在文件锁内递增，失去响应后下一次报告仍使用更大的序号。普通 UI 直连模式的内存绑定随应用退出撤销，重启需重新绑定；隔离后台模式的新绑定则由原服务和进程代次持有，UI 退出不会撤销。旧绑定文件仍使用旧 UI 路径；带后台端点的新绑定若端点失效会明确报错，不回退创建另一份 UI 状态。绑定文件需手动清理。
@@ -36,7 +36,7 @@ qterm agent status --tab UUID
 
 ## 事件读取
 
-`qterm agent events` 返回当前游标（不默认回放旧事件）。随后可把返回的 `nextCursor` JSON 作为 `--after`，并通过 `--limit` 分页。MCP 对应 `read_session_events`，字段为 `after` 和 `limit`。
+`museterm agent events` 返回当前游标（不默认回放旧事件）。随后可把返回的 `nextCursor` JSON 作为 `--after`，并通过 `--limit` 分页。MCP 对应 `read_session_events`，字段为 `after` 和 `limit`。
 
 - 每个消费者独立读取，不消耗其他消费者的事件。
 - `cursor_expired`：日志已裁剪，重新读取完整状态并取得新游标。
@@ -62,15 +62,15 @@ qterm agent status --tab UUID
 点击事项或通知定位原标签/悬浮面板；仅对通知携带的准确事项版本标记已读。通知不包含终端正文。待处理事项使用内存存储，保留最多 256 条常规摘要/已解决记录；活动问题不因摘要容量而被淘汰，其数量随存活会话数增长。
 
 ```sh
-qterm attention
-qterm attention read --item ITEM_UUID --version ITEM_VERSION
+museterm attention
+museterm attention read --item ITEM_UUID --version ITEM_VERSION
 ```
 
 MCP 对应 `list_attention` 和 `acknowledge_attention`。标记已读要求已有客户端配对，不授予终端输入权限。旧版本操作被拒绝，不能误清除新问题。
 
 ## 条件等待
 
-先从状态/事件查询获取 `eventCursor` 或 `nextCursor`，再调用 `qterm wait 'SPEC_JSON'` 或 MCP `wait_session`（参数为 `spec`）。以下占位 UUID、序号需要替换为同一应用实例的真实值：
+先从状态/事件查询获取 `eventCursor` 或 `nextCursor`，再调用 `museterm wait 'SPEC_JSON'` 或 MCP `wait_session`（参数为 `spec`）。以下占位 UUID、序号需要替换为同一应用实例的真实值：
 
 ```json
 {

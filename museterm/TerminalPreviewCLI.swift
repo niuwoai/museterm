@@ -24,11 +24,11 @@ def command_preview(args)
     raise "--tab requires a source terminal UUID." unless args[index + 1]
     tab = args[index + 1]; args.slice!(index, 2)
   end
-  if tab.nil? && ENV["QTERM_AGENT_CONTEXT"]
-    context = read_private_runtime_json(ENV.fetch("QTERM_AGENT_CONTEXT"), RUNTIME_METADATA_MAX_BYTES)
+  if tab.nil? && ENV["MUSETERM_AGENT_CONTEXT"]
+    context = read_private_runtime_json(ENV.fetch("MUSETERM_AGENT_CONTEXT"), RUNTIME_METADATA_MAX_BYTES)
     tab = context["tabID"]
   end
-  raise "Use qterm preview [--tab UUID] FILE|--stdin|--close." unless args.length == 1
+  raise "Use museterm preview [--tab UUID] FILE|--stdin|--close." unless args.length == 1
   fields = case args.first
   when "--close" then {"close" => true}
   when "--stdin"
@@ -44,7 +44,7 @@ end
 
 def preview_mcp_tools
   [{"name" => "preview",
-    "description" => "Show a local image/Markdown file or supplied Markdown in QTerm's source-bound preview panel. Exact source terminal UUID, pairing and enabled writes required. Does not select a tab, send terminal input or take control. UI must be online; ok acknowledges acceptance, not rendering completion. For SSH use markdown text, not a remote path. Remote images load only on explicit human action.",
+    "description" => "Show a local image/Markdown file or supplied Markdown in MuseTerm's source-bound preview panel. Exact source terminal UUID, pairing and enabled writes required. Does not select a tab, send terminal input or take control. UI must be online; ok acknowledges acceptance, not rendering completion. For SSH use markdown text, not a remote path. Remote images load only on explicit human action.",
     "inputSchema" => {"type" => "object", "required" => ["tab"], "additionalProperties" => false,
       "properties" => {"tab" => {"type" => "string"}, "path" => {"type" => "string", "description" => "Absolute local image or Markdown file path"},
         "markdown" => {"type" => "string"}, "close" => {"type" => "boolean"}, "timeout" => {"type" => "number"}}}}]

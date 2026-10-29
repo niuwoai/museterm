@@ -16,7 +16,7 @@ nonisolated enum TerminalRuntimeService {
     #if DEBUG
     static func applicationActivation(arguments: [String], environment: [String: String], bundleID: String?) -> Bool {
         let testHost = environment["XCTestConfigurationFilePath"] != nil
-            || bundleID?.hasPrefix("im.some.qterm.goaltests") == true
+            || bundleID?.hasPrefix("im.some.museterm.goaltests") == true
         return !testHost || testActivation(arguments: arguments, environment: environment, bundleID: bundleID)
     }
 
@@ -25,35 +25,34 @@ nonisolated enum TerminalRuntimeService {
     /// Never activate this route for a regular application or a shared root.
     static func testActivation(arguments: [String], environment: [String: String], bundleID: String?) -> Bool {
         if arguments.contains("-ui-testing-runtime") { return true }
-        return bundleID?.hasPrefix("im.some.qterm.goaltests") == true
-            && environment["QTERM_UI_TEST_RUNTIME"] == "1"
-            && environment["QTERM_AGENT_TEST_TOOL_ROOT"]?.hasPrefix("/") == true
+        return bundleID?.hasPrefix("im.some.museterm.goaltests") == true
+            && environment["MUSETERM_UI_TEST_RUNTIME"] == "1"
+            && environment["MUSETERM_AGENT_TEST_TOOL_ROOT"]?.hasPrefix("/") == true
     }
     #endif
     static var rootDirectory: URL {
         let environment = ProcessInfo.processInfo.environment
         #if DEBUG
         let unitTest = environment["XCTestConfigurationFilePath"] != nil
-            || Bundle.main.bundleIdentifier?.hasPrefix("im.some.qterm.goaltests") == true
-        if let testRoot = environment["QTERM_AGENT_TEST_TOOL_ROOT"] ?? (unitTest ? "unit-\(ProcessInfo.processInfo.processIdentifier)" : nil) {
+            || Bundle.main.bundleIdentifier?.hasPrefix("im.some.museterm.goaltests") == true
+        if let testRoot = environment["MUSETERM_AGENT_TEST_TOOL_ROOT"] ?? (unitTest ? "unit-\(ProcessInfo.processInfo.processIdentifier)" : nil) {
             let hash = SHA256.hash(data: Data(testRoot.utf8)).prefix(10).map { String(format: "%02x", $0) }.joined()
             return URL(fileURLWithPath: "/private/tmp/qrt-ui-\(getuid())-\(hash)", isDirectory: true)
         }
-        if let explicit = environment["QTERM_RUNTIME_ROOT"], explicit.hasPrefix("/") {
+        if let explicit = environment["MUSETERM_RUNTIME_ROOT"], explicit.hasPrefix("/") {
             return URL(fileURLWithPath: explicit, isDirectory: true)
         }
         #endif
-        return FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/QTerm/Runtime", isDirectory: true)
+        return MuseTermLegacyCompatibility.directory("Runtime")
     }
 
     static var executableURL: URL {
         #if DEBUG
-        if let path = ProcessInfo.processInfo.environment["QTERM_RUNTIME_HELPER_PATH"], path.hasPrefix("/") {
+        if let path = ProcessInfo.processInfo.environment["MUSETERM_RUNTIME_HELPER_PATH"], path.hasPrefix("/") {
             return URL(fileURLWithPath: path)
         }
         #endif
-        return Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/qterm-runtime")
+        return Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/museterm-runtime")
     }
 
     /// Run only off the main thread. A live incompatible service is never stopped

@@ -12,7 +12,7 @@ nonisolated struct TerminalRuntimeCommandInfo: Codable, Equatable {
     var state: TerminalCommandLifecycleState = .running
 
     static func identity(generation: UUID, markerOffset: UInt64) -> UUID {
-        let digest = SHA256.hash(data: Data("qterm-command-v1:\(generation.uuidString):\(markerOffset)".utf8))
+        let digest = SHA256.hash(data: Data("museterm-command-v1:\(generation.uuidString):\(markerOffset)".utf8))
         let bytes = Array(digest.prefix(16))
         return UUID(uuid: (bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
                            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]))

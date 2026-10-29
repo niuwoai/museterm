@@ -165,17 +165,17 @@ final class SessionTunnelPresetTests: XCTestCase {
 
     private func makeFixture() throws -> (root: URL, scriptURL: URL) {
         let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("qterm-preset-mcp-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("museterm-preset-mcp-\(UUID().uuidString)", isDirectory: true)
         let tools = root.appendingPathComponent(
-            "Library/Application Support/QTerm/Tools",
+            "Library/Application Support/MuseTerm/Tools",
             isDirectory: true
         )
         try FileManager.default.createDirectory(at: tools, withIntermediateDirectories: true)
-        let scriptURL = root.appendingPathComponent("qterm")
+        let scriptURL = root.appendingPathComponent("museterm")
         try MuseTermCLIInstaller.script.write(to: scriptURL, atomically: true, encoding: .utf8)
         let state: [String: Any] = [
             "schemaVersion": 1,
-            "app": "QTerm",
+            "app": "MuseTerm",
             "version": "test",
             "snapshotSequence": 7,
             "selectedTabID": "tab-1",
@@ -238,7 +238,7 @@ final class SessionTunnelPresetTests: XCTestCase {
 
     private func answerRequest(home: URL) throws -> [String: Any] {
         let requests = home.appendingPathComponent(
-            "Library/Application Support/QTerm/Tools/requests",
+            "Library/Application Support/MuseTerm/Tools/requests",
             isDirectory: true
         )
         let deadline = Date().addingTimeInterval(2)
@@ -257,12 +257,12 @@ final class SessionTunnelPresetTests: XCTestCase {
     private func answer(request: [String: Any], home: URL) throws {
         let id = try XCTUnwrap(request["id"] as? String)
         let responses = home.appendingPathComponent(
-            "Library/Application Support/QTerm/Tools/responses",
+            "Library/Application Support/MuseTerm/Tools/responses",
             isDirectory: true
         )
         let response: [String: Any] = [
             "schemaVersion": 1,
-            "app": "QTerm",
+            "app": "MuseTerm",
             "version": "test",
             "id": id,
             "ok": true,

@@ -12,7 +12,7 @@
 
 /* argv/envp are prepared by the parent. After fork no Swift, Foundation,
  * allocation, logging or locks are used before exec. */
-int qterm_pty_spawn(const char *executable, char *const argv[], char *const envp[],
+int museterm_pty_spawn(const char *executable, char *const argv[], char *const envp[],
                     const char *directory, int columns, int rows, pid_t *pid) {
     int errors[2];
     if (pipe(errors) < 0) return -1;
@@ -59,19 +59,19 @@ int qterm_pty_spawn(const char *executable, char *const argv[], char *const envp
     return master;
 }
 
-int qterm_pty_resize(int fd, int columns, int rows) {
+int museterm_pty_resize(int fd, int columns, int rows) {
     if (columns < 1 || rows < 1 || columns > 1000 || rows > 1000) { errno = EINVAL; return -1; }
     struct winsize size = {.ws_col = (unsigned short)columns, .ws_row = (unsigned short)rows};
     return ioctl(fd, TIOCSWINSZ, &size);
 }
 
-int qterm_pty_echo(int fd) {
+int museterm_pty_echo(int fd) {
     struct termios mode;
     if (tcgetattr(fd, &mode) < 0) return -1;
     return (mode.c_lflag & ECHO) != 0;
 }
 
-int qterm_pty_poll_exit(pid_t pid, int *status) {
+int museterm_pty_poll_exit(pid_t pid, int *status) {
     int raw = 0;
     pid_t result = waitpid(pid, &raw, WNOHANG);
     if (result <= 0) return (int)result;

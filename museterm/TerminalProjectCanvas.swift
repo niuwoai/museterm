@@ -145,7 +145,7 @@ private struct TerminalProjectLeaf: View {
                     ForEach(workspace.projectLayout.projects) { project in
                         Button(project.name) {
                             do { try workspace.moveTerminal(session.id, to: project.id) }
-                            catch { NSLog("QTerm pane move failed") }
+                            catch { NSLog("MuseTerm pane move failed") }
                         }
                     }
                 } label: { Image(systemName: "folder") }
@@ -172,6 +172,6 @@ private struct TerminalProjectLeaf: View {
 
     private func split(_ axis: TerminalSplitAxis) {
         do { try workspace.splitTerminal(session.id, axis: axis) }
-        catch { NSLog("QTerm pane split failed") }
+        catch { NSLog("MuseTerm pane split failed") }
     }
 }

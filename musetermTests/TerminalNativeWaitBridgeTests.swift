@@ -4,7 +4,7 @@ import XCTest
 @MainActor
 final class TerminalNativeWaitBridgeTests: XCTestCase {
     func testDetachedSessionCanBeQueriedAndCancelledWhileNativeBridgeWaits() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("qterm-native-wait-\(UUID())")
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("museterm-native-wait-\(UUID())")
         let workspace = TerminalWorkspace(automaticallyStartProcesses: false, profileStore: nil)
         let session = try XCTUnwrap(workspace.selectedTab)
         let grant = try session.bindAgent(kind: .codex)

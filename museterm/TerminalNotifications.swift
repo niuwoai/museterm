@@ -211,7 +211,7 @@ final class TerminalNotificationCoordinator: NSObject, ObservableObject, Termina
                       let session = self.workspace?.sessionRegistry.sessions[item.tabID], session.runtimeOwnsTerminalAttention {
                 if NSApplication.shared.isActive && self.workspace?.selectedID == item.tabID {
                     do { try self.workspace?.sessionRegistry.attention.markRead(id: item.id, version: item.version) }
-                    catch { NSLog("QTerm runtime visible reminder acknowledgement unavailable") }
+                    catch { NSLog("MuseTerm runtime visible reminder acknowledgement unavailable") }
                 } else if event.kind == .attentionCreated && item.createdAt >= attachedAt {
                     self.deliverRuntimeTerminalAttention(item)
                 }

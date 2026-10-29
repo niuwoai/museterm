@@ -61,7 +61,7 @@ final class TerminalRuntimeCompatibilityTests: XCTestCase {
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false,
                 attributes: [.posixPermissions: 0o700])
             do {
-                service.executableURL = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/qterm-runtime")
+                service.executableURL = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/museterm-runtime")
                 service.arguments = ["--root", root.path]
                 service.environment = ["PATH": "/usr/bin:/bin", "HOME": root.path, "TMPDIR": root.path]
                 service.standardInput = FileHandle.nullDevice

@@ -45,7 +45,7 @@ final class TerminalNativeAgentContext {
         token = nil
         if let file {
             do { try FileManager.default.removeItem(at: file) }
-            catch { if FileManager.default.fileExists(atPath: file.path) { NSLog("QTerm could not remove native status context") } }
+            catch { if FileManager.default.fileExists(atPath: file.path) { NSLog("MuseTerm could not remove native status context") } }
         }
         file = nil
     }

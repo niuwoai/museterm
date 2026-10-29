@@ -7,7 +7,7 @@ final class TerminalProjectImportTests: XCTestCase {
     private var project: URL!
 
     override func setUpWithError() throws {
-        root = FileManager.default.temporaryDirectory.appendingPathComponent("qterm-import-\(UUID())")
+        root = FileManager.default.temporaryDirectory.appendingPathComponent("museterm-import-\(UUID())")
         project = root.appendingPathComponent("代码 with-hyphens")
         try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
     }
@@ -68,7 +68,7 @@ final class TerminalProjectImportTests: XCTestCase {
     func testInvalidRelativeMissingAndFilePathsAreExcluded() throws {
         let file = root.appendingPathComponent("plain-file")
         try Data().write(to: file)
-        try write(".claude.json", ["projects": ["relative": [:], "/qterm-missing-\(UUID())": [:], file.path: [:]]])
+        try write(".claude.json", ["projects": ["relative": [:], "/museterm-missing-\(UUID())": [:], file.path: [:]]])
         XCTAssertTrue(scan().candidates.isEmpty)
         XCTAssertNil(TerminalProjectImportScanner.canonicalDirectory(project.path + "\n"))
     }

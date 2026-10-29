@@ -30,7 +30,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		5CB51E702FF2EAAD0010675C /* QTerm.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QTerm.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5CB51E702FF2EAAD0010675C /* MuseTerm.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MuseTerm.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5CB51E7F2FF2EAB20010675C /* musetermTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = musetermTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5CB51E892FF2EAB20010675C /* musetermUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = musetermUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -117,7 +117,7 @@
 		5CB51E712FF2EAAD0010675C /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				5CB51E702FF2EAAD0010675C /* QTerm.app */,
+				5CB51E702FF2EAAD0010675C /* MuseTerm.app */,
 				5CB51E7F2FF2EAB20010675C /* musetermTests.xctest */,
 				5CB51E892FF2EAB20010675C /* musetermUITests.xctest */,
 			);
@@ -150,7 +150,7 @@
 				5C6103F847CC9EC58053615E /* Sparkle */,
 			);
 			productName = museterm;
-			productReference = 5CB51E702FF2EAAD0010675C /* QTerm.app */;
+			productReference = 5CB51E702FF2EAAD0010675C /* MuseTerm.app */;
 			productType = "com.apple.product-type.application";
 		};
 		5CB51E7E2FF2EAB20010675C /* musetermTests */ = {
@@ -303,10 +303,10 @@
 				"$(SRCROOT)/museterm/TerminalWaitCoordinator.swift",
 			);
 			name = "Build terminal runtime";
-			outputPaths = ("$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Helpers/qterm-runtime", "$(TEMP_DIR)/QTermRuntimeBuild");
+			outputPaths = ("$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Helpers/museterm-runtime", "$(TEMP_DIR)/MuseTermRuntimeBuild");
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/usr/bin/ruby \"${SRCROOT}/scripts/build_terminal_runtime.rb\" \"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Helpers/qterm-runtime\" ${ARCHS}\n";
+			shellScript = "/usr/bin/ruby \"${SRCROOT}/scripts/build_terminal_runtime.rb\" \"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Helpers/museterm-runtime\" ${ARCHS}\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -475,7 +475,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 359;
+				CURRENT_PROJECT_VERSION = 360;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -490,17 +490,17 @@
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_SUAutomaticallyUpdate = YES;
 				INFOPLIST_KEY_SUEnableAutomaticChecks = YES;
-				INFOPLIST_KEY_SUFeedURL = "https://some.im/api/v1/public/app-updates/appcast.xml?app_id=qterm&platform=macos&channel=stable";
+				INFOPLIST_KEY_SUFeedURL = "https://some.im/api/v1/public/app-updates/appcast.xml?app_id=museterm&platform=macos&channel=stable";
 				INFOPLIST_KEY_SUPublicEDKey = "3QVMPCYo42ORmq8uUHqUdW8ayy5nw8Hs5uq9DLKDp0A=";
 				INFOPLIST_KEY_SUVerifyUpdateBeforeExtraction = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = "1.256.0-rc1";
+				MARKETING_VERSION = "1.256.0-rc2";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.museterm;
 				PRODUCT_MODULE_NAME = museterm;
-				PRODUCT_NAME = QTerm;
+				PRODUCT_NAME = MuseTerm;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -518,7 +518,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 359;
+				CURRENT_PROJECT_VERSION = 360;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -533,17 +533,17 @@
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_SUAutomaticallyUpdate = YES;
 				INFOPLIST_KEY_SUEnableAutomaticChecks = YES;
-				INFOPLIST_KEY_SUFeedURL = "https://some.im/api/v1/public/app-updates/appcast.xml?app_id=qterm&platform=macos&channel=stable";
+				INFOPLIST_KEY_SUFeedURL = "https://some.im/api/v1/public/app-updates/appcast.xml?app_id=museterm&platform=macos&channel=stable";
 				INFOPLIST_KEY_SUPublicEDKey = "3QVMPCYo42ORmq8uUHqUdW8ayy5nw8Hs5uq9DLKDp0A=";
 				INFOPLIST_KEY_SUVerifyUpdateBeforeExtraction = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = "1.256.0-rc1";
+				MARKETING_VERSION = "1.256.0-rc2";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.museterm;
 				PRODUCT_MODULE_NAME = museterm;
-				PRODUCT_NAME = QTerm;
+				PRODUCT_NAME = MuseTerm;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -559,11 +559,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 359;
+				CURRENT_PROJECT_VERSION = 360;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = "1.256.0-rc1";
+				MARKETING_VERSION = "1.256.0-rc2";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -571,7 +571,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/QTerm.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/QTerm";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MuseTerm.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MuseTerm";
 			};
 			name = Debug;
 		};
@@ -580,11 +580,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 359;
+				CURRENT_PROJECT_VERSION = 360;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = "1.256.0-rc1";
+				MARKETING_VERSION = "1.256.0-rc2";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -592,7 +592,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/QTerm.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/QTerm";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MuseTerm.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MuseTerm";
 			};
 			name = Release;
 		};
@@ -600,10 +600,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 359;
+				CURRENT_PROJECT_VERSION = 360;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = "1.256.0-rc1";
+				MARKETING_VERSION = "1.256.0-rc2";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -619,10 +619,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 359;
+				CURRENT_PROJECT_VERSION = 360;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = "1.256.0-rc1";
+				MARKETING_VERSION = "1.256.0-rc2";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;

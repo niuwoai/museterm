@@ -50,6 +50,29 @@ final class TerminalToolAccessTests: XCTestCase {
         XCTAssertFalse(TerminalToolAccess.isPaired(clientID: "test-client"))
     }
 
+    func testRenamedClientCanUseExistingGrantUntilRevoked() {
+        let legacy = MuseTermLegacyCompatibility.legacyClientID
+        XCTAssertTrue(MuseTermKeychain.save("legacy-test-token", account: legacy,
+            serviceName: TerminalToolAccess.keychainServiceName))
+        XCTAssertTrue(TerminalToolAccess.isPaired())
+        XCTAssertTrue(TerminalToolAccess.authorizes(clientID: TerminalToolAccess.builtInClientID,
+            token: "legacy-test-token"))
+        TerminalToolAccess.revoke()
+        XCTAssertFalse(TerminalToolAccess.isPaired())
+        XCTAssertFalse(TerminalToolAccess.authorizes(clientID: legacy, token: "legacy-test-token"))
+    }
+
+    func testPairingRenamedClientInvalidatesLegacyGrant() {
+        let legacy = MuseTermLegacyCompatibility.legacyClientID
+        XCTAssertTrue(MuseTermKeychain.save("legacy-test-token", account: legacy,
+            serviceName: TerminalToolAccess.keychainServiceName))
+        XCTAssertTrue(TerminalToolAccess.pair())
+        XCTAssertTrue(TerminalToolAccess.isPaired())
+        XCTAssertFalse(TerminalToolAccess.authorizes(clientID: TerminalToolAccess.builtInClientID,
+            token: "legacy-test-token"))
+        XCTAssertFalse(TerminalToolAccess.authorizes(clientID: legacy, token: "legacy-test-token"))
+    }
+
     @MainActor
     func testToolBridgeWritesAreDisabledByDefault() {
         let suiteName = "TerminalToolAccessTests.\(UUID().uuidString)"

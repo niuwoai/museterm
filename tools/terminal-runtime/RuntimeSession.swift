@@ -57,11 +57,13 @@ final class RuntimeSession {
         let arguments = [launch.executableName ?? launch.executable] + launch.arguments
         let contextFile = try nativeAgentContext.prepare(tabID: id, root: nativeRoot)
         var childEnvironment = launch.environment
+        childEnvironment["MUSETERM_AGENT_CONTEXT"] = contextFile.path
+        // Compatibility with already installed WillDeep clients.
         childEnvironment["QTERM_AGENT_CONTEXT"] = contextFile.path
         let environment = childEnvironment.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }
         let childFD = try Self.withStrings(arguments) { argv in
             try Self.withStrings(environment) { envp in
-                let result = qterm_pty_spawn(launch.executable, argv, envp, launch.directory,
+                let result = museterm_pty_spawn(launch.executable, argv, envp, launch.directory,
                                             Int32(launch.columns), Int32(launch.rows), &process)
                 guard result >= 0 else { throw RuntimeFailure.processLaunchFailed }
                 return result
@@ -95,11 +97,11 @@ final class RuntimeSession {
         if owner != nil && ProcessInfo.processInfo.systemUptime >= leaseDeadline { releaseControl() }
         if running {
             var result: Int32 = 0
-            let status = qterm_pty_poll_exit(pid, &result)
+            let status = museterm_pty_poll_exit(pid, &result)
             if status == 1 {
                 // Drain final markers before interpreting process exit as unknown completion.
                 do { try readOutput() }
-                catch { NSLog("QTerm runtime final output drain failed: %@", String(describing: error)) }
+                catch { NSLog("MuseTerm runtime final output drain failed: %@", String(describing: error)) }
                 exitStatus = result; pendingInput.removeAll(); revision += 1
                 if fd < 0, let command = commandLedger.finish() { publishCommand(command) }
                 if owner != nil { releaseControl() }
@@ -182,7 +184,7 @@ final class RuntimeSession {
             throw RuntimeFailure.controlChanged
         }
         if let expected = request.expectedEchoEnabled {
-            let echo = qterm_pty_echo(fd)
+            let echo = museterm_pty_echo(fd)
             guard echo >= 0, (echo == 1) == expected else { throw RuntimeFailure.inputEchoChanged }
         }
         if let expected = request.expectedForegroundPID {
@@ -198,7 +200,7 @@ final class RuntimeSession {
         revision += 1
         let wasEmpty = pendingInput.isEmpty
         pendingInput.append(data)
-        let echoed = qterm_pty_echo(fd) == 1
+        let echoed = museterm_pty_echo(fd) == 1
         try flushInput()
         // Never record input whose actual write is deferred or echo is unknown.
         return wasEmpty && pendingInput.isEmpty && echoed
@@ -245,7 +247,7 @@ final class RuntimeSession {
     func resize(_ request: TerminalRuntimeRequest) throws {
         try validate(request)
         guard let columns = request.columns, let rows = request.rows,
-              running, fd >= 0, qterm_pty_resize(fd, Int32(clamping: columns), Int32(clamping: rows)) == 0 else {
+              running, fd >= 0, museterm_pty_resize(fd, Int32(clamping: columns), Int32(clamping: rows)) == 0 else {
             throw RuntimeFailure.resizeFailed
         }
         self.columns = columns; self.rows = rows

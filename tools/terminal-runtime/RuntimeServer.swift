@@ -88,7 +88,7 @@ final class RuntimeServer {
         for session in sessions.values { session.refresh() }
         retired = retired.filter { child in
             var status: Int32 = 0
-            let result = qterm_pty_poll_exit(child.pid, &status)
+            let result = museterm_pty_poll_exit(child.pid, &status)
             if result != 0 { return false }
             if ProcessInfo.processInfo.systemUptime > child.deadline { _ = kill(child.pid, SIGKILL) }
             return true
@@ -237,7 +237,7 @@ final class RuntimeServer {
                     events.publish(tabID: id, kind: .registered, location: .mainWindow)
                     response.session = replacement.info
                 case .inspectInput:
-                    let echo = qterm_pty_echo(session.fd)
+                    let echo = museterm_pty_echo(session.fd)
                     let foreground = tcgetpgrp(session.fd)
                     guard session.running, echo >= 0, foreground > 0 else { throw RuntimeFailure.unavailable }
                     response.echoEnabled = echo == 1
@@ -369,7 +369,7 @@ struct TerminalRuntimeMain {
             try server.run()
         } catch {
             // No launch arguments, terminal output, capabilities or host paths.
-            fputs("QTerm Runtime could not start or continue.\n", stderr)
+            fputs("MuseTerm Runtime could not start or continue.\n", stderr)
             exit(1)
         }
     }

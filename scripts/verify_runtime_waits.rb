@@ -28,7 +28,7 @@ def wait_target(info)
 end
 
 binary = File.expand_path(ARGV.fetch(0))
-prefix = File.expand_path(ARGV.fetch(1, "/private/tmp/qterm-runtime-waits"))
+prefix = File.expand_path(ARGV.fetch(1, "/private/tmp/museterm-runtime-waits"))
 root = Dir.mktmpdir("qrt-waits-", "/private/tmp")
 File.chmod(0o700, root)
 server = nil

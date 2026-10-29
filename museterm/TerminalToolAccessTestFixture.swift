@@ -3,7 +3,7 @@ import Darwin
 import Foundation
 
 /// Opt-in native QA only. Credentials never enter the system keychain and
-/// cannot authorize a separate regular QTerm process.
+/// cannot authorize a separate regular MuseTerm process.
 enum TerminalToolAccessTestFixture {
     struct Credentials: Codable {
         let clientID: String
@@ -13,8 +13,8 @@ enum TerminalToolAccessTestFixture {
     static let fileName = "project-tool-fixture.json"
 
     static func configure(_ preferences: TerminalPreferences) {
-        guard ProcessInfo.processInfo.environment["QTERM_GUI_TOOL_FIXTURE"] == "1",
-              Bundle.main.bundleIdentifier?.hasPrefix("im.some.qterm.goaltests.") == true else { return }
+        guard ProcessInfo.processInfo.environment["MUSETERM_GUI_TOOL_FIXTURE"] == "1",
+              Bundle.main.bundleIdentifier?.hasPrefix("im.some.museterm.goaltests.") == true else { return }
         // Even an invalid opted-in fixture stays disconnected from real keys.
         MuseTermKeychain._useTestStorage(true)
         preferences.toolBridgeWritesEnabled = false
@@ -23,14 +23,14 @@ enum TerminalToolAccessTestFixture {
             guard MuseTermKeychain.save(credentials.token, account: credentials.clientID,
                 serviceName: TerminalToolAccess.keychainServiceName) else { throw CocoaError(.fileReadUnknown) }
             preferences.toolBridgeWritesEnabled = true
-        } catch { NSLog("QTerm isolated tool credential fixture rejected") }
+        } catch { NSLog("MuseTerm isolated tool credential fixture rejected") }
     }
 
     static func load(root: URL) throws -> Credentials {
         let parent = root.deletingLastPathComponent()
         // Foundation may canonicalize /private/tmp to /tmp on macOS. Check
         // the fixed directory structure and lstat each owned component instead.
-        guard root.lastPathComponent == "Tools", parent.lastPathComponent.hasPrefix("qterm-native-qa-"),
+        guard root.lastPathComponent == "Tools", parent.lastPathComponent.hasPrefix("museterm-native-qa-"),
               parent.deletingLastPathComponent().path == "/private/tmp" else { throw CocoaError(.fileReadNoPermission) }
         for directory in [root, parent] {
             var info = stat()
@@ -51,7 +51,7 @@ enum TerminalToolAccessTestFixture {
         let data = try reader.read(upToCount: maximumBytes + 1) ?? Data()
         guard data.count <= maximumBytes else { throw CocoaError(.fileReadCorruptFile) }
         let value = try JSONDecoder().decode(Credentials.self, from: data)
-        guard value.clientID.hasPrefix("qterm-qa-"), value.clientID.utf8.count <= 80,
+        guard value.clientID.hasPrefix("museterm-qa-"), value.clientID.utf8.count <= 80,
               value.clientID.unicodeScalars.allSatisfy({ CharacterSet.alphanumerics.contains($0) || $0 == "-" }),
               value.token.utf8.count == 64, value.token.allSatisfy({ $0.isASCII && $0.isHexDigit }) else {
             throw CocoaError(.fileReadCorruptFile)
