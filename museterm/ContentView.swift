@@ -84,6 +84,13 @@ struct ContentView: View {
                 .zIndex(20)
             }
         }
+        // 键盘浮层打开时不只是把按键喂给浮层，还要明确让终端「别抢键盘」：
+        // 终端会在每次 SwiftUI 刷新时自动聚焦，命令面板的搜索框只在出现时聚焦一次，
+        // 没有这条信号，输入就会被终端（shell）截走。
+        .environment(
+            \.terminalKeyboardOverlayActive,
+            commandPalettePresentation.isPresented || aiCommandAssistant.phase == .composing
+        )
         .background(WindowConfigurator(workspace: workspace))
         .background(
             TerminalShortcutBridge(

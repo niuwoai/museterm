@@ -91,6 +91,29 @@ final class musetermUITests: XCTestCase {
     }
 
     @MainActor
+    func testCommandPaletteKeepsTypedTextInSearchField() throws {
+        let app = configuredApplication()
+        app.launch()
+
+        XCTAssertTrue(app.buttons["New tab"].waitForExistence(timeout: 10))
+        app.typeKey("p", modifierFlags: [.command, .shift])
+
+        let searchField = app.textFields["Search commands, paths, hosts, and actions"]
+        XCTAssertTrue(searchField.waitForExistence(timeout: 5))
+
+        // 留出时间让 SwiftUI 的自动聚焦与终端侧的延迟聚焦都执行完，
+        // 再输入：此时的键盘焦点属于命令面板，而不是终端。
+        Thread.sleep(forTimeInterval: 1.0)
+        app.typeText("settings")
+
+        XCTAssertEqual(
+            searchField.value as? String,
+            "settings",
+            "命令面板打开时，键入的文字应进入搜索框，而不是被终端接收"
+        )
+    }
+
+    @MainActor
     func testDarkAppearanceScreenshot() throws {
         let app = configuredApplication(skin: "midnight")
         app.launch()
