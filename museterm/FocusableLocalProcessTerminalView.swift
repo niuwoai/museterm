@@ -16,6 +16,9 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     private var clearOrphanedReplayScreen = false
     private var lastParsedRuntimeByte: UInt8?
     var backendIsRunning: Bool { externalIsRunning?() ?? process.running }
+    /// 命令面板 / AI 指令输入条等键盘浮层打开期间为 true：此时终端不得自动夺取
+    /// 第一响应者，键盘输入应留在浮层里。鼠标点击等显式动作仍走 requestFocus()。
+    var suppressesAutomaticFocus = false
 
     func beginTruncatedRuntimeReplay() {
         // A truncated VT stream may have lost its alternate-screen entry.
@@ -156,7 +159,7 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
             stopSelectionAutoscroll()
         }
         DispatchQueue.main.async { [weak self] in
-            self?.requestFocus()
+            self?.requestAutomaticFocus()
             self?.onReadyForProcessStart?()
         }
     }
@@ -171,6 +174,12 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     func requestFocus() {
         guard let window else { return }
         window.makeFirstResponder(self)
+    }
+
+    /// 自动聚焦入口：浮层接管键盘时让路。显式用户动作（点击、粘贴）用 requestFocus()。
+    func requestAutomaticFocus() {
+        guard !suppressesAutomaticFocus else { return }
+        requestFocus()
     }
 
     override func mouseDown(with event: NSEvent) {

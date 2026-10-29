@@ -15,34 +15,50 @@ private struct LocalShellLaunchDescriptor {
 struct TerminalHostView: NSViewRepresentable {
     @ObservedObject var session: TerminalSession
     @ObservedObject var preferences: TerminalPreferences
+    @Environment(\.terminalKeyboardOverlayActive) private var keyboardOverlayActive
     let isActive: Bool
     var focusesInput = true
 
+    /// 自动聚焦条件：窗格可见、持有输入焦点，且没有键盘浮层。浮层（命令面板、
+    /// AI 指令输入条）开着时，终端必须让出第一响应者，否则用户敲进浮层的字符
+    /// 会被 shell 收走。
+    private var shouldAutoFocus: Bool {
+        TerminalInputFocusPolicy.shouldAutoFocus(
+            isActive: isActive,
+            focusesInput: focusesInput,
+            keyboardOverlayActive: keyboardOverlayActive
+        )
+    }
+
     func makeNSView(context: Context) -> NSView {
         let controller = session.controller
+        controller.setKeyboardOverlayActive(keyboardOverlayActive)
         controller.setActive(isActive)
         DispatchQueue.main.async {
             controller.ensureProcessStarted()
-            if isActive && focusesInput {
-                controller.focusTerminal()
+            if shouldAutoFocus {
+                controller.focusTerminalAutomatically()
             }
         }
         return controller.container
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
+        session.controller.setKeyboardOverlayActive(keyboardOverlayActive)
         session.controller.layoutTerminalViews()
         session.controller.apply(preferences: preferences)
         let didBecomeActive = session.controller.setActive(isActive)
         DispatchQueue.main.async {
             session.controller.ensureProcessStarted()
-            if isActive && focusesInput {
-                session.controller.focusTerminal()
-                // 只在切到前台时整屏重绘；打字时 session 频繁发布变更也会走到这里，
-                // 每次都全量重绘会白白吃 CPU。
-                if didBecomeActive {
-                    session.controller.invalidateDisplay()
-                }
+            if shouldAutoFocus {
+                // 控制器在执行时还会再检查一次浮层状态：SwiftUI 的延迟聚焦和命令面板
+                // 的延迟聚焦是两条独立的异步任务，先排队的终端聚焦可能后执行。
+                session.controller.focusTerminalAutomatically()
+            }
+            // 只在切到前台时整屏重绘；打字时 session 频繁发布变更也会走到这里，
+            // 每次都全量重绘会白白吃 CPU。浮层开着时也要照常重绘，不只是聚焦时。
+            if didBecomeActive {
+                session.controller.invalidateDisplay()
             }
         }
     }
@@ -380,6 +396,17 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
 
     func focusTerminal() {
         terminalView.requestFocus()
+    }
+
+    /// 自动聚焦（窗口挂载、视图刷新）：浮层接管键盘期间不抢第一响应者。
+    /// 判定放在执行时，避免排队中的延迟聚焦在浮层打开之后才跑到。
+    func focusTerminalAutomatically() {
+        terminalView.requestAutomaticFocus()
+    }
+
+    /// 命令面板、AI 指令输入条等键盘浮层打开时置位，终端交还键盘。
+    func setKeyboardOverlayActive(_ active: Bool) {
+        terminalView.suppressesAutomaticFocus = active
     }
 
     /// 返回本次调用是否让终端变为可见（从隐藏切回，或刚挂到新窗口）。

@@ -158,6 +158,69 @@ final class AppPolicyTests: XCTestCase {
         XCTAssertEqual(atBottom, .none)
     }
 
+    func testTerminalAutoFocusYieldsKeyboardToOverlays() {
+        // 命令面板 / AI 指令输入条打开时，即使窗格可见且持有输入焦点，终端也不得自动聚焦。
+        XCTAssertFalse(
+            TerminalInputFocusPolicy.shouldAutoFocus(
+                isActive: true,
+                focusesInput: true,
+                keyboardOverlayActive: true
+            )
+        )
+        // 浮层关闭后恢复原来的自动聚焦行为。
+        XCTAssertTrue(
+            TerminalInputFocusPolicy.shouldAutoFocus(
+                isActive: true,
+                focusesInput: true,
+                keyboardOverlayActive: false
+            )
+        )
+        // 原有条件仍然优先：隐藏窗格、非焦点窗格都不自动聚焦。
+        XCTAssertFalse(
+            TerminalInputFocusPolicy.shouldAutoFocus(
+                isActive: false,
+                focusesInput: true,
+                keyboardOverlayActive: false
+            )
+        )
+        XCTAssertFalse(
+            TerminalInputFocusPolicy.shouldAutoFocus(
+                isActive: true,
+                focusesInput: false,
+                keyboardOverlayActive: false
+            )
+        )
+    }
+
+    @MainActor
+    func testTerminalDefersAutomaticFocusWhileKeyboardOverlayIsActive() {
+        let terminal = FocusableLocalProcessTerminalView(
+            frame: NSRect(x: 0, y: 0, width: 320, height: 200)
+        )
+        terminal.suppressesAutomaticFocus = true
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 200),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = terminal
+        defer { window.contentView = nil }
+
+        terminal.requestAutomaticFocus()
+        XCTAssertFalse(
+            window.firstResponder === terminal,
+            "命令面板打开时，终端不应通过自动聚焦夺走键盘"
+        )
+
+        terminal.suppressesAutomaticFocus = false
+        terminal.requestAutomaticFocus()
+        XCTAssertTrue(
+            window.firstResponder === terminal,
+            "命令面板关闭后，终端应恢复自动聚焦"
+        )
+    }
+
     func testDefaultPreferencesUseSeaSaltSkin() throws {
         let suiteName = "museterm.tests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
