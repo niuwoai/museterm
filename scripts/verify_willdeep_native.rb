@@ -146,6 +146,7 @@ config = ["version = 1", 'default_provider = "mock"', "", "[agent]", 'approval =
 write_private(File.join(root, "config.toml"), config)
 env = ENV.keys.grep(/\A(?:WILLDEEP_|OPENAI_|ANTHROPIC_)/).to_h { |key| [key, nil] }
 env.merge!("WILLDEEP_HOME" => File.join(root, "home"), "MUSETERM_AGENT_CONTEXT" => File.join(root, "context.json"),
+  "QTERM_AGENT_CONTEXT" => File.join(root, "context.json"), # Existing WillDeep releases.
   "WILLDEEP_NO_UPDATE_CHECK" => "1", "TERM" => "xterm-256color")
 transcript = "".b
 child = nil
@@ -180,7 +181,8 @@ begin
   runtime_lock = SecureRandom.hex(16)
   write_private(File.join(runtime_directory, "daemon.lock"),
     JSON.generate({"token" => runtime_lock, "created_at" => Time.now.to_i}))
-  runtime_env = env.merge("WILLDEEP_DAEMON_LOCK_TOKEN" => runtime_lock, "MUSETERM_AGENT_CONTEXT" => nil)
+  runtime_env = env.merge("WILLDEEP_DAEMON_LOCK_TOKEN" => runtime_lock,
+    "MUSETERM_AGENT_CONTEXT" => nil, "QTERM_AGENT_CONTEXT" => nil)
   runtime_log = File.open(File.join(root, "runtime.log"), File::WRONLY | File::CREAT | File::EXCL, 0o600)
   runtime_child = Process.spawn(runtime_env, binary, "--config", File.join(root, "config.toml"), "daemon", "run",
     in: File::NULL, out: runtime_log, err: runtime_log)
@@ -260,7 +262,8 @@ begin
       previous_agent_instance = previous_agent&.fetch("instanceID", nil)
       inspection = checked.call(backend_client.request("inspectInput", {"sessionID" => backend_session.fetch("id"), "generation" => backend_session.fetch("generation")}))
       raise "QA terminal is not an idle shell" unless inspection["foregroundPID"] == backend_session["pid"]
-      launch_environment = env.reject { |key, _| key == "MUSETERM_AGENT_CONTEXT" }.merge("HOME" => File.join(root, "home"))
+      launch_environment = env.reject { |key, _| %w[MUSETERM_AGENT_CONTEXT QTERM_AGENT_CONTEXT].include?(key) }
+        .merge("HOME" => File.join(root, "home"))
       command = ["/usr/bin/env"] + launch_environment.filter_map { |key, value| value.nil? ? ["-u", key] : nil }.flatten
       command += launch_environment.filter_map { |key, value| "#{key}=#{value}" unless value.nil? }
       command += [binary] + arguments
