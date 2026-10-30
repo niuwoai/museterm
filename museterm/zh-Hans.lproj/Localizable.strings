@@ -1449,6 +1449,17 @@
 "ai_control.error.retake" = "当前没有有效租约，请使用明确的标签 UUID 重新接管；意外释放后请先与用户协调。";
 "ai_control.error.busy" = "AI 接管不能与录制回放、文件传输或会话隧道重叠，请先释放接管或结束当前操作。";
 "ai_control.error.input_rejected" = "输入未发送：接管已释放，或终端安全检查未通过。";
+"runtime.error.unavailable" = "连不上终端运行时。";
+"runtime.error.timed_out" = "终端运行时没有在时限内响应。";
+"runtime.error.cancelled" = "终端运行时操作已取消。";
+"runtime.error.invalid_capability" = "终端运行时凭据无效。";
+"runtime.error.invalid_response" = "终端运行时返回了无法识别的响应。";
+"runtime.error.incompatible_protocol" = "终端运行时协议不兼容。";
+"runtime.error.service_changed" = "终端运行时已更换，当前会话对不上。";
+"runtime.error.frame_too_large" = "发给终端运行时的消息超过长度限制。";
+"runtime.error.control_changed" = "没有这个标签的接管租约。请先在同一个 MCP 进程里调用 takeover_tab，再发送输入。";
+"runtime.error.control_owned" = "这个标签正由另一个会话接管。";
+"runtime.error.rejected" = "终端运行时拒绝了这次操作（%@）。";
 "ai_control.archive_description" = "AI 输入以 JSONL 存档在本机；密码模式输入不记录，可识别的密钥会脱敏。未提交的输入在回车或释放时保存。存档保留至手动删除，脱敏无法识别所有秘密。";
 "ai_control.open_archives" = "打开 AI 输入存档目录";
 "agent.status.label" = "%@ · %@";

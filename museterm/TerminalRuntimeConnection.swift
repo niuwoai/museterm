@@ -1,7 +1,7 @@
 import Darwin
 import Foundation
 
-nonisolated enum TerminalRuntimeConnectionError: Error {
+nonisolated enum TerminalRuntimeConnectionError: Error, LocalizedError {
     case unavailable, timedOut, cancelled, invalidCapability, invalidResponse
     case incompatibleProtocol, serviceChanged, frameTooLarge, rejected(String)
 
@@ -18,6 +18,24 @@ nonisolated enum TerminalRuntimeConnectionError: Error {
         case .frameTooLarge: "frame_too_large"
         case .rejected(let code):
             code.utf8.count <= 64 && code.unicodeScalars.allSatisfy({ CharacterSet.alphanumerics.contains($0) || $0 == "_" }) ? code : "rejected"
+        }
+    }
+
+    /// Tool responses use localizedDescription. Without this, a rejected lease
+    /// bridges to NSError code 0 and reads as a socket failure.
+    var errorDescription: String? {
+        switch diagnosticCode {
+        case "unavailable": return L10n.string("runtime.error.unavailable")
+        case "timed_out": return L10n.string("runtime.error.timed_out")
+        case "cancelled": return L10n.string("runtime.error.cancelled")
+        case "invalid_capability": return L10n.string("runtime.error.invalid_capability")
+        case "invalid_response": return L10n.string("runtime.error.invalid_response")
+        case "incompatible_protocol": return L10n.string("runtime.error.incompatible_protocol")
+        case "service_changed": return L10n.string("runtime.error.service_changed")
+        case "frame_too_large": return L10n.string("runtime.error.frame_too_large")
+        case "control_changed": return L10n.string("runtime.error.control_changed")
+        case "control_owned": return L10n.string("runtime.error.control_owned")
+        default: return L10n.format("runtime.error.rejected", diagnosticCode)
         }
     }
 }
