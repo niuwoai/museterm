@@ -2,6 +2,9 @@
 
 ## [1.256.0-rc4] - 2026-10-30
 
+### Added
+- npm 包 `@niuwoai/museterm`：`npm install -g @niuwoai/museterm@rc` 得到 `museterm` 命令。安装时从 `https://img.niuwoai.com/mac-apps/cli/<版本>/` 下载命令行压缩包，核对 SHA256 后才落盘；仓库是私有的，GitHub Release 附件匿名下载会 404，所以压缩包放在这个公开地址。README 随包发布，npmjs 说明页取它的内容，README 为空时发布脚本拒绝发布。
+
 ### Fixed
 - MCP 和 CLI 在没有接管租约时发输入，返回的是「未能完成操作。（museterm.TerminalRuntimeConnectionError 错误 0。）」。运行时其实返回了 `control_changed`，但错误类型没有本地化描述，桥接成系统错误后原因码变成 0，看起来像套接字连不上。现在按原因码给出可读说明：没有租约时明确提示先在同一个 MCP 进程里调用 `takeover_tab`。
 - 构建号从 361 提到 362，便于 Sparkle 识别这次更新。
