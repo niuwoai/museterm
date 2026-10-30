@@ -1449,6 +1449,17 @@
 "ai_control.error.retake" = "No valid lease. Use an explicit tab UUID and take over again; coordinate with the human after an unexpected release.";
 "ai_control.error.busy" = "AI control cannot overlap shortcut playback, file transfer or a session tunnel. Release control or finish the active operation first.";
 "ai_control.error.input_rejected" = "Input was not sent: control was released or the terminal safety check rejected it.";
+"runtime.error.unavailable" = "The terminal runtime is not reachable.";
+"runtime.error.timed_out" = "The terminal runtime did not respond in time.";
+"runtime.error.cancelled" = "The terminal runtime operation was cancelled.";
+"runtime.error.invalid_capability" = "The terminal runtime credential is invalid.";
+"runtime.error.invalid_response" = "The terminal runtime returned a response that could not be read.";
+"runtime.error.incompatible_protocol" = "The terminal runtime protocol is incompatible.";
+"runtime.error.service_changed" = "The terminal runtime was replaced and this session no longer matches.";
+"runtime.error.frame_too_large" = "The message sent to the terminal runtime exceeds the size limit.";
+"runtime.error.control_changed" = "This MCP process does not hold the tab lease. Call takeover_tab in the same process, then send input.";
+"runtime.error.control_owned" = "Another session currently controls this tab.";
+"runtime.error.rejected" = "The terminal runtime rejected this operation (%@).";
 "ai_control.archive_description" = "AI input is archived locally as JSONL. Password-mode input is omitted and recognized secrets are redacted. Partial input is saved on Enter or release. Archives remain until you delete them; redaction cannot identify every secret.";
 "ai_control.open_archives" = "Open AI input archives";
 "agent.status.label" = "%@ · %@";

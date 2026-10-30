@@ -116,6 +116,16 @@ final class TerminalRuntimeViewTests: XCTestCase {
         XCTAssertEqual(TerminalRuntimeConnectionError.timedOut.diagnosticCode, "timed_out")
         XCTAssertEqual(TerminalRuntimeConnectionError.rejected("control_changed").diagnosticCode, "control_changed")
         XCTAssertEqual(TerminalRuntimeConnectionError.rejected("/private/example?token=secret").diagnosticCode, "rejected")
+        // Tool responses print localizedDescription. A bridged NSError hides the
+        // rejection code behind "error 0", which reads as a socket failure.
+        XCTAssertEqual(TerminalRuntimeConnectionError.rejected("control_changed").errorDescription,
+            L10n.string("runtime.error.control_changed"))
+        XCTAssertEqual(TerminalRuntimeConnectionError.unavailable.errorDescription,
+            L10n.string("runtime.error.unavailable"))
+        XCTAssertEqual(TerminalRuntimeConnectionError.rejected("/private/example?token=secret").errorDescription,
+            L10n.format("runtime.error.rejected", "rejected"))
+        XCTAssertFalse(TerminalRuntimeConnectionError.rejected("/private/example?token=secret")
+            .errorDescription?.contains("token") ?? true)
         let metadata = TerminalToolRuntimeSnapshot(pid: 123, generation: UUID(), connected: false,
             errorCode: "timed_out", errorStage: "subscription")
         let data = try JSONEncoder().encode(metadata)
