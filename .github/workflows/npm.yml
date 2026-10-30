@@ -1,0 +1,25 @@
+name: Publish npm package
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "发布版本，必须与 package.json 和 install-manifest.json 一致，例如 1.256.0-rc4"
+        required: true
+        type: string
+
+jobs:
+  npm:
+    name: Publish @niuwoai/museterm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: Verify the public archive and publish the rc tag
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          RUBYOPT: -EUTF-8
+        run: ruby scripts/publish_npm_museterm.rb --version "${{ inputs.version }}"
