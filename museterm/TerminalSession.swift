@@ -385,6 +385,11 @@ final class TerminalSession: ObservableObject, Identifiable {
     private var aiArchive: TerminalAIArchive?
     private var aiExpiryTask: DispatchWorkItem?
     private(set) var aiRequiresTakeover = false
+    /// Set when a fill took a lease of its own. The backend confirms the release
+    /// after the write, and a subscription frame can put the lease back locally
+    /// before that confirmation lands, so the next fill must replace it instead
+    /// of writing under an owner the service has already dropped.
+    private var assistantLeaseOwner: String?
 
     func takeAIControl(owner: String, now: Date = Date(), archiveDirectory: URL = TerminalAIArchive.directory) throws {
         guard runtimeInfo == nil, !didCreateController || controller.runtimeHandle == nil else { throw TerminalAIControlError.busy }
@@ -408,6 +413,38 @@ final class TerminalSession: ObservableObject, Identifiable {
         guard aiLease?.owner == owner else { throw TerminalAIControlError.retake }
         aiLease?.expiresAt = now.addingTimeInterval(TerminalAILease.duration)
         scheduleAIExpiry()
+    }
+
+    /// The owner the runtime will accept for an AI write. A caller that already
+    /// names one keeps it; the assistant panel does not, and a runtime-backed
+    /// session rejects ownerless input, so the panel takes its own short lease.
+    /// The returned flag says the lease belongs to this fill and must be given
+    /// back once the write is acknowledged, so the keyboard is not left locked.
+    func runtimeToolInputOwner(requested owner: String?, now: Date = Date()) throws -> (owner: String, releaseAfterWrite: Bool) {
+        expireAIControlIfNeeded(now: now)
+        if let aiLease, aiLease.owner != assistantLeaseOwner { return (aiLease.owner, false) }
+        if let owner {
+            // A lease owned by someone else was returned above. Reaching here
+            // means there is no lease, or only the one a previous fill took and
+            // is still releasing, which this write replaces.
+            if runtimeInfo != nil {
+                changeAIControl(action: .acquireControl, owner: owner) { [weak self] result in
+                    if case .failure = result { self?.runtimeConnectionIssue = .inputRejected }
+                }
+            }
+            return (owner, false)
+        }
+        let owner = "assistant-" + UUID().uuidString.lowercased()
+        assistantLeaseOwner = owner
+        // This lease exists only to let one fill through. It must not arm the
+        // retake gate, or the next fill is rejected for lacking a takeover.
+        aiRequiresTakeover = false
+        if runtimeInfo != nil {
+            changeAIControl(action: .acquireControl, owner: owner) { [weak self] result in
+                if case .failure = result { self?.runtimeConnectionIssue = .inputRejected }
+            }
+        }
+        return (owner, true)
     }
 
     func authorizeAIInput(owner: String?, archiveDirectory: URL = TerminalAIArchive.directory) throws {
@@ -451,6 +488,7 @@ final class TerminalSession: ObservableObject, Identifiable {
         }
         aiArchive = nil
         aiLease = nil
+        assistantLeaseOwner = nil
         if hadLease { eventStore?.publish(tabID: id, kind: .controlChanged) }
     }
 
@@ -464,7 +502,10 @@ final class TerminalSession: ObservableObject, Identifiable {
         if let owner = info.controlOwner, let expiresAt = info.controlExpiresAt {
             let previousOwner = aiLease?.owner
             aiLease = TerminalAILease(owner: owner, expiresAt: expiresAt)
-            aiRequiresTakeover = true
+            // A lease the fill took for itself is released once the write lands.
+            // The subscription reports it before that release is confirmed, and
+            // treating it as a takeover would make the next fill demand a retake.
+            if owner != assistantLeaseOwner { aiRequiresTakeover = true }
             if previousOwner != owner { eventStore?.publish(tabID: id, kind: .controlChanged) }
         } else if aiLease != nil {
             finishAIControl(reason: "backend_released")
@@ -2071,8 +2112,19 @@ final class TerminalWorkspace: ObservableObject {
         let tab = try toolTab(matching: selector)
         try tab.authorizeAIInput(owner: owner)
         tab.startProcessIfNeeded()
-        try tab.controller.sendToolInput(bytes: bytes, owner: owner)
-        if let owner, tab.aiLease != nil { try tab.renewAIControl(owner: owner) }
+        if tab.controller.runtimeHandle != nil {
+            // The runtime ACK comes back on the main queue, so waiting for it
+            // here would deadlock the caller. Hand the bytes to the input queue
+            // and let its completion report the result.
+            let lease = try tab.runtimeToolInputOwner(requested: owner)
+            try tab.controller.enqueueRuntimeToolInput(bytes, owner: lease.owner,
+                afterSettled: lease.releaseAfterWrite ? { [weak tab] in
+                    if tab?.aiLease?.owner == lease.owner { tab?.releaseAIControl(reason: "assistant_filled") }
+                } : nil)
+        } else {
+            try tab.controller.sendToolInput(bytes: bytes, owner: owner)
+            if let owner, tab.aiLease != nil { try tab.renewAIControl(owner: owner) }
+        }
         return tab
     }
 

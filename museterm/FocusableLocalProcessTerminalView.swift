@@ -152,6 +152,27 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     private var pendingFeedBytes: [UInt8] = []
     private var feedFlushScheduled = false
     private let maxFeedBytesPerFlush = 256 * 1024
+    #if DEBUG
+    /// While set, a runtime frame is parsed but its completion is held back, so
+    /// tests can observe a subscription whose consumer acknowledgement is late.
+    /// Clearing it resumes the frame that is waiting, and a frame still queued
+    /// behind the parser completes normally on its own flush.
+    var holdExternalFeedCompletionForTesting = false {
+        didSet {
+            guard !holdExternalFeedCompletionForTesting else { return }
+            // The flag flips from a test that is already on the main thread, and
+            // the reader it unblocks calls straight back into the view. Releasing
+            // on the next turn keeps that re-entry off this stack.
+            DispatchQueue.main.async { [weak self] in
+                guard let self, !self.holdExternalFeedCompletionForTesting else { return }
+                let held = self.heldExternalFeedCompletion
+                self.heldExternalFeedCompletion = nil
+                held?()
+            }
+        }
+    }
+    private var heldExternalFeedCompletion: (() -> Void)?
+    #endif
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -972,7 +993,15 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
         } else {
             let completion = externalFeedCompletion
             externalFeedCompletion = nil
+            #if DEBUG
+            if holdExternalFeedCompletionForTesting {
+                heldExternalFeedCompletion = completion
+            } else {
+                completion?()
+            }
+            #else
             completion?()
+            #endif
         }
     }
 

@@ -979,6 +979,7 @@
 "ai_command.close_ends_session" = "Closing cancels generation and ends this AI session.";
 "ai_command.never_auto_executes" = "AI never executes commands automatically";
 "ai_command.generating" = "Creating safe command suggestions…";
+"ai_command.filling" = "Sending the command to the terminal…";
 "ai_command.generating.context" = "Confirming the terminal context";
 "ai_command.generating.risk" = "Reviewing possible effects and risks";
 "ai_command.generating.candidates" = "Preparing concise command alternatives";

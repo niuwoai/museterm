@@ -100,9 +100,96 @@ final class TerminalRuntimeViewTests: XCTestCase {
         breakTransport = false
         handle.reconnect()
         try await waitUntil("manual recovery") { handle.connected }
+        // A second press while the replacement is healthy must not be swallowed:
+        // the old reader is still unwinding when it arrives.
+        handle.reconnect()
+        try await waitUntil("second manual recovery") { handle.connected }
         XCTAssertEqual(handle.info?.pid, original.pid)
         XCTAssertEqual(handle.info?.generation, original.generation)
         XCTAssertEqual(failures, 1)
+    }
+
+    func testSlowConsumerAcknowledgementKeepsSubscriptionAndReconnectRestartsIt() async throws {
+        let previousDeadline = TerminalRuntimeLimits.consumerAcknowledgementDeadlineOverride
+        TerminalRuntimeLimits.consumerAcknowledgementDeadlineOverride = 1
+        defer { TerminalRuntimeLimits.consumerAcknowledgementDeadlineOverride = previousDeadline }
+        let (root, helper) = try await startService()
+        let session = TerminalSession(sequence: 1)
+        // One byte a second stays under the helper's output cap while keeping the
+        // subscription busy, so the only way the banner appears is the app timing
+        // its own parse out.
+        attach(session, launch: .init(executable: "/bin/sh", arguments: ["-c", "while true; do printf x; sleep 1; done"],
+            environment: ["PATH": "/usr/bin:/bin", "HOME": root.path, "TERM": "xterm-256color"], directory: root.path), root: root, helper: helper)
+        try await waitUntil("slow output started") { session.controller.visibleScreenText().contains("x") }
+        let view = try XCTUnwrap(session.controller.container.subviews.compactMap { $0 as? FocusableLocalProcessTerminalView }.first)
+        view.holdExternalFeedCompletionForTesting = true
+        let handle = try XCTUnwrap(session.controller.runtimeHandle)
+        let original = try XCTUnwrap(handle.info)
+        try await waitUntil("consumer acknowledgement overdue") { handle.reconnecting }
+        XCTAssertNil(session.runtimeConnectionIssue, "A slow parse is not a dead backend")
+        XCTAssertEqual(handle.info?.pid, original.pid)
+        view.holdExternalFeedCompletionForTesting = false
+        try await waitUntil("subscription resumed after the parse") { handle.connected && !handle.reconnecting }
+
+        view.holdExternalFeedCompletionForTesting = true
+        try await waitUntil("consumer acknowledgement overdue again") { handle.reconnecting }
+        session.controller.reconnectRuntime()
+        XCTAssertNil(session.runtimeConnectionIssue, "Pressing reconnect must not leave the banner up")
+        view.holdExternalFeedCompletionForTesting = false
+        try await waitUntil("manual reconnect delivered fresh output") {
+            handle.connected && !handle.reconnecting && session.runtimeConnectionIssue == nil
+        }
+        XCTAssertEqual(handle.info?.pid, original.pid)
+        XCTAssertEqual(handle.info?.generation, original.generation)
+    }
+
+    func testAICommandFillReachesRuntimeBackedTerminal() async throws {
+        let (root, helper) = try await startService()
+        let workspace = TerminalWorkspace(automaticallyStartProcesses: false, profileStore: nil)
+        let session = try XCTUnwrap(workspace.selectedTab)
+        attach(session, launch: .init(executable: "/bin/sh", arguments: ["-c", Self.echoControlledShell],
+            environment: ["PATH": "/usr/bin:/bin", "HOME": root.path, "TERM": "xterm-256color"], directory: root.path), root: root, helper: helper)
+        try await waitUntil("fill fixture shell ready") {
+            session.controller.runtimeHandle?.connected == true && session.controller.visibleScreenText().contains("__MODE_READY")
+        }
+        let model = AICommandAssistantModel()
+        model.present(for: session)
+        model.stageReviewedCandidateForTesting(AICommandSuggestion(
+            command: "printf '__AI_FILLED__'", explanation: "fixture"))
+        model.fillSelectedCommand(in: workspace)
+        try await waitUntil("filled command reached the PTY") {
+            session.controller.visibleScreenText().contains("__AI_FILLED__") && session.aiLease == nil
+        }
+        XCTAssertEqual(model.phase, .hidden)
+        XCTAssertEqual(model.notice, .filled(isProduction: false))
+        XCTAssertNil(session.runtimeConnectionIssue)
+        XCTAssertNil(session.aiLease, "The fill must not leave the keyboard locked")
+
+        // The lease was given back, so a second fill has to take a fresh one.
+        model.present(for: session)
+        model.stageReviewedCandidateForTesting(AICommandSuggestion(
+            command: "printf '__AI_FILLED_AGAIN__'", explanation: "fixture"))
+        model.fillSelectedCommand(in: workspace)
+        try await waitUntil("second fill reached the PTY") {
+            session.controller.visibleScreenText().contains("__AI_FILLED_AGAIN__") && session.aiLease == nil
+        }
+        XCTAssertEqual(model.notice, .filled(isProduction: false))
+
+        // A lease held by someone else is not the panel's to borrow.
+        let held = expectation(description: "Foreign lease acquired")
+        session.changeAIControl(action: .acquireControl, owner: "other-owner", archiveDirectory: root.appendingPathComponent("archives")) { result in
+            if case .failure(let error) = result { XCTFail("Acquire failed: \(error)") }
+            held.fulfill()
+        }
+        await fulfillment(of: [held], timeout: 5)
+        model.present(for: session)
+        model.stageReviewedCandidateForTesting(AICommandSuggestion(
+            command: "printf '__AI_MUST_NOT_FILL__'", explanation: "fixture"))
+        model.fillSelectedCommand(in: workspace)
+        XCTAssertEqual(model.phase, .failed)
+        try await Task.sleep(nanoseconds: 400_000_000)
+        XCTAssertFalse(session.controller.visibleScreenText().contains("__AI_MUST_NOT_FILL__"))
+        XCTAssertEqual(session.aiLease?.owner, "other-owner")
     }
 
     func testDisconnectedInputRetainsReconnectIssue() {

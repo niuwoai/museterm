@@ -525,9 +525,13 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
 
     private var isSendingToolInput = false
     private var toolInputOwner: String?
+    private var pendingRuntimeToolInputObserver: ((Result<Void, Error>) -> Void)?
 
     func sendToolInput(bytes: [UInt8], owner: String? = nil) throws {
-        guard runtimeHandle == nil else { throw TerminalAIControlError.busy }
+        // A runtime-backed session has no local PTY to write. Callers that can
+        // wait for the service ACK use the completion overload; this one only
+        // serves the direct process path, so failing here is a caller bug.
+        guard runtimeHandle == nil else { throw TerminalAIControlError.inputRejected }
         try session?.authorizeAIInput(owner: owner)
         guard didStart, terminalView.backendIsRunning else {
             throw TerminalToolError.processUnavailable
@@ -552,13 +556,40 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 try sendToolInput(bytes: bytes, owner: owner)
                 completion(.success(())); return
             }
-            try session?.authorizeAIInput(owner: owner)
-            guard didStart, terminalView.backendIsRunning else { throw TerminalToolError.processUnavailable }
-            guard activeSessionTunnel == nil else { throw TerminalToolError.sessionTunnelActive }
-            guard runtimeInputQueue?.enqueue(bytes, source: .ai, owner: owner, completion: completion) == true else {
-                throw TerminalAIControlError.inputRejected
-            }
+            try enqueueRuntimeToolInput(bytes, owner: owner, completion: completion)
         } catch { completion(.failure(error)) }
+    }
+
+    /// Puts AI input onto the runtime queue and returns once it is accepted.
+    /// The write itself finishes later: the service ACK is delivered on the main
+    /// queue, so a caller already on the main thread cannot wait for it.
+    /// `completion` replaces the observer installed by `observePendingRuntimeToolInput`.
+    /// `afterSettled` always runs once the write is acknowledged, so a lease taken
+    /// only for this write can be released without swallowing the observer.
+    func enqueueRuntimeToolInput(_ bytes: [UInt8], owner: String?,
+                                 completion: ((Result<Void, Error>) -> Void)? = nil,
+                                 afterSettled: (() -> Void)? = nil) throws {
+        guard runtimeHandle != nil else { throw TerminalAIControlError.inputRejected }
+        try session?.authorizeAIInput(owner: owner)
+        guard didStart, terminalView.backendIsRunning else { throw TerminalToolError.processUnavailable }
+        guard activeSessionTunnel == nil else { throw TerminalToolError.sessionTunnelActive }
+        guard runtimeInputQueue?.enqueue(bytes, source: .ai, owner: owner, completion: { [weak self] result in
+            let observer = self?.pendingRuntimeToolInputObserver
+            self?.pendingRuntimeToolInputObserver = nil
+            if let completion { completion(result) } else { observer?(result) }
+            if case .failure(let error) = result { self?.runtimeInputFailed(error) }
+            afterSettled?()
+        }) == true else {
+            throw TerminalAIControlError.inputRejected
+        }
+    }
+
+    /// One observer for the runtime tool input that was queued without its own
+    /// completion. A newer enqueue, or an enqueue that carries a completion,
+    /// drops the previous observer: that write's failure still surfaces through
+    /// `runtimeInputFailed`.
+    func observePendingRuntimeToolInput(_ observer: @escaping (Result<Void, Error>) -> Void) {
+        pendingRuntimeToolInputObserver = observer
     }
 
     func sendProcessInput(bytes: [UInt8]) {
@@ -1762,7 +1793,13 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         }
         handle.onRecovering = { [weak self, weak handle] in
             guard let self, let handle, self.runtimeHandle === handle else { return }
-            if self.session?.runtimeConnectionIssue == .disconnected { self.session?.runtimeConnectionIssue = nil }
+            // A slow parse and a manual reconnect both come through here. Neither
+            // means the backend is gone, so the banner has to come down at once
+            // instead of waiting for the next frame to finish rendering.
+            if self.session?.runtimeConnectionIssue == .disconnected
+                || self.session?.runtimeConnectionIssue == .connecting {
+                self.session?.runtimeConnectionIssue = nil
+            }
         }
         session.attentionStore?.externalAcknowledgement[session.id] = { [weak handle, weak session] id, version in
             guard let handle, handle.connected else { return false }
