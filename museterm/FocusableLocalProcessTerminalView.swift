@@ -15,7 +15,37 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     private var replayScreenModeUnknown = false
     private var clearOrphanedReplayScreen = false
     private var lastParsedRuntimeByte: UInt8?
-    var backendIsRunning: Bool { externalIsRunning?() ?? process.running }
+    var backendIsRunning: Bool { externalIsRunning?() ?? (ownedProcess?.running ?? process.running) }
+    /// The PTY master descriptor of whichever process is actually running: our own when the
+    /// view launched it, otherwise the one SwiftTerm created for the view.
+    var backendChildFileDescriptor: Int32 { (ownedProcess ?? process).childfd }
+
+    /// The process whose output we parse ourselves. SwiftTerm 1.99 feeds the view's built-in
+    /// process straight into the parser on its IO thread, so anything that has to look at the
+    /// bytes first (ZMODEM, the session tunnel, SSH diagnostics) needs a process we own.
+    private var ownedProcess: LocalProcess?
+    private var ownedProcessDelegate: OwnedProcessDelegate?
+    /// The scrollback last applied through the view. The terminal keeps the value internally
+    /// and no longer exposes it for comparison.
+    var appliedScrollbackLines: Int?
+
+    /// Starts the shell on a process this view owns. The view's built-in process parses on its
+    /// own IO thread and never returns the bytes, so it cannot serve the output interceptors.
+    func startOwnedProcess(executable: String = "/bin/bash", args: [String] = [], environment: [String]? = nil, execName: String? = nil, currentDirectory: String? = nil) {
+        let delegate = OwnedProcessDelegate(owner: self)
+        ownedProcessDelegate = delegate
+        let owned = LocalProcess(delegate: delegate, dispatchQueue: .main)
+        ownedProcess = owned
+        owned.startProcess(executable: executable, args: args, environment: environment, execName: execName, currentDirectory: currentDirectory)
+    }
+
+    func terminateOwnedProcess() {
+        if let ownedProcess {
+            ownedProcess.terminate()
+        } else {
+            terminate()
+        }
+    }
     /// 命令面板 / AI 指令输入条等键盘浮层打开期间为 true：此时终端不得自动夺取
     /// 第一响应者，键盘输入应留在浮层里。鼠标点击等显式动作仍走 requestFocus()。
     var suppressesAutomaticFocus = false
@@ -23,13 +53,31 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     func beginTruncatedRuntimeReplay() {
         // A truncated VT stream may have lost its alternate-screen entry.
         // Keep an already-known alternate buffer's saved normal screen intact.
-        replayScreenModeUnknown = !getTerminal().isCurrentBufferAlternate
+        replayScreenModeUnknown = terminalInputStateSnapshot()?.isAlternateBuffer != true
     }
 
-    override func bufferActivated(source: Terminal) {
-        if replayScreenModeUnknown {
-            replayScreenModeUnknown = false
-            clearOrphanedReplayScreen = !source.isCurrentBufferAlternate
+    // SwiftTerm 1.99 delivers terminal callbacks from the parser thread and
+    // hops back to main itself. The override has to stay nonisolated to match,
+    // and every touch of view state goes through the same hop.
+    nonisolated override func bufferActivated(source: Terminal) {
+        // The parser calls this with the terminal lock held, and the lock is not
+        // re-entrant, so the replay recovery has to happen after the feed that
+        // triggered the switch returns. When the feed itself runs on the main
+        // thread (our own replay path) a queued block would land too late: the
+        // caller reads the screen the moment the feed returns. Running inline on
+        // the main thread keeps that synchronous, and defers it otherwise.
+        let alternate = source.isCurrentBufferAlternate
+        let apply = { [weak self] in
+            guard let self else { return }
+            if self.replayScreenModeUnknown {
+                self.replayScreenModeUnknown = false
+                self.clearOrphanedReplayScreen = !alternate
+            }
+        }
+        if Thread.isMainThread {
+            MainActor.assumeIsolated(apply)
+        } else {
+            DispatchQueue.main.async(execute: apply)
         }
         super.bufferActivated(source: source)
     }
@@ -37,7 +85,7 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     func sendBackend(_ bytes: ArraySlice<UInt8>) {
         if let externalBackendSend { _ = externalBackendSend(Array(bytes)) }
         else if let externalSend { _ = externalSend(Array(bytes), false) }
-        else { process.send(data: bytes) }
+        else { (ownedProcess ?? process).send(data: bytes) }
     }
 
     func receiveExternal(_ data: Data, historicalBytes: Int = 0, completion: @escaping () -> Void) {
@@ -48,10 +96,10 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
             let start = pendingFeedBytes.count
             historicalFeedRanges.append(start..<(start + historyCount))
             isReplayingHistoricalOutput = true
-            dataReceived(slice: bytes[..<historyCount])
+            acceptOutput(bytes[..<historyCount])
             isReplayingHistoricalOutput = false
         }
-        if historyCount < bytes.count { dataReceived(slice: bytes[historyCount...]) }
+        if historyCount < bytes.count { acceptOutput(bytes[historyCount...]) }
         if pendingFeedBytes.isEmpty {
             externalFeedCompletion = nil
             completion()
@@ -111,6 +159,12 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
         installIMEReturnMonitor()
     }
 
+    override init(frame: CGRect, font: NSFont?, options: TerminalOptions) {
+        super.init(frame: frame, font: font, options: options)
+        installTerminalDelegateRouter()
+        installIMEReturnMonitor()
+    }
+
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         installTerminalDelegateRouter()
@@ -151,7 +205,25 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
         let router = TerminalDelegateRouter(owner: self)
         terminalDelegateRouter = router
         terminalDelegate = router
+        // Mouse reports and emulator replies go through the delegate, and the local
+        // process view is the only thing that writes them to the child. Installing
+        // the router above replaces it, so keep its path and hand reports to it once
+        // this view's own checks have run.
+        processInput = { [weak self] bytes in
+            self?.sendBackend(bytes)
+        }
+        // SwiftTerm 1.99 routes keystrokes, paste and send(txt:) through the input
+        // sender straight to its built-in process, which skips the delegate and so
+        // skips every guard this view keeps on user input. Its setup() installs that
+        // delivery before this init body runs; replace it so those bytes come back
+        // through the delegate, where the guards live. Mouse reports and emulator
+        // replies never use the input sender, so they are unaffected.
+        inputSender.replaceDelivery { [weak self] bytes in
+            guard let self else { return }
+            self.terminalDelegate?.send(source: self, data: bytes[...])
+        }
     }
+
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
@@ -208,8 +280,14 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
         finishMouseSelectionGesture()
     }
 
-    override func selectionChanged(source: Terminal) {
+    nonisolated override func selectionChanged(source: Terminal) {
         super.selectionChanged(source: source)
+        DispatchQueue.main.async { [weak self] in
+            self?.noteSelectionChanged()
+        }
+    }
+
+    private func noteSelectionChanged() {
         if isTrackingMouseSelection {
             selectionChangedDuringMouseGesture = true
         }
@@ -549,7 +627,7 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
         guard !isReplayingHistoricalOutput, !text.isEmpty, let externalPaste else { return false }
         unmarkText()
         let textBytes = Array(text.utf8)
-        let framed = getTerminal().bracketedPasteMode
+        let framed = terminalInputStateSnapshot()?.bracketedPasteMode == true
             ? EscapeSequences.bracketedPasteStart + textBytes + EscapeSequences.bracketedPasteEnd
             : textBytes
         guard externalPaste(framed, textBytes) else { return false }
@@ -584,7 +662,26 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
 
     // Emulator replies (cursor position, device attributes, etc.) are protocol traffic,
     // not human input. Keep full-screen programs responsive while input is locked.
-    override func send(source: Terminal, data: ArraySlice<UInt8>) {
+    // The parser calls this with the terminal lock held. The lock is not re-entrant, so
+    // the delivery, which takes the lock again on its way to the process, has to wait
+    // until the callback returns. A main-thread caller (the view's own mouse handling)
+    // reads the result the moment it returns, so that case runs inline; a parser-thread
+    // caller hops to the main queue instead. The bytes are copied first because the
+    // slice only lives for the duration of the call.
+    nonisolated override func send(source: Terminal, data: ArraySlice<UInt8>) {
+        let bytes = Array(data)
+        let deliver = { [weak self] in
+            self?.deliverEmulatorReply(bytes[...])
+            return
+        }
+        if Thread.isMainThread {
+            MainActor.assumeIsolated(deliver)
+        } else {
+            DispatchQueue.main.async(execute: deliver)
+        }
+    }
+
+    private func deliverEmulatorReply(_ data: ArraySlice<UInt8>) {
         guard !isReplayingHistoricalOutput else { return }
         if TerminalMouseReportPolicy.isMouseReport(data) {
             send(source: self, data: data)
@@ -599,8 +696,9 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
         guard backendIsRunning else { return }
         let workItem = DispatchWorkItem { [weak self] in
             guard let self, self.backendIsRunning else { return }
-            guard self.terminal.cols == newCols, self.terminal.rows == newRows else {
-                self.terminalDidResize(newCols: self.terminal.cols, newRows: self.terminal.rows)
+            let dimensions = self.terminalDimensions
+            guard dimensions.cols == newCols, dimensions.rows == newRows else {
+                self.terminalDidResize(newCols: dimensions.cols, newRows: dimensions.rows)
                 return
             }
             self.onStableTerminalResize?(newCols, newRows)
@@ -690,9 +788,9 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     /// 点击位置对应的可见区域（列, 行）。SwiftTerm 的格子尺寸不公开：行高由
     /// getOptimalFrameSize 反推，列宽按 SwiftTerm 同样的"W 字宽 + 像素对齐"规则计算
     private func screenCell(for event: NSEvent) -> (column: Int, row: Int)? {
-        let terminal = getTerminal()
-        guard terminal.cols > 0, terminal.rows > 0 else { return nil }
-        let cellHeight = getOptimalFrameSize().height / CGFloat(terminal.rows)
+        let dimensions = terminalDimensions
+        guard dimensions.cols > 0, dimensions.rows > 0 else { return nil }
+        let cellHeight = getOptimalFrameSize().height / CGFloat(dimensions.rows)
         let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
         let glyph = font.glyph(withName: "W")
         let cellWidth = ceil(font.advancement(forGlyph: glyph).width * scale) / scale
@@ -700,16 +798,24 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
         let point = convert(event.locationInWindow, from: nil)
         let column = Int(point.x / cellWidth)
         let row = Int((frame.height - point.y) / cellHeight)
-        guard (0..<terminal.cols).contains(column), (0..<terminal.rows).contains(row) else { return nil }
+        guard (0..<dimensions.cols).contains(column), (0..<dimensions.rows).contains(row) else { return nil }
         return (column, row)
     }
 
-    /// 一格一个字符，下标与列号对齐；空格子和宽字符的占位格是 NUL，按分隔符处理
+    /// 一格一个字符，下标与列号对齐；空格子和宽字符的占位格读出来是空串，按分隔符处理。
+    /// 文本来自视图的内容快照：SwiftTerm 1.99 起可变的 terminal 不再对外可见。
     private func screenRowCharacters(row: Int) -> [Character]? {
-        let terminal = getTerminal()
-        guard let line = terminal.getLine(row: row) else { return nil }
-        let count = min(terminal.cols, line.count)
-        return (0..<count).map { terminal.getCharacter(for: line[$0]) }
+        guard let snapshot = terminalContentSnapshot(region: .viewport) else { return nil }
+        let dimensions = snapshot.inputState.dimensions
+        guard (0..<dimensions.rows).contains(row) else { return nil }
+        let absoluteRow = snapshot.liveTopRow + row
+        guard let copied = snapshot.rows.first(where: { $0.absoluteRow == absoluteRow }) else { return nil }
+        return (0..<dimensions.cols).map { column in
+            guard column < copied.cells.count else { return "\u{0}" }
+            let cell = copied.cells[column]
+            guard cell.width > 0, let character = cell.text.first else { return "\u{0}" }
+            return character
+        }
     }
 
     private func openWebImage(_ url: URL) {
@@ -796,7 +902,30 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
         onTerminalBell?()
     }
 
-    override func dataReceived(slice: ArraySlice<UInt8>) {
+    fileprivate func ownedProcessDelivered(_ slice: ArraySlice<UInt8>) {
+        acceptOutput(slice)
+    }
+
+    fileprivate func ownedProcessTerminated(_ source: LocalProcess, exitCode: Int32?) {
+        guard source === ownedProcess else { return }
+        ownedProcess = nil
+        ownedProcessDelegate = nil
+        processTerminated(source, exitCode: exitCode)
+    }
+
+    fileprivate func ownedProcessFailedToStart(_ source: LocalProcess, error: LocalProcessError) {
+        guard source === ownedProcess else { return }
+        ownedProcess = nil
+        ownedProcessDelegate = nil
+        processFailedToStart(source, error: error)
+    }
+
+
+
+    /// 接收一段待解析的输出。SwiftTerm 1.99 把解析搬到了进程的 IO 线程，并把
+    /// `LocalProcessTerminalView.dataReceived(slice:)` 标成不可用，所以这里改成自己的入口：
+    /// 回放历史输出走它，真实进程的输出由我们自己的 `LocalProcess` 回调进来。
+    private func acceptOutput(_ slice: ArraySlice<UInt8>) {
         if !isReplayingHistoricalOutput, onReceivedProcessData?(slice) == true {
             return
         }
@@ -874,7 +1003,7 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     }
 
     private func feedPendingBytes(_ range: Range<Int>) {
-        super.dataReceived(slice: pendingFeedBytes[range])
+        feed(byteArray: pendingFeedBytes[range])
         lastParsedRuntimeByte = pendingFeedBytes[range.upperBound - 1]
     }
 
@@ -888,9 +1017,10 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
 
     var terminalEchoEnabled: Bool {
         if externalSend != nil { return false } // Only the service ACK permits recording.
-        guard process.running else { return false }
+        let backend = ownedProcess ?? process
+        guard let backend, backend.running else { return false }
         var attributes = termios()
-        guard tcgetattr(process.childfd, &attributes) == 0 else { return false }
+        guard tcgetattr(backend.childfd, &attributes) == 0 else { return false }
         return (attributes.c_lflag & tcflag_t(ECHO)) != 0
     }
 
@@ -972,4 +1102,31 @@ private final class TerminalDelegateRouter: TerminalViewDelegate {
     func iTermContent(source: TerminalView, content: ArraySlice<UInt8>) {}
 
     func rangeChanged(source: TerminalView, startY: Int, endY: Int) {}
+}
+
+/// Receives the output of the process this view owns. It exists as its own type because
+/// `LocalProcessTerminalView.dataReceived(slice:)` is unavailable, and a method of that name on
+/// the view can no longer satisfy `LocalProcessDelegate`.
+private final class OwnedProcessDelegate: LocalProcessDelegate {
+    private weak var owner: FocusableLocalProcessTerminalView?
+
+    init(owner: FocusableLocalProcessTerminalView) {
+        self.owner = owner
+    }
+
+    func dataReceived(slice: ArraySlice<UInt8>) {
+        owner?.ownedProcessDelivered(slice)
+    }
+
+    func processTerminated(_ source: LocalProcess, exitCode: Int32?) {
+        owner?.ownedProcessTerminated(source, exitCode: exitCode)
+    }
+
+    func processFailedToStart(_ source: LocalProcess, error: LocalProcessError) {
+        owner?.ownedProcessFailedToStart(source, error: error)
+    }
+
+    func getWindowSize() -> winsize {
+        owner?.getWindowSize() ?? winsize()
+    }
 }

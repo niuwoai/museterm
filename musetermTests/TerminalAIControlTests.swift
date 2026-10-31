@@ -107,6 +107,7 @@ final class TerminalAIControlTests: XCTestCase {
         XCTAssertEqual(workspace.selectedID, selected.id)
     }
 
+    @MainActor
     func testBackgroundPTYInputKeepsSelectionAndRejectsHumanInputWhileLocked() throws {
         let directory = temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }

@@ -17,8 +17,9 @@ final class TerminalRuntimeReplayScreenTests: XCTestCase {
     }
 
     private func screen(_ view: FocusableLocalProcessTerminalView) -> String {
-        let terminal = view.getTerminal()
-        return (0..<terminal.rows).compactMap { terminal.getLine(row: $0)?.translateToString() }.joined(separator: "\n")
+        let rows = view.terminalDimensions.rows
+        guard rows > 0 else { return "" }
+        return view.visibleRowsText(0..<rows).joined(separator: "\n")
     }
 
     func testMissingAlternateEntryClearsResidueBeforeSameFrameShellPrompt() async {
@@ -93,7 +94,7 @@ final class TerminalRuntimeReplayScreenTests: XCTestCase {
         view.feed(text: (0..<80).map { "__HISTORY_\($0)__\r\n" }.joined())
         view.beginTruncatedRuntimeReplay()
         await receive("\u{1b}[H__TUI__\u{1b}[12;1H__STALE__\u{1b}[?1049l__PROMPT__", in: view)
-        let history = String(decoding: view.getTerminal().getBufferAsData(kind: .normal), as: UTF8.self)
+        let history = String(decoding: view.getBufferAsData(kind: .normal), as: UTF8.self)
         XCTAssertTrue(history.contains("__HISTORY_0__"))
         XCTAssertTrue(screen(view).contains("__PROMPT__"))
         XCTAssertFalse(screen(view).contains("__STALE__"))

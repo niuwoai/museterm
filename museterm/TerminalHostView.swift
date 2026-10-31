@@ -75,7 +75,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private let tintView = NSView(frame: .zero)
     private let terminalLeadingMarginView = NSView(frame: .zero)
     private let terminalTrailingMarginView = NSView(frame: .zero)
-    private let terminalView = FocusableLocalProcessTerminalView(frame: .zero)
+    private let terminalView: FocusableLocalProcessTerminalView
     private(set) var runtimeHandle: TerminalRuntimeSessionHandle?
     private(set) var runtimeInputErrorCode: String?
     private var runtimeForegroundPID: pid_t?
@@ -151,7 +151,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         guard uptime - lastAgentSampleUptime >= 1 else { return }
         lastAgentSampleUptime = uptime
         guard didStart, terminalView.backendIsRunning else { return }
-        let pid = runtimeHandle == nil ? tcgetpgrp(terminalView.process.childfd) : (runtimeForegroundPID ?? 0)
+        let pid = runtimeHandle == nil ? tcgetpgrp(terminalView.backendChildFileDescriptor) : (runtimeForegroundPID ?? 0)
         if agentForegroundPID != pid {
             agentForegroundPID = pid
             agentForegroundRunID = UUID()
@@ -166,12 +166,21 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     private func liveAgentScreenText() -> String {
-        guard let terminal = terminalView.terminal else { return "" }
-        return TerminalAgentScreenReader.liveTail(terminal)
+        TerminalAgentScreenReader.liveTail(terminalView)
     }
 
     init(session: TerminalSession) {
         self.session = session
+        // The graphics cache is read once, when the terminal is created. The stored value is
+        // available before the view exists, so the preference applies from the first frame.
+        let cacheMegabytes = UserDefaults.standard.object(
+            forKey: TerminalPreferences.Keys.imageCacheMegabytes
+        ) as? Int ?? TerminalPreferences.defaultImageCacheMegabytes
+        terminalView = FocusableLocalProcessTerminalView(
+            frame: .zero,
+            font: nil,
+            options: TerminalGraphicsPolicy.terminalOptions(cacheMegabytes: cacheMegabytes)
+        )
         super.init()
         configureViews()
     }
@@ -237,15 +246,17 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     private func applyScrollbackLines(_ lines: Int) {
-        guard let terminal = terminalView.terminal else { return }
         let normalized = TerminalPreferences.clampedScrollbackLines(lines)
-        guard terminal.options.scrollback != normalized else { return }
-        terminal.changeScrollback(normalized)
+        guard terminalView.appliedScrollbackLines != normalized else { return }
+        terminalView.changeScrollback(normalized)
+        terminalView.appliedScrollbackLines = normalized
     }
 
     private func applyGraphicsPolicy(cacheMegabytes: Int) {
-        guard let terminal = terminalView.terminal else { return }
-        TerminalGraphicsPolicy.apply(to: terminal, cacheMegabytes: cacheMegabytes)
+        // The Kitty image cache and the sixel report are fixed when the terminal is created,
+        // and SwiftTerm 1.99 no longer exposes the terminal for later changes. The view is
+        // built with the policy already applied.
+        _ = cacheMegabytes
     }
 
     func layoutTerminalViews() {
@@ -318,7 +329,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         if let runtimeHandle {
             if preservingRuntime { runtimeHandle.detach() } else { runtimeHandle.closeTerminal() }
         }
-        else { terminalView.terminate() }
+        else { terminalView.terminateOwnedProcess() }
     }
 
     func ensureProcessStarted() {
@@ -429,7 +440,6 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     private func applyCursorStyle(shape: TerminalCursorShape, blink: Bool) {
-        guard let terminal = terminalView.terminal else { return }
         let style: CursorStyle
         switch shape {
         case .block:
@@ -439,10 +449,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         case .underline:
             style = blink ? .blinkUnderline : .steadyUnderline
         }
-        // 必须走 setCursorStyle：它会更新 terminal.options.cursorStyle（Metal 渲染器据此
-        // 画光标）以及 caretView（非 Metal 路径）。仅调 cursorStyleChanged 只改 caretView，
-        // 在 Metal 开启时对屏幕上的光标无效。
-        terminal.setCursorStyle(style)
+        // 必须走视图的 setCursorStyle：它同时更新渲染器读取的光标样式和 caretView。
+        // 只改 caretView 在 Metal 开启时对屏幕上的光标无效。
+        terminalView.setCursorStyle(style)
     }
 
     // Metal 渲染器是按需重绘（MTKView isPaused=true），颜色/光标/字体等设置变更不会自动
@@ -481,8 +490,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             sessionTunnelStatus: session?.sessionTunnelStatus.map(TerminalToolSessionTunnelSnapshot.init(status:)),
             isSelected: isSelected,
             state: session?.toolStateText ?? "unknown",
-            columns: terminalView.terminal?.cols ?? 0,
-            rows: terminalView.terminal?.rows ?? 0,
+            columns: terminalView.terminalDimensions.cols,
+            rows: terminalView.terminalDimensions.rows,
             screen: visibleScreenText(),
             history: String(latestHistoryText().suffix(maxHistoryCharacters)),
             commandDiagnostics: TerminalToolCommandDiagnosticsSnapshot(
@@ -1418,7 +1427,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 }
                 return
             }
-            terminalView.startProcess(
+            terminalView.startOwnedProcess(
                 executable: descriptor.executable,
                 args: descriptor.args,
                 environment: session?.nativeAgentEnvironment(descriptor.environment) ?? descriptor.environment,
@@ -1447,7 +1456,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                         executable: runtimeLaunchContext?.2 ?? TerminalRuntimeService.executableURL) { [weak self] in self?.drainStartupCommands(startup) }
                     return
                 }
-                terminalView.startProcess(
+                terminalView.startOwnedProcess(
                     executable: descriptor.executable,
                     args: descriptor.args,
                     environment: Self.environmentArray(shellPath: nil),
@@ -1594,7 +1603,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         }
         var size = terminalView.getWindowSize()
         let _ = PseudoTerminalHelpers.setWinSize(
-            masterPtyDescriptor: terminalView.process.childfd,
+            masterPtyDescriptor: terminalView.backendChildFileDescriptor,
             windowSize: &size
         )
         // 启动期的窗口定型 resize 会向 shell 发 SIGWINCH 触发重绘（首个标签尤其晚），
@@ -1697,13 +1706,14 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         var didSynchronizeInitialSize = false
         handle.onState = { [weak self, weak handle] info in
             guard let self, let handle, self.runtimeHandle === handle, let session = self.session else { return }
-            if !didSynchronizeInitialSize, self.canStartProcess, info.running, let terminal = self.terminalView.terminal,
-               terminal.cols > 0, terminal.rows > 0 {
+            let dimensions = self.terminalView.terminalDimensions
+            if !didSynchronizeInitialSize, self.canStartProcess, info.running,
+               dimensions.cols > 0, dimensions.rows > 0 {
                 // Layout may have completed before a backend existed, when the
                 // resize callback intentionally skipped the unavailable PTY.
                 didSynchronizeInitialSize = true
-                if info.columns != terminal.cols || info.rows != terminal.rows {
-                    handle.resize(columns: terminal.cols, rows: terminal.rows)
+                if info.columns != dimensions.cols || info.rows != dimensions.rows {
+                    handle.resize(columns: dimensions.cols, rows: dimensions.rows)
                 }
             }
             if !handle.createdNewPTY { self.finishStartupPromptDeduplication() }
@@ -1972,25 +1982,23 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func visibleScreenText() -> String {
-        guard let terminal = terminalView.terminal else { return "" }
-        return (0..<terminal.rows)
-            .compactMap { row in
-                terminal.getLine(row: row)?.translateToString(trimRight: true)
-            }
-            .joined(separator: "\n")
+        let rows = terminalView.terminalDimensions.rows
+        guard rows > 0 else { return "" }
+        return terminalView.visibleRowsText(0..<rows).joined(separator: "\n")
     }
 
     var terminalColumns: Int {
-        terminalView.terminal?.cols ?? 0
+        terminalView.terminalDimensions.cols
     }
 
     var terminalRows: Int {
-        terminalView.terminal?.rows ?? 0
+        terminalView.terminalDimensions.rows
     }
 
     private func fullHistoryText() -> String {
-        guard let terminal = terminalView.terminal else { return visibleScreenText() }
-        return String(data: terminal.getBufferAsData(), encoding: .utf8) ?? visibleScreenText()
+        let data = terminalView.getBufferAsData()
+        guard !data.isEmpty else { return visibleScreenText() }
+        return String(data: data, encoding: .utf8) ?? visibleScreenText()
     }
 
     private static func loginShell() -> String {

@@ -1,6 +1,7 @@
 .derivedData/
 .local-derived-data/
 DerivedData/
+.build/
 .app-backups/
 *.xcuserstate
 xcuserdata/

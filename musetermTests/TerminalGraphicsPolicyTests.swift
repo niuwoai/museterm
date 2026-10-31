@@ -80,14 +80,22 @@ final class TerminalGraphicsPolicyTests: XCTestCase {
         )
         TerminalGraphicsPolicy.apply(to: terminal, cacheMegabytes: 128)
         let png = try XCTUnwrap(Data(base64Encoded: Self.onePixelPNGBase64))
-        let sequence = "\u{1b}_Gf=100,a=T,i=7,q=2;"
+        let sequence = "\u{1b}_Gf=100,a=T,i=7,t=d;"
             + png.base64EncodedString()
             + "\u{1b}\\"
 
         terminal.feed(text: sequence)
 
-        XCTAssertEqual(delegate.encodedImages.count, 1)
-        XCTAssertEqual(delegate.encodedImages.first?.data, png)
+        // v1.99.2 decodes Kitty images into its own store. They never reach
+        // TerminalDelegate.createImage, which is now only the iTerm2 path.
+        let snapshot = terminal.terminalLock.withLock {
+            terminal.kittyGraphicsRenderSnapshot()
+        }
+        let image = try XCTUnwrap(snapshot.imagesById[7])
+        XCTAssertEqual(image.width, 1)
+        XCTAssertEqual(image.height, 1)
+        XCTAssertEqual(image.rgba.count, 4)
+        XCTAssertEqual(snapshot.placements.map(\.imageId), [7])
     }
 
     func testSixelSequenceDeliversRGBABitmap() {
@@ -138,13 +146,13 @@ private final class GraphicsTerminalDelegate: TerminalDelegate {
 
     func createImage(
         source: Terminal,
-        data: Data,
+        data: TerminalData,
         width: ImageSizeRequest,
         height: ImageSizeRequest,
         preserveAspectRatio: Bool
     ) {
         encodedImages.append(
-            EncodedImage(data: data, preserveAspectRatio: preserveAspectRatio)
+            EncodedImage(data: Data(data), preserveAspectRatio: preserveAspectRatio)
         )
     }
 }
