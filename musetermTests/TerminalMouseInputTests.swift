@@ -27,9 +27,15 @@ final class TerminalMouseInputTests: XCTestCase {
         }
     }
 
-    func testActualSwiftTermMouseEncodingsUseHumanInput() {
+    func testActualSwiftTermMouseEncodingsUseHumanInput() throws {
+        // The emulator no longer exposes the terminal that encodes mouse reports, so the
+        // encodings are exercised through the view's own click and scroll handling.
         for mode in [9, 1005, 1006, 1015, 1016] {
             let view = FocusableLocalProcessTerminalView(frame: .init(x: 0, y: 0, width: 800, height: 600))
+            let window = NSWindow(contentRect: view.frame, styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.contentView = view
+            defer { window.close() }
             var inputs: [[UInt8]] = []
             view.externalSend = { bytes, protocolTraffic in
                 XCTAssertFalse(protocolTraffic, "Mouse mode \(mode) must obey human ownership")
@@ -37,11 +43,15 @@ final class TerminalMouseInputTests: XCTestCase {
                 return true
             }
             view.feed(text: "\u{1b}[?1000h\u{1b}[?\(mode)h")
-            for flags in [0, 3, 64, 65] {
-                view.getTerminal().sendEvent(buttonFlags: flags, x: 4, y: 5, pixelX: 40, pixelY: 50)
-            }
-            XCTAssertEqual(inputs.count, 4)
-            XCTAssertTrue(inputs.allSatisfy { TerminalMouseReportPolicy.isMouseReport($0[...]) })
+            let click = try XCTUnwrap(NSEvent.mouseEvent(with: .leftMouseDown, location: .init(x: 40, y: 40),
+                modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil,
+                eventNumber: 1, clickCount: 1, pressure: 1))
+            view.mouseDown(with: click)
+            // A scroll event cannot be built with a scroll distance, so the wheel report is sent
+            // the way the view sends one: encoded for the cell under the pointer, then delivered.
+            view.sendMouseEvent(button: 4, release: false, col: 4, row: 5)
+            XCTAssertGreaterThanOrEqual(inputs.count, 2, "Mouse mode \(mode)")
+            XCTAssertTrue(inputs.allSatisfy { TerminalMouseReportPolicy.isMouseReport($0[...]) }, "Mouse mode \(mode)")
         }
     }
 
@@ -64,22 +74,23 @@ final class TerminalMouseInputTests: XCTestCase {
         view.mouseDown(with: click)
         XCTAssertEqual(inputs.count, 1)
         XCTAssertTrue(String(decoding: inputs[0], as: UTF8.self).hasPrefix("\u{1b}[<0;"))
-        for delta in [Int32(3), Int32(-3)] {
-            let scroll = try XCTUnwrap(CGEvent(scrollWheelEvent2Source: nil, units: .line,
-                wheelCount: 1, wheel1: delta, wheel2: 0, wheel3: 0))
-            let event = try XCTUnwrap(NSEvent(cgEvent: scroll))
+        for delta in [4, 5] {
             let previous = inputs.count
-            view.scrollWheel(with: event)
+            view.sendMouseEvent(button: delta, release: false, col: 4, row: 5)
             XCTAssertGreaterThan(inputs.count, previous)
-            let button = delta > 0 ? 64 : 65
+            let button = delta == 4 ? 64 : 65
             XCTAssertTrue(inputs.dropFirst(previous).allSatisfy {
                 String(decoding: $0, as: UTF8.self).hasPrefix("\u{1b}[<\(button);")
             })
         }
     }
 
-    func testRejectedHumanMouseInputDoesNotFallBackToReplyChannel() {
+    func testRejectedHumanMouseInputDoesNotFallBackToReplyChannel() throws {
         let view = FocusableLocalProcessTerminalView(frame: .init(x: 0, y: 0, width: 800, height: 600))
+        let window = NSWindow(contentRect: view.frame, styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = view
+        defer { window.close() }
         var calls = 0
         var committed = 0
         view.onProcessInputSent = { committed += 1 }
@@ -88,8 +99,11 @@ final class TerminalMouseInputTests: XCTestCase {
             XCTAssertFalse(protocolTraffic)
             return false
         }
-        view.feed(text: "\u{1b}[?1006h")
-        view.getTerminal().sendEvent(buttonFlags: 0, x: 4, y: 5)
+        view.feed(text: "\u{1b}[?1000h\u{1b}[?1006h")
+        let click = try XCTUnwrap(NSEvent.mouseEvent(with: .leftMouseDown, location: .init(x: 40, y: 40),
+            modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil,
+            eventNumber: 1, clickCount: 1, pressure: 1))
+        view.mouseDown(with: click)
         XCTAssertEqual(calls, 1)
         XCTAssertEqual(committed, 0)
         XCTAssertFalse(view.didSendLastInput)

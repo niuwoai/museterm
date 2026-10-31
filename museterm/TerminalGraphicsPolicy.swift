@@ -20,6 +20,18 @@ enum TerminalGraphicsPolicy {
         terminal.options.kittyImageCacheLimitBytes = cacheBytes(megabytes: cacheMegabytes)
     }
 
+    /// Options for a view whose terminal is created once and then hidden. SwiftTerm 1.99 keeps
+    /// the terminal internal, so the graphics cache has to be chosen up front. The default
+    /// reports sixel already, and the Kitty limit is per screen rather than shared.
+    static func terminalOptions(cacheMegabytes: Int) -> TerminalOptions {
+        var options = TerminalOptions.default
+        options.enableSixelReported = true
+        options.kittyGraphics.storageLimitBytesPerScreen = UInt32(
+            clamping: cacheBytes(megabytes: cacheMegabytes)
+        )
+        return options
+    }
+
     static func environmentVariables(appVersion: String) -> [String: String] {
         [
             "COLORTERM": "truecolor",

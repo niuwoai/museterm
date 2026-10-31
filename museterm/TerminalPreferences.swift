@@ -149,7 +149,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable {
 final class TerminalPreferences: ObservableObject {
     private static let aiKeychainServiceName = "im.some.museterm.ai-credentials"
 
-    private enum Keys {
+    enum Keys {
         static let skin = "terminal.skin"
         static let fontFamily = "terminal.fontFamily"
         // 旧版单回退字体键，仅用于迁移与回滚兼容

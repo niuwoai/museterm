@@ -1,3 +1,4 @@
+import Foundation
 import SwiftTerm
 
 enum TerminalAgentScreenReader {
@@ -24,4 +25,26 @@ enum TerminalAgentScreenReader {
         }.joined(separator: "\n")
         return String(text.suffix(TerminalAgentScreenRules.maximumCharacters))
     }
+
+    /// The live tail of a view whose terminal SwiftTerm keeps internal. The content snapshot
+    /// numbers rows in the same scroll-invariant space and ignores where the user has scrolled,
+    /// so a scrolled-back viewport is not mistaken for the agent's current screen.
+    static func liveTail(_ view: TerminalView) -> String {
+        let limit = TerminalAgentScreenRules.maximumLines
+        guard let snapshot = view.terminalContentSnapshot(region: .history(maximumScrollbackRows: limit - 1)) else {
+            return ""
+        }
+        let live = snapshot.rows
+            .filter { $0.absoluteRow >= snapshot.liveTopRow - (limit - 1) }
+            .suffix(limit)
+            .map { terminalReplacingNulls($0.text) }
+            .joined(separator: "\n")
+        return String(live.suffix(TerminalAgentScreenRules.maximumCharacters))
+    }
+}
+
+/// The snapshot's row text keeps NUL placeholders for unwritten cells. The line translation the
+/// headless reader uses drops them, and the two paths have to agree.
+private func terminalReplacingNulls(_ text: String) -> String {
+    text.replacingOccurrences(of: "\u{0}", with: "")
 }

@@ -74,17 +74,22 @@ final class TerminalPreviewTests: XCTestCase {
             "\u{1b}Pq#0;2;100;0;0~$\u{1b}\\"
         ]
         for sequence in protocols {
-            let view = FocusableLocalProcessTerminalView(frame: .init(x: 0, y: 0, width: 800, height: 600))
-            TerminalGraphicsPolicy.apply(to: view.getTerminal(), cacheMegabytes: 128)
+            let view = FocusableLocalProcessTerminalView(
+                frame: .init(x: 0, y: 0, width: 800, height: 600),
+                font: nil,
+                options: TerminalGraphicsPolicy.terminalOptions(cacheMegabytes: 128)
+            )
             let data = Data(sequence.utf8)
             await withCheckedContinuation { continuation in
                 view.receiveExternal(data, historicalBytes: data.count) { continuation.resume() }
             }
-            XCTAssertTrue(view.getTerminal().buffer.hasAnyImages)
-            view.getTerminal().resize(cols: 60, rows: 20)
-            XCTAssertTrue(view.getTerminal().buffer.hasAnyImages)
+            // v1.99.2 keeps iTerm2 and sixel images on buffer lines, and Kitty images in
+            // its graphics store. Neither shows up in the text the view returns.
+            XCTAssertTrue(view.hasRetainedInlineGraphics(), String(sequence.prefix(24)))
+            view.resize(cols: 60, rows: 20)
+            XCTAssertTrue(view.hasRetainedInlineGraphics(), String(sequence.prefix(24)))
             view.feed(text: "\r\n__AFTER_IMAGE__")
-            XCTAssertTrue(String(decoding: view.getTerminal().getBufferAsData(), as: UTF8.self).contains("__AFTER_IMAGE__"))
+            XCTAssertTrue(String(decoding: view.getBufferAsData(), as: UTF8.self).contains("__AFTER_IMAGE__"))
         }
     }
 

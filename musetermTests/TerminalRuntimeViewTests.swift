@@ -251,8 +251,12 @@ final class TerminalRuntimeViewTests: XCTestCase {
             session.controller.runtimeHandle?.connected == true && session.controller.visibleScreenText().contains("__MOUSE_READY")
         }
         let view = try XCTUnwrap(session.controller.container.subviews.compactMap { $0 as? FocusableLocalProcessTerminalView }.first)
-        let terminal = view.getTerminal()
-        for flags in [0, 3, 64, 65] { terminal.sendEvent(buttonFlags: flags, x: 4, y: 5) }
+        // The fixture reads four reports at fixed cells, so the view reports them directly instead
+        // of deriving the cell from a window click.
+        view.sendMouseEvent(button: 0, release: false, col: 4, row: 5)
+        view.sendMouseEvent(button: 0, release: true, col: 4, row: 5)
+        view.sendMouseEvent(button: 4, release: false, col: 4, row: 5)
+        view.sendMouseEvent(button: 5, release: false, col: 4, row: 5)
         try await waitUntil("actual mouse bytes received by PTY") {
             session.controller.visibleScreenText().contains("__MOUSE_DONE")
         }
@@ -276,7 +280,7 @@ final class TerminalRuntimeViewTests: XCTestCase {
         }
         await fulfillment(of: [acquired], timeout: 5)
         let view = try XCTUnwrap(session.controller.container.subviews.compactMap { $0 as? FocusableLocalProcessTerminalView }.first)
-        view.getTerminal().sendEvent(buttonFlags: 64, x: 4, y: 5)
+        view.sendMouseEvent(button: 4, release: false, col: 4, row: 5)
         try await waitUntil("locked mouse input rejected") { session.runtimeConnectionIssue == .inputRejected }
         XCTAssertEqual(session.aiLease?.owner, "mouse-fixture")
         XCTAssertFalse(TerminalRuntimeReplyPolicy.allows(Data("\u{1b}[<64;5;6M".utf8)))
@@ -375,11 +379,13 @@ final class TerminalRuntimeViewTests: XCTestCase {
             directory: root.path, columns: 140, rows: 40), root: root, helper: helper)
         let terminal = try XCTUnwrap(session.controller.container.subviews.compactMap { $0 as? FocusableLocalProcessTerminalView }.first)
         try await waitUntil("first PTY size matches final layout") {
-            session.controller.runtimeHandle?.connected == true && session.runtimeInfo?.columns == terminal.terminal.cols &&
-                session.runtimeInfo?.rows == terminal.terminal.rows
+            let dimensions = terminal.terminalDimensions
+            return session.controller.runtimeHandle?.connected == true && session.runtimeInfo?.columns == dimensions.cols &&
+                session.runtimeInfo?.rows == dimensions.rows
         }
-        XCTAssertNotEqual(terminal.terminal.cols, 140)
-        let expected = "\(terminal.terminal.rows) \(terminal.terminal.cols)"
+        let dimensions = terminal.terminalDimensions
+        XCTAssertNotEqual(dimensions.cols, 140)
+        let expected = "\(dimensions.rows) \(dimensions.cols)"
         session.controller.sendProcessInput(bytes: Array("stty size\n".utf8))
         try await waitUntil("stty confirms real PTY dimensions") {
             session.controller.visibleScreenText().components(separatedBy: "\n").contains { $0.trimmingCharacters(in: .whitespaces) == expected }
@@ -953,7 +959,7 @@ final class TerminalRuntimeViewTests: XCTestCase {
                 "TERM": "xterm-256color", "PS1": "__PASTE_READY> "], directory: root.path), root: root, helper: helper)
         let terminal = try XCTUnwrap(session.controller.container.subviews.compactMap { $0 as? FocusableLocalProcessTerminalView }.first)
         try await waitUntil("clean zsh paste ready") {
-            session.controller.visibleScreenText().contains("__PASTE_READY>") && terminal.getTerminal().bracketedPasteMode
+            session.controller.visibleScreenText().contains("__PASTE_READY>") && terminal.terminalInputStateSnapshot()?.bracketedPasteMode == true
         }
         let beforeReturn = try XCTUnwrap(session.runtimeInfo).nextInputSequence
         terminal.setMarkedText("尚未提交的组合文本", selectedRange: NSRange(location: 0, length: 0), replacementRange: NSRange(location: NSNotFound, length: 0))

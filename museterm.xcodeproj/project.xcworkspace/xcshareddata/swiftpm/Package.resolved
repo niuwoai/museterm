@@ -1,50 +1,60 @@
 {
-  "originHash" : "9fb5fe98db3ec8bfe2a8dae52407d382797357bfd8fc26c2427208fd9b55212c",
-  "pins" : [
+  "originHash": "9fb5fe98db3ec8bfe2a8dae52407d382797357bfd8fc26c2427208fd9b55212c",
+  "pins": [
     {
-      "identity" : "sparkle",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/sparkle-project/Sparkle",
-      "state" : {
-        "revision" : "b6496a74a087257ef5e6da1c5b29a447a60f5bd7",
-        "version" : "2.9.4"
+      "identity": "h",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/rarestype/h",
+      "state": {
+        "revision": "aa3626829160917d4378330617971977cbd78f5b",
+        "version": "1.0.1"
       }
     },
     {
-      "identity" : "swift-argument-parser",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-argument-parser",
-      "state" : {
-        "revision" : "6a52f3251125d74daf04fcbd5e6f08a75d074382",
-        "version" : "1.8.2"
+      "identity": "sparkle",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/sparkle-project/Sparkle",
+      "state": {
+        "revision": "b6496a74a087257ef5e6da1c5b29a447a60f5bd7",
+        "version": "2.9.4"
       }
     },
     {
-      "identity" : "swift-cmark",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swiftlang/swift-cmark.git",
-      "state" : {
-        "revision" : "08ddb528923cc1a6527e02b7a1aee9e516ca749a",
-        "version" : "0.9.0"
+      "identity": "swift-argument-parser",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/apple/swift-argument-parser",
+      "state": {
+        "revision": "6a52f3251125d74daf04fcbd5e6f08a75d074382",
+        "version": "1.8.2"
       }
     },
     {
-      "identity" : "swift-markdown",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swiftlang/swift-markdown.git",
-      "state" : {
-        "revision" : "ea79e83c8744d2b50b0dc2d5bbd1e857e1253bf9",
-        "version" : "0.6.0"
+      "identity": "swift-cmark",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/swiftlang/swift-cmark.git",
+      "state": {
+        "revision": "08ddb528923cc1a6527e02b7a1aee9e516ca749a",
+        "version": "0.9.0"
       }
     },
     {
-      "identity" : "swiftterm",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/migueldeicaza/SwiftTerm.git",
-      "state" : {
-        "revision" : "9adb62463d2264e7403feb7a1471aaf27eaab2f4"
+      "identity": "swift-markdown",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/swiftlang/swift-markdown.git",
+      "state": {
+        "revision": "ea79e83c8744d2b50b0dc2d5bbd1e857e1253bf9",
+        "version": "0.6.0"
+      }
+    },
+    {
+      "identity": "swift-png",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/tayloraswift/swift-png",
+      "state": {
+        "revision": "2d17c6c51c098628574c0383f1119892655a73a2",
+        "version": "4.5.2"
       }
     }
   ],
-  "version" : 3
+  "version": 3
 }
