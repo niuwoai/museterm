@@ -90,6 +90,9 @@ enum AICommandAssistantPhase: Equatable {
     case composing
     case generating
     case review
+    /// The command was accepted by the runtime input queue and its write to the
+    /// PTY has not been acknowledged yet.
+    case filling
     case failed
 }
 
@@ -309,6 +312,17 @@ final class AICommandAssistantModel: ObservableObject {
         selectedCandidateID = candidate.id
     }
 
+    #if DEBUG
+    /// Seeds one reviewed suggestion so tests can drive the fill path without a
+    /// model round trip.
+    func stageReviewedCandidateForTesting(_ candidate: AICommandSuggestion) {
+        guard phase == .composing else { return }
+        candidates = [candidate]
+        selectedCandidateID = candidate.id
+        phase = .review
+    }
+    #endif
+
     func askAgain() {
         generationTask?.cancel()
         candidates = []
@@ -334,8 +348,26 @@ final class AICommandAssistantModel: ObservableObject {
         }
 
         do {
+            let production = context.environment == .production
+            if targetTab?.controller.runtimeHandle != nil {
+                // The ACK arrives on the main queue, so it can run before this
+                // method returns. Install the observer before the enqueue, and
+                // never wait for it here: waiting on the main thread deadlocks.
+                phase = .filling
+                targetTab?.controller.observePendingRuntimeToolInput { [weak self] result in
+                    guard let self, self.phase == .filling else { return }
+                    switch result {
+                    case .success: self.finish(with: .filled(isProduction: production))
+                    case .failure(let error):
+                        self.errorMessage = error.localizedDescription
+                        self.phase = .failed
+                    }
+                }
+            }
             _ = try workspace.sendToolInput(to: "selected", bytes: Array(command.utf8))
-            finish(with: .filled(isProduction: context.environment == .production))
+            if phase != .filling {
+                finish(with: .filled(isProduction: production))
+            }
         } catch {
             errorMessage = error.localizedDescription
             phase = .failed
@@ -407,7 +439,7 @@ struct AICommandAssistantLayer: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
-            if [.generating, .review, .failed].contains(model.phase) {
+            if [.generating, .review, .filling, .failed].contains(model.phase) {
                 AICommandFloatingPanel(
                     model: model,
                     workspace: workspace,
@@ -634,6 +666,8 @@ private struct AICommandFloatingPanel: View {
                     generatingContent
                 case .review:
                     reviewContent
+                case .filling:
+                    fillingContent
                 case .failed:
                     failedContent
                 case .hidden, .composing:
@@ -718,6 +752,16 @@ private struct AICommandFloatingPanel: View {
         Label(L10n.string(key), systemImage: "circle.dotted")
             .font(.caption)
             .foregroundStyle(.secondary)
+    }
+
+    private var fillingContent: some View {
+        HStack(spacing: 9) {
+            ProgressView()
+                .controlSize(.small)
+            Text(L10n.string("ai_command.filling"))
+                .font(.subheadline.weight(.semibold))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var reviewContent: some View {

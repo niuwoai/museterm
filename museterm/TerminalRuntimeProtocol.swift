@@ -23,7 +23,18 @@ nonisolated enum TerminalRuntimeLimits {
     // AppKit tracking and clipboard operations can temporarily pause the view.
     // RPC latency and a bounded output consumer require different deadlines.
     static let subscriptionWriteDeadline: TimeInterval = 30
-    static let consumerAcknowledgementDeadline: TimeInterval = 30
+    static let defaultConsumerAcknowledgementDeadline: TimeInterval = 30
+    #if DEBUG
+    /// Tests shorten this so a stuck parse can be observed without a 30 second wait.
+    nonisolated(unsafe) static var consumerAcknowledgementDeadlineOverride: TimeInterval?
+    #endif
+    static var consumerAcknowledgementDeadline: TimeInterval {
+        #if DEBUG
+        consumerAcknowledgementDeadlineOverride ?? defaultConsumerAcknowledgementDeadline
+        #else
+        defaultConsumerAcknowledgementDeadline
+        #endif
+    }
 }
 
 nonisolated enum TerminalRuntimeAction: String, Codable {

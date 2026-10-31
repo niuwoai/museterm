@@ -979,6 +979,7 @@
 "ai_command.close_ends_session" = "关闭将取消生成并结束本轮 AI 辅助。";
 "ai_command.never_auto_executes" = "AI 不会自动执行任何命令";
 "ai_command.generating" = "正在生成安全的命令建议…";
+"ai_command.filling" = "正在把命令填入终端…";
 "ai_command.generating.context" = "确认当前终端上下文";
 "ai_command.generating.risk" = "评估可能的影响与风险";
 "ai_command.generating.candidates" = "准备简洁的候选命令";

@@ -132,10 +132,18 @@ final class TerminalRuntimeSessionHandle {
 
     @discardableResult
     func sendPrepared(_ data: Data, preparation: TerminalRuntimeInputPreparation, source: TerminalRuntimeInputSource,
-                      owner: String?, completion: @escaping (Result<TerminalRuntimeResponse, Error>) -> Void) -> Bool {
-        guard connected, let info, info.running, info.generation == preparation.session.generation,
-              info.controlEpoch == preparation.session.controlEpoch else { return false }
-        return io.input(data, expected: preparation.session, source: source, owner: owner,
+                      owner: String?, expected: TerminalRuntimeSessionInfo? = nil,
+                      completion: @escaping (Result<TerminalRuntimeResponse, Error>) -> Void) -> Bool {
+        guard connected, let info, info.running else { return false }
+        // AI input pins the epoch from the preflight rather than from enqueue
+        // time: the lease it writes under is acquired in the same turn, so the
+        // snapshot held at enqueue is already stale once the preflight returns.
+        // Human input keeps the stricter check against the enqueue snapshot.
+        let pinned = expected ?? preparation.session
+        guard pinned.generation == preparation.session.generation,
+              info.generation == preparation.session.generation,
+              info.controlEpoch == pinned.controlEpoch else { return false }
+        return io.input(data, expected: pinned, source: source, owner: owner,
             expectedEcho: preparation.echoEnabled, expectedForeground: preparation.foregroundPID) { result in
                 DispatchQueue.main.async { completion(result) }
             }
@@ -155,7 +163,10 @@ final class TerminalRuntimeSessionHandle {
     func reconnect() {
         reconnecting = true
         onRecovering?()
-        io.restartReader()
+        // The previous reader may still be blocked on a frame the UI has not
+        // finished parsing. Leave it running and a second reader never starts,
+        // so the button would do nothing while the banner stays up.
+        io.restartReader(replacingCurrent: true)
     }
     #if DEBUG
     func interruptSubscriptionForTesting() { io.interruptSubscriptionForTesting() }
@@ -228,6 +239,13 @@ nonisolated private final class TerminalRuntimeSessionIO: @unchecked Sendable {
     private var stopped = false
     private var closeRequested = false
     private var readerActive = false
+    /// Bumped by a manual reconnect so the reader it replaces exits without
+    /// reporting the cancellation as a failure.
+    private var readerGeneration = 0
+    /// The generation whose reader task is currently inside the loop. A manual
+    /// reconnect starts the replacement at once; the replaced reader only clears
+    /// this when it is still the one recorded here.
+    private var runningReaderGeneration: Int?
     private var pendingInputBytes = 0
     private var readerConnection: TerminalRuntimeConnection?
     private var expectedEpoch: UUID?
@@ -317,29 +335,55 @@ nonisolated private final class TerminalRuntimeSessionIO: @unchecked Sendable {
             return
         }
         onStarted?(info, existing == nil || previous != nil, listed.features ?? [])
-        restartReader()
+        restartReader(replacingCurrent: false)
     }
 
-    func restartReader() {
+    /// `replacingCurrent` is the manual reconnect path. It cancels the reader
+    /// that is still alive and starts the replacement immediately, so the button
+    /// works even while that reader is blocked waiting for the UI to finish
+    /// parsing a frame.
+    func restartReader(replacingCurrent: Bool) {
         lock.lock()
+        if replacingCurrent, !stopped {
+            readerGeneration += 1
+            readerConnection?.cancel()
+            readerActive = false
+        }
+        let generation = readerGeneration
         guard !stopped, !readerActive, let initialInfo, let expectedEpoch else { lock.unlock(); return }
         readerActive = true
         lock.unlock()
         reader.async { [self] in
-            defer { lock.lock(); readerActive = false; readerConnection = nil; lock.unlock() }
+            lock.lock()
+            let stillCurrent = isCurrentReaderLocked(generation)
+            if stillCurrent { runningReaderGeneration = generation }
+            lock.unlock()
+            defer {
+                lock.lock()
+                if runningReaderGeneration == generation {
+                    readerActive = false
+                    readerConnection = nil
+                    runningReaderGeneration = nil
+                }
+                lock.unlock()
+            }
+            guard stillCurrent else { return }
             var retry = TerminalRuntimeReconnectPolicy()
-            while !isStopped {
+            while !isStopped, isCurrentReader(generation) {
                 var connectedAt: TimeInterval?
                 var lastAcknowledgedAt: TimeInterval?
                 do {
                     let connection = try TerminalRuntimeConnection(root: root)
                     defer { connection.close() }
-                    lock.lock(); readerConnection = connection; let cancelled = stopped; lock.unlock()
-                    if cancelled { connection.cancel(); return }
+                    lock.lock()
+                    let superseded = !isCurrentReaderLocked(generation)
+                    if !superseded { readerConnection = connection }
+                    lock.unlock()
+                    if superseded { connection.cancel(); return }
                     var request = TerminalRuntimeRequest(action: .subscribe)
                     request.sessionID = id; request.generation = initialInfo.generation; request.after = outputCursor
                     var response = try connection.request(request)
-                    while !isStopped {
+                    while !isStopped, isCurrentReader(generation) {
                         guard response.serviceEpoch == expectedEpoch, response.session?.generation == initialInfo.generation else {
                             throw TerminalRuntimeConnectionError.serviceChanged
                         }
@@ -347,31 +391,51 @@ nonisolated private final class TerminalRuntimeSessionIO: @unchecked Sendable {
                         let historicalBytes = try TerminalRuntimeReplayBoundary.historicalBytes(
                             in: response, renderedThrough: historicalBoundary)
                         onOutput?(response, historicalBytes, { consumed.signal() })
+                        // The bytes already belong to the app, and the helper drops the
+                        // subscription itself once its outgoing queue passes the byte cap.
+                        // Timing the UI's parse out here used to kill a healthy session:
+                        // a full-screen redraw keeps the main thread busy past the
+                        // deadline, the retries run out, and the banner sticks even
+                        // though the process never stopped.
                         let deadline = ProcessInfo.processInfo.systemUptime + TerminalRuntimeLimits.consumerAcknowledgementDeadline
+                        var consumerOverdue = false
                         while consumed.wait(timeout: .now() + 0.1) == .timedOut {
-                            if isStopped { return }
-                            guard ProcessInfo.processInfo.systemUptime < deadline else { throw TerminalRuntimeConnectionError.timedOut }
+                            if isStopped || !isCurrentReader(generation) { return }
+                            if !consumerOverdue, ProcessInfo.processInfo.systemUptime >= deadline {
+                                consumerOverdue = true
+                                onRecovering?(TerminalRuntimeConnectionError.timedOut)
+                            }
                         }
                         outputCursor = response.cursor
                         lastAcknowledgedAt = ProcessInfo.processInfo.systemUptime
                         if connectedAt == nil { connectedAt = lastAcknowledgedAt }
-                        if isStopped { return }
+                        if isStopped || !isCurrentReader(generation) { return }
                         response = try connection.next(id: request.id, timeout: 60)
                     }
                 } catch {
-                    guard !isStopped else { return }
+                    guard !isStopped, isCurrentReader(generation) else { return }
                     let healthyFor = connectedAt.map { (lastAcknowledgedAt ?? $0) - $0 } ?? 0
                     guard let delay = retry.nextDelay(for: error, healthyFor: healthyFor) else {
                         onFailure?(error, "subscription"); return
                     }
                     onRecovering?(error)
                     let deadline = ProcessInfo.processInfo.systemUptime + delay
-                    while !isStopped, ProcessInfo.processInfo.systemUptime < deadline {
+                    while !isStopped, isCurrentReader(generation), ProcessInfo.processInfo.systemUptime < deadline {
                         Thread.sleep(forTimeInterval: min(0.1, max(0, deadline - ProcessInfo.processInfo.systemUptime)))
                     }
                 }
             }
         }
+    }
+
+    private func isCurrentReader(_ generation: Int) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return isCurrentReaderLocked(generation)
+    }
+
+    /// Caller holds `lock`.
+    private func isCurrentReaderLocked(_ generation: Int) -> Bool {
+        readerGeneration == generation
     }
 
     #if DEBUG

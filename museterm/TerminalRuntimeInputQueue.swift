@@ -13,6 +13,9 @@ final class TerminalRuntimeInputQueue {
         let owner: String?
         let generation: UUID
         let controlEpoch: UUID
+        /// AI input checks its lease at preflight time. The epoch pinned at
+        /// enqueue is the one from before the lease acknowledgement landed.
+        let deferControlEpoch: Bool
         let completion: ((Result<Void, Error>) -> Void)?
     }
     private let handle: TerminalRuntimeSessionHandle
@@ -48,8 +51,12 @@ final class TerminalRuntimeInputQueue {
         guard !validation.isEmpty, validation.count <= bytes.count else { return false }
         guard validation == bytes || (source == .human && bytes ==
             EscapeSequences.bracketedPasteStart + validation + EscapeSequences.bracketedPasteEnd) else { return false }
+        // An AI write is checked against the lease at send time, not enqueue
+        // time. The assistant takes its lease in the same turn it enqueues, and
+        // that acknowledgement has not landed yet, so the epoch pinned here
+        // would already be stale by the time the bytes are written.
         pending.append(.init(bytes: bytes, validationBytes: validation, source: source, owner: owner, generation: info.generation,
-            controlEpoch: info.controlEpoch, completion: completion))
+            controlEpoch: info.controlEpoch, deferControlEpoch: source == .ai, completion: completion))
         pendingBytes += bytes.count
         drain()
         return true
@@ -75,13 +82,15 @@ final class TerminalRuntimeInputQueue {
     }
 
     private func send(_ item: Pending, preparation: TerminalRuntimeInputPreparation) {
-        guard preparation.session.generation == item.generation, preparation.session.controlEpoch == item.controlEpoch,
+        let controlEpoch = item.deferControlEpoch ? preparation.session.controlEpoch : item.controlEpoch
+        guard preparation.session.generation == item.generation, preparation.session.controlEpoch == controlEpoch,
               approve(item.validationBytes, preparation.echoEnabled, item.source, item.owner) else {
             finish(item, result: .failure(TerminalAIControlError.inputRejected)); return
         }
         // A modal approval can run a nested event loop and cancel/replace us.
         guard !stopped, pending.first?.id == item.id else { return }
-        let accepted = handle.sendPrepared(Data(item.bytes), preparation: preparation, source: item.source, owner: item.owner) { [weak self] result in
+        let pinned: TerminalRuntimeSessionInfo? = item.deferControlEpoch ? preparation.session : nil
+        let accepted = handle.sendPrepared(Data(item.bytes), preparation: preparation, source: item.source, owner: item.owner, expected: pinned) { [weak self] result in
             guard let self, !self.stopped, self.pending.first?.id == item.id else { return }
             if case .success(let response) = result { self.committed(item.validationBytes, item.source, response) }
             self.finish(item, result: result.map { _ in () })
