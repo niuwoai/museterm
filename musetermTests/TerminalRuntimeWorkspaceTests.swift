@@ -196,6 +196,28 @@ final class TerminalRuntimeWorkspaceTests: XCTestCase {
         XCTAssertNotEqual(restored.runtimeWorkspaceID, record.workspaceID)
     }
 
+    func testOnlyKnownOrdinaryLocalShellsAllowColdRecovery() throws {
+        let domain = "museterm-cold-policy-\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: domain))
+        defer { defaults.removePersistentDomain(forName: domain) }
+        let store = TerminalProfileStore(defaults: defaults)
+        let ordinary = TerminalProfile(name: "ordinary", shell: .zsh, startupCommands: ["must-not-replay"])
+        let custom = TerminalProfile(name: "custom", shell: .custom, customShellPath: "/fixture-custom")
+        let missing = TerminalProfile(name: "missing", shell: .fish)
+        store.upsert(ordinary); store.upsert(custom)
+        let original = workspace()
+        let plain = try XCTUnwrap(original.selectedTab)
+        let known = original.newTab(profile: ordinary)
+        let program = original.newTab(profile: custom)
+        let deleted = original.newTab(profile: missing)
+        let remote = original.openSSH(profile: SSHConnectionProfile(name: "remote", host: "example.invalid"))
+        let record = try original.runtimeWorkspaceRecord()
+        let restored = TerminalWorkspace(automaticallyStartProcesses: false, profileStore: store, restoringRuntimeRecord: record)
+        for (id, expected) in [(plain.id, true), (known.id, true), (program.id, false), (deleted.id, false), (remote.id, false)] {
+            XCTAssertEqual(restored.tabs.first { $0.id == id }?.runtimeRestoresLocalShell, expected)
+        }
+    }
+
     func testRecoveryRecordOmitsEnvironmentStartupCommandsAndSSHOptions() throws {
         let original = workspace()
         let profile = TerminalProfile(name: "fixture", customPrompt: "fixture-sensitive-prompt",

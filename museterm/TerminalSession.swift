@@ -319,6 +319,11 @@ final class TerminalSession: ObservableObject, Identifiable {
     let nativeAgentContext = TerminalNativeAgentContext()
     @Published private(set) var runtimeInfo: TerminalRuntimeSessionInfo?
     @Published var runtimeConnectionIssue: TerminalRuntimePresentationIssue?
+    @Published var runtimeSessionWasReopened = false
+    /// Only ordinary local shells restored from a known workspace may be opened
+    /// anew after the service confirms the saved process no longer exists.
+    var runtimeRestoresLocalShell = false
+    var onNewLocalTerminal: (() -> Void)?
     /// Hidden only for the current app run after a restored Runtime session fails to reconnect.
     /// It is intentionally not persisted so the next launch can retry recovery.
     @Published var runtimeRestoreHidden = false
@@ -332,6 +337,8 @@ final class TerminalSession: ObservableObject, Identifiable {
         (didCreateController ? controller.runtimeHandle?.renderedCursor : nil) ?? runtimeRenderedCursorToRestore
     }
     var runtimeRequiresExisting = false
+    var runtimePendingCreationEpoch: UUID?
+    var onRuntimeCreationChanged: (() throws -> Void)?
     var onRuntimeIdentityChanged: (() -> Void)?
     var onRuntimeOutputRendered: (() -> Void)?
 
@@ -340,6 +347,7 @@ final class TerminalSession: ObservableObject, Identifiable {
         let identityChanged = runtimeInfo?.generation != info.generation
         if runtimeRenderedCursorToRestore?.generation != info.generation { runtimeRenderedCursorToRestore = nil }
         runtimeGenerationToRestore = info.generation
+        runtimePendingCreationEpoch = nil
         runtimeInfo = info
         processRunID = info.generation
         applyRuntimeControl(info)
@@ -611,6 +619,7 @@ final class TerminalSession: ObservableObject, Identifiable {
 
     var canManuallyReconnectSSH: Bool {
         guard case .ssh = launchConfiguration,
+              runtimeConnectionIssue != .sessionEnded,
               case .exited = state else {
             return false
         }
@@ -1348,6 +1357,7 @@ enum TerminalContextExecutionError: LocalizedError {
 final class TerminalWorkspace: ObservableObject {
     let runtimeWorkspaceID: UUID
     var onRuntimePersistenceNeeded: (() -> Void)?
+    var onRuntimeCreationPersistence: (() throws -> Void)?
     var onRuntimeOutputRendered: (() -> Void)?
     var onRuntimeRecordRemovalNeeded: (() -> Void)?
     var pendingRestoredDetachedIDs: [UUID] = []
@@ -1611,6 +1621,7 @@ final class TerminalWorkspace: ObservableObject {
             tab.terminalID = session.id
             tab.runtimeGeneration = session.runtimeInfo?.generation ?? session.runtimeGenerationToRestore
             tab.runtimeRequiresExisting = session.runtimeRequiresExisting || tab.runtimeGeneration != nil
+            tab.runtimePendingCreationEpoch = session.runtimePendingCreationEpoch
             tab.runtimeRenderedCursor = session.runtimeRenderedCursor
             tab.runtimeAttachOnly = session.runtimeAttachOnly ? true : nil
             return tab
@@ -1642,10 +1653,13 @@ final class TerminalWorkspace: ObservableObject {
             }
             let session = makeTab(launchConfiguration: configuration, id: id)
             session.runtimeGenerationToRestore = saved.runtimeGeneration
+            session.runtimePendingCreationEpoch = saved.runtimePendingCreationEpoch
             session.runtimeRenderedCursorToRestore = saved.runtimeRenderedCursor
             session.runtimeAttachOnly = saved.runtimeAttachOnly == true
             if session.runtimeAttachOnly { session.title = L10n.string("runtime.recovered_terminal") }
             session.runtimeRequiresExisting = saved.runtimeRequiresExisting == true || saved.runtimeGeneration != nil || missingProfile
+            session.runtimeRestoresLocalShell = saved.kind == .local && !missingProfile && !session.runtimeAttachOnly
+                && configuration.localProfile?.shell != .custom
             return session
         }
         tabs = restored
@@ -2246,7 +2260,11 @@ final class TerminalWorkspace: ObservableObject {
     private func makeTab(launchConfiguration: TerminalLaunchConfiguration = .localShell(), id: UUID = UUID()) -> TerminalSession {
         let tab = TerminalSession(sequence: nextSequence, launchConfiguration: launchConfiguration, id: id)
         tab.onRuntimeIdentityChanged = { [weak self] in self?.onRuntimePersistenceNeeded?() }
+        tab.onRuntimeCreationChanged = { [weak self] in try self?.onRuntimeCreationPersistence?() }
         tab.onRuntimeOutputRendered = { [weak self] in self?.onRuntimeOutputRendered?() }
+        tab.onNewLocalTerminal = { [weak self, weak tab] in
+            _ = self?.newTab(startDirectory: tab?.launchConfiguration.localStartDirectory)
+        }
         tab.attentionReporter = attentionReporter
         tab.commandCompletionHandler = { [weak self] session, block in
             self?.observeCompletedCommand(block, in: session)

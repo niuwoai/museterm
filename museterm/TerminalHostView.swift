@@ -1663,7 +1663,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         let restarting = previous ?? runtimeRestartExpected
         runtimeRestartExpected = nil
         let restoring = restarting == nil && (session.runtimeRequiresExisting || session.runtimeGenerationToRestore != nil)
-        session.runtimeRequiresExisting = true
+        let restoredLocalShell = session.runtimeRestoresLocalShell
+        let recoverMissingLocalShell = restoring && restoredLocalShell
         if restoring { finishStartupPromptDeduplication() }
         didStart = true
         runtimeLaunchContext = (launch, root, executable)
@@ -1674,6 +1675,22 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         runtimeInputErrorCode = nil
         let handle = TerminalRuntimeSessionHandle(id: session.id, root: root, executable: executable)
         runtimeHandle = handle
+        let requiredExistingBeforeCreate = session.runtimeRequiresExisting
+        handle.onCreationRequested = { [weak self, weak handle, weak session] epoch in
+            guard let self, let handle, self.runtimeHandle === handle, let session else {
+                throw TerminalRuntimeConnectionError.unavailable
+            }
+            let previousEpoch = session.runtimePendingCreationEpoch
+            let previousRequirement = session.runtimeRequiresExisting
+            session.runtimePendingCreationEpoch = epoch
+            session.runtimeRequiresExisting = epoch != nil || requiredExistingBeforeCreate
+            do { try session.onRuntimeCreationChanged?() }
+            catch {
+                session.runtimePendingCreationEpoch = previousEpoch
+                session.runtimeRequiresExisting = previousRequirement
+                throw error
+            }
+        }
         handle.onRenderedOutput = { [weak session] in session?.onRuntimeOutputRendered?() }
         session.runtimeConnectionIssue = .connecting
         terminalView.externalIsRunning = { [weak handle] in handle?.info?.running == true }
@@ -1753,6 +1770,11 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             else if info.agent != nil || session.runtimeOwnsAgent { session.attentionStore?.markAgentAuthorityExternal(tabID: session.id) }
             if let preferences = self.preferences { handle.configureReminders(.init(preferences: preferences)) }
             session.runtimeRestoreHidden = false
+            session.runtimeRequiresExisting = true
+            session.runtimeRestoresLocalShell = false
+            if recoverMissingLocalShell && handle.createdNewPTY && session.runtimeInfo == nil {
+                session.runtimeSessionWasReopened = true
+            }
             session.applyRuntimeInfo(info)
             if !info.running && !self.runtimeExitWasReported {
                 self.runtimeExitWasReported = true
@@ -1783,13 +1805,20 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             if !didBecomeReady {
                 didBecomeReady = true
                 let ready = self.runtimeReady; self.runtimeReady = nil
-                if restoring || !handle.createdNewPTY { session.markStartupCommandsFinished() } else { ready?() }
+                if restoring || restoredLocalShell || !handle.createdNewPTY { session.markStartupCommandsFinished() } else { ready?() }
             }
         }
-        handle.onFailure = { [weak self, weak handle, weak session] _ in
+        handle.onFailure = { [weak self, weak handle, weak session] error in
             guard let self, let handle, self.runtimeHandle === handle else { return }
-            session?.runtimeConnectionIssue = .disconnected
-            if restoring && handle.lastErrorStage == "startup" { session?.runtimeRestoreHidden = true }
+            if case TerminalRuntimeConnectionError.sessionMissing = error {
+                session?.runtimeConnectionIssue = .sessionEnded
+                session?.state = .exited(nil)
+            } else {
+                session?.runtimeConnectionIssue = .disconnected
+            }
+            // Keep recovery actions visible; hiding a failed leaf also hid its
+            // healthy siblings and left the selected canvas without a terminal.
+            session?.runtimeRestoreHidden = false
         }
         handle.onRecovering = { [weak self, weak handle] in
             guard let self, let handle, self.runtimeHandle === handle else { return }
@@ -1813,7 +1842,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             return true
         }
         handle.start(launch, restoring: restarting == nil ? session.runtimeGenerationToRestore : nil, existingOnly: restoring,
-            renderedCursor: restarting == nil ? session.runtimeRenderedCursorToRestore : nil, restarting: restarting)
+            renderedCursor: restarting == nil ? session.runtimeRenderedCursorToRestore : nil, restarting: restarting,
+            recoverMissingLocalShell: recoverMissingLocalShell, pendingCreationEpoch: session.runtimePendingCreationEpoch)
     }
 
     private func runtimeInputFailed(_ error: Error) {

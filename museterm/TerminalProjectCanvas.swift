@@ -158,13 +158,13 @@ private struct TerminalProjectLeaf: View {
             }
             .font(.caption).buttonStyle(.plain).padding(.horizontal, 10).padding(.vertical, 5)
             .background(focused ? preferences.skin.tabSelectionFill : Color.clear)
+            TerminalRuntimeIssueView(session: session)
             ZStack {
                 TerminalHostView(session: session, preferences: preferences, isActive: visible, focusesInput: focused)
                     .allowsHitTesting(session.sessionTunnelStatus?.occupiesTerminal != true)
                 if session.canManuallyReconnectSSH { SSHReconnectOverlay(tab: session, skin: preferences.skin) }
                 TerminalAIControlMask(tab: session, skin: preferences.skin)
                 SessionTunnelMaskContainer(tab: session, skin: preferences.skin)
-                TerminalRuntimeIssueView(session: session)
             }
         }
         .overlay(Rectangle().stroke(focused ? preferences.skin.tabSelectionBorder : .clear, lineWidth: 1).allowsHitTesting(false))
