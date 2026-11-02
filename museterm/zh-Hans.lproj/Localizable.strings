@@ -1540,6 +1540,9 @@
 "runtime.issue.disconnected" = "终端连接暂不可用，请重新连接以确认原会话状态。";
 "runtime.issue.outputGap" = "较早输出已不完整；当前连接的是原会话，可调整窗口或手动重绘终端。";
 "runtime.reconnect" = "重新连接";
+"runtime.issue.sessionEnded" = "原终端进程已结束，无法继续原会话。你可以打开新的本地终端。";
+"runtime.issue.sessionReopened" = "原终端进程已结束，已在此目录打开新的 shell。之前运行的任务没有恢复。";
+"runtime.new_local_terminal" = "新建本地终端";
 "project.hidden_terminals" = "已隐藏终端 (%d)";
 "project.show_terminal" = "显示";
 "runtime.dismiss" = "关闭提示";

@@ -1,6 +1,8 @@
 import Foundation
 
-enum TerminalRuntimePresentationIssue: String { case connecting, disconnected, outputGap, inputRejected, inputTooLarge }
+enum TerminalRuntimePresentationIssue: String {
+    case connecting, disconnected, sessionEnded, sessionReopened, outputGap, inputRejected, inputTooLarge
+}
 
 nonisolated struct TerminalRuntimeInputPreparation {
     let session: TerminalRuntimeSessionInfo
@@ -31,6 +33,7 @@ final class TerminalRuntimeSessionHandle {
     var onState: ((TerminalRuntimeSessionInfo) -> Void)?
     var onOutput: ((TerminalRuntimeResponse, Int, @escaping () -> Void) -> Void)?
     var onRenderedOutput: (() -> Void)?
+    var onCreationRequested: ((UUID?) throws -> Void)?
     var onFailure: ((Error) -> Void)?
     var onRecovering: (() -> Void)?
     private var pendingReminderPolicy: TerminalReminderPolicy?
@@ -39,6 +42,12 @@ final class TerminalRuntimeSessionHandle {
     init(id: UUID, root: URL = TerminalRuntimeService.rootDirectory,
          executable: URL = TerminalRuntimeService.executableURL) {
         io = TerminalRuntimeSessionIO(id: id, root: root, executable: executable)
+        io.onCreationRequested = { [weak self] epoch in
+            try DispatchQueue.main.sync {
+                guard let self else { throw TerminalRuntimeConnectionError.unavailable }
+                try self.onCreationRequested?(epoch)
+            }
+        }
         io.onStarted = { [weak self] info, created, features in
             DispatchQueue.main.async {
                 self?.createdNewPTY = created
@@ -99,8 +108,10 @@ final class TerminalRuntimeSessionHandle {
     }
 
     func start(_ launch: TerminalRuntimeLaunch, restoring generation: UUID? = nil, existingOnly: Bool = false,
-               renderedCursor: TerminalRuntimeOutputCursor? = nil, restarting previous: TerminalRuntimeSessionInfo? = nil) {
-        io.start(launch, restoring: generation, existingOnly: existingOnly, renderedCursor: renderedCursor, restarting: previous)
+               renderedCursor: TerminalRuntimeOutputCursor? = nil, restarting previous: TerminalRuntimeSessionInfo? = nil,
+               recoverMissingLocalShell: Bool = false, pendingCreationEpoch: UUID? = nil) {
+        io.start(launch, restoring: generation, existingOnly: existingOnly, renderedCursor: renderedCursor,
+            restarting: previous, recoverMissingLocalShell: recoverMissingLocalShell, pendingCreationEpoch: pendingCreationEpoch)
     }
 
     @discardableResult
@@ -252,6 +263,10 @@ nonisolated private final class TerminalRuntimeSessionIO: @unchecked Sendable {
     private var initialInfo: TerminalRuntimeSessionInfo?
     private var outputCursor: TerminalRuntimeOutputCursor?
     private var historicalBoundary: TerminalRuntimeOutputCursor?
+    // A lost create reply must not replay a launch after the service disappears.
+    private var creationWasRequested = false
+    private var pendingCreationEpoch: UUID?
+    var onCreationRequested: ((UUID?) throws -> Void)?
     var onState: ((TerminalRuntimeSessionInfo) -> Void)?
     var onStarted: ((TerminalRuntimeSessionInfo, Bool, [String]) -> Void)?
     var onOutput: ((TerminalRuntimeResponse, Int, @escaping () -> Void) -> Void)?
@@ -263,13 +278,16 @@ nonisolated private final class TerminalRuntimeSessionIO: @unchecked Sendable {
     private var isStopped: Bool { lock.lock(); defer { lock.unlock() }; return stopped }
 
     func start(_ launch: TerminalRuntimeLaunch, restoring generation: UUID?, existingOnly: Bool,
-               renderedCursor: TerminalRuntimeOutputCursor?, restarting previous: TerminalRuntimeSessionInfo?) {
+               renderedCursor: TerminalRuntimeOutputCursor?, restarting previous: TerminalRuntimeSessionInfo?,
+               recoverMissingLocalShell: Bool, pendingCreationEpoch: UUID?) {
         commands.async { [self] in
+            self.pendingCreationEpoch = pendingCreationEpoch
             var retry = TerminalRuntimeReconnectPolicy()
             while !isStopped {
                 do {
                     try startAttempt(launch, restoring: generation, existingOnly: existingOnly,
-                                     renderedCursor: renderedCursor, restarting: previous)
+                                     renderedCursor: renderedCursor, restarting: previous,
+                                     recoverMissingLocalShell: recoverMissingLocalShell)
                     return
                 } catch {
                     guard !isStopped else { return }
@@ -288,15 +306,20 @@ nonisolated private final class TerminalRuntimeSessionIO: @unchecked Sendable {
     }
 
     private func startAttempt(_ launch: TerminalRuntimeLaunch, restoring generation: UUID?, existingOnly: Bool,
-                              renderedCursor: TerminalRuntimeOutputCursor?, restarting previous: TerminalRuntimeSessionInfo?) throws {
-        // Restored sessions may deliberately be existing-only so a missing PTY
-        // is never recreated. The service still needs to start before attach.
-        // ensureRunning is idempotent and never replaces a live service.
+                              renderedCursor: TerminalRuntimeOutputCursor?, restarting previous: TerminalRuntimeSessionInfo?,
+                              recoverMissingLocalShell: Bool) throws {
+        // Only a complete, authenticated list can establish that the original
+        // process is gone. A transport or identity error never permits creation.
         try TerminalRuntimeService.ensureRunning(root: root, executable: executable)
         let connection = try TerminalRuntimeConnection(root: root)
         defer { connection.close() }
         let listed = try connection.request(.init(action: .list))
-        let existing = listed.sessions?.first { $0.id == id }
+        guard let sessions = listed.sessions else { throw TerminalRuntimeConnectionError.invalidResponse }
+        guard !creationWasRequested || pendingCreationEpoch == listed.serviceEpoch else {
+            throw TerminalRuntimeConnectionError.serviceChanged
+        }
+        let existing = sessions.first { $0.id == id }
+        var reopenedMissing = false
         let info: TerminalRuntimeSessionInfo
         if let previous {
             guard listed.features?.contains(TerminalRuntimeLimits.restartExitedFeature) == true else {
@@ -310,21 +333,44 @@ nonisolated private final class TerminalRuntimeSessionIO: @unchecked Sendable {
             guard let restarted = try connection.request(request).session else { throw TerminalRuntimeConnectionError.invalidResponse }
             info = restarted
         } else if let existing {
-            guard generation == nil || generation == existing.generation else { throw TerminalRuntimeConnectionError.serviceChanged }
+            // A create ACK may have been lost. Only adopt that replacement from
+            // the same service we asked to create it, never an unrelated epoch.
+            reopenedMissing = recoverMissingLocalShell && pendingCreationEpoch == listed.serviceEpoch
+            guard generation == nil || generation == existing.generation || reopenedMissing else {
+                throw TerminalRuntimeConnectionError.serviceChanged
+            }
             info = existing
         } else {
-            guard generation == nil && !existingOnly else { throw TerminalRuntimeConnectionError.serviceChanged }
+            guard !creationWasRequested,
+                  (generation == nil && !existingOnly) || recoverMissingLocalShell else {
+                throw TerminalRuntimeConnectionError.sessionMissing
+            }
             var request = TerminalRuntimeRequest(action: .create)
             request.sessionID = id; request.launch = launch
-            guard let created = try connection.request(request).session else { throw TerminalRuntimeConnectionError.invalidResponse }
-            info = created
+            try onCreationRequested?(listed.serviceEpoch)
+            guard !isStopped else { return }
+            creationWasRequested = true
+            pendingCreationEpoch = listed.serviceEpoch
+            do {
+                guard let created = try connection.request(request).session else { throw TerminalRuntimeConnectionError.invalidResponse }
+                info = created
+            } catch TerminalRuntimeConnectionError.rejected(let code) {
+                // A negative ACK proves this request created no process. Unlike
+                // a lost reply, it must leave the tab eligible for a later retry.
+                creationWasRequested = false
+                pendingCreationEpoch = nil
+                try onCreationRequested?(nil)
+                throw TerminalRuntimeConnectionError.rejected(code)
+            }
+            reopenedMissing = recoverMissingLocalShell && (generation != nil || existingOnly)
         }
-        if let renderedCursor {
-            guard renderedCursor.generation == info.generation, renderedCursor.offset <= info.outputOffset else {
+        let replayBoundary = reopenedMissing ? nil : renderedCursor
+        if let replayBoundary {
+            guard replayBoundary.generation == info.generation, replayBoundary.offset <= info.outputOffset else {
                 throw TerminalRuntimeConnectionError.serviceChanged
             }
         }
-        lock.lock(); expectedEpoch = listed.serviceEpoch; initialInfo = info; historicalBoundary = renderedCursor; lock.unlock()
+        lock.lock(); expectedEpoch = listed.serviceEpoch; initialInfo = info; historicalBoundary = replayBoundary; lock.unlock()
         if isStopped {
             lock.lock(); let close = closeRequested; lock.unlock()
             if close {
@@ -334,7 +380,7 @@ nonisolated private final class TerminalRuntimeSessionIO: @unchecked Sendable {
             }
             return
         }
-        onStarted?(info, existing == nil || previous != nil, listed.features ?? [])
+        onStarted?(info, existing == nil || previous != nil || reopenedMissing, listed.features ?? [])
         restartReader(replacingCurrent: false)
     }
 

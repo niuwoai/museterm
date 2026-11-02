@@ -55,20 +55,67 @@ nonisolated enum TerminalRuntimeService {
         return Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/museterm-runtime")
     }
 
+    nonisolated struct StartupOperations {
+        var connect: (URL) throws -> Void = { root in
+            let connection = try TerminalRuntimeConnection(root: root)
+            connection.close()
+        }
+        var startupFilesAreMissing: (URL) -> Bool = TerminalRuntimeService.startupFilesAreMissing
+        var launch: (URL, URL) throws -> (() -> Bool) = TerminalRuntimeService.launch
+        var uptime: () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
+        var sleep: (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) }
+    }
+
+    private static let startupPollInterval: TimeInterval = 0.05
+
     /// Run only off the main thread. A live incompatible service is never stopped
     /// or replaced. Racing launches are resolved by the helper's exclusive lock.
     static func ensureRunning(root: URL, executable: URL) throws {
+        try ensureRunning(root: root, executable: executable, operations: StartupOperations())
+    }
+
+    static func ensureRunning(root: URL, executable: URL, operations: StartupOperations) throws {
+        if try connectIfReady(root: root, operations: operations) { return }
+        let isRunning = try operations.launch(root, executable)
+        let deadline = operations.uptime() + TerminalRuntimeLimits.requestDeadline
+        while operations.uptime() < deadline {
+            if try connectIfReady(root: root, operations: operations) { return }
+            // Our helper may have lost the exclusive lock to another launcher.
+            // Its exit says nothing about the winning service's readiness.
+            operations.sleep(startupPollInterval)
+        }
+        // Do not kill a slow-starting service: it may already own live terminals.
+        throw isRunning() ? TerminalRuntimeConnectionError.timedOut : TerminalRuntimeConnectionError.unavailable
+    }
+
+    private static func connectIfReady(root: URL, operations: StartupOperations) throws -> Bool {
+        let filesWereMissing = operations.startupFilesAreMissing(root)
         do {
-            let existing = try TerminalRuntimeConnection(root: root)
-            existing.close(); return
-        } catch TerminalRuntimeConnectionError.incompatibleProtocol { throw TerminalRuntimeConnectionError.incompatibleProtocol }
-        catch TerminalRuntimeConnectionError.invalidResponse { throw TerminalRuntimeConnectionError.invalidResponse }
+            try operations.connect(root)
+            return true
+        } catch TerminalRuntimeConnectionError.unavailable { return false }
         catch TerminalRuntimeConnectionError.invalidCapability {
-            guard !FileManager.default.fileExists(atPath: root.appendingPathComponent("ui-capability").path) else {
-                throw TerminalRuntimeConnectionError.invalidCapability
-            }
-        } catch TerminalRuntimeConnectionError.unavailable { /* No live socket; lock still protects races. */ }
-        catch { throw error }
+            guard filesWereMissing else { throw TerminalRuntimeConnectionError.invalidCapability }
+            guard !operations.startupFilesAreMissing(root) else { return false }
+            // Publication can race the failed read. Validate the newly visible
+            // endpoint instead of applying the earlier missing-file diagnosis.
+            do {
+                try operations.connect(root)
+                return true
+            } catch TerminalRuntimeConnectionError.unavailable { return false }
+        }
+    }
+
+    private static func startupFilesAreMissing(root: URL) -> Bool {
+        var attributes = Darwin.stat()
+        if lstat(root.path, &attributes) != 0 { return errno == ENOENT }
+        guard attributes.st_uid == getuid(), attributes.st_mode & S_IFMT == S_IFDIR,
+              attributes.st_mode & 0o077 == 0 else { return false }
+        // lstat keeps a dangling symlink distinct from an unpublished capability.
+        return lstat(root.appendingPathComponent("ui-capability").path, &attributes) != 0 && errno == ENOENT
+    }
+
+    private static func launch(root: URL, executable: URL) throws -> () -> Bool {
         guard FileManager.default.isExecutableFile(atPath: executable.path) else { throw TerminalRuntimeConnectionError.unavailable }
         let process = Process()
         process.executableURL = executable
@@ -83,13 +130,6 @@ nonisolated enum TerminalRuntimeService {
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         try process.run()
-        let deadline = ProcessInfo.processInfo.systemUptime + TerminalRuntimeLimits.requestDeadline
-        while ProcessInfo.processInfo.systemUptime < deadline {
-            if let connection = try? TerminalRuntimeConnection(root: root) { connection.close(); return }
-            guard process.isRunning else { throw TerminalRuntimeConnectionError.unavailable }
-            Thread.sleep(forTimeInterval: 0.05)
-        }
-        // Do not kill a slow-starting service: it may already own live terminals.
-        throw TerminalRuntimeConnectionError.timedOut
+        return { process.isRunning }
     }
 }

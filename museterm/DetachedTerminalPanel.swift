@@ -309,11 +309,13 @@ private struct DetachedPanelContentView: View {
         ZStack(alignment: .top) {
             DetachedGlassBackground(opacity: preferences.glassOpacity)
 
-            TerminalHostView(session: session, preferences: preferences, isActive: true)
-                .padding(.top, 30)
+            VStack(spacing: 0) {
+                TerminalRuntimeIssueView(session: session)
+                TerminalHostView(session: session, preferences: preferences, isActive: true)
+            }
+            .padding(.top, 30)
 
             TerminalAIControlMask(tab: session, skin: preferences.skin)
-            TerminalRuntimeIssueView(session: session)
 
             // Reserve a header so controls never cover terminal text. Keep them
             // discoverable even when embedded AppKit views absorb hover events.

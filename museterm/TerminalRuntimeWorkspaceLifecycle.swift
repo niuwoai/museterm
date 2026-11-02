@@ -93,6 +93,14 @@ final class TerminalRuntimeWorkspaceLifecycle {
             guard let self, let workspace else { return }
             self.schedule(workspace)
         }
+        workspace.onRuntimeCreationPersistence = { [weak self, weak workspace] in
+            guard let self, let workspace, !self.preparingForExit else {
+                throw TerminalRuntimeConnectionError.unavailable
+            }
+            // Publish the create intent before sending it, so an exit or lost
+            // reply can recover the replacement from this exact service epoch.
+            try self.persist(workspace)
+        }
         workspace.onRuntimeOutputRendered = { [weak self, weak workspace] in
             guard let self, let workspace else { return }
             self.scheduleRenderedCheckpoint(workspace)

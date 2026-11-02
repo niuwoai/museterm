@@ -1540,6 +1540,9 @@
 "runtime.issue.disconnected" = "Terminal connection unavailable. Reconnect to check the original session.";
 "runtime.issue.outputGap" = "Earlier output is incomplete. This is the original session; resize or redraw the terminal if needed.";
 "runtime.reconnect" = "Reconnect";
+"runtime.issue.sessionEnded" = "The original terminal process has ended. You can open a new local terminal.";
+"runtime.issue.sessionReopened" = "The original terminal process ended. A new shell is open in this directory; previous tasks were not restored.";
+"runtime.new_local_terminal" = "New Local Terminal";
 "project.hidden_terminals" = "Hidden terminals (%d)";
 "project.show_terminal" = "Show";
 "runtime.dismiss" = "Dismiss";

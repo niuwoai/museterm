@@ -76,6 +76,59 @@ final class TerminalRuntimeRecoveryUITests: XCTestCase {
         XCTAssertTrue(app.wait(for: .notRunning, timeout: 15))
     }
 
+    @MainActor
+    func testColdApplicationLaunchRestoresUsableLocalTerminalAfterServiceExit() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        let tools = FileManager.default.temporaryDirectory.appendingPathComponent("museterm-cold-recovery-ui-\(UUID())")
+        let hash = SHA256.hash(data: Data(tools.path.utf8)).prefix(10).map { String(format: "%02x", $0) }.joined()
+        let backend = URL(fileURLWithPath: "/private/tmp/qrt-ui-\(getuid())-\(hash)")
+        app.launchEnvironment["MUSETERM_AGENT_TEST_TOOL_ROOT"] = tools.path
+        app.launchArguments = ["-AppleLanguages", "(en)", "-terminal.showsTabList", "YES",
+            "-notifications.enabled", "NO", "-SUEnableAutomaticChecks", "NO",
+            "-terminal.skipRunningTabCloseConfirmation", "YES", "-ui-testing-agent-state",
+            "-ui-testing-project-workspace", "-ui-testing-runtime"]
+        defer {
+            app.terminate()
+            do {
+                try closePrivateBackend(backend)
+                try FileManager.default.removeItem(at: backend)
+                try FileManager.default.removeItem(at: tools)
+            } catch { XCTFail("Could not clean up the private cold-start backend: \(error)") }
+        }
+        app.launch()
+        let initial = try waitState(tools) { Self.runtimeTabs($0).count == 1 }
+        let original = try XCTUnwrap(Self.runtimeTabs(initial).first)
+        let terminalID = try XCTUnwrap(original["id"] as? String)
+        let oldGeneration = try XCTUnwrap((original["runtime"] as? [String: Any])?["generation"] as? String)
+        app.typeKey("q", modifierFlags: .command)
+        XCTAssertTrue(app.wait(for: .notRunning, timeout: 15))
+        // Preserve the UI recovery record, but remove its process-owning service
+        // to reproduce a reboot or an update that stopped the old helper.
+        try closePrivateBackend(backend)
+        try FileManager.default.removeItem(at: tools.appendingPathComponent("state.json"))
+        app.launch()
+        let recovered = try waitState(tools) { state in
+            Self.runtimeTabs(state).contains { $0["id"] as? String == terminalID }
+        }
+        let restored = try XCTUnwrap(Self.runtimeTabs(recovered).first { $0["id"] as? String == terminalID })
+        XCTAssertNotEqual((restored["runtime"] as? [String: Any])?["generation"] as? String, oldGeneration)
+        XCTAssertFalse(app.buttons["Reconnect"].exists)
+        app.buttons["pane-focus-\(terminalID)"].click()
+        app.typeText("printf '\\n__COLD_START_%s\\n' READY\n")
+        _ = try waitState(tools) { state in
+            Self.runtimeTabs(state).contains {
+                $0["id"] as? String == terminalID && ($0["screen"] as? String)?.contains("__COLD_START_READY") == true
+            }
+        }
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = "usable-local-terminal-after-service-restart"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        app.typeKey("q", modifierFlags: .command)
+        XCTAssertTrue(app.wait(for: .notRunning, timeout: 15))
+    }
+
     private static func runtimeTabs(_ state: [String: Any]) -> [[String: Any]] {
         (state["tabs"] as? [[String: Any]] ?? []).filter { ($0["runtime"] as? [String: Any])?["connected"] as? Bool == true }
     }

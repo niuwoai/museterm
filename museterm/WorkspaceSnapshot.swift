@@ -14,6 +14,7 @@ struct TerminalWorkspaceSnapshot: Codable, Equatable {
         var terminalID: UUID? = nil
         var runtimeGeneration: UUID? = nil
         var runtimeRequiresExisting: Bool? = nil
+        var runtimePendingCreationEpoch: UUID? = nil
         var runtimeRenderedCursor: TerminalRuntimeOutputCursor? = nil
         var runtimeAttachOnly: Bool? = nil
 

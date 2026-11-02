@@ -3,7 +3,7 @@ import Foundation
 
 nonisolated enum TerminalRuntimeConnectionError: Error, LocalizedError {
     case unavailable, timedOut, cancelled, invalidCapability, invalidResponse
-    case incompatibleProtocol, serviceChanged, frameTooLarge, rejected(String)
+    case incompatibleProtocol, serviceChanged, sessionMissing, frameTooLarge, rejected(String)
 
     /// Stable diagnostic codes only; never expose paths or capability values.
     var diagnosticCode: String {
@@ -15,6 +15,7 @@ nonisolated enum TerminalRuntimeConnectionError: Error, LocalizedError {
         case .invalidResponse: "invalid_response"
         case .incompatibleProtocol: "incompatible_protocol"
         case .serviceChanged: "service_changed"
+        case .sessionMissing: "session_missing"
         case .frameTooLarge: "frame_too_large"
         case .rejected(let code):
             code.utf8.count <= 64 && code.unicodeScalars.allSatisfy({ CharacterSet.alphanumerics.contains($0) || $0 == "_" }) ? code : "rejected"
@@ -32,6 +33,7 @@ nonisolated enum TerminalRuntimeConnectionError: Error, LocalizedError {
         case "invalid_response": return L10n.string("runtime.error.invalid_response")
         case "incompatible_protocol": return L10n.string("runtime.error.incompatible_protocol")
         case "service_changed": return L10n.string("runtime.error.service_changed")
+        case "session_missing": return L10n.string("runtime.issue.sessionEnded")
         case "frame_too_large": return L10n.string("runtime.error.frame_too_large")
         case "control_changed": return L10n.string("runtime.error.control_changed")
         case "control_owned": return L10n.string("runtime.error.control_owned")
