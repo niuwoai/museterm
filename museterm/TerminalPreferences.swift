@@ -376,7 +376,7 @@ final class TerminalPreferences: ObservableObject {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        skin = TerminalVisualSkin(rawValue: defaults.string(forKey: Keys.skin) ?? "") ?? .seaSalt
+        skin = TerminalVisualSkin(rawValue: defaults.string(forKey: Keys.skin) ?? "") ?? .midnight
         fontFamily = defaults.string(forKey: Keys.fontFamily) ?? "SF Mono"
         fallbackFontFamilies = TerminalPreferences.loadFallbackFontFamilies(from: defaults)
         fontSize = defaults.object(forKey: Keys.fontSize) as? Double ?? 14
