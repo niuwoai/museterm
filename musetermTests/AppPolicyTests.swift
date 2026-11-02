@@ -221,14 +221,14 @@ final class AppPolicyTests: XCTestCase {
         )
     }
 
-    func testDefaultPreferencesUseSeaSaltSkin() throws {
+    func testDefaultPreferencesUseMidnightSkin() throws {
         let suiteName = "museterm.tests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
 
         let preferences = TerminalPreferences(defaults: defaults)
 
-        XCTAssertEqual(preferences.skin, TerminalVisualSkin.seaSalt)
+        XCTAssertEqual(preferences.skin, TerminalVisualSkin.midnight)
         XCTAssertTrue(preferences.glassEnabled)
         XCTAssertEqual(preferences.windowOpacity, 0.72)
         XCTAssertEqual(preferences.terminalOpacity, 0.86)
