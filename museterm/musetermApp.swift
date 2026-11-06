@@ -51,7 +51,8 @@ struct musetermApp: App {
         WindowGroup {
             ContentView(preferences: preferences)
         }
-        .windowStyle(.hiddenTitleBar)
+        // 隐藏标题文字由 WindowConfigurator 负责，保留系统标题栏的鼠标行为。
+        .windowStyle(.titleBar)
         .commands {
             SomeIMUpdateCommands()
 

@@ -40,12 +40,12 @@ struct ContentView: View {
                     onOpenPreview: openPreview
                 )
 
+                // 保留原生标题栏热区，让 AppKit 处理拖动和系统设置的双击动作。
                 TerminalPaneView(
                     workspace: workspace,
                     preferences: preferences,
                     aiCommandAssistant: aiCommandAssistant
                 )
-                    .ignoresSafeArea(.container, edges: .top)
 
                 if rightPanel == .sessionTunnel, let selectedTab = workspace.selectedTab {
                     SessionTunnelInspectorView(
@@ -237,6 +237,10 @@ private struct SidebarView: View {
 
     private enum Layout {
         static let collapsedWidth: CGFloat = 88
+        static let contentLeadingInset: CGFloat = 10
+        static let contentTrailingInset: CGFloat = 14
+        static let compactContentInset: CGFloat = 8
+        static let toolbarSpacing: CGFloat = 4
     }
 
     var body: some View {
@@ -260,7 +264,10 @@ private struct SidebarView: View {
                                 sidebarSection(section)
                             }
                         }
-                        .padding(.horizontal, 10)
+                        // 接受滚动视口的可用宽度，也为系统常驻滚动条让出空间。
+                        .frame(minWidth: 0, maxWidth: .infinity)
+                        .padding(.leading, Layout.contentLeadingInset)
+                        .padding(.trailing, Layout.contentTrailingInset)
                         .padding(.vertical, 8)
                     }
                 } else {
@@ -270,7 +277,9 @@ private struct SidebarView: View {
                         LazyVStack(spacing: 4) {
                             TerminalProjectsSidebar(workspace: workspace, preferences: preferences, compact: true, onDetach: detach)
                         }
-                        .padding(.horizontal, 8)
+                        .frame(minWidth: 0, maxWidth: .infinity)
+                        .padding(.leading, Layout.compactContentInset)
+                        .padding(.trailing, Layout.contentTrailingInset)
                         .padding(.vertical, 4)
                     }
                 }
@@ -366,7 +375,7 @@ private struct SidebarView: View {
                     }
                 }
 
-                HStack(spacing: 10) {
+                HStack(spacing: Layout.toolbarSpacing) {
                     IconButton(systemName: "plus", title: L10n.string("action.new_tab.help")) {
                         workspace.newTab()
                     }
@@ -395,8 +404,8 @@ private struct SidebarView: View {
                         action: onOpenPreview
                     )
                     .accessibilityIdentifier("terminal-preview-open")
-                    Spacer(minLength: 0)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         } else {
             VStack(spacing: 10) {
