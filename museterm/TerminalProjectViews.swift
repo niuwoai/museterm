@@ -24,27 +24,9 @@ struct TerminalProjectsSidebar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 10) {
-                Button { showsProjects.toggle() } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: showsProjects ? "chevron.down" : "chevron.right").font(.system(size: 8))
-                        Text(L10n.string("project.section"))
-                    }
-                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                }
-                .help(L10n.string(showsProjects ? "project.collapse" : "project.expand"))
-                .accessibilityIdentifier("project-section-toggle")
-                Spacer(minLength: 0)
-                Button { showsImport = true } label: { Image(systemName: "square.and.arrow.down") }
-                    .help(L10n.string("project.import.title"))
-                    .accessibilityLabel(L10n.string("project.import.title"))
-                    .accessibilityIdentifier("project-import")
-                Button { editorPresentation = .create } label: { Image(systemName: "plus") }
-                    .help(L10n.string("project.create"))
-                    .accessibilityLabel(L10n.string("project.create"))
-                    .accessibilityIdentifier("project-create")
-            }
-            .buttonStyle(.plain).padding(.vertical, 2)
+            sectionHeader
+                .buttonStyle(.plain)
+                .padding(.vertical, 2)
             if showsProjects {
                 ForEach(workspace.projectLayout.projects) { project in
                     projectGroup(project)
@@ -92,6 +74,63 @@ struct TerminalProjectsSidebar: View {
             TerminalProjectEditor(workspace: workspace, projectID: presentation.projectID)
         }
         .sheet(isPresented: $showsImport) { TerminalProjectImportView(workspace: workspace) }
+    }
+
+    @ViewBuilder
+    private var sectionHeader: some View {
+        if compact {
+            VStack(alignment: .leading, spacing: 4) {
+                sectionToggle
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    sectionActions
+                }
+            }
+        } else {
+            HStack(spacing: 8) {
+                sectionToggle
+                Spacer(minLength: 0)
+                sectionActions
+            }
+        }
+    }
+
+    private var sectionToggle: some View {
+        Button { showsProjects.toggle() } label: {
+            HStack(spacing: 4) {
+                Image(systemName: showsProjects ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 8))
+                Text(L10n.string("project.section"))
+                    .lineLimit(1)
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+        }
+        .help(L10n.string(showsProjects ? "project.collapse" : "project.expand"))
+        .accessibilityIdentifier("project-section-toggle")
+    }
+
+    private var sectionActions: some View {
+        let buttonSize: CGFloat = 24
+        return HStack(spacing: 4) {
+            Button { showsImport = true } label: {
+                Image(systemName: "square.and.arrow.down")
+                    .frame(width: buttonSize, height: buttonSize)
+                    .contentShape(Rectangle())
+            }
+            .help(L10n.string("project.import.title"))
+            .accessibilityLabel(L10n.string("project.import.title"))
+            .accessibilityIdentifier("project-import")
+            Button { editorPresentation = .create } label: {
+                Image(systemName: "plus")
+                    .frame(width: buttonSize, height: buttonSize)
+                    .contentShape(Rectangle())
+            }
+            .help(L10n.string("project.create"))
+            .accessibilityLabel(L10n.string("project.create"))
+            .accessibilityIdentifier("project-create")
+        }
+        .fixedSize()
     }
 
     private func projectGroup(_ project: TerminalProject) -> some View {

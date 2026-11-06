@@ -1,0 +1,28 @@
+{
+  "version": "1.256.0-rc10",
+  "build": 368,
+  "date": "2026-11-06",
+  "passed": true,
+  "configuration": "macOS arm64 Debug",
+  "unit_tests": {"passed": 44, "failed": 0, "suites": ["AppPolicyTests", "TerminalProjectLayoutTests"]},
+  "native_gui": {
+    "passed": 64,
+    "failed": 0,
+    "languages": ["zh-Hans", "en"],
+    "expanded_widths_pt": [220, 320, 420],
+    "compact_width_pt": 88,
+    "button_size_pt": [24, 24],
+    "right_inset_pt": 14,
+    "right_inset_with_persistent_scroller_pt": 31,
+    "native_drag_measured_widths_pt": [260, 270],
+    "checks": ["button_and_viewport_bounds", "import_and_create_do_not_overlap", "mouse_click_opens_create_sheet", "cancel_closes_sheet", "compact_controls_and_clicks", "expand_restores_width", "native_sidebar_drag"],
+    "visual_inspection": "Reviewed real Chinese and English expanded/compact screenshots: plus and import icons are complete, with right-side whitespace.",
+    "isolation": "Unique goaltests bundle ID and private tool/workspace directory; installed application was not replaced."
+  },
+  "diagnostic_history": [
+    "First mouse driver emitted down/up immediately; create-sheet detection timed out. An 80ms press interval made actual clicks pass in all six scenarios.",
+    "A preliminary width matrix used string-valued launch arguments that did not set Double preferences. It was excluded; final validation writes typed float preferences and asserts actual viewport width and at least 14pt inset.",
+    "A short-window check exposed fixed content width competing with a persistent scrollbar. Flexible viewport-relative content sizing corrected the overflow; both normal and short-window matrices were rerun successfully."
+  ],
+  "limitations": ["Other macOS versions, full-screen, multiple displays and long populated lists were not covered.", "Existing unrelated concurrency and XCTest deployment-target build warnings remain.", "No commit, push, installation or release was performed."]
+}
