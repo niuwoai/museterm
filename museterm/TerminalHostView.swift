@@ -600,6 +600,25 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         didStart && terminalView.backendIsRunning
     }
 
+    var hasForegroundProcess: Bool {
+        guard isProcessRunning else { return false }
+        if let runtimeHandle, !runtimeHandle.connected { return true }
+
+        let foregroundPID: pid_t
+        let shellPID: pid_t
+        if runtimeHandle == nil {
+            foregroundPID = tcgetpgrp(terminalView.backendChildFileDescriptor)
+            shellPID = terminalView.backendShellPID
+        } else {
+            foregroundPID = runtimeForegroundPID ?? 0
+            shellPID = session?.runtimeInfo?.pid ?? 0
+        }
+
+        // Keep confirmation enabled when the PTY cannot report its process group.
+        guard foregroundPID > 0, shellPID > 0 else { return true }
+        return foregroundPID != shellPID
+    }
+
     func startZModemUpload(fileURLs: [URL]) {
         guard session?.aiLease == nil else { return }
         guard activeSessionTunnel == nil else {

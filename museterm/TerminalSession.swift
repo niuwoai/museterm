@@ -673,6 +673,10 @@ final class TerminalSession: ObservableObject, Identifiable {
         didCreateController && controller.isProcessRunning
     }
 
+    var hasForegroundProcess: Bool {
+        didCreateController && controller.hasForegroundProcess
+    }
+
     var isRecording: Bool {
         recorder != nil
     }
@@ -1315,7 +1319,7 @@ struct SystemTerminalTabCloseConfirmer: TerminalTabCloseConfirming {
     }
 
     func shouldClose(tab: TerminalSession) -> Bool {
-        guard tab.hasRunningProcess else { return true }
+        guard tab.hasForegroundProcess else { return true }
         guard defaults.bool(forKey: Self.skipRunningTabCloseConfirmationKey) == false else {
             return true
         }

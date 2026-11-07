@@ -213,11 +213,10 @@ final class DetachedTerminalPanelController: NSObject, NSWindowDelegate {
     }
 
     private func requestClose() {
-        // 与普通关标签共用同一「不再询问」开关，且只有进程仍在运行时才确认——
-        // 进程已退出（如 top 已 q 掉）直接关，不再无谓打扰。
+        // 与普通关标签共用同一「不再询问」开关，只有存在前台任务时才确认。
         let skipKey = SystemTerminalTabCloseConfirmer.skipRunningTabCloseConfirmationKey
         let defaults = UserDefaults.standard
-        guard session.hasRunningProcess, defaults.bool(forKey: skipKey) == false, let window else {
+        guard session.hasForegroundProcess, defaults.bool(forKey: skipKey) == false, let window else {
             manager?.closeAndTerminate(session)
             return
         }
