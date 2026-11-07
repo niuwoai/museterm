@@ -200,7 +200,7 @@ def session_tunnels_payload(state)
   }
 end
 
-def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: nil, profile: nil, shortcut: nil, steps: nil, replace: nil, requires_user_authentication: nil, allows_automation_playback: nil, tunnel_name: nil, target_host: nil, target_port: nil, local_port: nil, timeout_seconds: 3.0, agent_kind: nil, agent_report: nil, event_cursor: nil, event_limit: nil, wait_spec: nil, attention_id: nil, attention_version: nil, project_request: nil, preview_request: nil)
+def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, column: nil, row: nil, button: nil, directory: nil, profile: nil, shortcut: nil, steps: nil, replace: nil, requires_user_authentication: nil, allows_automation_playback: nil, tunnel_name: nil, target_host: nil, target_port: nil, local_port: nil, timeout_seconds: 3.0, agent_kind: nil, agent_report: nil, event_cursor: nil, event_limit: nil, wait_spec: nil, attention_id: nil, attention_version: nil, project_request: nil, preview_request: nil)
   received = false
   timeout_seconds = timeout_seconds.to_f
   raise "timeout must be positive." if timeout_seconds <= 0
@@ -214,6 +214,9 @@ def send_request(action:, tab: nil, text: nil, key: nil, bytes: nil, directory: 
     "text" => text,
     "key" => key,
     "bytes" => bytes,
+    "column" => column,
+    "row" => row,
+    "button" => button,
     "directory" => directory,
     "profile" => profile,
     "shortcut" => shortcut,
@@ -957,6 +960,22 @@ def mcp_tools
           "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
         }
       }
+    },
+    {
+      "name" => "send_mouse",
+      "description" => "Click a 1-based terminal cell in a controlled tab. Requires paired write access, a takeover_tab lease held by this MCP connection, and an online MuseTerm UI. The terminal program must have enabled mouse tracking and Settings > Behavior > Forward mouse reporting must be on. This sends a terminal mouse report; it does not move or click the macOS pointer.",
+      "inputSchema" => {
+        "type" => "object",
+        "required" => ["tab", "column", "row"],
+        "properties" => {
+          "tab" => { "type" => "string", "description" => "explicit tab UUID previously returned by list_tabs and taken over in this MCP connection" },
+          "column" => { "type" => "integer", "minimum" => 1, "description" => "1-based terminal cell column; the leftmost cell is 1" },
+          "row" => { "type" => "integer", "minimum" => 1, "description" => "1-based terminal cell row; the top cell is 1" },
+          "button" => { "type" => "string", "enum" => ["left", "middle", "right"], "default" => "left", "description" => "click button; defaults to left" },
+          "timeout" => { "type" => "number", "description" => "seconds to wait for MuseTerm to answer" },
+          "metadata" => { "type" => "boolean", "description" => "return JSON response metadata" }
+        }
+      }
     }
   ]
 end
@@ -979,13 +998,13 @@ def call_tool(name, args)
       "workflow" => [
         "Call list_tabs and read_screen/read_history/read_commands to inspect the target. Use its explicit UUID for every subsequent operation.",
         "Call takeover_tab(tab: UUID) before operating. Requires paired tool write access in MuseTerm Settings. Each MCP process has a separate owner identity; another process cannot write or release your lease.",
-        "Call send_text or send_key with the same tab UUID. Input does not select the tab or bring MuseTerm forward. Humans can work in other tabs while observing yours.",
+        "Call send_text, send_key or send_mouse with the same tab UUID. send_mouse clicks a 1-based terminal cell only while the terminal program has mouse tracking enabled and MuseTerm's mouse-reporting preference is on; it does not move the macOS pointer. Input does not select the tab or bring MuseTerm forward.",
         "The lease expires after 120 seconds without successful input or renew_tab_control. For long commands, renew every 60 seconds while monitoring output. Reads do not renew. Never resend commands just to renew.",
         "Call release_tab in your cleanup/finally path. Normal MCP EOF also attempts release. Terminal exit, tab close and lease expiry release automatically.",
         "Human unlock immediately releases the lease. Delayed input is rejected until explicit new takeover. Stop and coordinate with the human before retaking after unexpected loss of control.",
         "Read aiControlled, aiLeaseExpiresAt and aiRequiresTakeover from list_tabs. After release or expiry, takeover is required for further tool writes to this tab.",
         "Input archives are local JSONL, accessible from Settings > Tools > Open AI archives. Password-mode input is omitted and recognized secrets redacted. Avoid secrets in visible commands. Partial input is buffered until Enter, interrupt or release.",
-        "Use a separate tab for tool-driven shortcut playback, file transfer or session tunnels. Controlled tabs support direct send_text/send_key input. Unlock does not interrupt a running shell command."
+        "Use a separate tab for tool-driven shortcut playback, file transfer or session tunnels. Controlled tabs support send_text, send_key and send_mouse. Tool writes require paired write access, a lease owned by this MCP connection, and the MuseTerm UI online. Unlock does not interrupt a running shell command."
       ],
       "tools" => mcp_tools
     }))
@@ -1109,6 +1128,20 @@ def call_tool(name, args)
     tool_result_text(args["metadata"] ? JSON.pretty_generate(response) : (response["message"] || "ok"))
   when "send_key"
     response = send_request(action: "send_key", tab: args["tab"], key: args.fetch("key"), timeout_seconds: args["timeout"] || 3.0)
+    raise(response["error"] || "request failed") unless response["ok"]
+    tool_result_text(args["metadata"] ? JSON.pretty_generate(response) : (response["message"] || "ok"))
+  when "send_mouse"
+    tab = args.fetch("tab")
+    raise "Use an explicit tab UUID from list_tabs." unless tab.match?(/\A[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\z/)
+    raise "Call takeover_tab for this tab in the same MCP connection first." unless CONTROLLED_TABS.keys.any? { |id| id.downcase == tab.downcase }
+    response = send_request(
+      action: "send_mouse",
+      tab: tab,
+      column: args.fetch("column"),
+      row: args.fetch("row"),
+      button: args["button"] || "left",
+      timeout_seconds: args["timeout"] || 3.0
+    )
     raise(response["error"] || "request failed") unless response["ok"]
     tool_result_text(args["metadata"] ? JSON.pretty_generate(response) : (response["message"] || "ok"))
   else

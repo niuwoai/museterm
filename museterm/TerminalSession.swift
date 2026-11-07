@@ -469,6 +469,11 @@ final class TerminalSession: ObservableObject, Identifiable {
         }
     }
 
+    func authorizeAIControlInput(owner: String?) throws {
+        try authorizeAIInput(owner: owner)
+        guard let owner, aiLease?.owner == owner else { throw TerminalAIControlError.retake }
+    }
+
     func archiveAIInput(_ bytes: [UInt8], echoEnabled: Bool) throws {
         try aiArchive?.record(bytes, echoEnabled: echoEnabled)
     }
@@ -1309,7 +1314,7 @@ protocol TerminalTabCloseConfirming {
 }
 
 struct SystemTerminalTabCloseConfirmer: TerminalTabCloseConfirming {
-    // 「关闭仍在运行的标签」时的「不再询问」开关。分离面板关闭共用同一把钥匙，保证两处一致。
+    // 「关闭前台任务仍在运行的标签」时的「不再询问」开关。分离面板共用同一把钥匙。
     static let skipRunningTabCloseConfirmationKey = "terminal.skipRunningTabCloseConfirmation"
 
     private let defaults: UserDefaults

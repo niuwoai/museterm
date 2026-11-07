@@ -466,6 +466,9 @@ struct TerminalToolRequest: Codable {
     let targetHost: String?
     let targetPort: Int?
     let localPort: Int?
+    let column: Int?
+    let row: Int?
+    let button: String?
     let clientID: String?
     let authToken: String?
 }
@@ -546,6 +549,18 @@ struct TerminalToolResponse: Codable {
         self.sessionTunnels = sessionTunnels
         self.message = message
         self.error = error
+    }
+}
+
+enum TerminalToolMouseButton: String {
+    case left, middle, right
+
+    var swiftTermButton: Int {
+        switch self {
+        case .left: 0
+        case .middle: 1
+        case .right: 2
+        }
     }
 }
 
@@ -905,7 +920,7 @@ final class TerminalToolBridge {
     }
 
     private func handleRuntimeInputRequest(_ request: TerminalToolRequest) -> Bool {
-        guard ["input", "send_text", "send_key"].contains(request.action), let workspace,
+        guard ["input", "send_text", "send_key", "send_mouse"].contains(request.action), let workspace,
               let tab = try? workspace.toolTab(matching: request.tab), tab.controller.runtimeHandle != nil else { return false }
         let allowed = workspace.preferences?.toolBridgeWritesEnabled == true
             && TerminalToolAccess.authorizes(clientID: request.clientID, token: request.authToken)
@@ -919,11 +934,36 @@ final class TerminalToolBridge {
                 message: error == nil ? L10n.format("tools.response.input_sent", tab.tabTitle) : nil, error: error))
         }
         guard allowed else { respond(.failure(TerminalToolError.accessDenied)); return true }
+        if request.action == "send_mouse" {
+            do {
+                try tab.authorizeAIControlInput(owner: request.controlID)
+                let bytes = try mouseClickInputBytes(from: request, controller: tab.controller)
+                tab.controller.sendToolMouseInput(bytes: bytes, owner: request.controlID, completion: respond)
+            } catch { respond(.failure(error)) }
+            return true
+        }
         guard let bytes = TerminalToolInput.bytes(text: request.text, key: request.key, rawBytes: request.bytes) else {
             respond(.failure(TerminalAIControlError.inputRejected)); return true
         }
         tab.controller.sendToolInput(bytes: bytes, owner: request.controlID, completion: respond)
         return true
+    }
+
+    private func mouseClickInputBytes(
+        from request: TerminalToolRequest,
+        controller: TerminalHostController
+    ) throws -> [UInt8] {
+        guard let column = request.column, let row = request.row else {
+            throw TerminalToolError.mousePositionOutOfBounds
+        }
+        guard let button = TerminalToolMouseButton(rawValue: request.button ?? "left") else {
+            throw TerminalToolError.invalidMouseButton
+        }
+        return try controller.mouseClickInputBytes(
+            button: button,
+            column: column,
+            row: row
+        )
     }
 
     private func handleWaitRequest(_ request: TerminalToolRequest) throws -> TerminalToolResponse? {
@@ -1301,6 +1341,31 @@ final class TerminalToolBridge {
                     error: error.localizedDescription
                 )
             }
+        case "send_mouse":
+            do {
+                let tab = try workspace.toolTab(matching: request.tab)
+                try tab.authorizeAIControlInput(owner: request.controlID)
+                let bytes = try mouseClickInputBytes(from: request, controller: tab.controller)
+                try tab.controller.sendToolMouseInput(bytes: bytes, owner: request.controlID)
+                return TerminalToolResponse(
+                    id: request.id,
+                    ok: true,
+                    snapshotSequence: snapshotSequence,
+                    action: request.action,
+                    tabID: tab.id.uuidString,
+                    message: L10n.format("tools.response.input_sent", tab.tabTitle),
+                    error: nil
+                )
+            } catch {
+                return TerminalToolResponse(
+                    id: request.id,
+                    ok: false,
+                    snapshotSequence: snapshotSequence,
+                    action: request.action,
+                    message: nil,
+                    error: error.localizedDescription
+                )
+            }
         case "input", "send_text", "send_key":
             guard let bytes = TerminalToolInput.bytes(text: request.text, key: request.key, rawBytes: request.bytes) else {
                 return TerminalToolResponse(
@@ -1424,6 +1489,7 @@ final class TerminalToolBridge {
         "input",
         "send_text",
         "send_key",
+        "send_mouse",
         "start_session_tunnel",
         "stop_session_tunnel"
     ]
@@ -1460,6 +1526,9 @@ enum TerminalToolError: LocalizedError {
     case processUnavailable
     case sessionTunnelActive
     case sessionTunnelNotActive
+    case invalidMouseButton
+    case mousePositionOutOfBounds
+    case mouseReportingUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -1472,6 +1541,12 @@ enum TerminalToolError: LocalizedError {
             return L10n.string("tools.error.session_tunnel_active")
         case .sessionTunnelNotActive:
             return L10n.string("tools.error.session_tunnel_not_active")
+        case .invalidMouseButton:
+            return L10n.string("tools.error.invalid_mouse_button")
+        case .mousePositionOutOfBounds:
+            return L10n.string("tools.error.mouse_position_out_of_bounds")
+        case .mouseReportingUnavailable:
+            return L10n.string("tools.error.mouse_reporting_unavailable")
         }
     }
 }
