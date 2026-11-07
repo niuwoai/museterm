@@ -889,10 +889,19 @@ enum TerminalShortcutProtectedVault {
     }
 }
 
+struct MuseTermKeychainError: LocalizedError, Equatable {
+    let status: OSStatus
+
+    var errorDescription: String? {
+        SecCopyErrorMessageString(status, nil) as String? ?? "OSStatus \(status)"
+    }
+}
+
 enum MuseTermKeychain {
     nonisolated private static let service = "com.museterm.credentials"
     nonisolated(unsafe) private static var testStorage: [String: String]?
     nonisolated(unsafe) private static var xctestStorage: [String: String] = [:]
+    nonisolated(unsafe) private static var testSaveError: MuseTermKeychainError?
 
     nonisolated private static var isRunningUnderXCTest: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
@@ -900,28 +909,34 @@ enum MuseTermKeychain {
 
     static func _useTestStorage(_ enabled: Bool) {
         testStorage = enabled ? [:] : nil
+        testSaveError = nil
+    }
+
+    static func _failNextTestSave(_ error: MuseTermKeychainError?) {
+        testSaveError = error
     }
 
     @discardableResult
     nonisolated static func save(_ secret: String, account: String) -> Bool {
-        save(secret, account: account, serviceName: service)
+        (try? save(secret, account: account, serviceName: service)) != nil
     }
 
     @discardableResult
-    nonisolated static func save(_ secret: String, account: String, serviceName: String) -> Bool {
+    nonisolated static func save(_ secret: String, account: String, serviceName: String) throws -> String {
         let trimmed = secret.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else {
             delete(account: account, serviceName: serviceName)
-            return true
+            return ""
         }
 
         if testStorage != nil {
+            if let testSaveError { throw testSaveError }
             testStorage?[storageKey(serviceName: serviceName, account: account)] = trimmed
-            return true
+            return trimmed
         }
         if isRunningUnderXCTest {
             xctestStorage[storageKey(serviceName: serviceName, account: account)] = trimmed
-            return true
+            return trimmed
         }
 
         let query: [String: Any] = [
@@ -933,20 +948,24 @@ enum MuseTermKeychain {
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
         ]
-        let status = SecItemUpdate(query as CFDictionary, update as CFDictionary)
-        if status == errSecSuccess,
+        let updateStatus = SecItemUpdate(query as CFDictionary, update as CFDictionary)
+        if updateStatus == errSecSuccess,
            load(account: account, serviceName: serviceName) == trimmed {
-            return true
+            return trimmed
         }
-        if status != errSecItemNotFound {
+        if updateStatus != errSecItemNotFound {
             SecItemDelete(query as CFDictionary)
         }
 
         var add = query
         add[kSecValueData as String] = data
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        guard SecItemAdd(add as CFDictionary, nil) == errSecSuccess else { return false }
-        return load(account: account, serviceName: serviceName) == trimmed
+        let addStatus = SecItemAdd(add as CFDictionary, nil)
+        guard addStatus == errSecSuccess,
+              load(account: account, serviceName: serviceName) == trimmed else {
+            throw MuseTermKeychainError(status: addStatus)
+        }
+        return trimmed
     }
 
     nonisolated static func load(account: String) -> String {

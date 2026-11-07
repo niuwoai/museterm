@@ -15,14 +15,15 @@ enum TerminalToolAccess {
     }
 
     @discardableResult
-    static func pair(clientID: String = builtInClientID) -> Bool {
+    static func pair(clientID: String = builtInClientID) throws -> String {
         var bytes = [UInt8](repeating: 0, count: 32)
-        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
-            return false
+        let randomStatus = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        guard randomStatus == errSecSuccess else {
+            throw MuseTermKeychainError(status: randomStatus)
         }
         let token = bytes.map { String(format: "%02x", $0) }.joined()
-        let saved = MuseTermKeychain.save(token, account: clientID, serviceName: keychainServiceName)
-        if saved, clientID == builtInClientID {
+        let saved = try MuseTermKeychain.save(token, account: clientID, serviceName: keychainServiceName)
+        if clientID == builtInClientID {
             MuseTermKeychain.delete(account: MuseTermLegacyCompatibility.legacyClientID, serviceName: keychainServiceName)
         }
         return saved

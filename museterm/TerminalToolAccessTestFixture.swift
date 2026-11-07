@@ -20,8 +20,8 @@ enum TerminalToolAccessTestFixture {
         preferences.toolBridgeWritesEnabled = false
         do {
             let credentials = try load(root: TerminalToolPaths.rootDirectory)
-            guard MuseTermKeychain.save(credentials.token, account: credentials.clientID,
-                serviceName: TerminalToolAccess.keychainServiceName) else { throw CocoaError(.fileReadUnknown) }
+            guard (try? MuseTermKeychain.save(credentials.token, account: credentials.clientID,
+                serviceName: TerminalToolAccess.keychainServiceName)) != nil else { throw CocoaError(.fileReadUnknown) }
             preferences.toolBridgeWritesEnabled = true
         } catch { NSLog("MuseTerm isolated tool credential fixture rejected") }
     }

@@ -867,12 +867,22 @@ struct SettingsView: View {
     }
 
     private func pairBuiltInToolClient() {
-        guard TerminalToolAccess.pair() else {
-            toolBridgeAccessMessage = L10n.string("settings.tools.client_pair_failed")
-            return
+        do {
+            _ = try TerminalToolAccess.pair()
+            isBuiltInToolClientPaired = true
+            toolBridgeAccessMessage = L10n.string("settings.tools.client_pair_success")
+        } catch let error as MuseTermKeychainError {
+            toolBridgeAccessMessage = L10n.format(
+                "settings.tools.client_pair_failed_status",
+                error.status,
+                error.localizedDescription
+            )
+        } catch {
+            toolBridgeAccessMessage = L10n.format(
+                "settings.tools.client_pair_failed_reason",
+                error.localizedDescription
+            )
         }
-        isBuiltInToolClientPaired = true
-        toolBridgeAccessMessage = L10n.string("settings.tools.client_pair_success")
     }
 
     private var profilesSection: some View {

@@ -800,6 +800,8 @@
 "settings.tools.revoke_client" = "Revoke museterm CLI";
 "settings.tools.client_pair_success" = "museterm CLI was paired through Keychain.";
 "settings.tools.client_pair_failed" = "Could not create the Keychain pairing.";
+"settings.tools.client_pair_failed_status" = "Could not create the Keychain pairing. macOS error %d: %@. Try again and allow the Keychain prompt if macOS shows one.";
+"settings.tools.client_pair_failed_reason" = "Could not create the Keychain pairing: %@.";
 "settings.tools.client_revoked" = "museterm CLI write access was revoked.";
 "settings.tools.audit_path" = "Access audit log";
 "settings.tools.install_path" = "CLI install path";

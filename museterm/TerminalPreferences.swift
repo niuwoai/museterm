@@ -558,22 +558,22 @@ final class TerminalPreferences: ObservableObject {
 
         let legacy = MuseTermKeychain.load(account: aiAPIKeyAccount)
         guard !legacy.isEmpty else { return "" }
-        if MuseTermKeychain.save(
+        if (try? MuseTermKeychain.save(
             legacy,
             account: aiAPIKeyAccount,
             serviceName: Self.aiKeychainServiceName
-        ) {
+        )) != nil {
             MuseTermKeychain.delete(account: aiAPIKeyAccount)
         }
         return legacy
     }
 
     func saveAIAPIKey(_ apiKey: String) -> Bool {
-        let saved = MuseTermKeychain.save(
+        let saved = (try? MuseTermKeychain.save(
             apiKey,
             account: aiAPIKeyAccount,
             serviceName: Self.aiKeychainServiceName
-        )
+        )) != nil
         objectWillChange.send()
         return saved && !loadAIAPIKey().isEmpty
     }

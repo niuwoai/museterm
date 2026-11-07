@@ -138,7 +138,7 @@ final class TerminalPreviewTests: XCTestCase {
         }
         MuseTermKeychain._useTestStorage(true)
         defer { MuseTermKeychain._useTestStorage(false) }
-        XCTAssertTrue(MuseTermKeychain.save("preview-fixture-only", account: "museterm-cli", serviceName: TerminalToolAccess.keychainServiceName))
+        XCTAssertNoThrow(try MuseTermKeychain.save("preview-fixture-only", account: "museterm-cli", serviceName: TerminalToolAccess.keychainServiceName))
         preferences.toolBridgeWritesEnabled = true
         let definitions = try XCTUnwrap(MuseTermCLIInstaller.script.components(separatedBy: "\ncommand = ARGV.shift").first)
         let report = root.appendingPathComponent("cli-report.md")
