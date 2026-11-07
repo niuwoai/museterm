@@ -39,7 +39,7 @@ MuseTerm 是一个轻快的 macOS 多标签终端应用，使用 SwiftUI 构建�
 
 MCP 的基本调用顺序是 `help` → `list_tabs` → `read_screen` → `takeover_tab` → `send_text` / `send_key` → `release_tab`。接管及后续操作须使用同一个明确的标签 UUID，并保持在同一个 MCP 连接中。长任务可调用 `renew_tab_control` 续租；120 秒没有成功输入或续租会自动释放。
 
-需要操作支持鼠标的 TUI 时，可在接管后调用 `send_mouse(tab, column, row, button)`；`column` 和 `row` 是从 1 开始的终端单元格坐标，`button` 可选 `left`、`middle` 或 `right`，默认为 `left`。目标 TUI 必须已启用鼠标跟踪，并且 MuseTerm“设置 → 行为 → 转发鼠标报告”已开启。此工具发送终端鼠标报告，不移动或点击 macOS 系统指针。
+需要操作支持鼠标的 TUI 时，可在接管后调用 `send_mouse(tab, column, row, button)`；`column` 和 `row` 是从 1 开始的终端单元格坐标，`button` 可选 `left`、`middle` 或 `right`，默认为 `left`。目标 TUI 必须已启用鼠标跟踪，并且 MuseTerm“设置 → 行为 → 转发鼠标报告”已开启。X10 编码最多表示第 223 列/行，超出时工具会明确报错；SGR-pixel 模式按目标单元格中心发送像素坐标。此工具发送终端鼠标报告，不移动或点击 macOS 系统指针。
 
 其他支持 stdio MCP 的客户端也可以将 `$HOME/.local/bin/museterm` 配置为命令、`mcp` 配置为参数。Agent 状态与待处理事项的说明见 [会话事件与 Agent 集成](docs/AGENT_STATE_EVENTS.md)。
 
@@ -73,7 +73,7 @@ defaults delete im.some.museterm terminal.skipRunningTabCloseConfirmation
 
 ## 版本
 
-当前版本：`v1.257.0-rc1`
+当前版本：`v1.257.0-rc2`
 
 从旧版升级及现有会话保留方式见 [升级说明](docs/UPGRADING_QTERM_RUNTIME.md)。
 

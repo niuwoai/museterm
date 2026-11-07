@@ -951,6 +951,17 @@ open class Terminal {
     // The protocol encoding for the terminal
     private var mouseProtocol: MouseProtocolEncoding = .x10
 
+    /// Caller must hold `terminalLock`, as input snapshots do.
+    var inputSnapshotMouseProtocolEncoding: TerminalMouseProtocolEncoding {
+        switch mouseProtocol {
+        case .x10: .x10
+        case .utf8: .utf8
+        case .sgr: .sgr
+        case .urxvt: .urxvt
+        case .sgrPixel: .sgrPixel
+        }
+    }
+
     // This is used to track if we are setting the colors, to prevent a
     // recursive invocation (nativeForegroundColor sets the terminal
     // color, which in turn broadcasts the request for a change)
@@ -9143,8 +9154,11 @@ open class Terminal {
                                   x: Int, y: Int, pixelX: Int, pixelY: Int) -> [UInt8] {
         switch mouseProtocol {
         case .x10:
+            let maximumCoordinate = TerminalMouseProtocolEncoding.x10MaximumZeroBasedCoordinate
+            guard (0...maximumCoordinate).contains(x),
+                  (0...maximumCoordinate).contains(y) else { return [] }
             return cc.CSI + [UInt8(ascii: "M"), UInt8(min(buttonFlags+32, 255)),
-                             UInt8(max(0, min(x, 222))+33), UInt8(max(0, min(y, 222))+33)]
+                             UInt8(x+33), UInt8(y+33)]
         case .sgr:
             let bflags = release ? (buttonFlags & ~3) | originalButton : buttonFlags
             let m = release ? "m" : "M"

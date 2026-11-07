@@ -1528,6 +1528,8 @@ enum TerminalToolError: LocalizedError {
     case sessionTunnelNotActive
     case invalidMouseButton
     case mousePositionOutOfBounds
+    case mouseCoordinateNotRepresentable
+    case mousePixelCoordinatesUnavailable
     case mouseReportingUnavailable
 
     var errorDescription: String? {
@@ -1545,6 +1547,10 @@ enum TerminalToolError: LocalizedError {
             return L10n.string("tools.error.invalid_mouse_button")
         case .mousePositionOutOfBounds:
             return L10n.string("tools.error.mouse_position_out_of_bounds")
+        case .mouseCoordinateNotRepresentable:
+            return L10n.string("tools.error.mouse_coordinate_not_representable")
+        case .mousePixelCoordinatesUnavailable:
+            return L10n.string("tools.error.mouse_pixel_coordinates_unavailable")
         case .mouseReportingUnavailable:
             return L10n.string("tools.error.mouse_reporting_unavailable")
         }

@@ -307,8 +307,9 @@ final class TerminalRenderOwner: Sendable {
             let flags = terminal.encodeButton(button: button, release: release,
                                                shift: shift, meta: meta, control: control)
                 + (motion && !release ? 32 : 0)
-            return terminal.mouseEventBytes(buttonFlags: flags, x: col, y: row,
-                                            pixelX: pixelX ?? col, pixelY: pixelY ?? row)
+            let bytes = terminal.mouseEventBytes(buttonFlags: flags, x: col, y: row,
+                                                 pixelX: pixelX ?? col, pixelY: pixelY ?? row)
+            return bytes.isEmpty ? nil : bytes
         }
     }
 
