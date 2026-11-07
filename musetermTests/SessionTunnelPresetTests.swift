@@ -144,7 +144,8 @@ final class SessionTunnelPresetTests: XCTestCase {
             "save_shortcut",
             "play_shortcut",
             "send_text",
-            "send_key"
+            "send_key",
+            "send_mouse"
         ])
         let startTool = try XCTUnwrap(tools.first { $0["name"] as? String == "start_session_tunnel" })
         let schema = try XCTUnwrap(startTool["inputSchema"] as? [String: Any])

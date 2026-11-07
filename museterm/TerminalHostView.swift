@@ -527,6 +527,24 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private var toolInputOwner: String?
     private var pendingRuntimeToolInputObserver: ((Result<Void, Error>) -> Void)?
 
+    func mouseClickInputBytes(button: TerminalToolMouseButton, column: Int, row: Int) throws -> [UInt8] {
+        guard terminalView.allowMouseReporting,
+              let inputState = terminalView.terminalInputStateSnapshot(),
+              inputState.mouseMode != .off else {
+            throw TerminalToolError.mouseReportingUnavailable
+        }
+        let dimensions = inputState.dimensions
+        guard column >= 1, column <= dimensions.cols, row >= 1, row <= dimensions.rows else {
+            throw TerminalToolError.mousePositionOutOfBounds
+        }
+        guard let bytes = terminalView.captureMouseClickReports(
+            button: button.swiftTermButton, column: column - 1, row: row - 1
+        ) else {
+            throw TerminalToolError.mouseReportingUnavailable
+        }
+        return bytes
+    }
+
     func sendToolInput(bytes: [UInt8], owner: String? = nil) throws {
         // A runtime-backed session has no local PTY to write. Callers that can
         // wait for the service ACK use the completion overload; this one only
@@ -588,6 +606,57 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     /// completion. A newer enqueue, or an enqueue that carries a completion,
     /// drops the previous observer: that write's failure still surfaces through
     /// `runtimeInputFailed`.
+    func sendToolMouseInput(bytes: [UInt8], owner: String?) throws {
+        guard runtimeHandle == nil else { throw TerminalAIControlError.inputRejected }
+        try session?.authorizeAIInput(owner: owner)
+        guard didStart, terminalView.backendIsRunning else { throw TerminalToolError.processUnavailable }
+        guard activeSessionTunnel == nil else { throw TerminalToolError.sessionTunnelActive }
+        guard activeZModemTransfer == nil, pendingZModemProbe == nil,
+              !isAwaitingAutomaticUploadSelection else {
+            throw TerminalAIControlError.inputRejected
+        }
+        terminalView.sendBackend(bytes[...])
+        if let owner, session?.aiLease != nil {
+            try session?.renewAIControl(owner: owner)
+        }
+    }
+
+    func sendToolMouseInput(bytes: [UInt8], owner: String?,
+                            completion: @escaping (Result<Void, Error>) -> Void) {
+        do {
+            guard runtimeHandle != nil else {
+                try sendToolMouseInput(bytes: bytes, owner: owner)
+                completion(.success(()))
+                return
+            }
+            try enqueueRuntimeToolMouseInput(bytes, owner: owner, completion: completion)
+        } catch {
+            completion(.failure(error))
+        }
+    }
+
+    private func enqueueRuntimeToolMouseInput(
+        _ bytes: [UInt8],
+        owner: String?,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) throws {
+        guard runtimeHandle != nil else { throw TerminalAIControlError.inputRejected }
+        try session?.authorizeAIInput(owner: owner)
+        guard didStart, terminalView.backendIsRunning else { throw TerminalToolError.processUnavailable }
+        guard activeSessionTunnel == nil else { throw TerminalToolError.sessionTunnelActive }
+        guard activeZModemTransfer == nil, pendingZModemProbe == nil,
+              !isAwaitingAutomaticUploadSelection else {
+            throw TerminalAIControlError.inputRejected
+        }
+        guard runtimeInputQueue?.enqueue(bytes, source: .ai, owner: owner, isMouseEvent: true,
+            completion: { [weak self] result in
+                if case .failure(let error) = result { self?.runtimeInputFailed(error) }
+                completion(result)
+            }) == true else {
+            throw TerminalAIControlError.inputRejected
+        }
+    }
+
     func observePendingRuntimeToolInput(_ observer: @escaping (Result<Void, Error>) -> Void) {
         pendingRuntimeToolInputObserver = observer
     }
@@ -1746,6 +1815,26 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         }, failed: { [weak self, weak handle] error in
             guard let self, let handle, self.runtimeHandle === handle else { return }
             self.runtimeInputFailed(error)
+        }, approveMouseEvent: { [weak self, weak handle] owner in
+            guard let self, let handle, self.runtimeHandle === handle,
+                  self.didStart, self.terminalView.backendIsRunning,
+                  self.activeSessionTunnel == nil,
+                  self.activeZModemTransfer == nil,
+                  self.pendingZModemProbe == nil,
+                  !self.isAwaitingAutomaticUploadSelection else { return false }
+            do {
+                try self.session?.authorizeAIInput(owner: owner)
+                return true
+            } catch {
+                return false
+            }
+        }, committedMouseEvent: { [weak self, weak handle] _ in
+            guard let self, let handle, self.runtimeHandle === handle else { return }
+            self.runtimeInputErrorCode = nil
+            if self.session?.runtimeConnectionIssue == .inputRejected
+                || self.session?.runtimeConnectionIssue == .inputTooLarge {
+                self.session?.runtimeConnectionIssue = nil
+            }
         })
         terminalView.externalSend = { [weak self, weak handle] bytes, protocolTraffic in
             guard let self, let handle else { return false }

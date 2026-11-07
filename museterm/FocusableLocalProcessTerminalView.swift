@@ -19,6 +19,7 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     /// The PTY master descriptor of whichever process is actually running: our own when the
     /// view launched it, otherwise the one SwiftTerm created for the view.
     var backendChildFileDescriptor: Int32 { (ownedProcess ?? process).childfd }
+    var backendShellPID: pid_t { (ownedProcess ?? process).shellPid }
 
     /// The process whose output we parse ourselves. SwiftTerm 1.99 feeds the view's built-in
     /// process straight into the parser on its IO thread, so anything that has to look at the
@@ -130,6 +131,7 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     private var selectionAutoscrollTimer: Timer?
     private var selectionAutoscrollAction: TerminalSelectionAutoscroll?
     private var lastSelectionDragEvent: NSEvent?
+    private var capturedMouseReports: [[UInt8]]?
     private var isTrackingMouseSelection = false
     private var selectionChangedDuringMouseGesture = false
     private var lastMouseUpLocation: NSPoint?
@@ -267,6 +269,23 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     func requestFocus() {
         guard let window else { return }
         window.makeFirstResponder(self)
+    }
+
+    func captureMouseClickReports(button: Int, column: Int, row: Int) -> [UInt8]? {
+        guard capturedMouseReports == nil,
+              allowMouseReporting,
+              let mouseMode = terminalInputStateSnapshot()?.mouseMode,
+              mouseMode.sendButtonPress() else { return nil }
+        capturedMouseReports = []
+        defer { capturedMouseReports = nil }
+        sendMouseEvent(button: button, release: false, col: column, row: row)
+        if mouseMode.sendButtonRelease() {
+            sendMouseEvent(button: button, release: true, col: column, row: row)
+        }
+        let reports = capturedMouseReports ?? []
+        guard !reports.isEmpty, reports.count <= 2,
+              reports.allSatisfy({ TerminalMouseReportPolicy.isMouseReport($0[...]) }) else { return nil }
+        return reports.flatMap { $0 }
     }
 
     /// 自动聚焦入口：浮层接管键盘时让路。显式用户动作（点击、粘贴）用 requestFocus()。
@@ -663,6 +682,12 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
         didSendLastInput = false
         guard !isReplayingHistoricalOutput else { return }
         let bytes = Array(data)
+        if capturedMouseReports != nil {
+            guard capturedMouseReports?.count ?? 0 < 2,
+                  TerminalMouseReportPolicy.isMouseReport(bytes[...]) else { return }
+            capturedMouseReports?.append(bytes)
+            return
+        }
         if let externalSend {
             guard externalSend(bytes, false) else { return }
             onProcessInputSent?()
