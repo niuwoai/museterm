@@ -1421,7 +1421,8 @@ struct SidebarSection<Content: View>: View {
         self.skin = skin
         self.kind = kind
         self.preferences = preferences
-        _isExpanded = State(initialValue: initiallyExpanded)
+        let restored = kind.flatMap { preferences?.isSidebarSectionExpanded($0) }
+        _isExpanded = State(initialValue: restored ?? initiallyExpanded)
         self.content = content()
     }
 
@@ -1430,6 +1431,9 @@ struct SidebarSection<Content: View>: View {
             Button {
                 withAnimation(.easeInOut(duration: 0.16)) {
                     isExpanded.toggle()
+                }
+                if let kind {
+                    preferences?.setSidebarSection(kind, expanded: isExpanded)
                 }
             } label: {
                 HStack(spacing: 6) {
