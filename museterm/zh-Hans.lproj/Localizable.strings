@@ -835,6 +835,8 @@
 "tools.error.process_unavailable" = "终端进程尚未就绪。";
 "tools.error.invalid_mouse_button" = "不支持所指定的鼠标按键。";
 "tools.error.mouse_position_out_of_bounds" = "点击位置超出终端可见网格范围。";
+"tools.error.mouse_coordinate_not_representable" = "当前 X10 鼠标编码最多表示第 223 列和第 223 行；如需点击更远位置，请让 TUI 启用扩展鼠标编码。";
+"tools.error.mouse_pixel_coordinates_unavailable" = "终端单元格像素尺寸尚未就绪，暂时无法安全定位这次像素模式点击。";
 "tools.error.mouse_reporting_unavailable" = "MuseTerm 或当前程序未启用终端鼠标报告。";
 "tools.error.unknown_action" = "未知工具动作：%@";
 "tools.error.access_denied" = "工具写入已关闭，或客户端尚未配对。请在设置中开启已配对客户端写入并完成配对。";

@@ -835,6 +835,8 @@
 "tools.error.process_unavailable" = "The terminal process is not ready.";
 "tools.error.invalid_mouse_button" = "The requested mouse button is not supported.";
 "tools.error.mouse_position_out_of_bounds" = "The requested cell is outside the visible terminal grid.";
+"tools.error.mouse_coordinate_not_representable" = "The active X10 mouse encoding supports cells only through column and row 223. Enable an extended mouse encoding in the TUI to click farther cells.";
+"tools.error.mouse_pixel_coordinates_unavailable" = "The terminal cell pixel size is not ready, so this pixel-mode click cannot be positioned safely.";
 "tools.error.mouse_reporting_unavailable" = "Terminal mouse reporting is off in MuseTerm or the active program.";
 "tools.error.unknown_action" = "Unknown tool action: %@";
 "tools.error.access_denied" = "Tool write access is disabled or this client is not paired. Enable paired writes and pair the client in Settings.";

@@ -17,7 +17,12 @@ internal. Two members are widened from internal to `public`:
 - `Terminal.mouseEventBytes(buttonFlags:x:y:pixelX:pixelY:)` in
   `Sources/SwiftTerm/Terminal.swift`, so the view can encode a mouse report
   while it holds the terminal lock and deliver it afterwards. Delivering inside
-  the callback re-enters the lock, which v1.99.2 made non-recursive.
+  the callback re-enters the lock, which v1.99.2 made non-recursive. The app
+  also snapshots the active mouse encoding, refuses X10 coordinates beyond its
+  representable range, and supplies actual cell-center pixels for SGR-pixel clicks.
+- `TerminalView.pixelCenterForCell(column:row:)` in
+  `Sources/SwiftTerm/Mac/MacTerminalView.swift`, so host-generated clicks can
+  translate zero-based grid cells into the current view's pixel coordinates.
 - `TerminalView.hasRetainedInlineGraphics()` in
   `Sources/SwiftTerm/Apple/AppleTerminalView.swift`, so the app can tell whether
   an iTerm2, sixel or Kitty image is still held. Text snapshots omit images, and

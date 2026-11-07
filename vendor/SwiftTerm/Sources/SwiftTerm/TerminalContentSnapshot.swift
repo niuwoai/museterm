@@ -1,3 +1,15 @@
+/// The active terminal mouse encoding.
+public enum TerminalMouseProtocolEncoding: Sendable, Equatable {
+    case x10
+    case utf8
+    case sgr
+    case urxvt
+    case sgrPixel
+
+    /// Largest zero-based cell coordinate representable by the X10 encoding.
+    public static let x10MaximumZeroBasedCoordinate = 222
+}
+
 /// The current terminal grid size.
 public struct TerminalDimensions: Sendable, Equatable {
     public let cols: Int
@@ -11,9 +23,9 @@ public struct TerminalDimensions: Sendable, Equatable {
 
 /// Copied input modes and dimensions, without copying terminal contents.
 ///
-/// This is useful for inspection and common host decisions, but it is not a
-/// complete input encoder state. In particular, pointer encoding details and
-/// other host-input policy live on the dedicated host input APIs.
+/// Includes the active mouse encoding so host-generated cell clicks can be
+/// validated. Other input encoder state and host-input policy remain on the
+/// dedicated host input APIs.
 public struct TerminalInputStateSnapshot: Sendable, Equatable {
     public let dimensions: TerminalDimensions
     public let isAlternateBuffer: Bool
@@ -22,6 +34,7 @@ public struct TerminalInputStateSnapshot: Sendable, Equatable {
     /// Whether DEC private mode 2004 (bracketed paste) is enabled.
     public let bracketedPasteMode: Bool
     public let mouseMode: Terminal.MouseMode
+    public let mouseProtocolEncoding: TerminalMouseProtocolEncoding
     public let keyboardEnhancementFlags: KittyKeyboardFlags
     /// Whether the application enabled focus reports (DECSET 1004).
     public let focusReportingEnabled: Bool
@@ -34,7 +47,8 @@ public struct TerminalInputStateSnapshot: Sendable, Equatable {
         bracketedPasteMode: Bool,
         mouseMode: Terminal.MouseMode,
         keyboardEnhancementFlags: KittyKeyboardFlags,
-        focusReportingEnabled: Bool
+        focusReportingEnabled: Bool,
+        mouseProtocolEncoding: TerminalMouseProtocolEncoding = .x10
     ) {
         self.dimensions = dimensions
         self.isAlternateBuffer = isAlternateBuffer
@@ -42,6 +56,7 @@ public struct TerminalInputStateSnapshot: Sendable, Equatable {
         self.applicationKeypad = applicationKeypad
         self.bracketedPasteMode = bracketedPasteMode
         self.mouseMode = mouseMode
+        self.mouseProtocolEncoding = mouseProtocolEncoding
         self.keyboardEnhancementFlags = keyboardEnhancementFlags
         self.focusReportingEnabled = focusReportingEnabled
     }
@@ -141,7 +156,8 @@ extension Terminal {
             bracketedPasteMode: bracketedPasteMode,
             mouseMode: mouseMode,
             keyboardEnhancementFlags: keyboardEnhancementFlags,
-            focusReportingEnabled: sendFocus)
+            focusReportingEnabled: sendFocus,
+            mouseProtocolEncoding: inputSnapshotMouseProtocolEncoding)
     }
 
     func displayText(buffer: Buffer, line lineIndex: Int, columns: Int) -> String {

@@ -4757,7 +4757,7 @@ open class TerminalView: NSView, NSUserInterfaceValidations, TerminalDelegate {
                                              pixelX: hit.pixels.col, pixelY: hit.pixels.row)
                 }
             }
-            for bytes in reports {
+            for bytes in reports where !bytes.isEmpty {
                 terminalDelegate?.send(source: self, data: bytes[...])
             }
         } else if scrollRoute == .cursorKeys {
@@ -4994,6 +4994,20 @@ open class TerminalView: NSView, NSUserInterfaceValidations, TerminalDelegate {
 
     public nonisolated func cellSizeInPixels(source: Terminal) -> (width: Int, height: Int)? {
         cachedCellPixelSizeValue()
+    }
+
+    /// Returns the zero-based pixel center for a zero-based terminal cell.
+    public nonisolated func pixelCenterForCell(column: Int, row: Int) -> (x: Int, y: Int)? {
+        guard column >= 0, row >= 0,
+              let cellSize = cachedCellPixelSizeValue(),
+              cellSize.width > 0, cellSize.height > 0 else { return nil }
+        let (xOrigin, xOriginOverflow) = column.multipliedReportingOverflow(by: cellSize.width)
+        let (yOrigin, yOriginOverflow) = row.multipliedReportingOverflow(by: cellSize.height)
+        guard !xOriginOverflow, !yOriginOverflow else { return nil }
+        let (x, xOverflow) = xOrigin.addingReportingOverflow(cellSize.width / 2)
+        let (y, yOverflow) = yOrigin.addingReportingOverflow(cellSize.height / 2)
+        guard !xOverflow, !yOverflow else { return nil }
+        return (x: x, y: y)
     }
 
     nonisolated open func terminalControlBytesForPaste(source: Terminal) -> Set<UInt8> {

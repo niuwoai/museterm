@@ -271,16 +271,38 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
         window.makeFirstResponder(self)
     }
 
-    func captureMouseClickReports(button: Int, column: Int, row: Int) -> [UInt8]? {
+    func captureMouseClickReports(button: Int, column: Int, row: Int) throws -> [UInt8]? {
         guard capturedMouseReports == nil,
               allowMouseReporting,
-              let mouseMode = terminalInputStateSnapshot()?.mouseMode,
-              mouseMode.sendButtonPress() else { return nil }
+              let inputState = terminalInputStateSnapshot(),
+              inputState.mouseMode.sendButtonPress() else { return nil }
+        guard column >= 0, column < inputState.dimensions.cols,
+              row >= 0, row < inputState.dimensions.rows else {
+            throw TerminalToolError.mousePositionOutOfBounds
+        }
+        if inputState.mouseProtocolEncoding == .x10 {
+            let maximumCoordinate = TerminalMouseProtocolEncoding.x10MaximumZeroBasedCoordinate
+            guard column <= maximumCoordinate, row <= maximumCoordinate else {
+                throw TerminalToolError.mouseCoordinateNotRepresentable
+            }
+        }
+        var pixelX: Int?
+        var pixelY: Int?
+        if inputState.mouseProtocolEncoding == .sgrPixel {
+            guard let pixelCenter = pixelCenterForCell(column: column, row: row) else {
+                throw TerminalToolError.mousePixelCoordinatesUnavailable
+            }
+            pixelX = pixelCenter.x
+            pixelY = pixelCenter.y
+        }
+        let mouseMode = inputState.mouseMode
         capturedMouseReports = []
         defer { capturedMouseReports = nil }
-        sendMouseEvent(button: button, release: false, col: column, row: row)
+        sendMouseEvent(button: button, release: false, col: column, row: row,
+                       pixelX: pixelX, pixelY: pixelY)
         if mouseMode.sendButtonRelease() {
-            sendMouseEvent(button: button, release: true, col: column, row: row)
+            sendMouseEvent(button: button, release: true, col: column, row: row,
+                           pixelX: pixelX, pixelY: pixelY)
         }
         let reports = capturedMouseReports ?? []
         guard !reports.isEmpty, reports.count <= 2,

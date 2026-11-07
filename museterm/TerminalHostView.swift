@@ -537,7 +537,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         guard column >= 1, column <= dimensions.cols, row >= 1, row <= dimensions.rows else {
             throw TerminalToolError.mousePositionOutOfBounds
         }
-        guard let bytes = terminalView.captureMouseClickReports(
+        guard let bytes = try terminalView.captureMouseClickReports(
             button: button.swiftTermButton, column: column - 1, row: row - 1
         ) else {
             throw TerminalToolError.mouseReportingUnavailable
