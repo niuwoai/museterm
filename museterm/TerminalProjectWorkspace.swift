@@ -103,7 +103,7 @@ extension TerminalWorkspace {
     func closeLayoutTab(_ id: UUID, skipConfirmation: Bool = false) -> Bool {
         guard let tab = projectLayout.projects.flatMap(\.tabs).first(where: { $0.id == id }) else { return false }
         let targets = sessionRegistry.sessions.values.filter { tab.layout.terminalIDs.contains($0.id) }
-        if !skipConfirmation && targets.contains(where: \.hasRunningProcess) {
+        if !skipConfirmation && targets.contains(where: \.hasForegroundProcess) {
             let alert = NSAlert()
             alert.messageText = L10n.string("project.close_tab.title")
             alert.informativeText = L10n.format("project.close_tab.message", targets.count)
@@ -119,7 +119,7 @@ extension TerminalWorkspace {
     func closeProject(_ id: UUID, skipConfirmation: Bool = false) -> Bool {
         guard let project = projectLayout.projects.first(where: { $0.id == id }) else { return false }
         let targets = sessionRegistry.sessions.values.filter { project.tabs.flatMap { $0.layout.terminalIDs }.contains($0.id) }
-        if !skipConfirmation && targets.contains(where: \.hasRunningProcess) {
+        if !skipConfirmation && targets.contains(where: \.hasForegroundProcess) {
             let alert = NSAlert()
             alert.messageText = L10n.string("project.delete.title")
             alert.informativeText = L10n.format("project.delete.message", project.name, targets.count)
