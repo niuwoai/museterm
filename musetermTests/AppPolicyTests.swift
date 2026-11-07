@@ -400,6 +400,38 @@ final class AppPolicyTests: XCTestCase {
         XCTAssertEqual(reloaded.visibleSidebarSections.first, .fileTransfer)
     }
 
+    func testSidebarSectionExpansionPersistsOnlyDeparturesFromDefault() throws {
+        let suiteName = "museterm.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let preferences = TerminalPreferences(defaults: defaults)
+        XCTAssertTrue(preferences.sidebarSectionExpansionOverrides.isEmpty)
+        XCTAssertTrue(preferences.isSidebarSectionExpanded(.quickPaths))
+        XCTAssertTrue(preferences.isSidebarSectionExpanded(.learnedCommands))
+        XCTAssertFalse(preferences.isSidebarSectionExpanded(.shortcuts))
+        XCTAssertFalse(preferences.isSidebarSectionExpanded(.fileTransfer))
+        XCTAssertFalse(preferences.isSidebarSectionExpanded(.profiles))
+        XCTAssertFalse(preferences.isSidebarSectionExpanded(.sshHosts))
+
+        preferences.setSidebarSection(.shortcuts, expanded: true)
+        preferences.setSidebarSection(.quickPaths, expanded: false)
+        // 和默认一致的选择不该留下记录。
+        preferences.setSidebarSection(.fileTransfer, expanded: false)
+
+        let reloaded = TerminalPreferences(defaults: defaults)
+        XCTAssertEqual(reloaded.sidebarSectionExpansionOverrides, [.quickPaths, .shortcuts])
+        XCTAssertTrue(reloaded.isSidebarSectionExpanded(.shortcuts))
+        XCTAssertFalse(reloaded.isSidebarSectionExpanded(.quickPaths))
+        XCTAssertFalse(reloaded.isSidebarSectionExpanded(.fileTransfer))
+
+        reloaded.setSidebarSection(.shortcuts, expanded: false)
+        XCTAssertEqual(
+            TerminalPreferences(defaults: defaults).sidebarSectionExpansionOverrides,
+            [.quickPaths]
+        )
+    }
+
     func testSidebarSectionOrderDropsUnknownValuesAndKeepsMissingSections() {
         let normalized = SidebarSectionKind.normalizedOrder(["sshHosts", "nope", "sshHosts", "shortcuts"])
         XCTAssertEqual(
