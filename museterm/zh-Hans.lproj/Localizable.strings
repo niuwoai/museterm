@@ -800,6 +800,8 @@
 "settings.tools.revoke_client" = "撤销 museterm CLI";
 "settings.tools.client_pair_success" = "已通过 Keychain 配对 museterm CLI。";
 "settings.tools.client_pair_failed" = "无法创建 Keychain 配对。";
+"settings.tools.client_pair_failed_status" = "无法创建 Keychain 配对。macOS 错误 %d：%@。请再试一次；如果系统弹出钥匙串提示，请允许。";
+"settings.tools.client_pair_failed_reason" = "无法创建 Keychain 配对：%@。";
 "settings.tools.client_revoked" = "已撤销 museterm CLI 写入权限。";
 "settings.tools.audit_path" = "访问审计日志";
 "settings.tools.install_path" = "CLI 安装路径";

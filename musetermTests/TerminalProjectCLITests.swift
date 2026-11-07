@@ -106,7 +106,7 @@ final class TerminalProjectCLITests: XCTestCase {
         defer { bridge.stop() }
         MuseTermKeychain._useTestStorage(true)
         defer { MuseTermKeychain._useTestStorage(false) }
-        XCTAssertTrue(MuseTermKeychain.save("project-fixture-only", account: "museterm-cli", serviceName: TerminalToolAccess.keychainServiceName))
+        XCTAssertNoThrow(try MuseTermKeychain.save("project-fixture-only", account: "museterm-cli", serviceName: TerminalToolAccess.keychainServiceName))
         let deniedID = UUID().uuidString
         let disabledRequest: [String: Any] = ["id": deniedID, "action": "project_layout", "clientID": "museterm-cli",
             "authToken": "project-fixture-only", "projectRequest": ["operation": "createProject", "name": "disabled",

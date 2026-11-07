@@ -1210,7 +1210,7 @@ final class TerminalRuntimeViewTests: XCTestCase {
         try await waitUntil("tool bridge viewer subscription") { session.controller.runtimeHandle?.connected == true }
         MuseTermKeychain._useTestStorage(true)
         defer { MuseTermKeychain._useTestStorage(false) }
-        XCTAssertTrue(MuseTermKeychain.save("fixture-only-token", account: "runtime-fixture", serviceName: TerminalToolAccess.keychainServiceName))
+        XCTAssertNoThrow(try MuseTermKeychain.save("fixture-only-token", account: "runtime-fixture", serviceName: TerminalToolAccess.keychainServiceName))
         let toolRoot = root.appendingPathComponent("bridge")
         let bridge = TerminalToolBridge(rootDirectory: toolRoot)
         bridge.attach(workspace: workspace)
@@ -1263,7 +1263,7 @@ final class TerminalRuntimeViewTests: XCTestCase {
         try await waitUntil("Agent tool runtime attached") { session.controller.runtimeHandle?.connected == true }
         MuseTermKeychain._useTestStorage(true)
         defer { MuseTermKeychain._useTestStorage(false) }
-        XCTAssertTrue(MuseTermKeychain.save("agent-fixture-token", account: "agent-runtime-fixture", serviceName: TerminalToolAccess.keychainServiceName))
+        XCTAssertNoThrow(try MuseTermKeychain.save("agent-fixture-token", account: "agent-runtime-fixture", serviceName: TerminalToolAccess.keychainServiceName))
         let toolRoot = root.appendingPathComponent("agent-bridge")
         let bridge = TerminalToolBridge(rootDirectory: toolRoot)
         bridge.attach(workspace: workspace)
