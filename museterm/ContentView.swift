@@ -46,6 +46,7 @@ struct ContentView: View {
                     preferences: preferences,
                     aiCommandAssistant: aiCommandAssistant
                 )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 if rightPanel == .sessionTunnel, let selectedTab = workspace.selectedTab {
                     SessionTunnelInspectorView(
@@ -70,6 +71,16 @@ struct ContentView: View {
                 }
                 if rightPanel == nil {
                     TerminalPreviewSidebar(sourceID: workspace.selectedID)
+                }
+                if rightPanel != .sessionTunnel, let selectedTab = workspace.selectedTab {
+                    TerminalGalleryColumn(
+                        gallery: selectedTab.gallery,
+                        onOpen: { item in
+                            guard let image = item.image else { return }
+                            TerminalPreviewCenter.shared.open(source: selectedTab, image: image, title: item.name)
+                        },
+                        onDelete: { item in selectedTab.controller.deleteGalleryItem(item.id) }
+                    )
                 }
             }
 

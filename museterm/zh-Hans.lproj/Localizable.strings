@@ -60,6 +60,9 @@
 "preview.zoom_in" = "放大";
 "preview.zoom_out" = "缩小";
 "preview.fit" = "适应窗口";
+"gallery.open" = "查看大图";
+"gallery.delete" = "删除图片";
+"gallery.rejected" = "未接收";
 "preview.load_error" = "无法预览：请确认文件存在、格式受支持且未超出大小限制（Markdown 2 MiB、图片 20 MiB）。";
 "preview.remote_error" = "部分网络图片未能加载，可稍后重试。";
 "preview.accepted" = "预览请求已接收；加载结果显示在来源终端的预览区。";

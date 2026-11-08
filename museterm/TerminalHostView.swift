@@ -117,6 +117,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private var activeSessionTunnel: SessionTunnelBridge?
     private var activeSessionTunnelID: UUID?
     private let shellIntegrationParser = TerminalShellIntegrationParser()
+    private var galleryObservation: TerminalOscObservation?
     private var pendingShellIntegrationEvents: [(event: TerminalShellIntegrationEvent, commandID: UUID?)] = []
     private var runtimeParsingOffset: UInt64?
     private weak var preferences: TerminalPreferences?
@@ -183,6 +184,20 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         )
         super.init()
         configureViews()
+        observeGallery()
+    }
+
+    /// Watches for the private gallery sequence. The parser swallows an OSC number it does not
+    /// know, so this is the only way the host learns about it, and the bytes never reach the
+    /// screen. The callback arrives on the parser's own queue, after the terminal lock is free.
+    private func observeGallery() {
+        let galleryCode = TerminalGalleryProtocol.oscCode
+        galleryObservation = terminalView.observeOscEvents { [weak self] event in
+            guard event.code == galleryCode else { return }
+            DispatchQueue.main.async {
+                self?.session?.gallery.receive(event.payload)
+            }
+        }
     }
 
     func apply(preferences: TerminalPreferences) {
@@ -665,6 +680,52 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.send(source: terminalView, data: bytes[...])
     }
 
+    /// Sends one gallery frame as human input, but records and safety-checks only its short
+    /// description. The frame is an OSC body with no line break, so it cannot be played back as a
+    /// command, and the image bytes never enter the recording.
+    func sendGalleryFrame(_ outgoing: TerminalGalleryProtocol.Outgoing) -> Bool {
+        guard session?.gallery.joined == true, activeSessionTunnel == nil,
+              activeZModemTransfer == nil else { return false }
+        let validation = Array(outgoing.validationText.utf8)
+        for frame in outgoing.frames {
+            let accepted: Bool
+            if let runtimeInputQueue {
+                accepted = runtimeInputQueue.enqueue(frame, source: .human, owner: nil,
+                                                      validationBytes: validation)
+            } else {
+                terminalView.sendBackend(frame[...])
+                accepted = true
+            }
+            guard accepted else { return false }
+        }
+        return true
+    }
+
+    /// A picture pasted into a tab whose program asked for the gallery. Text on the pasteboard is
+    /// left for the normal paste, so a paste that also carries text still arrives as text.
+    private func deliverPastedImage() -> Bool {
+        guard session?.gallery.joined == true,
+              let pasted = TerminalGalleryPasteboard.pngImage() else { return false }
+        let nonce = UUID().uuidString.lowercased()
+        guard let outgoing = TerminalGalleryProtocol.drop(nonce: nonce, png: pasted.png) else { return false }
+        session?.gallery.stagePaste(nonce: nonce, image: pasted.image)
+        guard sendGalleryFrame(outgoing) else {
+            session?.gallery.reset()
+            return false
+        }
+        return false
+    }
+
+    func deleteGalleryItem(_ id: String) {
+        guard let item = session?.gallery.item(id) else { return }
+        if case .rejected = item.state {
+            session?.gallery.receive(Array("v=1;remove;\(id)".utf8))
+            return
+        }
+        guard item.canDelete, let outgoing = TerminalGalleryProtocol.delete(id: id) else { return }
+        _ = sendGalleryFrame(outgoing)
+    }
+
     var isProcessRunning: Bool {
         didStart && terminalView.backendIsRunning
     }
@@ -931,6 +992,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             self?.session?.onPaneFocus?()
             self?.focusTerminal()
         }
+        terminalView.onPaste = { [weak self] in
+            self?.deliverPastedImage() ?? false
+        }
         terminalView.onReadyForProcessStart = { [weak self] in
             self?.schedulePendingProcessStartIfReady()
         }
@@ -1026,16 +1090,16 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             return true
         }
         terminalView.onReceivedProcessData = { [weak self] data in
-            guard let self else { return false }
-            if self.handleProcessOutputForSessionTunnel(data) {
-                return true
-            }
+            guard let self else { return nil }
+            if self.handleProcessOutputForSessionTunnel(data) { return [] }
             self.observeSSHProcessOutput(data)
-            if self.handleProcessOutputForZModem(data) {
-                return true
-            }
+            if self.handleProcessOutputForZModem(data) { return [] }
+            // The frames stay in the bytes the screen parses. The parser swallows this OSC number
+            // and reports it through the observation, which is what fills the column. The shell
+            // integration parser keeps at most its own retained limit, so a frame whose marker
+            // happens to start the same way cannot grow its buffer without bound.
             self.handleProcessOutputForShellIntegration(data)
-            return false
+            return nil
         }
         terminalView.onProcessOutputCommitted = { [weak self] in
             guard let self else { return }

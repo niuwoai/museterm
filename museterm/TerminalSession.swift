@@ -311,6 +311,9 @@ final class TerminalSession: ObservableObject, Identifiable {
     @Published private(set) var isPlayingShortcut = false
     @Published private(set) var fileTransferStatus: TerminalFileTransferStatus?
     @Published private(set) var sessionTunnelStatus: SessionTunnelStatus?
+    /// The narrow image column for this tab. It stays empty, and takes no width, until a program
+    /// inside the tab announces that it speaks the gallery protocol.
+    let gallery = TerminalGalleryState()
     @Published private(set) var commandBlocks: [TerminalCommandBlock] = []
     @Published private(set) var historySearchSnapshot = ""
     @Published private(set) var hasUnreadAttention = false

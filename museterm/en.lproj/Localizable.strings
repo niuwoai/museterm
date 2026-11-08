@@ -60,6 +60,9 @@
 "preview.zoom_in" = "Zoom in";
 "preview.zoom_out" = "Zoom out";
 "preview.fit" = "Fit to window";
+"gallery.open" = "View full image";
+"gallery.delete" = "Remove image";
+"gallery.rejected" = "Not accepted";
 "preview.load_error" = "Cannot preview: check the file, supported format and size limit (Markdown 2 MiB, images 20 MiB).";
 "preview.remote_error" = "Some remote images could not be loaded. Try again later.";
 "preview.accepted" = "Preview accepted; loading results appear beside the source terminal.";
