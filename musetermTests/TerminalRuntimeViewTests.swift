@@ -380,7 +380,7 @@ final class TerminalRuntimeViewTests: XCTestCase {
         var observed = Data()
         view.onTerminalBell = { bells += 1 }
         view.externalSend = { bytes, _ in replies.append(Data(bytes)); return true }
-        view.onReceivedProcessData = { bytes in observed.append(contentsOf: bytes); return false }
+        view.onReceivedProcessData = { bytes in observed.append(contentsOf: bytes); return nil }
         let history = Data("old\u{7}\u{1b}[5n".utf8)
         let live = Data("new\u{7}\u{1b}[5n".utf8)
         await withCheckedContinuation { continuation in

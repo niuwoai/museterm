@@ -8,6 +8,9 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     var externalIsRunning: (() -> Bool)?
     var externalSend: (([UInt8], Bool) -> Bool)?
     var externalPaste: ((_ framedBytes: [UInt8], _ textBytes: [UInt8]) -> Bool)?
+    /// Asked before a paste is written. Returning true means the paste was handled, so the text
+    /// paste must not also run.
+    var onPaste: (() -> Bool)?
     var externalBackendSend: (([UInt8]) -> Bool)?
     private var externalFeedCompletion: (() -> Void)?
     private(set) var isReplayingHistoricalOutput = false
@@ -120,7 +123,9 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     var onPreviewFile: ((URL) -> Void)?
     var onPreviewMarkdown: ((String) -> Void)?
     var onSendToProcess: ((_ data: [UInt8], _ echoEnabled: Bool) -> Bool)?
-    var onReceivedProcessData: ((_ data: ArraySlice<UInt8>) -> Bool)?
+    /// Looks at output before it reaches the screen. `nil` leaves the bytes untouched. An empty
+    /// array consumes them, and any other array is what gets parsed instead.
+    var onReceivedProcessData: ((_ data: ArraySlice<UInt8>) -> [UInt8]?)?
     var onProcessOutputCommitted: (() -> Void)?
     private var terminalDelegateRouter: TerminalDelegateRouter?
     private var pendingResizeWorkItem: DispatchWorkItem?
@@ -677,6 +682,7 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
 
     override func paste(_ sender: Any) {
         onNeedsFocus?()
+        if onPaste?() == true { return }
         guard externalPaste != nil else { super.paste(sender); return }
         _ = sendPaste(NSPasteboard.general.string(forType: .string) ?? "")
     }
@@ -994,7 +1000,9 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     /// `LocalProcessTerminalView.dataReceived(slice:)` 标成不可用，所以这里改成自己的入口：
     /// 回放历史输出走它，真实进程的输出由我们自己的 `LocalProcess` 回调进来。
     private func acceptOutput(_ slice: ArraySlice<UInt8>) {
-        if !isReplayingHistoricalOutput, onReceivedProcessData?(slice) == true {
+        if !isReplayingHistoricalOutput, let replacement = onReceivedProcessData?(slice) {
+            if replacement.isEmpty { return }
+            acceptOutput(replacement[...])
             return
         }
         if !isReplayingHistoricalOutput, shouldRecordInput?() == true, !isExpectedEcho(slice) {

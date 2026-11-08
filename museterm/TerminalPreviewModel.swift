@@ -19,6 +19,8 @@ final class TerminalPreviewDocument: ObservableObject, Identifiable {
     let sourceTitle: String
     let url: URL?
     private let selectedText: String?
+    private let providedImage: Data?
+    private let providedTitle: String?
     @Published private(set) var content: TerminalPreviewContent?
     @Published private(set) var error: String?
     @Published private(set) var remoteError: String?
@@ -33,10 +35,12 @@ final class TerminalPreviewDocument: ObservableObject, Identifiable {
     private var lastStamp: String?
     private var loadingRemote = false
 
-    var title: String { url?.lastPathComponent ?? L10n.string("preview.selection") }
+    var title: String { providedTitle ?? url?.lastPathComponent ?? L10n.string("preview.selection") }
 
-    init(source: TerminalSession, url: URL? = nil, text: String? = nil) {
+    init(source: TerminalSession, url: URL? = nil, text: String? = nil, image: NSImage? = nil, title: String? = nil) {
         sourceID = source.id; sourceTitle = source.title; self.url = url; selectedText = text
+        providedImage = image?.tiffRepresentation
+        providedTitle = title
         reload()
         if url != nil {
             timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
@@ -61,10 +65,11 @@ final class TerminalPreviewDocument: ObservableObject, Identifiable {
 
     func reload() {
         let token = UUID(); generation = token; loading = true; error = nil; lastStamp = stamp()
-        let url = url, text = selectedText, cache = remoteCache
+        let url = url, text = selectedText, cache = remoteCache, image = providedImage
         Task { [weak self] in
             let result = await Task.detached(priority: .userInitiated) {
                 Result { () throws -> TerminalPreviewContent in
+                    if let image { return TerminalPreviewContent(imageData: image) }
                     if let url { return try TerminalPreviewLoader.load(url, remoteCache: cache) }
                     return try TerminalPreviewLoader.render(text ?? "", remoteCache: cache)
                 }
@@ -118,6 +123,12 @@ final class TerminalPreviewCenter: NSObject, ObservableObject, NSWindowDelegate 
     func open(source: TerminalSession, url: URL? = nil, text: String? = nil) {
         close(source.id)
         documents[source.id] = TerminalPreviewDocument(source: source, url: url, text: text)
+    }
+
+    /// Opens one image that is already in memory. Nothing is read from disk and nothing is fetched.
+    func open(source: TerminalSession, image: NSImage, title: String) {
+        close(source.id)
+        documents[source.id] = TerminalPreviewDocument(source: source, image: image, title: title)
     }
 
     func chooseFile(source: TerminalSession) {
