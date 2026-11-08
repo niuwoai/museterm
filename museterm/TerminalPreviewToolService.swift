@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 @MainActor
@@ -13,13 +14,21 @@ enum TerminalPreviewToolService {
                   let deadline = preview.deadlineMonotonic, deadline.isFinite,
                   deadline > now, deadline - now <= 60 else { throw TerminalPreviewError.unsupported }
             if preview.close == true {
-                guard preview.path == nil, preview.markdown == nil else { throw TerminalPreviewError.unsupported }
+                guard preview.path == nil, preview.markdown == nil, preview.image == nil else { throw TerminalPreviewError.unsupported }
                 TerminalPreviewCenter.shared.close(source.id)
             }
-            else if let text = preview.markdown, preview.path == nil {
+            else if let text = preview.markdown, preview.path == nil, preview.image == nil {
                 guard text.utf8.count <= TerminalPreviewLoader.markdownLimit else { throw TerminalPreviewError.tooLarge }
                 TerminalPreviewCenter.shared.open(source: source, text: text)
-            } else if let path = preview.path, preview.markdown == nil {
+            } else if let encoded = preview.image, preview.path == nil, preview.markdown == nil {
+                guard encoded.utf8.count <= TerminalPreviewLoader.imageLimit * 4 / 3 + 8,
+                      let data = Data(base64Encoded: encoded, options: .ignoreUnknownCharacters),
+                      !data.isEmpty else { throw TerminalPreviewError.unsupported }
+                guard data.count <= TerminalPreviewLoader.imageLimit else { throw TerminalPreviewError.tooLarge }
+                let png = try TerminalPreviewLoader.thumbnail(data)
+                guard let image = NSImage(data: png) else { throw TerminalPreviewError.invalidImage }
+                TerminalPreviewCenter.shared.open(source: source, image: image, title: Self.imageTitle(preview.title))
+            } else if let path = preview.path, preview.markdown == nil, preview.image == nil {
                 // SSH paths are not local paths. An Agent on the remote host can send Markdown text instead.
                 guard source.executionContext.targetKind != .ssh, path.hasPrefix("/"), !path.utf8.contains(0)
                 else { throw TerminalPreviewError.unsupported }
@@ -37,5 +46,15 @@ enum TerminalPreviewToolService {
             return TerminalToolResponse(id: request.id, ok: false, snapshotSequence: snapshotSequence,
                 action: request.action, message: nil, error: L10n.string("preview.request_error"))
         }
+    }
+
+    /// A short label for the panel. Anything that could be a path or a control character is dropped,
+    /// and the panel falls back to its own generic title.
+    private static func imageTitle(_ value: String?) -> String {
+        guard let value, !value.isEmpty, value.count <= 120,
+              value.unicodeScalars.allSatisfy({ scalar in
+                  scalar.value >= 0x20 && scalar.value != 0x7f && scalar != "/" && scalar != "\\"
+              }) else { return "" }
+        return value
     }
 }
