@@ -10,6 +10,10 @@ struct TerminalPreviewRequest: Codable {
     var path: String? = nil
     var markdown: String? = nil
     var close: Bool? = nil
+    /// Base64 image bytes. The preview shows these without reading a file, which is how a model
+    /// that cannot write a picture to disk still puts one beside the terminal.
+    var image: String? = nil
+    var title: String? = nil
 }
 
 @MainActor

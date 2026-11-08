@@ -189,4 +189,37 @@ final class TerminalPreviewTests: XCTestCase {
         request.previewRequest?.deadlineMonotonic = TerminalProjectToolService.requestMonotonicTime() - 1
         XCTAssertFalse(TerminalPreviewToolService.perform(request, workspace: workspace, snapshotSequence: 1).ok)
     }
+
+    func testSuppliedImageOpensBesideTheSourceTerminal() throws {
+        let domain = "MuseTermPreviewTests.\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: domain))
+        defer { defaults.removePersistentDomain(forName: domain) }
+        let workspace = TerminalWorkspace(automaticallyStartProcesses: false, profileStore: nil)
+        let preferences = TerminalPreferences(defaults: defaults)
+        workspace.preferences = preferences
+        let source = try XCTUnwrap(workspace.selectedTab)
+        defer { TerminalPreviewCenter.shared.close(source.id) }
+
+        var request = try JSONDecoder().decode(TerminalToolRequest.self, from: Data("{\"id\":\"image\",\"action\":\"preview\",\"tab\":\"\(source.id)\"}".utf8))
+        request.previewRequest = TerminalPreviewRequest(
+            uiEpoch: workspace.sessionRegistry.events.appEpoch,
+            deadlineMonotonic: TerminalProjectToolService.requestMonotonicTime() + 2,
+            image: png.base64EncodedString(), title: "generated.png")
+
+        let response = TerminalPreviewToolService.perform(request, workspace: workspace, snapshotSequence: 1)
+        XCTAssertTrue(response.ok)
+        let document = try XCTUnwrap(TerminalPreviewCenter.shared.documents[source.id])
+        XCTAssertEqual(document.title, "generated.png")
+        for _ in 0..<100 {
+            if document.content?.imageData != nil { break }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.02))
+        }
+        XCTAssertNotNil(document.content?.imageData)
+
+        request.previewRequest?.image = Data("not an image".utf8).base64EncodedString()
+        XCTAssertFalse(TerminalPreviewToolService.perform(request, workspace: workspace, snapshotSequence: 2).ok)
+        request.previewRequest?.image = png.base64EncodedString()
+        request.previewRequest?.path = "/tmp/also.png"
+        XCTAssertFalse(TerminalPreviewToolService.perform(request, workspace: workspace, snapshotSequence: 3).ok)
+    }
 }
