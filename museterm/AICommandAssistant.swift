@@ -251,8 +251,13 @@ final class AICommandAssistantModel: ObservableObject {
     @Published var selectedCandidateID: AICommandSuggestion.ID?
     @Published private(set) var errorMessage = ""
     @Published private(set) var notice: AICommandAssistantNotice?
+    /// 这一轮用哪个 Provider 和模型。切换 Provider 会换掉模型列表。
+    @Published var modelChoice = AICommandModelChoice(provider: .magpie, model: "")
+    @Published private(set) var discoveredModels: [String] = []
+    @Published private(set) var isLoadingModels = false
 
     private weak var targetTab: TerminalSession?
+    private var modelDiscoveryTask: Task<Void, Never>?
     private var generationTask: Task<Void, Never>?
     private var noticeTask: Task<Void, Never>?
 
@@ -262,7 +267,7 @@ final class AICommandAssistantModel: ObservableObject {
         candidates.first { $0.id == selectedCandidateID } ?? candidates.first
     }
 
-    func present(for tab: TerminalSession) {
+    func present(for tab: TerminalSession, preferences: TerminalPreferences = TerminalPreferences()) {
         generationTask?.cancel()
         targetTab = tab
         context = AICommandContext(tab: tab)
@@ -271,7 +276,50 @@ final class AICommandAssistantModel: ObservableObject {
         selectedCandidateID = nil
         errorMessage = ""
         clearNotice()
+        modelChoice = AICommandModelChoice.preferred(preferences: preferences)
         phase = .composing
+        loadModels(preferences: preferences)
+    }
+
+    /// 换 Provider：模型列表跟着换，选中项回到新 Provider 的默认模型。
+    func selectProvider(_ provider: AIProviderKind, preferences: TerminalPreferences) {
+        guard provider != modelChoice.provider else { return }
+        modelChoice = modelChoice.switching(to: provider)
+        loadModels(preferences: preferences)
+    }
+
+    func selectModel(_ model: String) {
+        modelChoice.model = model
+    }
+
+    private func loadModels(preferences: TerminalPreferences) {
+        modelDiscoveryTask?.cancel()
+        let provider = modelChoice.provider
+        discoveredModels = []
+        let baseURL = provider.defaultBaseURL
+        guard !baseURL.isEmpty else {
+            isLoadingModels = false
+            return
+        }
+        let savedKey = preferences.loadAIAPIKey()
+        let apiKey = savedKey.isEmpty && provider == .magpie
+            ? AIProviderKind.magpieLocalGatewayAPIKey
+            : savedKey
+        guard provider.isLocalProvider || !apiKey.isEmpty else {
+            isLoadingModels = false
+            return
+        }
+        isLoadingModels = true
+        modelDiscoveryTask = Task { [weak self] in
+            let models = (try? await AIModelDiscovery(provider: provider, baseURL: baseURL, apiKey: apiKey).fetch()) ?? []
+            guard !Task.isCancelled, let self, self.modelChoice.provider == provider else { return }
+            self.discoveredModels = models
+            self.isLoadingModels = false
+            // 默认模型不在发现到的列表里时，改选列表里的第一个，免得指向一个不存在的模型。
+            if !models.isEmpty, !models.contains(self.modelChoice.model) {
+                self.modelChoice.model = models[0]
+            }
+        }
     }
 
     func generate(preferences: TerminalPreferences) {
@@ -287,7 +335,10 @@ final class AICommandAssistantModel: ObservableObject {
         generationTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let configuration = try await AIExplainClient.Configuration.resolving(preferences: preferences)
+                let configuration = try await AIExplainClient.Configuration.resolving(
+                    preferences: preferences,
+                    choice: modelChoice
+                )
                 let response = try await AIExplainClient(configuration: configuration).stream(
                     systemPrompt: L10n.string("ai_command.system_prompt"),
                     userPrompt: Self.userPrompt(request: request, context: context)
@@ -386,6 +437,9 @@ final class AICommandAssistantModel: ObservableObject {
     private func finish(with newNotice: AICommandAssistantNotice?) {
         generationTask?.cancel()
         generationTask = nil
+        modelDiscoveryTask?.cancel()
+        modelDiscoveryTask = nil
+        isLoadingModels = false
         targetTab = nil
         context = nil
         candidates = []
@@ -430,11 +484,13 @@ struct AICommandAssistantLayer: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             if model.phase == .composing {
+                // 输入条放在底部，菜单向上展开。
                 VStack {
                     Spacer()
                     AICommandComposerBar(model: model, preferences: preferences)
+                        .frame(maxWidth: 620)
                         .padding(.horizontal, 18)
-                        .padding(.bottom, 18)
+                        .padding(.bottom, 14)
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
@@ -474,6 +530,38 @@ enum AICommandComposerLayout {
     static let minimumBarHeight: CGFloat = 46
     static let contextRowSpacing: CGFloat = 4
     static let bottomRowSpacing: CGFloat = 10
+}
+
+/// 输入条里的 Provider 与模型选择。模型列表跟所选 Provider 走，切换 Provider 就换成它自己的列表。
+struct AICommandModelChoice: Equatable {
+    var provider: AIProviderKind
+    var model: String
+
+    /// 跟随设置里的选择；设置没选模型时用该 Provider 的默认模型。
+    static func preferred(preferences: TerminalPreferences) -> AICommandModelChoice {
+        let saved = preferences.aiModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        return AICommandModelChoice(
+            provider: preferences.aiProvider,
+            model: saved.isEmpty ? preferences.aiProvider.defaultModel : saved
+        )
+    }
+
+    /// 切换 Provider：新 Provider 的默认模型顶上，列表之外的旧模型不带过去。
+    func switching(to provider: AIProviderKind) -> AICommandModelChoice {
+        AICommandModelChoice(provider: provider, model: provider.defaultModel)
+    }
+
+    /// 当前 Provider 下能选的模型：发现到的列表优先，再补上默认模型和当前选中的。
+    func models(discovered: [String]) -> [String] {
+        var seen: Set<String> = []
+        var result: [String] = []
+        for candidate in discovered + [provider.defaultModel, model] {
+            let trimmed = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, seen.insert(trimmed).inserted else { continue }
+            result.append(trimmed)
+        }
+        return result
+    }
 }
 
 nonisolated enum AICommandComposerKeyAction: Equatable {
@@ -602,6 +690,7 @@ private struct AICommandComposerBar: View {
                         }
                     }
                     .help(L10n.string("ai_command.input.keyboard_help"))
+                modelPickers
                 HStack(spacing: AICommandComposerLayout.bottomRowSpacing) {
                     if let context = model.context {
                         Text(context.displaySummary)
@@ -638,8 +727,7 @@ private struct AICommandComposerBar: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .frame(minHeight: AICommandComposerLayout.minimumBarHeight)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(preferences.skin.accent.opacity(0.32), lineWidth: 1)
@@ -647,6 +735,129 @@ private struct AICommandComposerBar: View {
         .shadow(color: .black.opacity(0.16), radius: 14, x: 0, y: 6)
         .onAppear { focused = true }
         .onExitCommand { model.dismiss() }
+    }
+
+    /// Provider 和模型两个选择框，模型列表跟着所选 Provider 变化。
+    private var modelPickers: some View {
+        HStack(spacing: 10) {
+            labeledMenu(
+                title: L10n.string("ai_command.provider"),
+                value: model.modelChoice.provider.name,
+                maxWidth: 170,
+                enabled: true,
+                menu: providerMenu
+            )
+            labeledMenu(
+                title: L10n.string("ai_command.model"),
+                value: model.modelChoice.model,
+                maxWidth: 250,
+                enabled: !model.modelChoice.models(discovered: model.discoveredModels).isEmpty,
+                menu: modelMenu
+            )
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func providerMenu() -> NSMenu {
+        let menu = NSMenu()
+        for provider in AIProviderKind.allCases {
+            let item = NSMenuItem(title: provider.name, action: #selector(AICommandMenuButtonView.pick(_:)), keyEquivalent: "")
+            item.state = provider == model.modelChoice.provider ? .on : .off
+            item.representedObject = { [model, preferences] in
+                model.selectProvider(provider, preferences: preferences)
+            }
+            menu.addItem(item)
+        }
+        return menu
+    }
+
+    private func modelMenu() -> NSMenu {
+        let menu = NSMenu()
+        for name in model.modelChoice.models(discovered: model.discoveredModels) {
+            let item = NSMenuItem(title: name, action: #selector(AICommandMenuButtonView.pick(_:)), keyEquivalent: "")
+            item.state = name == model.modelChoice.model ? .on : .off
+            item.representedObject = { [model] in model.selectModel(name) }
+            menu.addItem(item)
+        }
+        return menu
+    }
+
+    /// 标题在左、胶囊限宽。行本身不锁死宽度，长名字能占到上限再截断。
+    private func labeledMenu(title: String, value: String, maxWidth: CGFloat, enabled: Bool, menu: @escaping () -> NSMenu) -> some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .fixedSize()
+            capsule(value: value, width: maxWidth)
+                .overlay {
+                    AICommandMenuButton(enabled: enabled, menu: menu) { Color.clear }
+                }
+        }
+        .fixedSize(horizontal: true, vertical: false)
+        .opacity(enabled ? 1 : 0.55)
+        .help(title)
+    }
+
+    private func capsule(value: String, width: CGFloat) -> some View {
+        HStack(spacing: 6) {
+            Text(value.isEmpty ? L10n.string("ai_command.model.none") : value)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 3)
+        .frame(width: width, alignment: .leading)
+        .background(preferences.skin.controlFill, in: Capsule())
+        .overlay(Capsule().strokeBorder(preferences.skin.hairline, lineWidth: 1))
+    }
+}
+
+/// 透明的点击层，盖在 SwiftUI 画的胶囊上。菜单挂在窗口层弹出，
+/// 不走 SwiftUI 的 Picker，否则菜单会被输入条所在的图层裁掉。
+private struct AICommandMenuButton<Label: View>: NSViewRepresentable {
+    let enabled: Bool
+    let menu: () -> NSMenu
+    let label: Label
+
+    init(enabled: Bool, menu: @escaping () -> NSMenu, @ViewBuilder label: () -> Label) {
+        self.enabled = enabled
+        self.menu = menu
+        self.label = label()
+    }
+
+    func makeNSView(context: Context) -> AICommandMenuButtonView {
+        let view = AICommandMenuButtonView()
+        view.menuProvider = menu
+        return view
+    }
+
+    func updateNSView(_ view: AICommandMenuButtonView, context: Context) {
+        view.isEnabled = enabled
+        view.menuProvider = menu
+    }
+}
+
+private final class AICommandMenuButtonView: NSView {
+    var isEnabled = true
+    var menuProvider: (() -> NSMenu)?
+
+    override var intrinsicContentSize: NSSize { NSSize(width: 60, height: 22) }
+
+    override func mouseDown(with event: NSEvent) {
+        guard isEnabled, let menu = menuProvider?() else { return }
+        // 锚定最后一项并放在输入条上沿，菜单向上展开，避免贴着窗口底边时被屏幕裁掉。
+        menu.popUp(positioning: menu.item(at: menu.numberOfItems - 1), at: NSPoint(x: 0, y: bounds.height + 4), in: self)
+    }
+
+    @objc func pick(_ sender: NSMenuItem) {
+        (sender.representedObject as? () -> Void)?()
     }
 }
 

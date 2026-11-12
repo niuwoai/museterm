@@ -983,6 +983,10 @@
 "settings.ai_command.activation.disabled" = "关闭";
 "ai_command.title" = "AI 助手";
 "ai_command.input.placeholder" = "描述你想让终端做什么";
+"ai_command.provider" = "服务";
+"ai_command.model" = "模型";
+"ai_command.model.loading" = "正在读取模型…";
+"ai_command.model.none" = "没有可用模型";
 "ai_command.input.keyboard_help" = "按 Enter 生成，按 Shift-Enter 换行。";
 "ai_command.generate" = "生成命令";
 "ai_command.close_help" = "关闭并结束本轮 AI 辅助";

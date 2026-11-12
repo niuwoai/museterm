@@ -191,7 +191,7 @@ struct ContentView: View {
         }
         rightPanel = nil
         commandPalettePresentation.dismiss()
-        aiCommandAssistant.present(for: selectedTab)
+        aiCommandAssistant.present(for: selectedTab, preferences: preferences)
     }
 
     private func toggleRightPanel(_ panel: TerminalRightPanel) {

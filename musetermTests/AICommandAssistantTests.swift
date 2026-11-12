@@ -13,6 +13,59 @@ final class AICommandAssistantTests: XCTestCase {
         XCTAssertEqual(AICommandComposerLayout.bottomRowSpacing, 10)
     }
 
+    func testModelListFollowsTheSelectedProvider() {
+        let ollama = AICommandModelChoice(provider: .ollama, model: "llama3.1")
+        XCTAssertEqual(ollama.models(discovered: ["qwen2.5", "llama3.1"]), ["qwen2.5", "llama3.1"])
+
+        let switched = ollama.switching(to: .magpie)
+        XCTAssertEqual(switched.provider, .magpie)
+        XCTAssertEqual(switched.model, "")
+        XCTAssertEqual(switched.models(discovered: ["magpie-fast"]), ["magpie-fast"])
+        XCTAssertFalse(switched.models(discovered: ["magpie-fast"]).contains("llama3.1"))
+    }
+
+    func testModelListKeepsTheCurrentChoiceAheadOfDiscovery() {
+        let choice = AICommandModelChoice(provider: .openAI, model: "gpt-4.1")
+        XCTAssertEqual(choice.models(discovered: []), ["gpt-4.1"])
+        XCTAssertEqual(choice.models(discovered: ["gpt-4.1", "gpt-4.1-mini"]), ["gpt-4.1", "gpt-4.1-mini"])
+    }
+
+    func testPreferredChoiceFollowsSavedSettings() throws {
+        let suiteName = "museterm.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let preferences = TerminalPreferences(defaults: defaults)
+        preferences.aiProvider = .ollama
+        preferences.aiModel = "qwen2.5"
+
+        let choice = AICommandModelChoice.preferred(preferences: preferences)
+        XCTAssertEqual(choice.provider, .ollama)
+        XCTAssertEqual(choice.model, "qwen2.5")
+    }
+
+    @MainActor
+    func testSelectingProviderInTheComposerSwapsTheModelList() {
+        let model = AICommandAssistantModel()
+        model.modelChoice = AICommandModelChoice(provider: .ollama, model: "llama3.1")
+
+        let suiteName = "museterm.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let preferences = TerminalPreferences(defaults: defaults)
+
+        model.selectProvider(.magpie, preferences: preferences)
+        XCTAssertEqual(model.modelChoice.provider, .magpie)
+        XCTAssertNotEqual(model.modelChoice.model, "llama3.1")
+        XCTAssertTrue(model.discoveredModels.isEmpty)
+
+        model.selectModel("magpie-fast")
+        XCTAssertEqual(model.modelChoice.model, "magpie-fast")
+
+        model.selectProvider(.magpie, preferences: preferences)
+        XCTAssertEqual(model.modelChoice.model, "magpie-fast")
+    }
+
     func testComposerKeyboardActionsDistinguishSubmitAndNewline() {
         XCTAssertEqual(
             AICommandComposerKeyResolver.action(keyCode: 36, modifierFlags: []),

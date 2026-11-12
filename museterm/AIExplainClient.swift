@@ -16,6 +16,35 @@ struct AIExplainClient {
             self.apiKey = apiKey
         }
 
+        /// 输入条里临时选的 Provider 和模型。设置里的选择不变，只影响这一次请求。
+        static func resolving(preferences: TerminalPreferences, choice: AICommandModelChoice) async throws -> Configuration {
+            let resolved = try await resolving(preferences: preferences)
+            let model = choice.model.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !model.isEmpty else { throw AIExplainError.missingModel }
+            guard choice.provider == resolved.provider else {
+                let savedKey = preferences.loadAIAPIKey()
+                let apiKey = savedKey.isEmpty && choice.provider == .magpie ? magpieApplicationKey : savedKey
+                if !choice.provider.isLocalProvider, apiKey.isEmpty {
+                    throw AIExplainError.missingAPIKey(choice.provider.name)
+                }
+                return Configuration(
+                    provider: choice.provider,
+                    providerName: choice.provider.name,
+                    model: model,
+                    baseURL: choice.provider.defaultBaseURL,
+                    apiKey: apiKey
+                )
+            }
+            guard model != resolved.model else { return resolved }
+            return Configuration(
+                provider: resolved.provider,
+                providerName: resolved.providerName,
+                model: model,
+                baseURL: resolved.baseURL,
+                apiKey: resolved.apiKey
+            )
+        }
+
         static func resolving(preferences: TerminalPreferences) async throws -> Configuration {
             let savedAPIKey = preferences.loadAIAPIKey()
             let apiKey = savedAPIKey.isEmpty ? magpieApplicationKey : savedAPIKey
