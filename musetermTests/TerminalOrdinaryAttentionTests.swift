@@ -11,8 +11,10 @@ final class TerminalOrdinaryAttentionTests: XCTestCase {
     }
 
     private func input(_ event: TerminalAttentionEventKind, selected: Bool = false,
-                       enabled: Bool = true) -> TerminalNotificationPolicyInput {
-        TerminalNotificationPolicyInput(event: event, appIsActive: true, tabIsSelected: selected,
+                       enabled: Bool = true, active: Bool = true,
+                       aiControlled: Bool = false) -> TerminalNotificationPolicyInput {
+        TerminalNotificationPolicyInput(event: event, appIsActive: active, tabIsSelected: selected,
+            aiControlled: aiControlled,
             notificationsEnabled: enabled, showInactiveTabBadges: true, notifyBells: true,
             notifyCommandFailures: true, notifyLongCommandCompletion: true, notifyProcessExits: true,
             longCommandThresholdSeconds: 10, failureMinimumDurationSeconds: 1)
@@ -23,6 +25,31 @@ final class TerminalOrdinaryAttentionTests: XCTestCase {
         return TerminalCommandBlock(id: id, command: "build private-input", startedAt: end.addingTimeInterval(-20),
             endedAt: end, exitCode: exitCode, outputTail: "private-output", outputCharacterCount: 14,
             isInteractive: false, commandStartSource: .shellIntegration, completionSource: .shellIntegration)
+    }
+
+    func testAIControlSuppressesBackgroundCompletionButKeepsFailureAndBell() throws {
+        let (registry, session) = fixture()
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("museterm-ai-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try session.takeAIControl(owner: "agent", archiveDirectory: directory)
+        defer { session.releaseAIControl(reason: "test_finished") }
+
+        let completed = command()
+        let completion = input(.commandFinished(completed), active: false, aiControlled: true)
+        XCTAssertNotNil(registry.attention.recordTerminal(.commandFinished(completed), session: session, input: completion))
+        XCTAssertEqual(TerminalNotificationPolicy.delivery(for: completion), .none)
+
+        let failed = command(exitCode: 1)
+        let failure = input(.commandFinished(failed), active: false, aiControlled: true)
+        XCTAssertEqual(TerminalNotificationPolicy.delivery(for: failure), .systemNotification(markTabBadge: true))
+
+        let bell = input(.bell, active: false, aiControlled: true)
+        XCTAssertEqual(TerminalNotificationPolicy.delivery(for: bell), .systemNotification(markTabBadge: true))
+
+        session.releaseAIControl(reason: "human_unlock")
+        let afterUnlock = command()
+        let humanCompletion = input(.commandFinished(afterUnlock), active: false)
+        XCTAssertEqual(TerminalNotificationPolicy.delivery(for: humanCompletion), .systemNotification(markTabBadge: true))
     }
 
     func testBellCreatesOneUnreadItemAndMergesRepeatedBells() throws {

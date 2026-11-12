@@ -983,6 +983,10 @@
 "settings.ai_command.activation.disabled" = "Disabled";
 "ai_command.title" = "AI Assistant";
 "ai_command.input.placeholder" = "Describe what you want the terminal to do";
+"ai_command.provider" = "Provider";
+"ai_command.model" = "Model";
+"ai_command.model.loading" = "Loading models…";
+"ai_command.model.none" = "No models available";
 "ai_command.input.keyboard_help" = "Press Enter to generate. Press Shift-Enter for a new line.";
 "ai_command.generate" = "Generate commands";
 "ai_command.close_help" = "Close and end this AI session";

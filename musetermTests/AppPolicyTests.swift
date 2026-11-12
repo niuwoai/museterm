@@ -516,6 +516,65 @@ final class AppPolicyTests: XCTestCase {
         }
     }
 
+    func testNotificationPolicySkipsCompletionWhileAIControlledInBackground() {
+        let block = commandBlock(exitCode: 0, duration: 42, outputSummary: nil)
+        let delivery = TerminalNotificationPolicy.delivery(for: notificationPolicyInput(
+            event: .commandFinished(block),
+            appIsActive: false,
+            tabIsSelected: false,
+            aiControlled: true
+        ))
+
+        XCTAssertEqual(delivery, .none)
+    }
+
+    func testNotificationPolicyStillNotifiesCompletionInBackgroundWithoutAIControl() {
+        let block = commandBlock(exitCode: 0, duration: 42, outputSummary: nil)
+        let delivery = TerminalNotificationPolicy.delivery(for: notificationPolicyInput(
+            event: .commandFinished(block),
+            appIsActive: false,
+            tabIsSelected: false
+        ))
+
+        XCTAssertEqual(delivery, .systemNotification(markTabBadge: true))
+    }
+
+    func testNotificationPolicyKeepsForegroundBadgeForAIControlledTab() {
+        let block = commandBlock(exitCode: 0, duration: 42, outputSummary: nil)
+        let delivery = TerminalNotificationPolicy.delivery(for: notificationPolicyInput(
+            event: .commandFinished(block),
+            appIsActive: true,
+            tabIsSelected: false,
+            aiControlled: true
+        ))
+
+        XCTAssertEqual(delivery, .tabBadge)
+    }
+
+    func testNotificationPolicyStillNotifiesFailureWhileAIControlledInBackground() {
+        let block = commandBlock(
+            exitCode: 1,
+            duration: 12,
+            outputSummary: TerminalOutputSummary(
+                insightKinds: [.error],
+                errorLine: "fatal: port already in use",
+                warningLine: nil,
+                url: nil,
+                filePath: nil,
+                commitHash: nil,
+                stackTraceLine: nil
+            )
+        )
+        let delivery = TerminalNotificationPolicy.delivery(for: notificationPolicyInput(
+            event: .commandFinished(block),
+            appIsActive: false,
+            tabIsSelected: false,
+            aiControlled: true
+        ))
+
+        XCTAssertEqual(delivery, .systemNotification(markTabBadge: true))
+    }
+
     func testNotificationPolicyNotifiesObviousFailuresEvenWhenShort() {
         let block = commandBlock(
             exitCode: 1,
@@ -662,12 +721,14 @@ final class AppPolicyTests: XCTestCase {
     private func notificationPolicyInput(
         event: TerminalAttentionEventKind,
         appIsActive: Bool,
-        tabIsSelected: Bool
+        tabIsSelected: Bool,
+        aiControlled: Bool = false
     ) -> TerminalNotificationPolicyInput {
         TerminalNotificationPolicyInput(
             event: event,
             appIsActive: appIsActive,
             tabIsSelected: tabIsSelected,
+            aiControlled: aiControlled,
             notificationsEnabled: true,
             showInactiveTabBadges: true,
             notifyBells: true,
