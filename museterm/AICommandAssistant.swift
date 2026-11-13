@@ -258,6 +258,7 @@ final class AICommandAssistantModel: ObservableObject {
 
     private weak var targetTab: TerminalSession?
     private var modelDiscoveryTask: Task<Void, Never>?
+    private var modelByProvider: [AIProviderKind: String] = [:]
     private var generationTask: Task<Void, Never>?
     private var noticeTask: Task<Void, Never>?
 
@@ -276,15 +277,23 @@ final class AICommandAssistantModel: ObservableObject {
         selectedCandidateID = nil
         errorMessage = ""
         clearNotice()
+        modelByProvider = [:]
         modelChoice = AICommandModelChoice.preferred(preferences: preferences)
         phase = .composing
         loadModels(preferences: preferences)
     }
 
-    /// 换 Provider：模型列表跟着换，选中项回到新 Provider 的默认模型。
+    /// 换 Provider：保留本轮各服务已选模型，设置中的服务仍使用其保存的模型。
     func selectProvider(_ provider: AIProviderKind, preferences: TerminalPreferences) {
         guard provider != modelChoice.provider else { return }
-        modelChoice = modelChoice.switching(to: provider)
+        modelByProvider[modelChoice.provider] = modelChoice.model
+        var choice = modelChoice.switching(to: provider)
+        if let previousModel = modelByProvider[provider] {
+            choice.model = previousModel
+        } else if provider == preferences.aiProvider {
+            choice = AICommandModelChoice.preferred(preferences: preferences)
+        }
+        modelChoice = choice
         loadModels(preferences: preferences)
     }
 
@@ -296,12 +305,18 @@ final class AICommandAssistantModel: ObservableObject {
         modelDiscoveryTask?.cancel()
         let provider = modelChoice.provider
         discoveredModels = []
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-ui-testing-ai-command-composer") {
+            isLoadingModels = false
+            return
+        }
+        #endif
         let baseURL = provider.defaultBaseURL
         guard !baseURL.isEmpty else {
             isLoadingModels = false
             return
         }
-        let savedKey = preferences.loadAIAPIKey()
+        let savedKey = preferences.loadAIAPIKey(for: provider)
         let apiKey = savedKey.isEmpty && provider == .magpie
             ? AIProviderKind.magpieLocalGatewayAPIKey
             : savedKey
@@ -526,7 +541,9 @@ struct AICommandAssistantLayer: View {
 }
 
 enum AICommandComposerLayout {
+    static let minimumInputLines = 2
     static let maximumInputLines = 5
+    static let minimumInputHeight: CGFloat = 44
     static let minimumBarHeight: CGFloat = 46
     static let contextRowSpacing: CGFloat = 4
     static let bottomRowSpacing: CGFloat = 10
@@ -681,9 +698,17 @@ private struct AICommandComposerBar: View {
                     axis: .vertical
                 )
                     .textFieldStyle(.plain)
-                    .lineLimit(1...AICommandComposerLayout.maximumInputLines)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // 输入区至少两行，避免和下面的选择框挤成一条。
+                    .lineLimit(
+                        AICommandComposerLayout.minimumInputLines...AICommandComposerLayout.maximumInputLines
+                    )
+                    .frame(
+                        maxWidth: .infinity,
+                        minHeight: AICommandComposerLayout.minimumInputHeight,
+                        alignment: .topLeading
+                    )
                     .focused($focused)
+                    .accessibilityIdentifier("aiCommandQuery")
                     .background {
                         AICommandComposerKeyMonitor(isFocused: focused) {
                             model.generate(preferences: preferences)
@@ -760,10 +785,11 @@ private struct AICommandComposerBar: View {
 
     private func providerMenu() -> NSMenu {
         let menu = NSMenu()
+        menu.autoenablesItems = false
         for provider in AIProviderKind.allCases {
-            let item = NSMenuItem(title: provider.name, action: #selector(AICommandMenuButtonView.pick(_:)), keyEquivalent: "")
+            let item = NSMenuItem(title: provider.name, action: nil, keyEquivalent: "")
             item.state = provider == model.modelChoice.provider ? .on : .off
-            item.representedObject = { [model, preferences] in
+            installAICommandMenuPick(item) { [model, preferences] in
                 model.selectProvider(provider, preferences: preferences)
             }
             menu.addItem(item)
@@ -773,10 +799,13 @@ private struct AICommandComposerBar: View {
 
     private func modelMenu() -> NSMenu {
         let menu = NSMenu()
+        menu.autoenablesItems = false
         for name in model.modelChoice.models(discovered: model.discoveredModels) {
-            let item = NSMenuItem(title: name, action: #selector(AICommandMenuButtonView.pick(_:)), keyEquivalent: "")
+            let item = NSMenuItem(title: name, action: nil, keyEquivalent: "")
             item.state = name == model.modelChoice.model ? .on : .off
-            item.representedObject = { [model] in model.selectModel(name) }
+            installAICommandMenuPick(item) { [model] in
+                model.selectModel(name)
+            }
             menu.addItem(item)
         }
         return menu
@@ -791,7 +820,7 @@ private struct AICommandComposerBar: View {
                 .fixedSize()
             capsule(value: value, width: maxWidth)
                 .overlay {
-                    AICommandMenuButton(enabled: enabled, menu: menu) { Color.clear }
+                    AICommandMenuButton(enabled: enabled, title: title, value: value, menu: menu)
                 }
         }
         .fixedSize(horizontal: true, vertical: false)
@@ -821,43 +850,76 @@ private struct AICommandComposerBar: View {
 
 /// 透明的点击层，盖在 SwiftUI 画的胶囊上。菜单挂在窗口层弹出，
 /// 不走 SwiftUI 的 Picker，否则菜单会被输入条所在的图层裁掉。
-private struct AICommandMenuButton<Label: View>: NSViewRepresentable {
+private struct AICommandMenuButton: NSViewRepresentable {
     let enabled: Bool
+    let title: String
+    let value: String
     let menu: () -> NSMenu
-    let label: Label
 
-    init(enabled: Bool, menu: @escaping () -> NSMenu, @ViewBuilder label: () -> Label) {
-        self.enabled = enabled
-        self.menu = menu
-        self.label = label()
+    func sizeThatFits(
+        _ proposal: ProposedViewSize,
+        nsView: AICommandMenuButtonView,
+        context: Context
+    ) -> CGSize? {
+        guard let width = proposal.width, let height = proposal.height else { return nil }
+        return CGSize(width: width, height: height)
     }
 
     func makeNSView(context: Context) -> AICommandMenuButtonView {
         let view = AICommandMenuButtonView()
-        view.menuProvider = menu
+        view.setAccessibilityElement(true)
+        view.setAccessibilityRole(.popUpButton)
         return view
     }
 
     func updateNSView(_ view: AICommandMenuButtonView, context: Context) {
         view.isEnabled = enabled
         view.menuProvider = menu
+        view.setAccessibilityLabel(title)
+        view.setAccessibilityValue(value)
     }
+}
+
+/// NSMenuItem 的 target 是弱引用；用 representedObject 保留动作对象，
+/// 再显式设置 target，让系统菜单点击能找到接收者。
+final class AICommandMenuPick: NSObject {
+    private let body: () -> Void
+
+    init(_ body: @escaping () -> Void) {
+        self.body = body
+    }
+
+    @objc func invoke(_ sender: Any?) {
+        body()
+    }
+}
+
+func installAICommandMenuPick(_ item: NSMenuItem, _ body: @escaping () -> Void) {
+    let pick = AICommandMenuPick(body)
+    item.representedObject = pick
+    item.target = pick
+    item.action = #selector(AICommandMenuPick.invoke(_:))
+    item.isEnabled = true
 }
 
 private final class AICommandMenuButtonView: NSView {
     var isEnabled = true
     var menuProvider: (() -> NSMenu)?
 
-    override var intrinsicContentSize: NSSize { NSSize(width: 60, height: 22) }
-
-    override func mouseDown(with event: NSEvent) {
-        guard isEnabled, let menu = menuProvider?() else { return }
-        // 锚定最后一项并放在输入条上沿，菜单向上展开，避免贴着窗口底边时被屏幕裁掉。
-        menu.popUp(positioning: menu.item(at: menu.numberOfItems - 1), at: NSPoint(x: 0, y: bounds.height + 4), in: self)
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: NSView.noIntrinsicMetric, height: NSView.noIntrinsicMetric)
     }
 
-    @objc func pick(_ sender: NSMenuItem) {
-        (sender.representedObject as? () -> Void)?()
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        guard isEnabled, let menu = menuProvider?(), menu.numberOfItems > 0 else { return }
+        // 锚定最后一项并放在输入条上沿，菜单向上展开，避免贴着窗口底边时被屏幕裁掉。
+        menu.popUp(
+            positioning: menu.item(at: menu.numberOfItems - 1),
+            at: NSPoint(x: 0, y: bounds.height + 4),
+            in: self
+        )
     }
 }
 

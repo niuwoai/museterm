@@ -192,6 +192,47 @@ final class AIExplainClientTests: XCTestCase {
         XCTAssertEqual(preferences.aiModel, "llama3.1")
     }
 
+    func testComposerChoiceUsesTheSelectedProviderKey() async throws {
+        MuseTermKeychain._useTestStorage(true)
+        defer { MuseTermKeychain._useTestStorage(false) }
+        let preferences = try isolatedPreferences()
+        preferences.aiProvider = .someIM
+        XCTAssertTrue(preferences.saveAIAPIKey("saved-provider-key"))
+        preferences.aiProvider = .google
+        XCTAssertTrue(preferences.saveAIAPIKey("selected-provider-key"))
+        preferences.aiProvider = .someIM
+
+        let configuration = try await AIExplainClient.Configuration.resolving(
+            preferences: preferences,
+            choice: AICommandModelChoice(provider: .google, model: "gemini-2.5-pro")
+        )
+
+        XCTAssertEqual(configuration.provider, .google)
+        XCTAssertEqual(configuration.apiKey, "selected-provider-key")
+        XCTAssertEqual(preferences.aiProvider, .someIM)
+        XCTAssertEqual(preferences.loadAIAPIKey(), "saved-provider-key")
+    }
+
+    func testComposerChoiceDoesNotBorrowAnotherProvidersKey() async throws {
+        MuseTermKeychain._useTestStorage(true)
+        defer { MuseTermKeychain._useTestStorage(false) }
+        let preferences = try isolatedPreferences()
+        preferences.aiProvider = .someIM
+        XCTAssertTrue(preferences.saveAIAPIKey("saved-provider-key"))
+
+        do {
+            _ = try await AIExplainClient.Configuration.resolving(
+                preferences: preferences,
+                choice: AICommandModelChoice(provider: .anthropic, model: "test-model")
+            )
+            XCTFail("Expected a missing key for the selected provider")
+        } catch let error as AIExplainError {
+            guard case .missingAPIKey = error else {
+                return XCTFail("Expected missingAPIKey, got \(error)")
+            }
+        }
+    }
+
     func testComposerChoiceKeepsTheSavedBaseURLWhenTheProviderMatches() async throws {
         let preferences = try isolatedPreferences()
         preferences.aiProvider = .ollama
