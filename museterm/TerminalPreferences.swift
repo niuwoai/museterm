@@ -550,20 +550,25 @@ final class TerminalPreferences: ObservableObject {
     }
 
     func loadAIAPIKey() -> String {
+        loadAIAPIKey(for: aiProvider)
+    }
+
+    func loadAIAPIKey(for provider: AIProviderKind) -> String {
+        let account = aiAPIKeyAccount(for: provider)
         let current = MuseTermKeychain.load(
-            account: aiAPIKeyAccount,
+            account: account,
             serviceName: Self.aiKeychainServiceName
         )
         guard current.isEmpty else { return current }
 
-        let legacy = MuseTermKeychain.load(account: aiAPIKeyAccount)
+        let legacy = MuseTermKeychain.load(account: account)
         guard !legacy.isEmpty else { return "" }
         if (try? MuseTermKeychain.save(
             legacy,
-            account: aiAPIKeyAccount,
+            account: account,
             serviceName: Self.aiKeychainServiceName
         )) != nil {
-            MuseTermKeychain.delete(account: aiAPIKeyAccount)
+            MuseTermKeychain.delete(account: account)
         }
         return legacy
     }
@@ -588,7 +593,11 @@ final class TerminalPreferences: ObservableObject {
     }
 
     private var aiAPIKeyAccount: String {
-        "ai-provider/\(aiProvider.rawValue)/api-key"
+        aiAPIKeyAccount(for: aiProvider)
+    }
+
+    private func aiAPIKeyAccount(for provider: AIProviderKind) -> String {
+        "ai-provider/\(provider.rawValue)/api-key"
     }
 
     private func normalizeBuiltInAIProviderDefaults() {
