@@ -8,11 +8,9 @@ struct TerminalProjectCanvas: View {
         ZStack {
             if workspace.runtimeRecoveryIssue {
                 VStack {
-                    HStack {
-                        Text(L10n.string("runtime.workspace.recovery_issue"))
-                        Button(L10n.string("runtime.dismiss")) { workspace.runtimeRecoveryIssue = false }
+                    RuntimeRecoveryIssueBanner {
+                        workspace.runtimeRecoveryIssue = false
                     }
-                    .font(.caption).padding(10).background(.regularMaterial)
                     Spacer()
                 }.zIndex(2)
             }

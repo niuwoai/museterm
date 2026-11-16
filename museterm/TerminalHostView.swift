@@ -732,13 +732,31 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     /// A picture pasted into a tab whose program asked for the gallery. Text on the pasteboard is
     /// left for the normal paste, so a paste that also carries text still arrives as text.
     private func deliverPastedImage() -> Bool {
-        guard let gallery = session?.gallery, gallery.joined,
-              let pasted = TerminalGalleryPasteboard.pngImage() else { return false }
-        let nonce = UUID().uuidString.lowercased()
-        guard let outgoing = TerminalGalleryProtocol.drop(nonce: nonce, png: pasted.png) else { return false }
-        guard gallery.stagePaste(nonce: nonce, image: pasted.image) else { return false }
-        _ = sendGalleryFrame(outgoing) { [weak gallery] in gallery?.discardPendingPaste(nonce: nonce) }
-        return false
+        guard let gallery = session?.gallery else { return false }
+        guard gallery.joined else {
+            if TerminalGalleryPasteboard.hasImageCandidate() {
+                gallery.notePasteFailure(.notJoined)
+            }
+            return false
+        }
+        switch TerminalGalleryPasteboard.readPNGImage() {
+        case .failure(let failure):
+            gallery.notePasteFailure(failure)
+            return false
+        case .success(let pasted):
+            gallery.clearPasteFailure()
+            let nonce = UUID().uuidString.lowercased()
+            guard let outgoing = TerminalGalleryProtocol.drop(nonce: nonce, png: pasted.png) else {
+                gallery.notePasteFailure(.protocolEncodeFailed)
+                return false
+            }
+            guard gallery.stagePaste(nonce: nonce, image: pasted.image) else {
+                gallery.notePasteFailure(.thumbnailLimit)
+                return false
+            }
+            _ = sendGalleryFrame(outgoing) { [weak gallery] in gallery?.discardPendingPaste(nonce: nonce) }
+            return false
+        }
     }
 
     func deleteGalleryItem(_ id: String) {

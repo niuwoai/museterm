@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import SwiftUI
+import UniformTypeIdentifiers
 
 final class SettingsWindowSession: ObservableObject {
     @Published var aiAPIKeyDraft = ""
@@ -35,6 +36,7 @@ struct SettingsView: View {
     @State private var toolBridgeAccessMessage = ""
     @State private var isBuiltInToolClientPaired = TerminalToolAccess.isPaired()
     @State private var editingProfile: TerminalProfile?
+    @State private var sidebarSectionDropTarget: SidebarSectionKind?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -334,7 +336,7 @@ struct SettingsView: View {
         }
     }
 
-    /// 侧栏分区的显示和顺序。开关和上下移动都直接改偏好，侧栏跟着变。
+    /// 侧栏分区的显示和顺序。拖放、开关和上下移动都直接改偏好，侧栏跟着变。
     private var sidebarSectionSettings: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(L10n.string("settings.sidebar_sections"))
@@ -353,7 +355,16 @@ struct SettingsView: View {
     private func sidebarSectionRow(_ section: SidebarSectionKind) -> some View {
         let isFirst = preferences.sidebarSectionOrder.first == section
         let isLast = preferences.sidebarSectionOrder.last == section
+        let dropTarget = sidebarSectionDropTarget == section
         return HStack(spacing: 8) {
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.tertiary)
+                .frame(width: 20, height: 28)
+                .contentShape(Rectangle())
+                .help(L10n.string("sidebar.section.drag.help"))
+                .accessibilityLabel(L10n.string("sidebar.section.drag.help"))
+                .onDrag { NSItemProvider(object: section.rawValue as NSString) }
             Image(systemName: section.systemImage)
                 .frame(width: 18)
                 .foregroundStyle(.secondary)
@@ -390,8 +401,25 @@ struct SettingsView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(preferences.skin.controlFill.opacity(0.6))
+        .background(
+            (dropTarget ? preferences.skin.accent.opacity(0.18) : preferences.skin.controlFill.opacity(0.6))
+        )
+        .overlay {
+            if dropTarget {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .strokeBorder(preferences.skin.accent.opacity(0.55), lineWidth: 1.5)
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .onDrop(of: [UTType.plainText],
+                delegate: SidebarSectionDropDelegate(
+                    target: section,
+                    preferences: preferences,
+                    dropTargetActive: Binding(
+                        get: { dropTarget },
+                        set: { sidebarSectionDropTarget = $0 ? section : nil }
+                    )
+                ))
     }
 
     private var scrollbackLinesRow: some View {

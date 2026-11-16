@@ -61,6 +61,15 @@ final class TerminalGalleryTests: XCTestCase {
         XCTAssertTrue(gallery.items[0].canDelete)
     }
 
+    func testRejectionTextMapsKnownReasons() {
+        XCTAssertEqual(TerminalGalleryRejectionText.message(for: "limit"),
+                       L10n.string("gallery.reject.limit"))
+        XCTAssertEqual(TerminalGalleryRejectionText.message(for: "not a png"),
+                       L10n.string("gallery.reject.not a png"))
+        XCTAssertTrue(TerminalGalleryRejectionText.message(for: "custom")
+                      .contains("custom"))
+    }
+
     func testRejectKeepsTheThumbnailRemovableWithoutTellingTheProgram() {
         let gallery = TerminalGalleryState()
         gallery.receive(Array("v=1;hello;willdeep 0.1".utf8))
