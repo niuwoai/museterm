@@ -98,6 +98,48 @@ enum TerminalGalleryProtocol {
         return frames(operation: .delete, lead: id, payload: Data())
     }
 
+    /// A recorded gallery description carries no command text or image bytes.
+    static func isRedactedValidation(_ bytes: [UInt8]) -> Bool {
+        let prefix = Array("\u{1b}]\(oscCode);".utf8)
+        guard bytes.starts(with: prefix),
+              let body = String(bytes: bytes.dropFirst(prefix.count), encoding: .utf8) else { return false }
+        let fields = body.split(separator: ";", omittingEmptySubsequences: false)
+        return fields.count == 2 && (fields[0] == "drop" || fields[0] == "delete")
+            && isIdentifier(String(fields[1]))
+    }
+
+    /// Only gallery frames may carry a short validation description in place of their bytes.
+    /// Check the actual frame so an unrelated human input cannot hide behind that description.
+    static func matchesRedactedValidation(_ frame: [UInt8], validation: [UInt8]) -> Bool {
+        let prefix = Array("\u{1b}]\(oscCode);v=\(version);".utf8)
+        guard frame.count <= maximumFrameBytes, frame.starts(with: prefix), frame.last == 0x07,
+              let body = String(bytes: frame.dropFirst(prefix.count).dropLast(), encoding: .utf8) else {
+            return false
+        }
+        let fields = body.split(separator: ";", omittingEmptySubsequences: false)
+        guard fields.count == 5, let operation = Operation(rawValue: String(fields[0])),
+              operation == .drop || operation == .delete,
+              isIdentifier(String(fields[1])),
+              validation == Array("\u{1b}]\(oscCode);\(operation.rawValue);\(fields[1])".utf8) else {
+            return false
+        }
+        switch operation {
+        case .delete:
+            return fields[2] == "0" && fields[3] == "1" && fields[4].isEmpty
+        case .drop:
+            guard let index = Int(fields[2]), let total = Int(fields[3]),
+                  (1...999).contains(total), (0..<total).contains(index), !fields[4].isEmpty else {
+                return false
+            }
+            return fields[4].utf8.allSatisfy {
+                (0x41...0x5a).contains($0) || (0x61...0x7a).contains($0)
+                    || (0x30...0x39).contains($0) || $0 == 0x2b || $0 == 0x2f || $0 == 0x3d
+            }
+        default:
+            return false
+        }
+    }
+
     private static func frames(operation: Operation, lead: String, payload: Data) -> Outgoing? {
         let prefix = Data("\u{1b}]\(oscCode);v=\(version);\(operation.rawValue);\(lead);".utf8)
         // BEL, not ST. A base64 payload can contain the byte 0x5c, so an ESC ST terminator can

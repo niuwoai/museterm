@@ -63,6 +63,17 @@
 "gallery.open" = "查看大图";
 "gallery.delete" = "删除图片";
 "gallery.rejected" = "未接收";
+"gallery.rejected.generic" = "终端程序未接收这张图片。";
+"gallery.rejected.reason" = "未接收：%@";
+"gallery.reject.limit" = "图片数量已达上限。";
+"gallery.reject.not a png" = "仅支持 PNG。";
+"gallery.reject.not_a_png" = "仅支持 PNG。";
+"gallery.failure.not_joined" = "当前标签未接入支持图片列的程序。";
+"gallery.failure.unsupported_format" = "剪贴板中没有可用的图片（PNG 或 TIFF）。";
+"gallery.failure.pasteboard_too_large" = "剪贴板图片过大，无法读取。";
+"gallery.failure.image_too_large" = "图片超过粘贴大小限制。";
+"gallery.failure.thumbnail_limit" = "图片列已满，请先删除一张再粘贴。";
+"gallery.failure.encode_failed" = "无法准备要发送的图片。";
 "preview.load_error" = "无法预览：请确认文件存在、格式受支持且未超出大小限制（Markdown 2 MiB、图片 20 MiB）。";
 "preview.remote_error" = "部分网络图片未能加载，可稍后重试。";
 "preview.accepted" = "预览请求已接收；加载结果显示在来源终端的预览区。";
@@ -644,7 +655,7 @@
 "settings.glow" = "柔光";
 "settings.behavior" = "行为";
 "settings.sidebar_sections" = "侧栏分区";
-"settings.sidebar_sections.summary" = "拖动侧栏分区的标题可以调整顺序，悬停标题可以把它隐藏。隐藏的分区在这里重新打开，顺序也在这里调整，改动马上反映到侧栏。";
+"settings.sidebar_sections.summary" = "拖动这里的把手或侧栏分区标题可以调整顺序；悬停侧栏分区标题可以将它隐藏。隐藏的分区可在这里重新打开，调整后侧栏会立即更新。";
 "settings.sidebar_sections.move_up" = "上移";
 "settings.sidebar_sections.move_down" = "下移";
 "settings.sidebar_sections.visible" = "在侧栏显示";
@@ -1565,6 +1576,9 @@
 "runtime.workspace.save_failed" = "无法保存终端工作区";
 "runtime.workspace.exit_cancelled" = "MuseTerm 已保留窗口，请检查磁盘空间和目录权限后再次退出。后台终端未被关闭。";
 "runtime.workspace.recovery_issue" = "部分工作区状态无法读取或保存，原恢复文件已保留。请在退出前检查磁盘空间和目录权限。";
+"runtime.workspace.recovery_issue.title" = "工作区恢复需要处理";
+"runtime.workspace.recovery_issue.detail" = "部分恢复数据无法读取或写入。布局与标签可能仍能打开，但已保留的终端可能无法在原进程上重连，请检查磁盘空间及对运行时数据目录的权限。原始恢复文件已保留。";
+"project.hidden_terminals.summary" = "以下标签因本次启动时无法在原进程上重连后台会话而隐藏。展开后点「显示」可在主区域再次尝试连接。";
 "runtime.workspace.show_panel" = "显示悬浮终端";
 "runtime.workspace.reattach" = "将终端收回此窗口";
 "runtime.discovering" = "正在查找后台终端…";

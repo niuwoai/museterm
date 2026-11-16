@@ -1036,6 +1036,93 @@ final class TerminalRuntimeViewTests: XCTestCase {
         XCTAssertEqual(approvals.first, String(decoding: deniedText, as: UTF8.self))
         XCTAssertEqual(handle.info?.nextInputSequence, sequence + 1, "Denied paste must not send even its opening frame")
         XCTAssertFalse(session.controller.visibleScreenText().contains("__APPROVAL_DENIED"))
+
+        let deletion = try XCTUnwrap(TerminalGalleryProtocol.delete(id: "abc123"))
+        let frame = try XCTUnwrap(deletion.frames.first)
+        let validation = Array(deletion.validationText.utf8)
+        let galleryACK = expectation(description: "Gallery deletion sent without exposing its frame to approval")
+        XCTAssertFalse(queue.enqueue(frame, source: .human, owner: nil, validationBytes: Array("harmless".utf8)))
+        XCTAssertTrue(queue.enqueue(frame, source: .human, owner: nil, validationBytes: validation) { result in
+            if case .failure(let error) = result { XCTFail("Gallery deletion failed: \(error)") }
+            galleryACK.fulfill()
+        })
+        await fulfillment(of: [galleryACK], timeout: 5)
+        XCTAssertEqual(approvals.last, deletion.validationText)
+        XCTAssertEqual(committed, 2)
+        XCTAssertEqual(handle.info?.nextInputSequence, sequence + 2)
+    }
+
+    func testGalleryContinuationPrecedesInputQueuedDuringTransfer() async throws {
+        let (root, helper) = try await startService()
+        let session = TerminalSession(sequence: 1)
+        attach(session, launch: .init(executable: "/bin/sh",
+            arguments: ["-c", "stty raw -echo; printf '__GALLERY_QUEUE_READY__'; cat >/dev/null"],
+            environment: ["PATH": "/usr/bin:/bin", "HOME": root.path, "TERM": "xterm-256color"],
+            directory: root.path), root: root, helper: helper)
+        try await waitUntil("gallery queue fixture ready") {
+            session.controller.runtimeHandle?.connected == true
+                && session.controller.visibleScreenText().contains("__GALLERY_QUEUE_READY__")
+        }
+        let handle = try XCTUnwrap(session.controller.runtimeHandle)
+        let sequence = try XCTUnwrap(handle.info).nextInputSequence
+        let first = try XCTUnwrap(TerminalGalleryProtocol.delete(id: "first"))
+        let second = try XCTUnwrap(TerminalGalleryProtocol.delete(id: "second"))
+        let firstFrame = try XCTUnwrap(first.frames.first)
+        let secondFrame = try XCTUnwrap(second.frames.first)
+        let text = Array("after-image\n".utf8)
+        var written: [String] = []
+        let queue = TerminalRuntimeInputQueue(handle: handle, approve: { _, _, _, _ in true },
+            committed: { bytes, _, _ in written.append(String(decoding: bytes, as: UTF8.self)) },
+            failed: { error in XCTFail("Gallery input failed: \(error)") })
+        defer { queue.cancel() }
+        let firstACK = expectation(description: "First gallery frame written")
+        let nextACK = expectation(description: "Gallery continuation written")
+        let textACK = expectation(description: "Following text written")
+        XCTAssertFalse(queue.enqueue(text, source: .human, owner: nil, placeAheadOfPending: true))
+        XCTAssertTrue(queue.enqueue(firstFrame, source: .human, owner: nil,
+                                    validationBytes: Array(first.validationText.utf8)) { result in
+            if case .failure(let error) = result { XCTFail("First frame: \(error)") }
+            XCTAssertTrue(queue.enqueue(secondFrame, source: .human, owner: nil,
+                                        validationBytes: Array(second.validationText.utf8),
+                                        placeAheadOfPending: true) { _ in nextACK.fulfill() })
+            firstACK.fulfill()
+        })
+        XCTAssertTrue(queue.enqueue(text, source: .human, owner: nil) { _ in textACK.fulfill() })
+        await fulfillment(of: [firstACK, nextACK, textACK], timeout: 5)
+        XCTAssertEqual(written, [first.validationText, second.validationText, "after-image\n"])
+        XCTAssertEqual(handle.info?.nextInputSequence, sequence + 3)
+    }
+
+    func testGalleryDeleteAndMultiFramePasteReachRuntimeInOrder() async throws {
+        let (root, helper) = try await startService()
+        let session = TerminalSession(sequence: 1)
+        attach(session, launch: .init(executable: "/bin/sh",
+            arguments: ["-c", "stty raw -echo; printf '__GALLERY_READY__'; cat >/dev/null"],
+            environment: ["PATH": "/usr/bin:/bin", "HOME": root.path, "TERM": "xterm-256color"],
+            directory: root.path), root: root, helper: helper)
+        try await waitUntil("gallery runtime ready") {
+            session.controller.runtimeHandle?.connected == true
+                && session.controller.visibleScreenText().contains("__GALLERY_READY__")
+        }
+        let handle = try XCTUnwrap(session.controller.runtimeHandle)
+        let sequence = try XCTUnwrap(handle.info).nextInputSequence
+        session.gallery.receive(Array("v=1;hello;willdeep 0.1".utf8))
+        session.gallery.receive(Array("v=1;list;[{\"id\":\"abc123\",\"name\":\"draft.png\",\"mutable\":true}]".utf8))
+
+        session.controller.deleteGalleryItem("abc123")
+        try await waitUntil("gallery delete write") { handle.info?.nextInputSequence == sequence + 1 }
+        XCTAssertNotNil(session.gallery.item("abc123"), "Delete must await the peer's remove confirmation")
+        session.gallery.receive(Array("v=1;remove;abc123".utf8))
+        XCTAssertNil(session.gallery.item("abc123"))
+
+        let outgoing = try XCTUnwrap(TerminalGalleryProtocol.drop(
+            nonce: "largepaste", png: Data(repeating: 0x5a, count: 90_000)))
+        XCTAssertGreaterThan(outgoing.frames.count, 2, "The queue cannot hold this many frames simultaneously")
+        XCTAssertTrue(session.controller.sendGalleryFrame(outgoing))
+        try await waitUntil("all gallery image pieces written") {
+            handle.info?.nextInputSequence == sequence + 1 + UInt64(outgoing.frames.count)
+        }
+        XCTAssertNil(session.runtimeConnectionIssue)
     }
 
     func testBracketedPasteIntoCleanInteractiveZshExecutesOnlyAfterReturn() async throws {

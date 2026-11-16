@@ -63,6 +63,17 @@
 "gallery.open" = "View full image";
 "gallery.delete" = "Remove image";
 "gallery.rejected" = "Not accepted";
+"gallery.rejected.generic" = "The program did not accept this image.";
+"gallery.rejected.reason" = "Not accepted: %@";
+"gallery.reject.limit" = "Image limit reached.";
+"gallery.reject.not a png" = "PNG only.";
+"gallery.reject.not_a_png" = "PNG only.";
+"gallery.failure.not_joined" = "This tab is not connected to a program that supports the image column.";
+"gallery.failure.unsupported_format" = "Clipboard has no supported image (PNG or TIFF).";
+"gallery.failure.pasteboard_too_large" = "Clipboard image is too large to read.";
+"gallery.failure.image_too_large" = "Image exceeds the paste size limit.";
+"gallery.failure.thumbnail_limit" = "Image column is full. Remove one before pasting.";
+"gallery.failure.encode_failed" = "Could not prepare the image to send.";
 "preview.load_error" = "Cannot preview: check the file, supported format and size limit (Markdown 2 MiB, images 20 MiB).";
 "preview.remote_error" = "Some remote images could not be loaded. Try again later.";
 "preview.accepted" = "Preview accepted; loading results appear beside the source terminal.";
@@ -644,7 +655,7 @@
 "settings.glow" = "Glow";
 "settings.behavior" = "Behavior";
 "settings.sidebar_sections" = "Sidebar sections";
-"settings.sidebar_sections.summary" = "Drag a section title in the sidebar to reorder it, or hover the title to hide it. Hidden sections come back here, and the order changes here too. The sidebar updates immediately.";
+"settings.sidebar_sections.summary" = "Drag a handle here or a section title in the sidebar to reorder it. Hover a section title in the sidebar to hide it. Restore hidden sections here; the sidebar updates immediately.";
 "settings.sidebar_sections.move_up" = "Move up";
 "settings.sidebar_sections.move_down" = "Move down";
 "settings.sidebar_sections.visible" = "Show in sidebar";
@@ -1565,6 +1576,9 @@
 "runtime.workspace.save_failed" = "Could not save terminal workspace";
 "runtime.workspace.exit_cancelled" = "MuseTerm has kept this window open. Check available disk space and folder access, then quit again. Background terminals have not been closed.";
 "runtime.workspace.recovery_issue" = "Some workspace state could not be read or saved. The original recovery file has been retained. Check disk space and folder access before quitting.";
+"runtime.workspace.recovery_issue.title" = "Workspace recovery needs attention";
+"runtime.workspace.recovery_issue.detail" = "MuseTerm could not read or save some recovery data. Layout and tabs may still open, but a retained terminal might not reconnect until you check disk space and permissions on the runtime data folder. Original recovery files were kept.";
+"project.hidden_terminals.summary" = "These tabs are hidden for this launch after a retained session could not reconnect to the original process. Expand the list and choose Show to try again in the canvas.";
 "runtime.workspace.show_panel" = "Show floating terminal";
 "runtime.workspace.reattach" = "Return terminal to this window";
 "runtime.discovering" = "Finding retained terminals…";

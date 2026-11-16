@@ -46,6 +46,12 @@ struct TerminalProjectsSidebar: View {
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("project-hidden-terminals-toggle")
                 if showsHiddenTerminals {
+                    Text(L10n.string("project.hidden_terminals.summary"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.leading, 14)
+                        .padding(.bottom, 2)
                     ForEach(hiddenTabs, id: \.id) { item in
                         HStack(spacing: 6) {
                             Image(systemName: "terminal.fill").foregroundStyle(.secondary)

@@ -20,6 +20,11 @@ struct TerminalGalleryItem: Identifiable, Equatable {
         if case .rejected = state { return true }
         return mutable && state == .ready
     }
+
+    var rejectionReason: String? {
+        if case .rejected(let reason) = state { return reason }
+        return nil
+    }
 }
 
 /// What one terminal tab is showing in its image column.
@@ -30,14 +35,26 @@ struct TerminalGalleryItem: Identifiable, Equatable {
 final class TerminalGalleryState: ObservableObject {
     @Published private(set) var joined = false
     @Published private(set) var items: [TerminalGalleryItem] = []
+    @Published private(set) var pasteFailure: TerminalGalleryPasteFailure?
+    private(set) var connectionEpoch = UUID()
     private var transfers: [String: TerminalGalleryTransfer] = [:]
 
     var isVisible: Bool { joined && !items.isEmpty }
 
     func reset() {
+        connectionEpoch = UUID()
         joined = false
         items = []
         transfers = [:]
+        pasteFailure = nil
+    }
+
+    func notePasteFailure(_ failure: TerminalGalleryPasteFailure) {
+        pasteFailure = failure
+    }
+
+    func clearPasteFailure() {
+        pasteFailure = nil
     }
 
     /// Applies one frame the program wrote. Unknown or malformed frames change nothing.
@@ -45,7 +62,9 @@ final class TerminalGalleryState: ObservableObject {
         guard let frame = TerminalGalleryProtocol.parse(payload) else { return }
         switch frame.operation {
         case .hello:
+            connectionEpoch = UUID()
             joined = true
+            pasteFailure = nil
         case .bye:
             reset()
         case .list:
@@ -68,11 +87,17 @@ final class TerminalGalleryState: ObservableObject {
     }
 
     /// Shows a paste immediately, before the program has acknowledged it.
-    func stagePaste(nonce: String, image: NSImage) {
+    @discardableResult
+    func stagePaste(nonce: String, image: NSImage) -> Bool {
         guard joined, items.count < TerminalGalleryProtocol.maximumImages,
-              !items.contains(where: { $0.id == nonce }) else { return }
+              !items.contains(where: { $0.id == nonce }) else { return false }
         items.append(TerminalGalleryItem(id: nonce, name: "", mutable: false,
                                           state: .pending, image: image))
+        return true
+    }
+
+    func discardPendingPaste(nonce: String) {
+        items.removeAll { $0.id == nonce && $0.state == .pending }
     }
 
     func item(_ id: String) -> TerminalGalleryItem? {
@@ -143,15 +168,31 @@ final class TerminalGalleryState: ObservableObject {
 enum TerminalGalleryPasteboard {
     static let maximumSourceBytes = 20 * 1_024 * 1_024
 
-    static func pngImage() -> (png: Data, image: NSImage)? {
+    static func hasImageCandidate() -> Bool {
+        NSPasteboard.general.availableType(from: [.png, .tiff]) != nil
+    }
+
+    static func readPNGImage() -> Result<(png: Data, image: NSImage), TerminalGalleryPasteFailure> {
         let pasteboard = NSPasteboard.general
-        guard let type = pasteboard.availableType(from: [.png, .tiff]),
-              let source = pasteboard.data(forType: type),
-              source.count <= maximumSourceBytes,
-              let image = NSImage(data: source) else { return nil }
+        guard let type = pasteboard.availableType(from: [.png, .tiff]) else {
+            return .failure(.unsupportedFormat)
+        }
+        guard let source = pasteboard.data(forType: type) else {
+            return .failure(.unsupportedFormat)
+        }
+        guard source.count <= maximumSourceBytes else { return .failure(.pasteboardTooLarge) }
+        guard let image = NSImage(data: source) else { return .failure(.unsupportedFormat) }
         let png = type == .png ? source : pngData(from: image)
-        guard let png, png.count <= TerminalGalleryProtocol.maximumImageBytes else { return nil }
-        return (png, image)
+        guard let png else { return .failure(.unsupportedFormat) }
+        guard png.count <= TerminalGalleryProtocol.maximumImageBytes else { return .failure(.imageTooLarge) }
+        return .success((png, image))
+    }
+
+    static func pngImage() -> (png: Data, image: NSImage)? {
+        switch readPNGImage() {
+        case .success(let value): return value
+        case .failure: return nil
+        }
     }
 
     private static func pngData(from image: NSImage) -> Data? {

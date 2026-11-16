@@ -1501,9 +1501,19 @@ struct SidebarSection<Content: View>: View {
 }
 
 /// 把拖来的分区插到目标分区的位置。目标没有身份，或拖的不是分区，就不改顺序。
-private struct SidebarSectionDropDelegate: DropDelegate {
+struct SidebarSectionDropDelegate: DropDelegate {
     let target: SidebarSectionKind?
     let preferences: TerminalPreferences?
+    var dropTargetActive: Binding<Bool>? = nil
+
+    func dropEntered(info: DropInfo) {
+        guard target != nil else { return }
+        dropTargetActive?.wrappedValue = true
+    }
+
+    func dropExited(info: DropInfo) {
+        dropTargetActive?.wrappedValue = false
+    }
 
     func performDrop(info: DropInfo) -> Bool {
         guard let target, let preferences,
@@ -1514,6 +1524,7 @@ private struct SidebarSectionDropDelegate: DropDelegate {
                   dragged != target else { return }
             DispatchQueue.main.async {
                 SidebarSectionOrder.applyDrop(of: dragged, onto: target, in: preferences)
+                dropTargetActive?.wrappedValue = false
             }
         }
         return true
