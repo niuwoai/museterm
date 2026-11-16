@@ -31,6 +31,19 @@ final class TerminalGalleryTests: XCTestCase {
         XCTAssertFalse(gallery.isVisible)
     }
 
+    func testGalleryConnectionChangesAfterByeAndNewHello() {
+        let gallery = TerminalGalleryState()
+        let before = gallery.connectionEpoch
+        gallery.receive(Array("v=1;hello;first".utf8))
+        let first = gallery.connectionEpoch
+        XCTAssertNotEqual(first, before)
+        gallery.receive(Array("v=1;bye;".utf8))
+        XCTAssertFalse(gallery.joined)
+        gallery.receive(Array("v=1;hello;second".utf8))
+        XCTAssertTrue(gallery.joined)
+        XCTAssertNotEqual(gallery.connectionEpoch, first)
+    }
+
     func testAPasteShowsImmediatelyAndSettlesWhenAcknowledged() {
         let gallery = TerminalGalleryState()
         gallery.receive(Array("v=1;hello;willdeep 0.1".utf8))
@@ -62,6 +75,29 @@ final class TerminalGalleryTests: XCTestCase {
         XCTAssertTrue(gallery.items[0].canDelete)
     }
 
+    func testGalleryRefusesPasteWhenThumbnailLimitIsReached() {
+        let gallery = TerminalGalleryState()
+        gallery.receive(Array("v=1;hello;willdeep 0.1".utf8))
+        let image = NSImage(size: NSSize(width: 1, height: 1))
+        for index in 0..<TerminalGalleryProtocol.maximumImages {
+            XCTAssertTrue(gallery.stagePaste(nonce: "paste\(index)", image: image))
+        }
+        XCTAssertFalse(gallery.stagePaste(nonce: "extra", image: image))
+        XCTAssertEqual(gallery.items.count, TerminalGalleryProtocol.maximumImages)
+    }
+
+    func testFailedPasteDiscardsOnlyItsPendingThumbnail() {
+        let gallery = TerminalGalleryState()
+        gallery.receive(Array("v=1;hello;willdeep 0.1".utf8))
+        gallery.receive(Array("v=1;list;[{\"id\":\"existing\",\"name\":\"draft.png\",\"mutable\":true}]".utf8))
+        gallery.stagePaste(nonce: "paste1", image: NSImage(size: NSSize(width: 1, height: 1)))
+
+        gallery.discardPendingPaste(nonce: "paste1")
+
+        XCTAssertTrue(gallery.joined)
+        XCTAssertEqual(gallery.items.map(\.id), ["existing"])
+    }
+
     func testBlobPiecesReassembleIntoTheListedImage() {
         let gallery = TerminalGalleryState()
         gallery.receive(Array("v=1;hello;willdeep 0.1".utf8))
@@ -89,6 +125,26 @@ final class TerminalGalleryTests: XCTestCase {
         }
         XCTAssertFalse(outgoing.validationText.contains("Wg"))
         XCTAssertLessThan(outgoing.validationText.count, 64)
+    }
+
+    func testGalleryFramesAllowOnlyTheirOwnRedactedValidation() throws {
+        let deletion = try XCTUnwrap(TerminalGalleryProtocol.delete(id: "abc123"))
+        let deleteFrame = try XCTUnwrap(deletion.frames.first)
+        let deleteValidation = Array(deletion.validationText.utf8)
+        XCTAssertTrue(TerminalGalleryProtocol.matchesRedactedValidation(deleteFrame, validation: deleteValidation))
+        XCTAssertTrue(TerminalGalleryProtocol.isRedactedValidation(deleteValidation))
+        XCTAssertFalse(TerminalGalleryProtocol.isRedactedValidation(Array("\u{1b}]7771;delete;bad;extra".utf8)))
+        XCTAssertFalse(TerminalGalleryProtocol.matchesRedactedValidation(deleteFrame, validation: Array("harmless".utf8)))
+        XCTAssertFalse(TerminalGalleryProtocol.matchesRedactedValidation(deleteFrame + [0x41], validation: deleteValidation))
+
+        let paste = try XCTUnwrap(TerminalGalleryProtocol.drop(nonce: "paste1", png: Data(repeating: 0x5a, count: 90_000)))
+        XCTAssertGreaterThan(paste.frames.count, 1)
+        for frame in paste.frames {
+            XCTAssertTrue(TerminalGalleryProtocol.matchesRedactedValidation(frame,
+                validation: Array(paste.validationText.utf8)))
+        }
+        XCTAssertFalse(TerminalGalleryProtocol.matchesRedactedValidation(
+            Array("printf 'unsafe'\n".utf8), validation: deleteValidation))
     }
 
     func testFramerReturnsTheBytesAroundAFrameAndHoldsAnUnfinishedOne() {

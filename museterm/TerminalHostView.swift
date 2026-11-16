@@ -680,39 +680,64 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.send(source: terminalView, data: bytes[...])
     }
 
-    /// Sends one gallery frame as human input, but records and safety-checks only its short
-    /// description. The frame is an OSC body with no line break, so it cannot be played back as a
-    /// command, and the image bytes never enter the recording.
-    func sendGalleryFrame(_ outgoing: TerminalGalleryProtocol.Outgoing) -> Bool {
-        guard session?.gallery.joined == true, activeSessionTunnel == nil,
-              activeZModemTransfer == nil else { return false }
-        let validation = Array(outgoing.validationText.utf8)
-        for frame in outgoing.frames {
-            let accepted: Bool
-            if let runtimeInputQueue {
-                accepted = runtimeInputQueue.enqueue(frame, source: .human, owner: nil,
-                                                      validationBytes: validation)
-            } else {
-                terminalView.sendBackend(frame[...])
-                accepted = true
-            }
-            guard accepted else { return false }
+    /// Sends gallery frames as human input. Approval and recording see only the short description;
+    /// image bytes never enter the recording or command inference.
+    func sendGalleryFrame(_ outgoing: TerminalGalleryProtocol.Outgoing,
+                          onFailure: (() -> Void)? = nil) -> Bool {
+        guard let gallery = session?.gallery, gallery.joined,
+              activeSessionTunnel == nil, activeZModemTransfer == nil else {
+            onFailure?()
+            return false
         }
-        return true
+        let validation = Array(outgoing.validationText.utf8)
+        guard let runtimeInputQueue else {
+            for frame in outgoing.frames { terminalView.sendBackend(frame[...]) }
+            return true
+        }
+        return enqueueGalleryFrame(outgoing, at: 0, validation: validation,
+                                   epoch: gallery.connectionEpoch, queue: runtimeInputQueue, onFailure: onFailure)
+    }
+
+    /// Wait for the previous write ACK before queuing another image piece. A large image has more
+    /// pieces than the runtime queue can hold at once.
+    private func enqueueGalleryFrame(_ outgoing: TerminalGalleryProtocol.Outgoing, at index: Int,
+                                     validation: [UInt8], epoch: UUID, queue: TerminalRuntimeInputQueue,
+                                     onFailure: (() -> Void)?) -> Bool {
+        guard session?.gallery.joined == true, session?.gallery.connectionEpoch == epoch,
+              runtimeInputQueue === queue, activeSessionTunnel == nil, activeZModemTransfer == nil else {
+            onFailure?()
+            return false
+        }
+        let frame = outgoing.frames[index]
+        let accepted = queue.enqueue(frame, source: .human, owner: nil, validationBytes: validation,
+                                     placeAheadOfPending: index > 0) { [weak self, weak queue] result in
+            switch result {
+            case .failure:
+                onFailure?()
+            case .success:
+                guard index + 1 < outgoing.frames.count else { return }
+                guard let self, let queue else { onFailure?(); return }
+                _ = self.enqueueGalleryFrame(outgoing, at: index + 1, validation: validation,
+                                             epoch: epoch, queue: queue, onFailure: onFailure)
+            }
+        }
+        if !accepted {
+            session?.runtimeConnectionIssue = TerminalRuntimeInputQueue.rejectedEnqueueIssue(
+                connected: runtimeHandle?.connected == true, byteCount: frame.count)
+            onFailure?()
+        }
+        return accepted
     }
 
     /// A picture pasted into a tab whose program asked for the gallery. Text on the pasteboard is
     /// left for the normal paste, so a paste that also carries text still arrives as text.
     private func deliverPastedImage() -> Bool {
-        guard session?.gallery.joined == true,
+        guard let gallery = session?.gallery, gallery.joined,
               let pasted = TerminalGalleryPasteboard.pngImage() else { return false }
         let nonce = UUID().uuidString.lowercased()
         guard let outgoing = TerminalGalleryProtocol.drop(nonce: nonce, png: pasted.png) else { return false }
-        session?.gallery.stagePaste(nonce: nonce, image: pasted.image)
-        guard sendGalleryFrame(outgoing) else {
-            session?.gallery.reset()
-            return false
-        }
+        guard gallery.stagePaste(nonce: nonce, image: pasted.image) else { return false }
+        _ = sendGalleryFrame(outgoing) { [weak gallery] in gallery?.discardPendingPaste(nonce: nonce) }
         return false
     }
 
@@ -1870,8 +1895,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             }
             let echo = response.echoEnabled == true
             self.session?.recordInputIfNeeded(data: bytes, echoEnabled: echo)
-            self.session?.observeProcessInput(data: bytes, echoEnabled: echo, historySnapshot: self.fullHistoryText())
-            self.updatePendingSafetyInput(data: bytes, echoEnabled: echo)
+            if source != .human || !TerminalGalleryProtocol.isRedactedValidation(bytes) {
+                self.session?.observeProcessInput(data: bytes, echoEnabled: echo, historySnapshot: self.fullHistoryText())
+                self.updatePendingSafetyInput(data: bytes, echoEnabled: echo)
+            }
             if source == .ai {
                 do { try self.session?.archiveAIInput(bytes, echoEnabled: echo) }
                 catch { NSLog("MuseTerm runtime input archive failed") }

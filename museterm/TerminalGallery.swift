@@ -30,11 +30,13 @@ struct TerminalGalleryItem: Identifiable, Equatable {
 final class TerminalGalleryState: ObservableObject {
     @Published private(set) var joined = false
     @Published private(set) var items: [TerminalGalleryItem] = []
+    private(set) var connectionEpoch = UUID()
     private var transfers: [String: TerminalGalleryTransfer] = [:]
 
     var isVisible: Bool { joined && !items.isEmpty }
 
     func reset() {
+        connectionEpoch = UUID()
         joined = false
         items = []
         transfers = [:]
@@ -45,6 +47,7 @@ final class TerminalGalleryState: ObservableObject {
         guard let frame = TerminalGalleryProtocol.parse(payload) else { return }
         switch frame.operation {
         case .hello:
+            connectionEpoch = UUID()
             joined = true
         case .bye:
             reset()
@@ -68,11 +71,17 @@ final class TerminalGalleryState: ObservableObject {
     }
 
     /// Shows a paste immediately, before the program has acknowledged it.
-    func stagePaste(nonce: String, image: NSImage) {
+    @discardableResult
+    func stagePaste(nonce: String, image: NSImage) -> Bool {
         guard joined, items.count < TerminalGalleryProtocol.maximumImages,
-              !items.contains(where: { $0.id == nonce }) else { return }
+              !items.contains(where: { $0.id == nonce }) else { return false }
         items.append(TerminalGalleryItem(id: nonce, name: "", mutable: false,
                                           state: .pending, image: image))
+        return true
+    }
+
+    func discardPendingPaste(nonce: String) {
+        items.removeAll { $0.id == nonce && $0.state == .pending }
     }
 
     func item(_ id: String) -> TerminalGalleryItem? {
