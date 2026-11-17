@@ -15,39 +15,28 @@ struct TerminalGalleryColumn: View {
     var body: some View {
         if gallery.isVisible {
             VStack(spacing: 0) {
-            if let failure = gallery.pasteFailure {
-                Text(failure.userMessage)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 6)
-                Divider()
-            }
-            ScrollView {
-                LazyVStack(spacing: 8) {
-                    ForEach(gallery.items) { item in
-                        thumbnail(item)
-                    }
+                if let failure = gallery.pasteFailure {
+                    Text(failure.userMessage)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 6)
+                    Divider()
                 }
-                .padding(8)
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        ForEach(gallery.items) { item in
+                            thumbnail(item)
+                        }
+                    }
+                    .padding(8)
+                }
             }
             .frame(width: Self.width)
             .background(Color(nsColor: .windowBackgroundColor))
             .overlay(alignment: .leading) { Divider() }
             .accessibilityIdentifier("terminal-gallery-column")
-            }
-        } else if let failure = gallery.pasteFailure {
-            VStack {
-                Text(failure.userMessage)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(8)
-            }
-            .frame(width: Self.width)
-            .background(Color(nsColor: .windowBackgroundColor))
-            .overlay(alignment: .leading) { Divider() }
         }
     }
 
@@ -99,6 +88,28 @@ struct TerminalGalleryColumn: View {
         } else {
             Image(systemName: "photo")
                 .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// Paste failures remain readable without reserving a column when there are no thumbnails.
+struct TerminalGalleryPasteNotice: View {
+    @ObservedObject var gallery: TerminalGalleryState
+
+    private static let maximumWidth: CGFloat = 280
+
+    var body: some View {
+        if !gallery.isVisible, let failure = gallery.pasteFailure {
+            Text(failure.userMessage)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(8)
+                .frame(maxWidth: Self.maximumWidth)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                .padding(8)
+                .allowsHitTesting(false)
+                .accessibilityIdentifier("terminal-gallery-paste-notice")
         }
     }
 }

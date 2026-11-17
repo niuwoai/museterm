@@ -1,4 +1,5 @@
 import SwiftTerm
+import SwiftUI
 import XCTest
 @testable import museterm
 
@@ -29,6 +30,66 @@ final class TerminalGalleryTests: XCTestCase {
 
         gallery.receive(Array("v=1;list;[]".utf8))
         XCTAssertFalse(gallery.isVisible)
+    }
+
+    func testEmptyColumnTakesNoWidthEvenAfterPasteFailure() {
+        let gallery = TerminalGalleryState()
+        XCTAssertEqual(columnWidth(gallery), 0, accuracy: 0.5)
+        gallery.receive(Array("v=1;hello;willdeep 0.1".utf8))
+        let failures: [TerminalGalleryPasteFailure] = [
+            .notJoined, .unsupportedFormat, .pasteboardTooLarge,
+            .imageTooLarge, .thumbnailLimit, .protocolEncodeFailed
+        ]
+        for failure in failures {
+            gallery.notePasteFailure(failure)
+            XCTAssertEqual(columnWidth(gallery), 0, accuracy: 0.5,
+                           "A paste failure must not open an empty image column: \(failure)")
+        }
+    }
+
+    func testRemovingLastImageReleasesColumnWidthDespitePasteFailure() {
+        let gallery = TerminalGalleryState()
+        gallery.receive(Array("v=1;hello;willdeep 0.1".utf8))
+        gallery.receive(Array("v=1;list;[{\"id\":\"abc\",\"name\":\"shot.png\",\"mutable\":true}]".utf8))
+        gallery.notePasteFailure(.imageTooLarge)
+        XCTAssertEqual(columnWidth(gallery), 120, accuracy: 0.5)
+
+        gallery.receive(Array("v=1;remove;abc".utf8))
+
+        XCTAssertEqual(columnWidth(gallery), 0, accuracy: 0.5)
+        XCTAssertEqual(gallery.pasteFailure, .imageTooLarge)
+    }
+
+    func testEmptyListReleasesColumnWidthDespitePasteFailure() {
+        let gallery = TerminalGalleryState()
+        gallery.receive(Array("v=1;hello;willdeep 0.1".utf8))
+        gallery.receive(Array("v=1;list;[{\"id\":\"abc\",\"name\":\"shot.png\",\"mutable\":true}]".utf8))
+        gallery.notePasteFailure(.unsupportedFormat)
+
+        gallery.receive(Array("v=1;list;[]".utf8))
+
+        XCTAssertEqual(columnWidth(gallery), 0, accuracy: 0.5)
+    }
+
+    func testPasteFailureNoticeDoesNotChangeTerminalSize() {
+        let gallery = TerminalGalleryState()
+        gallery.receive(Array("v=1;hello;willdeep 0.1".utf8))
+        gallery.notePasteFailure(.imageTooLarge)
+        let host = NSHostingView(rootView: Color.clear
+            .frame(width: 600, height: 240)
+            .overlay(alignment: .topTrailing) {
+                TerminalGalleryPasteNotice(gallery: gallery)
+            })
+
+        XCTAssertEqual(host.fittingSize.width, 600, accuracy: 0.5)
+        XCTAssertEqual(host.fittingSize.height, 240, accuracy: 0.5)
+    }
+
+    private func columnWidth(_ gallery: TerminalGalleryState) -> CGFloat {
+        let host = NSHostingView(rootView: TerminalGalleryColumn(
+            gallery: gallery, onOpen: { _ in }, onDelete: { _ in }
+        ).frame(height: 240))
+        return host.fittingSize.width
     }
 
     func testGalleryConnectionChangesAfterByeAndNewHello() {

@@ -47,6 +47,11 @@ struct ContentView: View {
                     aiCommandAssistant: aiCommandAssistant
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .topTrailing) {
+                    if rightPanel != .sessionTunnel, let selectedTab = workspace.selectedTab {
+                        TerminalGalleryPasteNotice(gallery: selectedTab.gallery)
+                    }
+                }
 
                 if rightPanel == .sessionTunnel, let selectedTab = workspace.selectedTab {
                     SessionTunnelInspectorView(

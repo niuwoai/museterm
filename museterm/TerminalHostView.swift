@@ -733,10 +733,12 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     /// left for the normal paste, so a paste that also carries text still arrives as text.
     private func deliverPastedImage() -> Bool {
         guard let gallery = session?.gallery else { return false }
+        guard TerminalGalleryPasteboard.hasImageCandidate() else {
+            gallery.clearPasteFailure()
+            return false
+        }
         guard gallery.joined else {
-            if TerminalGalleryPasteboard.hasImageCandidate() {
-                gallery.notePasteFailure(.notJoined)
-            }
+            gallery.notePasteFailure(.notJoined)
             return false
         }
         switch TerminalGalleryPasteboard.readPNGImage() {
@@ -2715,6 +2717,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
 
 private struct TerminalPreferenceSignature: Equatable {
     let skin: TerminalVisualSkin
+    /// `.custom` 本身只是一个稳定标记；实际配色变化也要触发终端重新安装颜色。
+    let customSkin: CustomTerminalSkin?
     let fontFamily: String
     let fallbackFontFamilies: [String]
     let fontSize: Double
@@ -2734,6 +2738,7 @@ private struct TerminalPreferenceSignature: Equatable {
 
     init(preferences: TerminalPreferences) {
         skin = preferences.skin
+        customSkin = preferences.activeCustomSkin
         fontFamily = preferences.fontFamily
         fallbackFontFamilies = preferences.fallbackFontFamilies
         fontSize = preferences.fontSize

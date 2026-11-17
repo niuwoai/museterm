@@ -72,15 +72,35 @@ enum TerminalVisualSkin: String, CaseIterable, Identifiable {
     case solarizedDark
     case tomorrow
     case tomorrowNight
+    /// 自定义皮肤的实际数据由 TerminalPreferences 保存；该标记仅用于复用既有渲染通路。
+    case custom
+
+    static var allCases: [TerminalVisualSkin] {
+        [
+            .seaSalt, .mist, .ink, .sakura, .linen, .sky, .matcha, .sand,
+            .midnight, .aurora, .ember, .dusk, .polar, .carbon, .abyss, .garnet,
+            .catppuccinLatte, .catppuccinFrappe, .catppuccinMacchiato, .catppuccinMocha,
+            .tokyoDay, .tokyoNight, .tokyoStorm, .tokyoMoon, .rosePine, .roseMoon,
+            .roseDawn, .gruvboxDark, .gruvboxLight, .everforestDark, .everforestLight,
+            .kanagawaWave, .kanagawaDragon, .ayuDark, .ayuLight, .ayuMirage, .monokai,
+            .solarizedDark, .tomorrow, .tomorrowNight
+        ]
+    }
 
     var id: String { rawValue }
 
     var name: String {
-        L10n.string("skin.\(rawValue).name")
+        if case .custom = self, let custom = CustomTerminalSkinStore.activeSkin {
+            return custom.name
+        }
+        return L10n.string("skin.\(rawValue).name")
     }
 
     var summary: String {
-        L10n.string("skin.\(rawValue).summary")
+        if case .custom = self {
+            return L10n.string("settings.skin.custom.summary")
+        }
+        return L10n.string("skin.\(rawValue).summary")
     }
 
     var symbolName: String { spec.symbolName }
@@ -136,6 +156,8 @@ enum TerminalVisualSkin: String, CaseIterable, Identifiable {
     // swiftlint:disable:next function_body_length
     var spec: TerminalSkinSpec {
         switch self {
+        case .custom:
+            return CustomTerminalSkinStore.activeSkin?.spec ?? Self.midnight.spec
         case .catppuccinLatte:
             return Self.classicCatppuccinLatte
         case .catppuccinFrappe:
@@ -712,5 +734,13 @@ extension NSColor {
 
     func withOpacity(_ opacity: CGFloat) -> NSColor {
         withAlphaComponent(max(0, min(opacity, 1)))
+    }
+
+    var srgbHex: Int {
+        guard let color = usingColorSpace(.sRGB) else { return 0 }
+        let red = Int((color.redComponent * 255).rounded())
+        let green = Int((color.greenComponent * 255).rounded())
+        let blue = Int((color.blueComponent * 255).rounded())
+        return (red << 16) | (green << 8) | blue
     }
 }

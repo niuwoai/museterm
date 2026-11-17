@@ -32,6 +32,7 @@ struct SettingsView: View {
     @State private var selectedSettingsTab: SettingsTab = .appearance
     @State private var settingsSearchQuery = ""
     @State private var skinFilter: SkinAppearanceFilter = .all
+    @State private var skinEditorScrollRequest = 0
     @State private var cliInstallMessage = ""
     @State private var toolBridgeAccessMessage = ""
     @State private var isBuiltInToolClientPaired = TerminalToolAccess.isPaired()
@@ -120,6 +121,13 @@ struct SettingsView: View {
                 Text(L10n.string("settings.skin"))
                     .font(.headline)
                 Spacer()
+                Button {
+                    preferences.duplicateCurrentSkin()
+                    revealSkinEditor()
+                } label: {
+                    Label(L10n.string("settings.skin.duplicate_current"), systemImage: "doc.on.doc")
+                }
+                .buttonStyle(.bordered)
                 Text(L10n.format("settings.skin.count", TerminalVisualSkin.allCases.count))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -139,9 +147,73 @@ struct SettingsView: View {
                         SkinChoiceView(skin: skin, isSelected: preferences.skin == skin)
                     }
                     .buttonStyle(.plain)
+                    .contextMenu {
+                        Button {
+                            preferences.duplicateBuiltInSkin(skin)
+                            revealSkinEditor()
+                        } label: {
+                            Label(L10n.string("settings.skin.menu.duplicate"), systemImage: "doc.on.doc")
+                        }
+                        Button {
+                            preferences.duplicateBuiltInSkin(skin)
+                            revealSkinEditor()
+                        } label: {
+                            Label(L10n.string("settings.skin.menu.edit_copy"), systemImage: "paintbrush")
+                        }
+                    }
                 }
             }
+            if !preferences.customSkins.isEmpty {
+                Divider().padding(.vertical, 2)
+                Text(L10n.string("settings.skin.custom"))
+                    .font(.subheadline.weight(.semibold))
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], spacing: 10) {
+                    ForEach(preferences.customSkins) { customSkin in
+                        Button {
+                            preferences.selectCustomSkin(id: customSkin.id)
+                            revealSkinEditor()
+                        } label: {
+                            CustomSkinChoiceView(
+                                skin: customSkin,
+                                isSelected: preferences.skin == .custom && preferences.activeCustomSkinID == customSkin.id
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button {
+                                preferences.selectCustomSkin(id: customSkin.id)
+                                revealSkinEditor()
+                            } label: {
+                                Label(L10n.string("settings.skin.menu.edit"), systemImage: "pencil")
+                            }
+                            Button {
+                                preferences.duplicateCustomSkin(id: customSkin.id)
+                                revealSkinEditor()
+                            } label: {
+                                Label(L10n.string("settings.skin.menu.duplicate"), systemImage: "doc.on.doc")
+                            }
+                            Divider()
+                            Button(role: .destructive) {
+                                preferences.selectCustomSkin(id: customSkin.id)
+                                preferences.deleteActiveCustomSkin()
+                            } label: {
+                                Label(L10n.string("action.delete"), systemImage: "trash")
+                            }
+                        }
+                    }
+                }
+            }
+            if let customSkin = preferences.activeCustomSkin, preferences.skin == .custom {
+                CustomSkinEditor(skin: customSkin, preferences: preferences)
+                    .id(Self.skinEditorID)
+            }
         }
+    }
+
+    private static let skinEditorID = "custom-skin-editor"
+
+    private func revealSkinEditor() {
+        skinEditorScrollRequest &+= 1
     }
 
     private var appIconSection: some View {
@@ -997,13 +1069,22 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
-    private func settingsPage<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        ScrollView {
-            content()
-                .padding(.top, 12)
-                .padding(.horizontal, 2)
-                .padding(.bottom, 14)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+    private func settingsPage<Content: View>(@ViewBuilder content: @escaping () -> Content) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                content()
+                    .padding(.top, 12)
+                    .padding(.horizontal, 2)
+                    .padding(.bottom, 14)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+            .onChange(of: skinEditorScrollRequest) { _ in
+                DispatchQueue.main.async {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        proxy.scrollTo(Self.skinEditorID, anchor: .bottom)
+                    }
+                }
+            }
         }
     }
 }
@@ -1668,6 +1749,168 @@ private struct SkinChoiceView: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .strokeBorder(isSelected ? skin.accent.opacity(0.55) : skin.hairline, lineWidth: 1)
         )
+    }
+}
+
+private struct CustomSkinChoiceView: View {
+    let skin: CustomTerminalSkin
+    let isSelected: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "paintpalette")
+                    .foregroundStyle(Color(nsColor: skin.caret))
+                Spacer()
+                Text(L10n.string("settings.skin.custom_badge"))
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(Color(nsColor: skin.foreground).opacity(0.72))
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(Color(nsColor: skin.caret))
+                }
+            }
+            Text(skin.name)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color(nsColor: skin.foreground))
+                .lineLimit(1)
+            Text(L10n.string("settings.skin.custom.summary"))
+                .font(.caption)
+                .foregroundStyle(Color(nsColor: skin.foreground).opacity(0.78))
+                .lineLimit(2)
+            SkinANSIGrid(colors: skin.normalizedANSI)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
+        .background(Color(nsColor: skin.background))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(isSelected ? Color(nsColor: skin.caret).opacity(0.7) : Color(nsColor: skin.foreground).opacity(0.2), lineWidth: 1)
+        )
+    }
+}
+
+private struct SkinANSIGrid: View {
+    let colors: [Int]
+
+    var body: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 8), spacing: 2) {
+            ForEach(Array(colors.enumerated()), id: \.offset) { _, color in
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(Color(nsColor: NSColor(hex: color)))
+                    .frame(height: 9)
+            }
+        }
+        .padding(.top, 2)
+    }
+}
+
+private struct CustomSkinEditor: View {
+    let skin: CustomTerminalSkin
+    @ObservedObject var preferences: TerminalPreferences
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label(L10n.string("settings.skin.customize"), systemImage: "slider.horizontal.3")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Button(role: .destructive) {
+                    preferences.deleteActiveCustomSkin()
+                } label: {
+                    Label(L10n.string("action.delete"), systemImage: "trash")
+                }
+                .buttonStyle(.borderless)
+            }
+            TextField(L10n.string("settings.skin.name"), text: nameBinding)
+                .textFieldStyle(.roundedBorder)
+            HStack(alignment: .top, spacing: 14) {
+                CustomSkinTerminalPreview(skin: skin)
+                    .frame(width: 220, height: 126)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(L10n.string("settings.skin.core_colors"))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    HStack(spacing: 10) {
+                        colorPicker(L10n.string("settings.skin.foreground"), keyPath: \.foregroundHex)
+                        colorPicker(L10n.string("settings.skin.background"), keyPath: \.backgroundHex)
+                        colorPicker(L10n.string("settings.skin.caret"), keyPath: \.caretHex)
+                    }
+                    Text(L10n.string("settings.skin.ansi_colors"))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(28), spacing: 6), count: 8), spacing: 6) {
+                        ForEach(0..<16, id: \.self) { index in
+                            ColorPicker("", selection: ansiBinding(index), supportsOpacity: false)
+                                .labelsHidden()
+                                .frame(width: 28, height: 22)
+                                .help(L10n.format("settings.skin.ansi_color", index + 1))
+                        }
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .background(preferences.skin.controlFill.opacity(0.72), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(preferences.skin.hairline, lineWidth: 1))
+    }
+
+    private var nameBinding: Binding<String> {
+        Binding(get: { skin.name }, set: { name in preferences.updateActiveCustomSkin { $0.name = name } })
+    }
+
+    private func colorPicker(_ title: String, keyPath: WritableKeyPath<CustomTerminalSkin, Int>) -> some View {
+        ColorPicker(title, selection: colorBinding(keyPath), supportsOpacity: false)
+            .labelsHidden()
+            .help(title)
+    }
+
+    private func colorBinding(_ keyPath: WritableKeyPath<CustomTerminalSkin, Int>) -> Binding<Color> {
+        Binding(
+            get: { Color(nsColor: NSColor(hex: skin[keyPath: keyPath])) },
+            set: { color in preferences.updateActiveCustomSkin { $0[keyPath: keyPath] = NSColor(color).srgbHex } }
+        )
+    }
+
+    private func ansiBinding(_ index: Int) -> Binding<Color> {
+        Binding(
+            get: { Color(nsColor: NSColor(hex: skin.normalizedANSI[index])) },
+            set: { color in
+                preferences.updateActiveCustomSkin { editable in
+                    var ansi = editable.normalizedANSI
+                    ansi[index] = NSColor(color).srgbHex
+                    editable.ansi = ansi
+                }
+            }
+        )
+    }
+}
+
+private struct CustomSkinTerminalPreview: View {
+    let skin: CustomTerminalSkin
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 5) {
+                Circle().fill(Color(nsColor: NSColor(hex: skin.normalizedANSI[1]))).frame(width: 7, height: 7)
+                Circle().fill(Color(nsColor: NSColor(hex: skin.normalizedANSI[3]))).frame(width: 7, height: 7)
+                Circle().fill(Color(nsColor: NSColor(hex: skin.normalizedANSI[2]))).frame(width: 7, height: 7)
+                Spacer()
+            }
+            Text(L10n.string("settings.skin.preview.path"))
+                .font(.caption.monospaced())
+                .foregroundStyle(Color(nsColor: skin.caret))
+            Text(L10n.string("settings.skin.preview.command"))
+                .font(.caption.monospaced())
+                .foregroundStyle(Color(nsColor: skin.foreground))
+            Text(L10n.string("settings.skin.preview.success"))
+                .font(.caption.monospaced())
+                .foregroundStyle(Color(nsColor: NSColor(hex: skin.normalizedANSI[2])))
+            Spacer()
+        }
+        .padding(10)
+        .background(Color(nsColor: skin.background), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 
