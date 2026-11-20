@@ -1876,6 +1876,15 @@ extension TerminalView {
         renderOwner.semanticPromptRow(searchingUpward: false)
     }
 
+    /// Drops unfinished process output without completing its control sequences,
+    /// resets keyboard stacks and G0–G3 designations, and restores the normal
+    /// screen with its own cursor. Cells and scrollback are preserved.
+    /// Call after draining an exited process, outside terminal delegate callbacks.
+    public func prepareForSessionExit() {
+        withTerminal { $0.prepareForSessionExit() }
+        frameSignal.markDirty()
+    }
+
     /// Performs DECSTR through the normal parser feed path.
     public nonisolated func softReset() {
         feedSender.feed(text: "\u{1b}[!p")

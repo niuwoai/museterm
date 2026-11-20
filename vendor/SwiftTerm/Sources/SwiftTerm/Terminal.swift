@@ -817,6 +817,34 @@ open class Terminal {
         parser.reset(self)
     }
 
+    /// Discards unfinished input after a process exits and restores the normal screen.
+    ///
+    /// Incomplete OSC/APC/DCS sequences are dropped without dispatching their
+    /// completion handlers. Both keyboard protocol stacks and G0–G3 designations
+    /// are reset. Normal-screen cells, scrollback and its own cursor are preserved;
+    /// the application's DECSC register and alternate-screen cursor are not used.
+    /// Call only after draining the exited process's output, serialized with feeds.
+    public func prepareForSessionExit() {
+        parser.reset(self)
+        keyboardModeNormal = KeyboardModeState()
+        keyboardModeAlt = KeyboardModeState()
+        gCharsets = [CharSets.defaultCharset, nil, nil, nil]
+        gcharset = 0
+        setgLevel(0)
+
+        guard isCurrentBufferAlternate else { return }
+        resizeNormalBufferToCurrentGridIfNeeded()
+        let normalX = normalBuffer.x
+        let normalY = normalBuffer.y
+        activateNormalBuffer(clearAlt: true)
+        normalBuffer.x = normalX
+        normalBuffer.y = normalY
+        refresh(startRow: 0, endRow: rows - 1)
+        syncScrollArea()
+        showCursor()
+        tdel?.bufferActivated(source: self)
+    }
+
     /// Owns copied OSC observations independently of parser storage.
     private let oscEventDispatcher = TerminalOscEventDispatcher()
 

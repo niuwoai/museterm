@@ -1,0 +1,2 @@
+# QA screenshots can contain local user and host identifiers; keep them local.
+**/native-terminal.png

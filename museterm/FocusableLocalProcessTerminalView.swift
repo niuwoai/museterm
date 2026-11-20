@@ -13,6 +13,11 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     var onPaste: (() -> Bool)?
     var externalBackendSend: (([UInt8]) -> Bool)?
     private var externalFeedCompletion: (() -> Void)?
+    private var pendingOutputDrainActions: [() -> Void] = []
+    // ANSI insert mode updates both buffers; alternate scrolling defaults to on.
+    private static let sshExitModeReset = "\u{1b}[4l"
+        + "\u{1b}[?9;1000;1002;1003;1004;1005;1006;1015;1016;2004;2026;2031;2033;2048;5522;5l"
+        + "\u{1b}[?1007h"
     private(set) var isReplayingHistoricalOutput = false
     private var historicalFeedRanges: [Range<Int>] = []
     private var replayScreenModeUnknown = false
@@ -53,6 +58,38 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     /// 命令面板 / AI 指令输入条等键盘浮层打开期间为 true：此时终端不得自动夺取
     /// 第一响应者，键盘输入应留在浮层里。鼠标点击等显式动作仍走 requestFocus()。
     var suppressesAutomaticFocus = false
+
+    /// Only call after the backend has confirmed process exit. Keep this separate
+    /// from the runtime frame acknowledgement: both must survive a queued flush.
+    func finishSSHSessionAfterPendingOutput(ifCurrent: @escaping () -> Bool, completion: @escaping () -> Void) {
+        let finish = { [weak self] in
+            guard let self, ifCurrent(), !self.backendIsRunning else { return }
+            self.resetEndedSSHSession()
+            completion()
+        }
+        if pendingFeedBytes.isEmpty { finish() }
+        else { pendingOutputDrainActions.append(finish) }
+    }
+
+    private func resetEndedSSHSession() {
+        // Disable replay recovery first: restoring the normal screen must never
+        // erase the viewport that an incomplete historical stream was using.
+        replayScreenModeUnknown = false
+        clearOrphanedReplayScreen = false
+        lastParsedRuntimeByte = nil
+        // A control-byte terminator can commit a partial DCS. Discard the parser
+        // state directly and restore the normal screen's own cursor, without
+        // applying a potentially stale DECSC position from ?47h / ?1047h.
+        prepareForSessionExit()
+        // DECSTR preserves normal cells and scrollback while restoring attributes,
+        // cursor visibility, scrolling margins and application keys.
+        softReset()
+        // DECSTR does not reset these input/presentation modes in SwiftTerm.
+        // Seed DECSC at the restored insertion point: a redundant screen exit
+        // on reconnect must not rewind to DECSTR's default (0, 0) over history.
+        feed(text: Self.sshExitModeReset + "\u{1b}[0 q\u{1b}7")
+        invalidateTerminalEchoCache()
+    }
 
     func beginTruncatedRuntimeReplay() {
         // A truncated VT stream may have lost its alternate-screen entry.
@@ -1046,8 +1083,11 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
         if !pendingFeedBytes.isEmpty {
             scheduleFeedFlush()
         } else {
+            let drained = pendingOutputDrainActions
+            pendingOutputDrainActions.removeAll()
             let completion = externalFeedCompletion
             externalFeedCompletion = nil
+            drained.forEach { $0() }
             #if DEBUG
             if holdExternalFeedCompletionForTesting {
                 heldExternalFeedCompletion = completion
