@@ -130,6 +130,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private var sshReconnectAttemptCount = 0
     private var sshLastStartUptime: TimeInterval = 0
     private var pendingSSHReconnectWorkItem: DispatchWorkItem?
+    private var sshAttemptID = UUID()
+    private var sshFinishedAttemptID: UUID?
+    private var sshExitCleanupPending = false
+    private var pendingManualSSHReconnect = false
     private var isTerminating = false
     // 输出快照节流：fullHistoryText() 会全量扫终端历史 buffer（复杂度 ≈ 历史行数 × 列宽），
     // 若每段输出都扫一遍，长历史下主线程会被打满。普通输出合并到至多每 250ms 一次，
@@ -393,11 +397,17 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func reconnectSSH() {
-        guard case .ssh = session?.launchConfiguration,
+        guard !isTerminating, case .ssh = session?.launchConfiguration,
               !terminalView.backendIsRunning else {
             return
         }
         guard prepareRuntimeSSHReconnect() else { return }
+        // A dead runtime can still be replaying its final output. The old view
+        // must finish that output and its exit cleanup before starting a new PTY.
+        if sshExitCleanupPending || (runtimeHandle != nil && !runtimeExitWasReported) {
+            pendingManualSSHReconnect = true
+            return
+        }
         pendingSSHReconnectWorkItem?.cancel()
         pendingSSHReconnectWorkItem = nil
         sshReconnectAttemptCount = 0
@@ -976,10 +986,49 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func processTerminated(source: TerminalView, exitCode: Int32?) {
-        guard !terminalView.backendIsRunning else {
-            session?.state = .running
+        guard source === terminalView, !terminalView.backendIsRunning else { return }
+        if let handle = runtimeHandle {
+            // Viewer transport failure/detach is not proof of a process exit.
+            guard let info = handle.info, !info.running,
+                  runtimeOutputIsDrained(handle, info: info) else { return }
+        }
+        guard case .ssh = session?.launchConfiguration else {
+            finishProcessTermination(exitCode: exitCode)
             return
         }
+        guard !isTerminating, !sshExitCleanupPending, sshFinishedAttemptID != sshAttemptID else { return }
+        let attempt = sshAttemptID
+        sshExitCleanupPending = true
+        terminalView.finishSSHSessionAfterPendingOutput(ifCurrent: { [weak self] in
+            guard let self else { return false }
+            return !self.isTerminating && self.sshAttemptID == attempt
+        }) { [weak self] in
+            guard let self else { return }
+            self.sshExitCleanupPending = false
+            self.sshFinishedAttemptID = attempt
+            if let preferences = self.preferences {
+                self.applyCursorStyle(shape: preferences.cursorShape, blink: preferences.cursorBlink)
+                self.requestTerminalRepaint()
+            }
+            self.flushPendingSSHDiagnosticMessage()
+            self.finishProcessTermination(exitCode: exitCode)
+        }
+    }
+
+    private func runtimeOutputIsDrained(_ handle: TerminalRuntimeSessionHandle, info: TerminalRuntimeSessionInfo) -> Bool {
+        guard case .ssh = session?.launchConfiguration else { return true }
+        guard let cursor = handle.renderedCursor else { return false }
+        return cursor.generation == info.generation && cursor.offset >= info.outputOffset
+    }
+
+    private func reportRuntimeExitIfReady(_ handle: TerminalRuntimeSessionHandle) {
+        guard runtimeHandle === handle, !runtimeExitWasReported,
+              let info = handle.info, !info.running, runtimeOutputIsDrained(handle, info: info) else { return }
+        runtimeExitWasReported = true
+        processTerminated(source: terminalView, exitCode: info.exitStatus)
+    }
+
+    private func finishProcessTermination(exitCode: Int32?) {
         session?.releaseAIControl(reason: "process_exited")
         session?.finishActiveCommand(
             exitCode: exitCode,
@@ -1003,6 +1052,11 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                     reason: L10n.string("file_transfer.error.process_unavailable")
                 )
             }
+        }
+        if pendingManualSSHReconnect {
+            pendingManualSSHReconnect = false
+            reconnectSSH()
+            return
         }
         if scheduleSSHReconnectIfNeeded(exitCode: exitCode) {
             return
@@ -1153,7 +1207,6 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             } else {
                 self.commitProcessOutputSnapshot()
             }
-            self.flushPendingSSHDiagnosticMessage()
         }
         container.addSubview(terminalView)
 
@@ -1211,9 +1264,22 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     private func flushPendingSSHDiagnosticMessage() {
-        guard let message = pendingSSHDiagnosticMessage else { return }
+        // Only the exit-cleanup completion calls this: an unfinished control
+        // sequence on either screen can otherwise swallow a local diagnostic.
+        guard !sshExitCleanupPending,
+              !terminalView.backendIsRunning,
+              terminalView.terminalInputStateSnapshot()?.isAlternateBuffer != true,
+              let message = pendingSSHDiagnosticMessage else { return }
         pendingSSHDiagnosticMessage = nil
-        terminalView.feed(text: "\n\(message)\n")
+        // Evidence and profile names can contain remote control bytes. Display
+        // them literally so a local notice cannot re-enter OSC/APC/DCS parsing.
+        let text = message.unicodeScalars.map { scalar -> String in
+            if scalar == "\n" || scalar == "\t" || !CharacterSet.controlCharacters.contains(scalar) {
+                return String(scalar)
+            }
+            return String(format: "\\u{%04X}", scalar.value)
+        }.joined()
+        terminalView.feed(text: "\n\(text)\n")
     }
 
     private func handleProcessOutputForZModem(_ data: ArraySlice<UInt8>) -> Bool {
@@ -1684,6 +1750,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                         executable: runtimeLaunchContext?.2 ?? TerminalRuntimeService.executableURL) { [weak self] in self?.drainStartupCommands(startup) }
                     return
                 }
+                beginSSHAttempt()
                 terminalView.startOwnedProcess(
                     executable: descriptor.executable,
                     args: descriptor.args,
@@ -1700,6 +1767,12 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 session?.state = .exited(nil)
             }
         }
+    }
+
+    private func beginSSHAttempt() {
+        sshAttemptID = UUID()
+        sshExitCleanupPending = false
+        pendingManualSSHReconnect = false
     }
 
     private func resetSSHDiagnosticsForNewAttempt() {
@@ -1855,6 +1928,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                       executable: URL = TerminalRuntimeService.executableURL,
                       restarting previous: TerminalRuntimeSessionInfo? = nil, ready: @escaping () -> Void) {
         guard let session else { return }
+        beginSSHAttempt()
         var launch = launch
         if let preferences { launch.reminderPolicy = .init(preferences: preferences) }
         let restarting = previous ?? runtimeRestartExpected
@@ -1888,7 +1962,11 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 throw error
             }
         }
-        handle.onRenderedOutput = { [weak session] in session?.onRuntimeOutputRendered?() }
+        handle.onRenderedOutput = { [weak self, weak handle, weak session] in
+            guard let self, let handle, self.runtimeHandle === handle else { return }
+            session?.onRuntimeOutputRendered?()
+            self.reportRuntimeExitIfReady(handle)
+        }
         session.runtimeConnectionIssue = .connecting
         terminalView.externalIsRunning = { [weak handle] in handle?.info?.running == true }
         // Trusted transport bytes (tunnel/ZMODEM/redraw) retain the old direct
@@ -1995,10 +2073,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 session.runtimeSessionWasReopened = true
             }
             session.applyRuntimeInfo(info)
-            if !info.running && !self.runtimeExitWasReported {
-                self.runtimeExitWasReported = true
-                self.processTerminated(source: self.terminalView, exitCode: info.exitStatus)
-            }
+            self.reportRuntimeExitIfReady(handle)
         }
         var didBecomeReady = false
         handle.onOutput = { [weak self, weak handle] response, historicalBytes, consumed in

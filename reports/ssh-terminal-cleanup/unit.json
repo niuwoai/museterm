@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-20T05:40:41Z",
+  "version": "1.261.0-rc3",
+  "build": 384,
+  "scope": "Native unit and integration tests; an isolated application bundle ID and derived data are used.",
+  "onlyTesting": [
+    "musetermTests"
+  ],
+  "durationSeconds": 155.491,
+  "success": true,
+  "exitStatus": 0,
+  "resultBundle": ".derivedData/ssh-terminal-cleanup/20261120T053806.xcresult",
+  "buildLog": ".derivedData/ssh-terminal-cleanup/20261120T053806.log",
+  "summary": {
+    "devicesAndConfigurations": [
+      {
+        "device": {
+          "architecture": "arm64",
+          "deviceName": "My Mac",
+          "modelName": "MacBook Pro",
+          "osBuildNumber": "26B131",
+          "osVersion": "27.2.1",
+          "platform": "macOS"
+        },
+        "expectedFailures": 0,
+        "failedTests": 0,
+        "passedTests": 766,
+        "skippedTests": 0,
+        "testPlanConfiguration": {
+          "configurationId": "1",
+          "configurationName": "Test Scheme Action"
+        }
+      }
+    ],
+    "environmentDescription": "museterm · Built with macOS 27.2.1",
+    "expectedFailures": 0,
+    "failedTests": 0,
+    "finishTime": 1795153240.614,
+    "passedTests": 766,
+    "result": "Passed",
+    "runtimeWarnings": [],
+    "skippedTests": 0,
+    "startTime": 1795153088.918,
+    "statistics": [],
+    "testFailures": [],
+    "title": "Test - museterm",
+    "topInsights": [
+      {
+        "category": "Longest Test Runs",
+        "impact": "50% of duration",
+        "text": "8 longest test runs with outlier durations exceeding 3.86s (three standard deviations)"
+      }
+    ],
+    "totalTestCount": 766
+  },
+  "summaryError": null
+}

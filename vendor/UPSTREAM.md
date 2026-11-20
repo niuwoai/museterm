@@ -37,6 +37,19 @@ internal. Two members are widened from internal to `public`:
   writes them to the child process. The app installs its own delegate, so it
   forwards reports here after its input checks.
 
+Session-exit recovery also adds `Terminal.prepareForSessionExit()` and its
+locked `TerminalView.prepareForSessionExit()` wrapper in `Terminal.swift` and
+`Apple/AppleTerminalView.swift`. After an exited process's output is drained,
+these discard unfinished parser state without completing OSC/APC/DCS handlers,
+reset keyboard stacks and G0–G3 designations, and restore the normal screen's
+own cursor without consulting a stale DECSC register. Normal cells and scrollback
+are preserved. MuseTerm follows this with DECSTR and its local mode reset,
+including ANSI insert mode in both buffers and the default enabled alternate-screen
+scrolling. Ordinary DECSTR behavior remains unchanged. This is needed because CAN can complete a
+partial DCS in this upstream parser, and `1049l` restores a stale cursor after
+legacy `47`/`1047` entry. Application regressions live in
+`musetermTests/TerminalSSHExitResetTests.swift`.
+
 Dropped from the upstream tree (not needed to build the library): Tests,
 TerminalApp, Tools, Web, Docs, Benchmarks, .github and Documentation.docc.
 `swifterm-terminfo` stays: the build plugin reads it to generate the terminfo
