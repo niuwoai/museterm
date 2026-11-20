@@ -1,0 +1,131 @@
+{
+  "generatedAt": "2026-10-24T22:17:32+08:00",
+  "mode": "qa-ui",
+  "passed": true,
+  "failure": null,
+  "scope": "实际隔离 QTerm 图形界面 + WillDeep CLI/Runtime；本机 mock 模型；所有输入由原生界面执行，界面动作与退出时长另存独立证据",
+  "fixtureDirectory": null,
+  "binarySHA256": "ce8adf707cd3832e83c03c251cdbd528736e20302633028bd027532471297cb8",
+  "modelRequests": 2,
+  "frontendExitStatus": null,
+  "qtermBackendSHA256": "6c2dd3ad80142fa513e134605bf6c4dc40b84d02b4d7eba2bff5f3dc518aa8f6",
+  "allUIClientsDetachedSeconds": null,
+  "backendInputDiagnostics": [],
+  "backendWaitResult": null,
+  "backendPendingKindsAtApproval": [
+    "approval"
+  ],
+  "backendCLIWaitResult": null,
+  "backendCLIWaitSourceSHA256": null,
+  "terminalDeviceStatusReplies": 0,
+  "lostAcknowledgementRetried": false,
+  "states": [
+    {
+      "activity": "unknown",
+      "sequence": 0,
+      "observedAt": 1234919.96563
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "sessionID": "06097169-8F1C-4DD4-B5EE-75CEF9DB951D"
+      },
+      "sequence": 1,
+      "observedAt": 1234920.022543
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "sessionID": "06097169-8F1C-4DD4-B5EE-75CEF9DB951D"
+      },
+      "sequence": 2,
+      "observedAt": 1234950.018575
+    },
+    {
+      "activity": "working",
+      "context": {
+        "sessionID": "06097169-8F1C-4DD4-B5EE-75CEF9DB951D",
+        "taskID": "a6537a79-659b-45be-ac97-572969e7a7ab"
+      },
+      "sequence": 3,
+      "observedAt": 1234957.178517
+    },
+    {
+      "activity": "blocked",
+      "blockReason": "approval",
+      "context": {
+        "sessionID": "06097169-8F1C-4DD4-B5EE-75CEF9DB951D",
+        "gateID": "7d3c4f7b-a0c3-423b-825e-d12ae0054005",
+        "taskID": "48dd33d7-f888-4b6b-9016-f8f4fb006eb4"
+      },
+      "sequence": 4,
+      "observedAt": 1234957.978886
+    },
+    {
+      "activity": "blocked",
+      "blockReason": "approval",
+      "context": {
+        "sessionID": "06097169-8F1C-4DD4-B5EE-75CEF9DB951D",
+        "gateID": "7d3c4f7b-a0c3-423b-825e-d12ae0054005",
+        "taskID": "48dd33d7-f888-4b6b-9016-f8f4fb006eb4"
+      },
+      "sequence": 8,
+      "observedAt": 1235098.848786
+    },
+    {
+      "activity": "blocked",
+      "blockReason": "approval",
+      "context": {
+        "sessionID": "06097169-8F1C-4DD4-B5EE-75CEF9DB951D",
+        "gateID": "7d3c4f7b-a0c3-423b-825e-d12ae0054005",
+        "taskID": "48dd33d7-f888-4b6b-9016-f8f4fb006eb4"
+      },
+      "sequence": 9,
+      "observedAt": 1235108.202925
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "sessionID": "06097169-8F1C-4DD4-B5EE-75CEF9DB951D",
+        "taskID": "48dd33d7-f888-4b6b-9016-f8f4fb006eb4"
+      },
+      "result": "completed",
+      "sequence": 10,
+      "observedAt": 1235117.01939
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "sessionID": "06097169-8F1C-4DD4-B5EE-75CEF9DB951D",
+        "taskID": "48dd33d7-f888-4b6b-9016-f8f4fb006eb4"
+      },
+      "result": "completed",
+      "sequence": 11,
+      "observedAt": 1235147.016207
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "sessionID": "06097169-8F1C-4DD4-B5EE-75CEF9DB951D",
+        "taskID": "48dd33d7-f888-4b6b-9016-f8f4fb006eb4"
+      },
+      "result": "completed",
+      "sequence": 12,
+      "observedAt": 1235177.077378
+    },
+    {
+      "activity": "exited",
+      "context": {
+        "sessionID": "06097169-8F1C-4DD4-B5EE-75CEF9DB951D",
+        "taskID": "48dd33d7-f888-4b6b-9016-f8f4fb006eb4"
+      },
+      "result": "completed",
+      "sequence": 13,
+      "observedAt": 1235204.2245
+    }
+  ],
+  "fixtureErrors": [],
+  "scenario": "floating and reattach while same QA application remains running; not application quit/relaunch",
+  "driverAdapterSHA256": "6591a6ca0e970e03669de851e9ef231b20b9edb403b1133bbdfc819e7c14be39",
+  "driverAdapterChanges": "Two test-support require paths made absolute; checkpoint renamed float-and-reattach-qa-ui; original protocol/model/assertions unchanged"
+}

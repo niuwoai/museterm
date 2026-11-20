@@ -1,0 +1,28 @@
+{
+  "passed": true,
+  "version": "1.251.0-rc27",
+  "build": 342,
+  "configuration": "Release",
+  "bundleID": "im.some.qterm.goaltests.QTerm",
+  "bundleIdentitySource": "Isolated xcconfig fixes the base goaltests bundle ID; command-line ReleaseCheck override did not change the final bundle ID",
+  "architectures": {
+    "/private/tmp/qterm-release-check-derived/Build/Products/Release/QTerm.app/Contents/MacOS/QTerm": [
+      "arm64",
+      "x86_64"
+    ],
+    "/private/tmp/qterm-release-check-derived/Build/Products/Release/QTerm.app/Contents/Helpers/qterm-runtime": [
+      "arm64",
+      "x86_64"
+    ]
+  },
+  "qaOnlyFlagsAbsent": [
+    "QTERM_GUI_TOOL_FIXTURE",
+    "QTERM_UI_TEST_RUNTIME",
+    "QTERM_RUNTIME_HELPER_PATH"
+  ],
+  "xctestFrameworkNotLinked": true,
+  "appSHA256": "44250b9b47e08c3edc17052a95c0526e8fec872b767e77947b97cde7d1137b46",
+  "helperSHA256": "793fde2dcafc2fa7c62100c55169a792c82da7097f6d9d70f19809257c0c3aae",
+  "resultBundle": "/private/tmp/qterm-release-universal-context-03.xcresult",
+  "scope": "Complete unsigned universal Release build and artifact inspection; no installation, launch, notarization, publication or normal-runtime activation"
+}

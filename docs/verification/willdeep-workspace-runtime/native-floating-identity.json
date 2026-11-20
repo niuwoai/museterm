@@ -1,0 +1,150 @@
+{
+  "snapshots": [
+    {
+      "phase": "before",
+      "observedAt": "2026-10-24T22:13:51+08:00",
+      "terminal": {
+        "id": "5B953AB5-2859-474B-AF11-78D7D3B55740",
+        "pid": 1734,
+        "generation": "7ADE0247-4DBD-4E66-8AF6-69AA22CFBC20"
+      },
+      "foregroundPID": 5179,
+      "agent": {
+        "instanceID": "FB05FA13-A5CC-4679-AB8C-079FD41906C6",
+        "runID": "23B7152C-F292-4D6E-8AAA-FD14C94491F2",
+        "activity": "blocked",
+        "context": {
+          "sessionID": "06097169-8F1C-4DD4-B5EE-75CEF9DB951D",
+          "gateID": "7d3c4f7b-a0c3-423b-825e-d12ae0054005",
+          "taskID": "48dd33d7-f888-4b6b-9016-f8f4fb006eb4"
+        }
+      },
+      "attention": [
+        {
+          "id": "CB250776-5743-407C-8663-1440583D9BCD",
+          "tabID": "5B953AB5-2859-474B-AF11-78D7D3B55740",
+          "kind": "approval",
+          "version": 1
+        }
+      ],
+      "uiPendingCount": 1,
+      "globalPendingCount": 2
+    },
+    {
+      "phase": "floating",
+      "observedAt": "2026-10-24T22:14:43+08:00",
+      "terminal": {
+        "id": "5B953AB5-2859-474B-AF11-78D7D3B55740",
+        "pid": 1734,
+        "generation": "7ADE0247-4DBD-4E66-8AF6-69AA22CFBC20"
+      },
+      "foregroundPID": 5179,
+      "agent": {
+        "instanceID": "FB05FA13-A5CC-4679-AB8C-079FD41906C6",
+        "runID": "23B7152C-F292-4D6E-8AAA-FD14C94491F2",
+        "activity": "blocked",
+        "context": {
+          "sessionID": "06097169-8F1C-4DD4-B5EE-75CEF9DB951D",
+          "gateID": "7d3c4f7b-a0c3-423b-825e-d12ae0054005",
+          "taskID": "48dd33d7-f888-4b6b-9016-f8f4fb006eb4"
+        }
+      },
+      "attention": [
+        {
+          "id": "CB250776-5743-407C-8663-1440583D9BCD",
+          "tabID": "5B953AB5-2859-474B-AF11-78D7D3B55740",
+          "kind": "approval",
+          "version": 1
+        }
+      ],
+      "uiPendingCount": 1,
+      "globalPendingCount": 2
+    },
+    {
+      "phase": "reattached",
+      "observedAt": "2026-10-24T22:15:17+08:00",
+      "terminal": {
+        "id": "5B953AB5-2859-474B-AF11-78D7D3B55740",
+        "pid": 1734,
+        "generation": "7ADE0247-4DBD-4E66-8AF6-69AA22CFBC20"
+      },
+      "foregroundPID": 5179,
+      "agent": {
+        "instanceID": "FB05FA13-A5CC-4679-AB8C-079FD41906C6",
+        "runID": "23B7152C-F292-4D6E-8AAA-FD14C94491F2",
+        "activity": "blocked",
+        "context": {
+          "sessionID": "06097169-8F1C-4DD4-B5EE-75CEF9DB951D",
+          "gateID": "7d3c4f7b-a0c3-423b-825e-d12ae0054005",
+          "taskID": "48dd33d7-f888-4b6b-9016-f8f4fb006eb4"
+        }
+      },
+      "attention": [
+        {
+          "id": "CB250776-5743-407C-8663-1440583D9BCD",
+          "tabID": "5B953AB5-2859-474B-AF11-78D7D3B55740",
+          "kind": "approval",
+          "version": 2
+        }
+      ],
+      "uiPendingCount": 1,
+      "globalPendingCount": 2
+    },
+    {
+      "phase": "completed",
+      "observedAt": "2026-10-24T22:15:53+08:00",
+      "terminal": {
+        "id": "5B953AB5-2859-474B-AF11-78D7D3B55740",
+        "pid": 1734,
+        "generation": "7ADE0247-4DBD-4E66-8AF6-69AA22CFBC20"
+      },
+      "foregroundPID": 5179,
+      "agent": {
+        "instanceID": "FB05FA13-A5CC-4679-AB8C-079FD41906C6",
+        "runID": "23B7152C-F292-4D6E-8AAA-FD14C94491F2",
+        "activity": "idle",
+        "lastResult": "completed",
+        "context": {
+          "sessionID": "06097169-8F1C-4DD4-B5EE-75CEF9DB951D",
+          "taskID": "48dd33d7-f888-4b6b-9016-f8f4fb006eb4"
+        }
+      },
+      "attention": [
+        {
+          "id": "1A5A7076-6C17-4BA3-AD66-50A53108ACF8",
+          "tabID": "5B953AB5-2859-474B-AF11-78D7D3B55740",
+          "kind": "completed",
+          "version": 1
+        }
+      ],
+      "uiPendingCount": 1,
+      "globalPendingCount": 2
+    },
+    {
+      "phase": "read",
+      "observedAt": "2026-10-24T22:16:41+08:00",
+      "terminal": {
+        "id": "5B953AB5-2859-474B-AF11-78D7D3B55740",
+        "pid": 1734,
+        "generation": "7ADE0247-4DBD-4E66-8AF6-69AA22CFBC20"
+      },
+      "foregroundPID": 5179,
+      "agent": {
+        "instanceID": "FB05FA13-A5CC-4679-AB8C-079FD41906C6",
+        "runID": "23B7152C-F292-4D6E-8AAA-FD14C94491F2",
+        "activity": "idle",
+        "lastResult": "completed",
+        "context": {
+          "sessionID": "06097169-8F1C-4DD4-B5EE-75CEF9DB951D",
+          "taskID": "48dd33d7-f888-4b6b-9016-f8f4fb006eb4"
+        }
+      },
+      "attention": [],
+      "uiPendingCount": 0,
+      "globalPendingCount": 1
+    }
+  ],
+  "scope": "Actual WillDeep/private Runtime/mock model across floating/reattach; application remains running",
+  "frontendExitedAndOriginalShellRestored": true,
+  "ownedCleanupAndCredentialRemovalVerified": true
+}

@@ -7,7 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A25300010000000000000001 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = A25300010000000000000002 /* Markdown */; };
 		5CB51EA02FF2F2500010675C /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 5CB51E9F2FF2F2500010675C /* SwiftTerm */; };
+		8A9F219FE8C16A99E23EA90E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5C6103F847CC9EC58053615E /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,24 +30,47 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		5CB51E702FF2EAAD0010675C /* museterm.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = museterm.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5CB51E702FF2EAAD0010675C /* MuseTerm.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MuseTerm.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5CB51E7F2FF2EAB20010675C /* musetermTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = musetermTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5CB51E892FF2EAB20010675C /* musetermUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = musetermUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		5CB51EA12FF438C60010675C /* Exceptions for "museterm" folder in "museterm" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				GeneratedAssets,
+				Info.plist,
+				"SessionTunnelHelpers/museterm-tunnel-darwin-amd64.gz",
+				"SessionTunnelHelpers/museterm-tunnel-darwin-arm64.gz",
+			);
+			target = 5CB51E6F2FF2EAAD0010675C /* museterm */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		5CB51E722FF2EAAD0010675C /* museterm */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5CB51EA12FF438C60010675C /* Exceptions for "museterm" folder in "museterm" target */,
+			);
+			explicitFolders = (
+				GeneratedAssets,
+			);
 			path = museterm;
 			sourceTree = "<group>";
 		};
 		5CB51E822FF2EAB20010675C /* musetermTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = musetermTests;
 			sourceTree = "<group>";
 		};
 		5CB51E8C2FF2EAB20010675C /* musetermUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = musetermUITests;
 			sourceTree = "<group>";
 		};
@@ -57,6 +82,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				5CB51EA02FF2F2500010675C /* SwiftTerm in Frameworks */,
+				A25300010000000000000001 /* Markdown in Frameworks */,
+				8A9F219FE8C16A99E23EA90E /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -90,7 +117,7 @@
 		5CB51E712FF2EAAD0010675C /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				5CB51E702FF2EAAD0010675C /* museterm.app */,
+				5CB51E702FF2EAAD0010675C /* MuseTerm.app */,
 				5CB51E7F2FF2EAB20010675C /* musetermTests.xctest */,
 				5CB51E892FF2EAB20010675C /* musetermUITests.xctest */,
 			);
@@ -107,6 +134,7 @@
 				5CB51E6C2FF2EAAD0010675C /* Sources */,
 				5CB51E6D2FF2EAAD0010675C /* Frameworks */,
 				5CB51E6E2FF2EAAD0010675C /* Resources */,
+				A01C6E170000000000000001 /* Build terminal runtime */,
 			);
 			buildRules = (
 			);
@@ -118,9 +146,11 @@
 			name = museterm;
 			packageProductDependencies = (
 				5CB51E9F2FF2F2500010675C /* SwiftTerm */,
+				A25300010000000000000002 /* Markdown */,
+				5C6103F847CC9EC58053615E /* Sparkle */,
 			);
 			productName = museterm;
-			productReference = 5CB51E702FF2EAAD0010675C /* museterm.app */;
+			productReference = 5CB51E702FF2EAAD0010675C /* MuseTerm.app */;
 			productType = "com.apple.product-type.application";
 		};
 		5CB51E7E2FF2EAB20010675C /* musetermTests */ = {
@@ -140,8 +170,6 @@
 				5CB51E822FF2EAB20010675C /* musetermTests */,
 			);
 			name = musetermTests;
-			packageProductDependencies = (
-			);
 			productName = musetermTests;
 			productReference = 5CB51E7F2FF2EAB20010675C /* musetermTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -163,8 +191,6 @@
 				5CB51E8C2FF2EAB20010675C /* musetermUITests */,
 			);
 			name = musetermUITests;
-			packageProductDependencies = (
-			);
 			productName = musetermUITests;
 			productReference = 5CB51E892FF2EAB20010675C /* musetermUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -203,7 +229,9 @@
 			mainGroup = 5CB51E672FF2EAAD0010675C;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				5CB51E9E2FF2F2500010675C /* XCRemoteSwiftPackageReference "SwiftTerm" */,
+				B1A11E010000000000000001 /* XCLocalSwiftPackageReference "vendor/SwiftTerm" */,
+				A25300010000000000000003 /* XCRemoteSwiftPackageReference "swift-markdown" */,
+				93B5CCAF05C2E76BB42C3613 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5CB51E712FF2EAAD0010675C /* Products */;
@@ -240,6 +268,47 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		A01C6E170000000000000001 /* Build terminal runtime */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = ();
+			inputPaths = (
+				"$(SRCROOT)/scripts/build_terminal_runtime.rb",
+				"$(SRCROOT)/tools/terminal-runtime",
+				"$(SRCROOT)/tools/terminal-runtime/PTY.c",
+				"$(SRCROOT)/tools/terminal-runtime/PTY.h",
+				"$(SRCROOT)/tools/terminal-runtime/RuntimeServer.swift",
+				"$(SRCROOT)/tools/terminal-runtime/RuntimeSession.swift",
+				"$(SRCROOT)/tools/terminal-runtime/RuntimeSocket.swift",
+				"$(SRCROOT)/tools/terminal-runtime/RuntimeNativeBridge.swift",
+				"$(SRCROOT)/museterm/AppVersion.swift",
+				"$(SRCROOT)/museterm/TerminalRuntimeProtocol.swift",
+				"$(SRCROOT)/museterm/TerminalRuntimeReplyPolicy.swift",
+				"$(SRCROOT)/museterm/TerminalRuntimeOutputJournal.swift",
+				"$(SRCROOT)/museterm/TerminalAgentState.swift",
+				"$(SRCROOT)/museterm/TerminalCommandLifecycleState.swift",
+				"$(SRCROOT)/museterm/TerminalRuntimeCommand.swift",
+				"$(SRCROOT)/museterm/TerminalReminderPolicy.swift",
+				"$(SRCROOT)/museterm/TerminalOutputInsights.swift",
+				"$(SRCROOT)/museterm/TerminalShellReportedContext.swift",
+				"$(SRCROOT)/museterm/TerminalShellIntegrationParser.swift",
+				"$(SRCROOT)/museterm/TerminalSessionEventJournal.swift",
+				"$(SRCROOT)/museterm/TerminalAttentionContext.swift",
+				"$(SRCROOT)/museterm/TerminalAttentionStore.swift",
+				"$(SRCROOT)/museterm/TerminalNativeAgentContext.swift",
+				"$(SRCROOT)/museterm/TerminalWaitTypes.swift",
+				"$(SRCROOT)/museterm/TerminalWaitCoordinator.swift",
+			);
+			name = "Build terminal runtime";
+			outputPaths = ("$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Helpers/museterm-runtime", "$(TEMP_DIR)/MuseTermRuntimeBuild");
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/ruby \"${SRCROOT}/scripts/build_terminal_runtime.rb\" \"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Helpers/museterm-runtime\" ${ARCHS}\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		5CB51E6C2FF2EAAD0010675C /* Sources */ = {
@@ -406,21 +475,32 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 40;
+				CURRENT_PROJECT_VERSION = 385;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
+				EXCLUDED_SOURCE_FILE_NAMES = (
+					"GeneratedAssets/**",
+					"GeneratedAssets/*",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = museterm/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_SUAutomaticallyUpdate = YES;
+				INFOPLIST_KEY_SUEnableAutomaticChecks = YES;
+				INFOPLIST_KEY_SUFeedURL = "https://some.im/api/v1/public/app-updates/appcast.xml?app_id=museterm&platform=macos&channel=stable";
+				INFOPLIST_KEY_SUPublicEDKey = "3QVMPCYo42ORmq8uUHqUdW8ayy5nw8Hs5uq9DLKDp0A=";
+				INFOPLIST_KEY_SUVerifyUpdateBeforeExtraction = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = "1.8.1-rc1";
+				MARKETING_VERSION = "1.261.0-rc4";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.museterm;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = museterm;
+				PRODUCT_NAME = MuseTerm;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -438,21 +518,32 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 40;
+				CURRENT_PROJECT_VERSION = 385;
 				DEVELOPMENT_TEAM = ZH2S7D6PL6;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
+				EXCLUDED_SOURCE_FILE_NAMES = (
+					"GeneratedAssets/**",
+					"GeneratedAssets/*",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = museterm/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_SUAutomaticallyUpdate = YES;
+				INFOPLIST_KEY_SUEnableAutomaticChecks = YES;
+				INFOPLIST_KEY_SUFeedURL = "https://some.im/api/v1/public/app-updates/appcast.xml?app_id=museterm&platform=macos&channel=stable";
+				INFOPLIST_KEY_SUPublicEDKey = "3QVMPCYo42ORmq8uUHqUdW8ayy5nw8Hs5uq9DLKDp0A=";
+				INFOPLIST_KEY_SUVerifyUpdateBeforeExtraction = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = "1.8.1-rc1";
+				MARKETING_VERSION = "1.261.0-rc4";
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.museterm;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = museterm;
+				PRODUCT_NAME = MuseTerm;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -468,11 +559,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 40;
-				DEVELOPMENT_TEAM = ZH2S7D6PL6;
-				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = "1.8.1-rc1";
+				CURRENT_PROJECT_VERSION = 385;
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -480,7 +567,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/museterm.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/museterm";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MuseTerm.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MuseTerm";
 			};
 			name = Debug;
 		};
@@ -489,11 +576,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 40;
-				DEVELOPMENT_TEAM = ZH2S7D6PL6;
-				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = "1.8.1-rc1";
+				CURRENT_PROJECT_VERSION = 385;
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -501,7 +584,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/museterm.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/museterm";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MuseTerm.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MuseTerm";
 			};
 			name = Release;
 		};
@@ -509,10 +592,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 40;
-				DEVELOPMENT_TEAM = ZH2S7D6PL6;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = "1.8.1-rc1";
+				CURRENT_PROJECT_VERSION = 385;
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -528,10 +608,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 40;
-				DEVELOPMENT_TEAM = ZH2S7D6PL6;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = "1.8.1-rc1";
+				CURRENT_PROJECT_VERSION = 385;
 				PRODUCT_BUNDLE_IDENTIFIER = im.some.musetermUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -585,20 +662,39 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		5CB51E9E2FF2F2500010675C /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
+		A25300010000000000000003 /* XCRemoteSwiftPackageReference "swift-markdown" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm.git";
+			repositoryURL = "https://github.com/swiftlang/swift-markdown.git";
+			requirement = {kind = exactVersion; version = 0.6.0;};
+		};
+		B1A11E010000000000000001 /* XCLocalSwiftPackageReference "vendor/SwiftTerm" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = vendor/SwiftTerm;
+		};
+		93B5CCAF05C2E76BB42C3613 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
 			requirement = {
-				kind = revision;
-				revision = 9adb62463d2264e7403feb7a1471aaf27eaab2f4;
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.4;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		A25300010000000000000002 /* Markdown */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A25300010000000000000003 /* XCRemoteSwiftPackageReference "swift-markdown" */;
+			productName = Markdown;
+		};
+		5C6103F847CC9EC58053615E /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 93B5CCAF05C2E76BB42C3613 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
 		5CB51E9F2FF2F2500010675C /* SwiftTerm */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 5CB51E9E2FF2F2500010675C /* XCRemoteSwiftPackageReference "SwiftTerm" */;
+			package = B1A11E010000000000000001 /* XCLocalSwiftPackageReference "vendor/SwiftTerm" */;
 			productName = SwiftTerm;
 		};
 /* End XCSwiftPackageProductDependency section */

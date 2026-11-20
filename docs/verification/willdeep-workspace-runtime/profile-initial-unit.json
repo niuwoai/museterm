@@ -1,0 +1,18 @@
+{
+  "result": "Failed",
+  "totalTestCount": 2,
+  "passedTests": 1,
+  "failedTests": 1,
+  "skippedTests": 0,
+  "testFailures": [
+    {
+      "failureText": "failed - Runtime view timed out at automatic Profile reconnect authenticated: connected=true,metadata=true,error=nil,inputError=nil,inputSequence=1,characters=174",
+      "targetName": "musetermTests",
+      "testIdentifier": 1,
+      "testIdentifierString": "TerminalRuntimeViewTests/testAuthenticatedSSHProfileAutomaticallyReconnectsOnceThenHonorsLimit()",
+      "testIdentifierURL": "test://com.apple.xcode/museterm/musetermTests/TerminalRuntimeViewTests/testAuthenticatedSSHProfileAutomaticallyReconnectsOnceThenHonorsLimit",
+      "testName": "testAuthenticatedSSHProfileAutomaticallyReconnectsOnceThenHonorsLimit()"
+    }
+  ],
+  "resultBundle": "/private/tmp/qterm-authenticated-profile-targeted-01.xcresult"
+}

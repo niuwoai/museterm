@@ -1,0 +1,112 @@
+import AppKit
+import XCTest
+@testable import museterm
+
+final class TerminalVisualSkinTests: XCTestCase {
+    func testEverySkinHasCompleteValidANSIPalette() {
+        for skin in TerminalVisualSkin.allCases {
+            XCTAssertEqual(skin.ansiHexColors.count, 16, skin.rawValue)
+            XCTAssertTrue(skin.ansiHexColors.allSatisfy { (0...0xFFFFFF).contains($0) }, skin.rawValue)
+            XCTAssertEqual(TerminalVisualSkin(rawValue: skin.rawValue), skin)
+        }
+    }
+
+    func testAppearanceFiltersPartitionTheCatalog() {
+        let all = TerminalVisualSkin.allCases
+        let light = all.filter(SkinAppearanceFilter.light.includes)
+        let dark = all.filter(SkinAppearanceFilter.dark.includes)
+        XCTAssertEqual(all.count, 40)
+        XCTAssertEqual(light.count, 15)
+        XCTAssertEqual(dark.count, 25)
+        XCTAssertEqual(all.filter(SkinAppearanceFilter.all.includes), all)
+        XCTAssertTrue(Set(light).isDisjoint(with: Set(dark)))
+        XCTAssertEqual(Set(light + dark), Set(all))
+    }
+
+    func testEverySkinHasEnglishAndChineseResources() throws {
+        for language in ["en", "zh-Hans"] {
+            let path = try XCTUnwrap(Bundle.main.path(forResource: language, ofType: "lproj"))
+            let bundle = try XCTUnwrap(Bundle(path: path))
+            for skin in TerminalVisualSkin.allCases {
+                for suffix in ["name", "summary"] {
+                    let key = "skin.\(skin.rawValue).\(suffix)"
+                    let value = bundle.localizedString(forKey: key, value: nil, table: nil)
+                    XCTAssertNotEqual(value, key, "\(language): \(key)")
+                    XCTAssertFalse(value.isEmpty, "\(language): \(key)")
+                }
+            }
+        }
+    }
+
+    func testSelectionPreservesTerminalOpacityForEverySkin() {
+        for skin in TerminalVisualSkin.allCases {
+            for opacity: CGFloat in [0.1, 0.5, 0.85, 1] {
+                let selection = skin.terminalSelectionBackground(opacity: opacity)
+                XCTAssertEqual(selection.alphaComponent, opacity, accuracy: 0.0001)
+                XCTAssertNotEqual(selection.withAlphaComponent(1), skin.terminalBackground)
+            }
+        }
+    }
+
+    func testEverySkinPreviewUsesReadableTerminalForegroundAndBackground() throws {
+        for skin in TerminalVisualSkin.allCases {
+            let contrast = try contrastRatio(
+                foreground: skin.terminalForeground,
+                background: skin.terminalBackground
+            )
+
+            XCTAssertGreaterThanOrEqual(
+                contrast,
+                4.5,
+                "\(skin.rawValue) preview contrast was only \(contrast):1"
+            )
+        }
+    }
+
+    func testCustomSkinDuplicatesEditsAndRestores() throws {
+        let suiteName = "TerminalVisualSkinTests.custom.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let preferences = TerminalPreferences(defaults: defaults)
+        preferences.skin = .midnight
+        preferences.duplicateCurrentSkin()
+
+        let duplicate = try XCTUnwrap(preferences.activeCustomSkin)
+        XCTAssertEqual(preferences.skin, .custom)
+        XCTAssertEqual(duplicate.sourceSkin, .midnight)
+        XCTAssertEqual(duplicate.ansi.count, 16)
+
+        preferences.updateActiveCustomSkin {
+            $0.name = "我的午夜"
+            $0.backgroundHex = 0x102030
+            $0.ansi[1] = 0xABCDEF
+        }
+        let restored = TerminalPreferences(defaults: defaults)
+        XCTAssertEqual(restored.skin, .custom)
+        XCTAssertEqual(restored.activeCustomSkin?.name, "我的午夜")
+        XCTAssertEqual(restored.activeCustomSkin?.backgroundHex, 0x102030)
+        XCTAssertEqual(restored.activeCustomSkin?.normalizedANSI[1], 0xABCDEF)
+    }
+
+    private func contrastRatio(foreground: NSColor, background: NSColor) throws -> CGFloat {
+        let foregroundLuminance = try relativeLuminance(foreground)
+        let backgroundLuminance = try relativeLuminance(background)
+        let lighter = max(foregroundLuminance, backgroundLuminance)
+        let darker = min(foregroundLuminance, backgroundLuminance)
+        return (lighter + 0.05) / (darker + 0.05)
+    }
+
+    private func relativeLuminance(_ color: NSColor) throws -> CGFloat {
+        let rgb = try XCTUnwrap(color.usingColorSpace(.sRGB))
+        return 0.2126 * linearized(rgb.redComponent)
+            + 0.7152 * linearized(rgb.greenComponent)
+            + 0.0722 * linearized(rgb.blueComponent)
+    }
+
+    private func linearized(_ component: CGFloat) -> CGFloat {
+        if component <= 0.04045 {
+            return component / 12.92
+        }
+        return pow((component + 0.055) / 1.055, 2.4)
+    }
+}

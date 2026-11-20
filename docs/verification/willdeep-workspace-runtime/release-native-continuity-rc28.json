@@ -1,0 +1,154 @@
+{
+  "generatedAt": "2026-10-25T00:14:36+08:00",
+  "mode": "backend-tui",
+  "passed": true,
+  "failure": null,
+  "scope": "实际 WillDeep CLI/Runtime + 独立 QTerm 后台真实 PTY/状态桥/待处理；本机 mock 模型；尚非 QTerm 图形界面联调",
+  "fixtureDirectory": null,
+  "binarySHA256": "ce8adf707cd3832e83c03c251cdbd528736e20302633028bd027532471297cb8",
+  "modelRequests": 2,
+  "frontendExitStatus": null,
+  "qtermBackendSHA256": "ec847b13c64307ef173003f2b394952bf85c86c664209b0f1c0ef13aba385136",
+  "allUIClientsDetachedSeconds": 31.004906999878585,
+  "backendInputDiagnostics": [
+    {
+      "bytes": 4,
+      "echoEnabled": false,
+      "foregroundPID": 62615,
+      "ptyPID": 62615
+    },
+    {
+      "bytes": 34,
+      "echoEnabled": false,
+      "foregroundPID": 62615,
+      "ptyPID": 62615
+    },
+    {
+      "bytes": 1,
+      "echoEnabled": false,
+      "foregroundPID": 62615,
+      "ptyPID": 62615
+    },
+    {
+      "bytes": 6,
+      "echoEnabled": false,
+      "foregroundPID": 62615,
+      "ptyPID": 62615
+    }
+  ],
+  "backendWaitResult": {
+    "waitID": "b3ae667c-8917-406f-a302-26b21a468ede",
+    "cursor": {
+      "sequence": 150,
+      "appEpoch": "7EB806A3-305E-45FE-9BC9-C21F94FBD2C0"
+    },
+    "agent": {
+      "reason": "reported",
+      "reportSequence": 5,
+      "instanceID": "0F47208C-B0F8-46F1-AA56-089020540A95",
+      "expiresAt": 814551396.436564,
+      "activity": "idle",
+      "updatedAt": 814551276.436564,
+      "confidence": "high",
+      "ruleVersion": 2,
+      "lastResult": "completed",
+      "runID": "667AC2BD-98C0-4A20-AD0C-092BCAC202A0",
+      "kind": "willdeep",
+      "context": {
+        "sessionID": "6E4B0C15-21AC-4B8E-9A40-9249C8FB7CED",
+        "taskID": "41fe3236-cb24-4b72-94f9-dcbf90ae0383"
+      },
+      "source": "integration"
+    },
+    "outcome": "matched"
+  },
+  "backendPendingKindsAtApproval": [
+    "approval"
+  ],
+  "backendCLIWaitResult": {
+    "waitID": "7f013297-1895-4956-bb03-96d0591f4a07",
+    "cursor": {
+      "sequence": 150,
+      "appEpoch": "7EB806A3-305E-45FE-9BC9-C21F94FBD2C0"
+    },
+    "agent": {
+      "reason": "reported",
+      "reportSequence": 5,
+      "instanceID": "0F47208C-B0F8-46F1-AA56-089020540A95",
+      "expiresAt": "2026-10-24T16:16:36Z",
+      "activity": "idle",
+      "updatedAt": "2026-10-24T16:14:36Z",
+      "confidence": "high",
+      "ruleVersion": 2,
+      "lastResult": "completed",
+      "runID": "667AC2BD-98C0-4A20-AD0C-092BCAC202A0",
+      "kind": "willdeep",
+      "context": {
+        "sessionID": "6E4B0C15-21AC-4B8E-9A40-9249C8FB7CED",
+        "taskID": "41fe3236-cb24-4b72-94f9-dcbf90ae0383"
+      },
+      "source": "integration"
+    },
+    "outcome": "matched"
+  },
+  "backendCLIWaitSourceSHA256": "ca2933da704f6875be120496164c10ba318c9c0faf4f696bf0c372a3c518c1c6",
+  "terminalDeviceStatusReplies": 1,
+  "lostAcknowledgementRetried": false,
+  "states": [
+    {
+      "activity": "unknown",
+      "sequence": 0,
+      "observedAt": 1242224.712921
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "sessionID": "6E4B0C15-21AC-4B8E-9A40-9249C8FB7CED"
+      },
+      "sequence": 1,
+      "observedAt": 1242224.821971
+    },
+    {
+      "activity": "working",
+      "context": {
+        "sessionID": "6E4B0C15-21AC-4B8E-9A40-9249C8FB7CED",
+        "taskID": "1322bf81-0ab3-4d33-a2bd-4bbd074a3688"
+      },
+      "sequence": 2,
+      "observedAt": 1242225.09015
+    },
+    {
+      "activity": "blocked",
+      "blockReason": "approval",
+      "context": {
+        "gateID": "5d2d32fa-8aa5-4ac2-84f8-c958e91706c8",
+        "sessionID": "6E4B0C15-21AC-4B8E-9A40-9249C8FB7CED",
+        "taskID": "41fe3236-cb24-4b72-94f9-dcbf90ae0383"
+      },
+      "sequence": 3,
+      "observedAt": 1242225.787545
+    },
+    {
+      "activity": "blocked",
+      "blockReason": "approval",
+      "context": {
+        "gateID": "5d2d32fa-8aa5-4ac2-84f8-c958e91706c8",
+        "sessionID": "6E4B0C15-21AC-4B8E-9A40-9249C8FB7CED",
+        "taskID": "41fe3236-cb24-4b72-94f9-dcbf90ae0383"
+      },
+      "sequence": 4,
+      "observedAt": 1242257.118775
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "sessionID": "6E4B0C15-21AC-4B8E-9A40-9249C8FB7CED",
+        "taskID": "41fe3236-cb24-4b72-94f9-dcbf90ae0383"
+      },
+      "result": "completed",
+      "sequence": 5,
+      "observedAt": 1242257.809208
+    }
+  ],
+  "fixtureErrors": []
+}

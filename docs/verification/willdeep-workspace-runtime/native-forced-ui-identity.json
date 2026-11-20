@@ -1,0 +1,288 @@
+{
+  "version": "1.251.0-rc15",
+  "build": 330,
+  "before": {
+    "observedAt": "2026-10-24T08:04:09+08:00",
+    "monotonicTime": 1184030.725674,
+    "serviceEpoch": "060F44F1-479D-4CA2-8AE8-1F9D69C2E276",
+    "terminal": {
+      "id": "950192A1-6307-4EC3-B34D-E6A7EB0C83E0",
+      "pid": 11524,
+      "generation": "380505F5-F7C0-436F-8F53-8DC7DE66BA05",
+      "agent": {
+        "activity": "blocked",
+        "confidence": "high",
+        "source": "integration",
+        "blockReason": "approval",
+        "updatedAt": 814493034.252807,
+        "instanceID": "9957EACB-877E-4052-86CA-43EEEE501BAD",
+        "expiresAt": 814493154.252807,
+        "context": {
+          "taskID": "407a0421-aab7-41aa-b2fb-38b58ec544bc",
+          "sessionID": "2C232F99-D9E0-464E-AFB9-EFCD71BF53BF",
+          "gateID": "c6db710e-2081-4e7a-b92c-2e810d82b1fc"
+        },
+        "runID": "34434330-D766-4E5D-B692-99F8768E5B91",
+        "kind": "willdeep",
+        "ruleVersion": 2,
+        "reportSequence": 5,
+        "reason": "reported"
+      },
+      "running": true
+    },
+    "foregroundPID": 11725,
+    "attention": [
+      {
+        "id": "34A8A762-862C-40FF-B607-37F07DF19BEF",
+        "version": 1,
+        "isStale": false,
+        "createdSequence": 109,
+        "createdAt": 814492974.150131,
+        "tabID": "950192A1-6307-4EC3-B34D-E6A7EB0C83E0",
+        "runID": "34434330-D766-4E5D-B692-99F8768E5B91",
+        "instanceID": "9957EACB-877E-4052-86CA-43EEEE501BAD",
+        "context": {
+          "taskID": "407a0421-aab7-41aa-b2fb-38b58ec544bc",
+          "sessionID": "2C232F99-D9E0-464E-AFB9-EFCD71BF53BF",
+          "gateID": "c6db710e-2081-4e7a-b92c-2e810d82b1fc"
+        },
+        "kind": "approval",
+        "source": "integration",
+        "confidence": "high"
+      }
+    ]
+  },
+  "appPIDBefore": 11515,
+  "uiEpochBefore": "F81D8AAF-F721-4569-ADD0-2E78435A2493",
+  "savedCursorBeforeKill": {
+    "generation": "380505F5-F7C0-436F-8F53-8DC7DE66BA05",
+    "offset": 23613
+  },
+  "helperSHA256": "7f63eed52c6c0b5806d1d69dc49ed826660ea63da7ffe391cd3ad4594388bdf7",
+  "killMonotonicTime": 1184038.600594,
+  "afterKill": {
+    "observedAt": "2026-10-24T08:04:17+08:00",
+    "monotonicTime": 1184038.6027550001,
+    "serviceEpoch": "060F44F1-479D-4CA2-8AE8-1F9D69C2E276",
+    "terminal": {
+      "id": "950192A1-6307-4EC3-B34D-E6A7EB0C83E0",
+      "pid": 11524,
+      "generation": "380505F5-F7C0-436F-8F53-8DC7DE66BA05",
+      "agent": {
+        "activity": "blocked",
+        "confidence": "high",
+        "source": "integration",
+        "blockReason": "approval",
+        "updatedAt": 814493034.252807,
+        "instanceID": "9957EACB-877E-4052-86CA-43EEEE501BAD",
+        "expiresAt": 814493154.252807,
+        "context": {
+          "taskID": "407a0421-aab7-41aa-b2fb-38b58ec544bc",
+          "sessionID": "2C232F99-D9E0-464E-AFB9-EFCD71BF53BF",
+          "gateID": "c6db710e-2081-4e7a-b92c-2e810d82b1fc"
+        },
+        "runID": "34434330-D766-4E5D-B692-99F8768E5B91",
+        "kind": "willdeep",
+        "ruleVersion": 2,
+        "reportSequence": 5,
+        "reason": "reported"
+      },
+      "running": true
+    },
+    "foregroundPID": 11725,
+    "attention": [
+      {
+        "id": "34A8A762-862C-40FF-B607-37F07DF19BEF",
+        "version": 1,
+        "isStale": false,
+        "createdSequence": 109,
+        "createdAt": 814492974.150131,
+        "tabID": "950192A1-6307-4EC3-B34D-E6A7EB0C83E0",
+        "runID": "34434330-D766-4E5D-B692-99F8768E5B91",
+        "instanceID": "9957EACB-877E-4052-86CA-43EEEE501BAD",
+        "context": {
+          "taskID": "407a0421-aab7-41aa-b2fb-38b58ec544bc",
+          "sessionID": "2C232F99-D9E0-464E-AFB9-EFCD71BF53BF",
+          "gateID": "c6db710e-2081-4e7a-b92c-2e810d82b1fc"
+        },
+        "kind": "approval",
+        "source": "integration",
+        "confidence": "high"
+      }
+    ]
+  },
+  "forcedKillVerified": true,
+  "offline": {
+    "observedAt": "2026-10-24T08:04:59+08:00",
+    "monotonicTime": 1184081.137951,
+    "serviceEpoch": "060F44F1-479D-4CA2-8AE8-1F9D69C2E276",
+    "terminal": {
+      "id": "950192A1-6307-4EC3-B34D-E6A7EB0C83E0",
+      "pid": 11524,
+      "generation": "380505F5-F7C0-436F-8F53-8DC7DE66BA05",
+      "agent": {
+        "activity": "blocked",
+        "confidence": "high",
+        "source": "integration",
+        "blockReason": "approval",
+        "updatedAt": 814493094.362121,
+        "instanceID": "9957EACB-877E-4052-86CA-43EEEE501BAD",
+        "expiresAt": 814493214.362121,
+        "context": {
+          "taskID": "407a0421-aab7-41aa-b2fb-38b58ec544bc",
+          "sessionID": "2C232F99-D9E0-464E-AFB9-EFCD71BF53BF",
+          "gateID": "c6db710e-2081-4e7a-b92c-2e810d82b1fc"
+        },
+        "runID": "34434330-D766-4E5D-B692-99F8768E5B91",
+        "kind": "willdeep",
+        "ruleVersion": 2,
+        "reportSequence": 7,
+        "reason": "reported"
+      },
+      "running": true
+    },
+    "foregroundPID": 11725,
+    "attention": [
+      {
+        "id": "34A8A762-862C-40FF-B607-37F07DF19BEF",
+        "version": 1,
+        "isStale": false,
+        "createdSequence": 109,
+        "createdAt": 814492974.150131,
+        "tabID": "950192A1-6307-4EC3-B34D-E6A7EB0C83E0",
+        "runID": "34434330-D766-4E5D-B692-99F8768E5B91",
+        "instanceID": "9957EACB-877E-4052-86CA-43EEEE501BAD",
+        "context": {
+          "taskID": "407a0421-aab7-41aa-b2fb-38b58ec544bc",
+          "sessionID": "2C232F99-D9E0-464E-AFB9-EFCD71BF53BF",
+          "gateID": "c6db710e-2081-4e7a-b92c-2e810d82b1fc"
+        },
+        "kind": "approval",
+        "source": "integration",
+        "confidence": "high"
+      }
+    ]
+  },
+  "offlineSeconds": 42.534283000044525,
+  "restored": {
+    "observedAt": "2026-10-24T08:05:16+08:00",
+    "monotonicTime": 1184098.24477,
+    "serviceEpoch": "060F44F1-479D-4CA2-8AE8-1F9D69C2E276",
+    "terminal": {
+      "id": "950192A1-6307-4EC3-B34D-E6A7EB0C83E0",
+      "pid": 11524,
+      "generation": "380505F5-F7C0-436F-8F53-8DC7DE66BA05",
+      "agent": {
+        "activity": "blocked",
+        "confidence": "high",
+        "source": "integration",
+        "blockReason": "approval",
+        "updatedAt": 814493094.362121,
+        "instanceID": "9957EACB-877E-4052-86CA-43EEEE501BAD",
+        "expiresAt": 814493214.362121,
+        "context": {
+          "taskID": "407a0421-aab7-41aa-b2fb-38b58ec544bc",
+          "sessionID": "2C232F99-D9E0-464E-AFB9-EFCD71BF53BF",
+          "gateID": "c6db710e-2081-4e7a-b92c-2e810d82b1fc"
+        },
+        "runID": "34434330-D766-4E5D-B692-99F8768E5B91",
+        "kind": "willdeep",
+        "ruleVersion": 2,
+        "reportSequence": 7,
+        "reason": "reported"
+      },
+      "running": true
+    },
+    "foregroundPID": 11725,
+    "attention": [
+      {
+        "id": "34A8A762-862C-40FF-B607-37F07DF19BEF",
+        "version": 1,
+        "isStale": false,
+        "createdSequence": 109,
+        "createdAt": 814492974.150131,
+        "tabID": "950192A1-6307-4EC3-B34D-E6A7EB0C83E0",
+        "runID": "34434330-D766-4E5D-B692-99F8768E5B91",
+        "instanceID": "9957EACB-877E-4052-86CA-43EEEE501BAD",
+        "context": {
+          "taskID": "407a0421-aab7-41aa-b2fb-38b58ec544bc",
+          "sessionID": "2C232F99-D9E0-464E-AFB9-EFCD71BF53BF",
+          "gateID": "c6db710e-2081-4e7a-b92c-2e810d82b1fc"
+        },
+        "kind": "approval",
+        "source": "integration",
+        "confidence": "high"
+      }
+    ]
+  },
+  "appPIDAfter": 12169,
+  "uiEpochAfter": "DE1862BE-60BF-44EC-8D32-9976D854D9AC",
+  "restoredUIAttention": [
+    {
+      "confidence": "high",
+      "context": {
+        "gateID": "c6db710e-2081-4e7a-b92c-2e810d82b1fc",
+        "sessionID": "2C232F99-D9E0-464E-AFB9-EFCD71BF53BF",
+        "taskID": "407a0421-aab7-41aa-b2fb-38b58ec544bc"
+      },
+      "createdAt": "2026-10-24T00:02:54Z",
+      "createdSequence": 109,
+      "id": "34A8A762-862C-40FF-B607-37F07DF19BEF",
+      "instanceID": "9957EACB-877E-4052-86CA-43EEEE501BAD",
+      "isStale": false,
+      "kind": "approval",
+      "runID": "34434330-D766-4E5D-B692-99F8768E5B91",
+      "source": "integration",
+      "tabID": "950192A1-6307-4EC3-B34D-E6A7EB0C83E0",
+      "version": 1
+    }
+  ],
+  "completion": [
+    {
+      "id": "207F8E9F-C4C1-4A8E-BA80-8C7B50DE339A",
+      "version": 1,
+      "isStale": false,
+      "createdSequence": 442,
+      "createdAt": 814493132.17766,
+      "tabID": "950192A1-6307-4EC3-B34D-E6A7EB0C83E0",
+      "runID": "34434330-D766-4E5D-B692-99F8768E5B91",
+      "instanceID": "9957EACB-877E-4052-86CA-43EEEE501BAD",
+      "context": {
+        "taskID": "407a0421-aab7-41aa-b2fb-38b58ec544bc",
+        "sessionID": "2C232F99-D9E0-464E-AFB9-EFCD71BF53BF"
+      },
+      "kind": "completed",
+      "source": "integration",
+      "confidence": "high"
+    }
+  ],
+  "completedUIAttention": [
+    {
+      "confidence": "high",
+      "context": {
+        "sessionID": "2C232F99-D9E0-464E-AFB9-EFCD71BF53BF",
+        "taskID": "407a0421-aab7-41aa-b2fb-38b58ec544bc"
+      },
+      "createdAt": "2026-10-24T00:05:32Z",
+      "createdSequence": 442,
+      "id": "207F8E9F-C4C1-4A8E-BA80-8C7B50DE339A",
+      "instanceID": "9957EACB-877E-4052-86CA-43EEEE501BAD",
+      "isStale": false,
+      "kind": "completed",
+      "runID": "34434330-D766-4E5D-B692-99F8768E5B91",
+      "source": "integration",
+      "tabID": "950192A1-6307-4EC3-B34D-E6A7EB0C83E0",
+      "version": 1
+    }
+  ],
+  "completionReadClearedUIAndBackend": true,
+  "ownedServiceCleanupVerified": true,
+  "scope": "Actual isolated QTerm QA + actual WillDeep CLI and private Runtime; loopback mock model; SIGKILL UI only",
+  "limitations": [
+    "Single project and terminal",
+    "No remote SSH or old-helper compatibility acceptance",
+    "Saved output checkpoint is not zero loss for unpersisted output",
+    "System notifications not verified",
+    "Production backend remains disabled"
+  ]
+}

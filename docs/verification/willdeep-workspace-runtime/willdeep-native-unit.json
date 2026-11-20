@@ -1,0 +1,73 @@
+{
+  "passed": true,
+  "command": "cargo test --offline -p willdeep qterm:: -- --test-threads=1",
+  "version": "0.115.0-rc1",
+  "total": 16,
+  "tests": [
+    {
+      "name": "qterm::tests::active_root_has_priority_over_finished_history",
+      "passed": true
+    },
+    {
+      "name": "qterm::tests::adopting_running_runtime_does_not_reset_a_pending_approval",
+      "passed": true
+    },
+    {
+      "name": "qterm::tests::background_or_other_session_completion_never_finishes_root",
+      "passed": true
+    },
+    {
+      "name": "qterm::tests::context_and_response_files_must_be_private_and_not_symlinks",
+      "passed": true
+    },
+    {
+      "name": "qterm::tests::final_result_is_not_lost_when_a_local_gate_closes_at_completion",
+      "passed": true
+    },
+    {
+      "name": "qterm::tests::frontend_shutdown_delivers_final_result_before_exited_and_keeps_result",
+      "passed": true
+    },
+    {
+      "name": "qterm::tests::headless_shutdown_drains_final_result_without_retiring_runtime_task",
+      "passed": true
+    },
+    {
+      "name": "qterm::tests::local_consecutive_identical_gates_get_distinct_episodes",
+      "passed": true
+    },
+    {
+      "name": "qterm::tests::missing_endpoint_keeps_cli_behavior_optional",
+      "passed": true
+    },
+    {
+      "name": "qterm::tests::old_completed_snapshot_cannot_finish_a_new_queued_turn",
+      "passed": true
+    },
+    {
+      "name": "qterm::tests::repeated_views_are_deduplicated_and_session_switch_resets_context",
+      "passed": true
+    },
+    {
+      "name": "qterm::tests::runtime_frontend_finishing_does_not_invent_a_local_interruption",
+      "passed": true
+    },
+    {
+      "name": "qterm::tests::runtime_history_does_not_overwrite_a_local_turn",
+      "passed": true
+    },
+    {
+      "name": "qterm::tests::runtime_unavailable_becomes_unknown_and_preserves_pending_gate_identity",
+      "passed": true
+    },
+    {
+      "name": "qterm::tests::semantic_mapping_never_equates_idle_partial_cancel_and_success",
+      "passed": true
+    },
+    {
+      "name": "qterm::tests::transport_binds_once_and_sends_metadata_with_increasing_sequence",
+      "passed": true
+    }
+  ],
+  "scope": "Native module unit tests in isolated source worktree; no normal CLI/Runtime changes"
+}

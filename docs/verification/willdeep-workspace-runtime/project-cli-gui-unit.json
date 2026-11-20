@@ -1,0 +1,60 @@
+{
+  "version": "1.251.0-rc19",
+  "build": 334,
+  "summaries": [
+    {
+      "result": "Failed",
+      "totalTestCount": 3,
+      "passedTests": 2,
+      "failedTests": 1,
+      "skippedTests": 0,
+      "testFailures": [
+        {
+          "failureText": "XCTAssertEqual failed: threw error \"Error Domain=NSCocoaErrorDomain Code=257 \"未能打开该文件，因为你没有查看它的权限。\"\"",
+          "targetName": "musetermTests",
+          "testIdentifier": 2,
+          "testIdentifierString": "TerminalToolAccessFixtureTests/testPrivateFixtureCredentialsCanBeRead()",
+          "testIdentifierURL": "test://com.apple.xcode/museterm/musetermTests/TerminalToolAccessFixtureTests/testPrivateFixtureCredentialsCanBeRead",
+          "testName": "testPrivateFixtureCredentialsCanBeRead()"
+        }
+      ],
+      "resultBundle": "/private/tmp/qterm-project-gui-fixture-targeted-01.xcresult"
+    },
+    {
+      "result": "Failed",
+      "totalTestCount": 3,
+      "passedTests": 2,
+      "failedTests": 1,
+      "skippedTests": 0,
+      "testFailures": [
+        {
+          "failureText": "XCTAssertEqual failed: threw error \"Error Domain=NSCocoaErrorDomain Code=257 \"未能打开该文件，因为你没有查看它的权限。\"\"",
+          "targetName": "musetermTests",
+          "testIdentifier": 2,
+          "testIdentifierString": "TerminalToolAccessFixtureTests/testPrivateFixtureCredentialsCanBeRead()",
+          "testIdentifierURL": "test://com.apple.xcode/museterm/musetermTests/TerminalToolAccessFixtureTests/testPrivateFixtureCredentialsCanBeRead",
+          "testName": "testPrivateFixtureCredentialsCanBeRead()"
+        }
+      ],
+      "resultBundle": "/private/tmp/qterm-project-gui-fixture-targeted-02.xcresult"
+    },
+    {
+      "result": "Passed",
+      "totalTestCount": 4,
+      "passedTests": 4,
+      "failedTests": 0,
+      "skippedTests": 0,
+      "testFailures": [],
+      "resultBundle": "/private/tmp/qterm-project-gui-fixture-targeted-03.xcresult"
+    },
+    {
+      "result": "Passed",
+      "totalTestCount": 609,
+      "passedTests": 609,
+      "failedTests": 0,
+      "skippedTests": 0,
+      "testFailures": [],
+      "resultBundle": "/private/tmp/qterm-project-gui-tools-full-01.xcresult"
+    }
+  ]
+}

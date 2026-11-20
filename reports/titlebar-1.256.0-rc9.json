@@ -1,0 +1,46 @@
+{
+  "version": "1.256.0-rc9",
+  "build": 367,
+  "date": "2026-11-03",
+  "passed": true,
+  "configuration": "Debug, macOS, arm64",
+  "build_exit_status": 0,
+  "window_close_regression": { "passed": 5, "failed": 0, "skipped": 0 },
+  "native_gui": {
+    "passed": true,
+    "input": "CoreGraphics HID mouse events, with foreground process checks",
+    "reference_calibration": "A standard AppKit window responded to the same double-click events",
+    "system_double_click_action": "Maximize",
+    "checks": [
+      "single_click_keeps_window_size",
+      "double_click_zooms_and_restores_original_frame",
+      "pane_header_does_not_zoom_window",
+      "pane_split_button_works_without_window_zoom",
+      "collapsed_sidebar_double_click_zooms_and_restores",
+      "titlebar_drag_moves_without_resizing",
+      "native_window_screenshot_captured",
+      "private_test_app_closed"
+    ],
+    "frames": {
+      "initial": [180, 180, 1050, 662],
+      "zoomed": [0, 30, 1440, 813],
+      "restored": [180, 180, 1050, 662],
+      "dragged": [240, 180, 1050, 662]
+    },
+    "visual_inspection": "Reviewed initial and split-window screenshots; native titlebar and pane controls are separate and terminal content is visible"
+  },
+  "baseline": {
+    "version": "1.256.0-rc3",
+    "result": "Expected failure: titlebar double-click did not zoom with the same calibrated input"
+  },
+  "limitations": [
+    "Native Minimize, Fill and None settings were not individually exercised; the application delegates them to AppKit",
+    "Other macOS versions, full-screen and multiple displays were not exercised",
+    "Installed application was not replaced; no commit or release was performed"
+  ],
+  "diagnostic_history": [
+    "Initial process-directed mouse events also failed on a standard AppKit reference window and were excluded as evidence",
+    "Restoring the content safe area alone did not pass the calibrated GUI check",
+    "Final fix additionally restores the native titleBar window style"
+  ]
+}

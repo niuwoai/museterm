@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-10-24T04:49:35+08:00",
+  "passed": true,
+  "failure": null,
+  "pauseSeconds": 7,
+  "scope": "真实后台 PTY 与同一 Socket 订阅，100000 字节有界输出暂停 7 秒后继续读取；不等同 GUI 验收",
+  "receivedBytes": 100020,
+  "binarySHA256": "837d4ccefdeb84a20e2e1b74f740c511faa406b881bbaeb9f104862eeea3339b",
+  "disconnects": []
+}

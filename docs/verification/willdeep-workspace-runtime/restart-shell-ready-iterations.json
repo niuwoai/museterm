@@ -1,0 +1,19 @@
+{
+  "resultBundle": "/private/tmp/qterm-rc27-shell-ready-repeat-02.xcresult",
+  "tests": [
+    {
+      "test": "TerminalRuntimeViewTests/testExitedRuntimeRestartCreatesNewGenerationAndRunsStartupOnce()",
+      "repetitions": 60,
+      "results": {
+        "Passed": 60
+      }
+    },
+    {
+      "test": "TerminalRuntimeViewTests/testPreparedInputRejectsChangedRealEchoBeforeWriting()",
+      "repetitions": 60,
+      "results": {
+        "Passed": 60
+      }
+    }
+  ]
+}

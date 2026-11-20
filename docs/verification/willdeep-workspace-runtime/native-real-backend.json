@@ -1,0 +1,98 @@
+{
+  "generatedAt": "2026-10-24T00:29:43+08:00",
+  "mode": "backend-tui",
+  "passed": true,
+  "failure": null,
+  "scope": "实际 WillDeep CLI/Runtime + 独立 QTerm 后台真实 PTY/状态桥/待处理；本机 mock 模型；尚非 QTerm 图形界面联调",
+  "fixtureDirectory": null,
+  "binarySHA256": "ce8adf707cd3832e83c03c251cdbd528736e20302633028bd027532471297cb8",
+  "modelRequests": 2,
+  "frontendExitStatus": null,
+  "qtermBackendSHA256": "0c994c8501514a89f67bdb36974de3dc19e56e140b0219fb7f35205761c74613",
+  "allUIClientsDetachedSeconds": 31.00212899991311,
+  "backendInputDiagnostics": [
+    {
+      "bytes": 4,
+      "echoEnabled": false,
+      "foregroundPID": 66989,
+      "ptyPID": 66989
+    },
+    {
+      "bytes": 34,
+      "echoEnabled": false,
+      "foregroundPID": 66989,
+      "ptyPID": 66989
+    },
+    {
+      "bytes": 1,
+      "echoEnabled": false,
+      "foregroundPID": 66989,
+      "ptyPID": 66989
+    },
+    {
+      "bytes": 6,
+      "echoEnabled": false,
+      "foregroundPID": 66989,
+      "ptyPID": 66989
+    }
+  ],
+  "terminalDeviceStatusReplies": 1,
+  "lostAcknowledgementRetried": false,
+  "states": [
+    {
+      "activity": "unknown",
+      "sequence": 0,
+      "observedAt": 1156731.244563
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "sessionID": "E29EC103-BF4B-46EB-80C1-52BDD184B8DF"
+      },
+      "sequence": 1,
+      "observedAt": 1156731.358475
+    },
+    {
+      "activity": "working",
+      "context": {
+        "sessionID": "E29EC103-BF4B-46EB-80C1-52BDD184B8DF",
+        "taskID": "5739a252-9860-470b-8d0a-908c349db9fc"
+      },
+      "sequence": 2,
+      "observedAt": 1156731.69794
+    },
+    {
+      "activity": "blocked",
+      "blockReason": "approval",
+      "context": {
+        "gateID": "ce07b098-07c4-4f6c-8b00-b732ef8436a9",
+        "sessionID": "E29EC103-BF4B-46EB-80C1-52BDD184B8DF",
+        "taskID": "4f0ede8b-b991-49d2-a985-db680228844e"
+      },
+      "sequence": 3,
+      "observedAt": 1156732.261863
+    },
+    {
+      "activity": "blocked",
+      "blockReason": "approval",
+      "context": {
+        "gateID": "ce07b098-07c4-4f6c-8b00-b732ef8436a9",
+        "sessionID": "E29EC103-BF4B-46EB-80C1-52BDD184B8DF",
+        "taskID": "4f0ede8b-b991-49d2-a985-db680228844e"
+      },
+      "sequence": 4,
+      "observedAt": 1156763.323868
+    },
+    {
+      "activity": "idle",
+      "context": {
+        "sessionID": "E29EC103-BF4B-46EB-80C1-52BDD184B8DF",
+        "taskID": "4f0ede8b-b991-49d2-a985-db680228844e"
+      },
+      "result": "completed",
+      "sequence": 5,
+      "observedAt": 1156764.287622
+    }
+  ],
+  "fixtureErrors": []
+}

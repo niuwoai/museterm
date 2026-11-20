@@ -1,0 +1,51 @@
+{
+  "version": "1.249.0-rc1",
+  "build": 313,
+  "generatedAt": "2026-10-22T17:27:53+08:00",
+  "scope": [
+    "阶段 0：存活会话注册表与元数据事件底座",
+    "阶段 1：Agent 状态、独立上报和标签徽标"
+  ],
+  "delivery": {
+    "committed": false,
+    "released": false,
+    "installedAppReplaced": false
+  },
+  "results": [
+    {
+      "bundle": "/private/tmp/qterm-agent-phase01-isolated.xcresult",
+      "result": "Failed",
+      "total": 448,
+      "passed": 447,
+      "failed": 1,
+      "skipped": 0,
+      "failures": [
+        {
+          "testIdentifierString": "TerminalAgentUITests/testAgentBadgeSurvivesSidebarToggleWithoutInputTakeover()",
+          "failureText": "XCTAssertTrue failed"
+        }
+      ]
+    },
+    {
+      "bundle": "/private/tmp/qterm-agent-phase01-ui-verified.xcresult",
+      "result": "Passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "failures": []
+    }
+  ],
+  "latestTestCases": {
+    "total": 448,
+    "passed": 448,
+    "failed": 0,
+    "skipped": 0
+  },
+  "limits": [
+    "界面测试使用显式状态夹具；未运行真实 Claude/Codex 付费任务。",
+    "未自动安装原生生命周期钩子；包装进程和 SSH 远端需显式结构化接入。",
+    "待处理聚合、事件等待及跨应用退出保活不在本阶段。"
+  ],
+  "earlierRun": "首次并行完整运行有工具目录断言与 ZModem 输出转发失败；目录断言已更新，未改动 ZModem 生产代码，串行完整复跑通过。UI Runner 启动和旧输出目录问题通过独立临时构建及 ad-hoc 签名绕过。真实界面测试发现徽标辅助标签缺失，修正后专项复验通过。"
+}

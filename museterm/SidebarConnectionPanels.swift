@@ -1,14 +1,328 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
+
+struct TerminalQuickPathSection: View {
+    private static let collapsedFrequentCount = 3
+    private static let expandedFrequentCount = 10
+
+    @ObservedObject var workspace: TerminalWorkspace
+    let skin: TerminalVisualSkin
+    @State private var showsMoreFrequentPaths = false
+    @State private var quickPathAlert: SidebarStatusAlert?
+    @State private var quickPathAlertDismissTask: Task<Void, Never>?
+
+    var body: some View {
+        let recentPaths = workspace.recentQuickPaths
+        let recentPathSet = Set(recentPaths.map(\.path))
+        let frequentPaths = workspace.frequentQuickPaths(
+            limit: showsMoreFrequentPaths ? Self.expandedFrequentCount : Self.collapsedFrequentCount,
+            excludingPaths: recentPathSet
+        )
+        let totalFrequentCount = workspace.frequentQuickPaths(
+            limit: Self.expandedFrequentCount,
+            excludingPaths: recentPathSet
+        ).count
+
+        SidebarSection(
+            title: L10n.string("quick_path.section"),
+            systemImage: "folder",
+            skin: skin,
+            initiallyExpanded: true,
+            kind: .quickPaths,
+            preferences: workspace.preferences
+        ) {
+            HStack(spacing: 6) {
+                Button {
+                    selectQuickPathFolder()
+                } label: {
+                    Label(L10n.string("quick_path.add"), systemImage: "folder.badge.plus")
+                        .font(.caption.weight(.medium))
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(skin.controlFill)
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .help(L10n.string("quick_path.add.help"))
+
+                Spacer()
+            }
+
+            if let quickPathAlert {
+                SidebarAlertStrip(alert: quickPathAlert, skin: skin)
+            }
+
+            if recentPaths.isEmpty && frequentPaths.isEmpty {
+                Text(L10n.string("quick_path.empty"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                if !recentPaths.isEmpty {
+                    quickPathGroupTitle(L10n.string("quick_path.recent"))
+                    ForEach(recentPaths) { record in
+                        quickPathRow(record)
+                    }
+                }
+
+                if !frequentPaths.isEmpty {
+                    quickPathGroupTitle(L10n.string("quick_path.frequent"))
+                        .padding(.top, recentPaths.isEmpty ? 0 : 4)
+                    ForEach(frequentPaths) { record in
+                        quickPathRow(record)
+                    }
+
+                    if totalFrequentCount > Self.collapsedFrequentCount {
+                        Button {
+                            showsMoreFrequentPaths.toggle()
+                        } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: showsMoreFrequentPaths ? "chevron.up" : "chevron.down")
+                                    .font(.system(size: 9, weight: .semibold))
+                                Text(
+                                    showsMoreFrequentPaths
+                                    ? L10n.string("quick_path.show_less")
+                                    : L10n.format("quick_path.show_more", totalFrequentCount)
+                                )
+                                .font(.caption2.weight(.medium))
+                                Spacer()
+                            }
+                            .foregroundStyle(skin.accent)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private func quickPathGroupTitle(_ title: String) -> some View {
+        Text(title)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 2)
+    }
+
+    private func quickPathRow(_ record: TerminalQuickPathRecord) -> some View {
+        HStack(spacing: 4) {
+            Button {
+                workspace.openQuickPath(record)
+            } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: "folder.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(skin.accent)
+                        .frame(width: 14)
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(record.displayName)
+                            .font(.caption2.weight(.medium))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        Text(record.path)
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+
+                    Spacer(minLength: 2)
+
+                    Text(L10n.format("quick_path.visit_count", record.visitCount))
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(L10n.format("quick_path.open_help", record.path))
+
+            Menu {
+                Button {
+                    workspace.openQuickPath(record)
+                } label: {
+                    Label(L10n.string("quick_path.open_terminal"), systemImage: "terminal")
+                }
+                Button {
+                    openQuickPathInFolder(record)
+                } label: {
+                    Label(L10n.string("quick_path.open_folder"), systemImage: "folder")
+                }
+                Divider()
+                Button(role: .destructive) {
+                    removeQuickPath(record)
+                } label: {
+                    Label(L10n.string("quick_path.remove"), systemImage: "trash")
+                }
+                Button(role: .destructive) {
+                    workspace.blacklistQuickPath(record.path)
+                } label: {
+                    Label(L10n.string("quick_path.blacklist"), systemImage: "nosign")
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 20, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .help(L10n.string("quick_path.actions.help"))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(skin.controlFill)
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+    }
+
+    private func selectQuickPathFolder() {
+        let panel = NSOpenPanel()
+        panel.title = L10n.string("quick_path.add.panel_title")
+        panel.prompt = L10n.string("quick_path.add")
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let record = workspace.addQuickPath(url.path) else {
+            NSSound.beep()
+            showQuickPathAlert(L10n.string("quick_path.add.failed"), tone: .warning)
+            return
+        }
+        showQuickPathAlert(L10n.format("quick_path.added", record.displayName), tone: .success)
+    }
+
+    private func openQuickPathInFolder(_ record: TerminalQuickPathRecord) {
+        guard let path = TerminalWorkingDirectory.normalizedExistingDirectory(record.path) else {
+            NSSound.beep()
+            workspace.removeQuickPath(record.path)
+            showQuickPathAlert(L10n.format("quick_path.missing", record.path), tone: .warning)
+            return
+        }
+        if NSWorkspace.shared.open(URL(fileURLWithPath: path, isDirectory: true)) {
+            showQuickPathAlert(L10n.format("quick_path.opened_folder", record.displayName), tone: .success)
+        } else {
+            NSSound.beep()
+            showQuickPathAlert(L10n.format("quick_path.open_folder.failed", record.path), tone: .error)
+        }
+    }
+
+    private func removeQuickPath(_ record: TerminalQuickPathRecord) {
+        workspace.removeQuickPath(record.path)
+        showQuickPathAlert(L10n.format("quick_path.removed", record.displayName), tone: .info)
+    }
+
+    private func showQuickPathAlert(_ message: String, tone: SidebarAlertTone) {
+        quickPathAlertDismissTask?.cancel()
+        withAnimation(.easeOut(duration: 0.15)) {
+            quickPathAlert = SidebarStatusAlert(message: message, tone: tone)
+        }
+        quickPathAlertDismissTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.25)) {
+                quickPathAlert = nil
+            }
+        }
+    }
+}
+
+private struct SidebarStatusAlert: Equatable {
+    let message: String
+    let tone: SidebarAlertTone
+}
+
+private enum SidebarAlertTone: Equatable {
+    case info
+    case success
+    case warning
+    case error
+
+    var iconName: String {
+        switch self {
+        case .info: return "info.circle.fill"
+        case .success: return "checkmark.circle.fill"
+        case .warning: return "exclamationmark.triangle.fill"
+        case .error: return "xmark.octagon.fill"
+        }
+    }
+
+    var accent: Color {
+        switch self {
+        case .info: return Color(red: 0.20, green: 0.49, blue: 0.82)
+        case .success: return Color(red: 0.18, green: 0.56, blue: 0.34)
+        case .warning: return Color(red: 0.78, green: 0.50, blue: 0.12)
+        case .error: return Color(red: 0.78, green: 0.22, blue: 0.22)
+        }
+    }
+
+    func background(isDark: Bool) -> Color {
+        accent.opacity(isDark ? 0.20 : 0.11)
+    }
+
+    func border(isDark: Bool) -> Color {
+        accent.opacity(isDark ? 0.46 : 0.28)
+    }
+}
+
+private struct SidebarAlertStrip: View {
+    let alert: SidebarStatusAlert
+    let skin: TerminalVisualSkin
+
+    var body: some View {
+        let isDark = skin.preferredColorScheme == .dark
+
+        HStack(alignment: .top, spacing: 7) {
+            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                .fill(alert.tone.accent)
+                .frame(width: 3)
+
+            Image(systemName: alert.tone.iconName)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(alert.tone.accent)
+                .padding(.top, 1)
+
+            Text(alert.message)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(alert.tone.background(isDark: isDark))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(alert.tone.border(isDark: isDark), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
 
 struct TerminalShortcutSection: View {
+    private static let recordAccent = Color(red: 0.78, green: 0.34, blue: 0.20)
+
     @ObservedObject var workspace: TerminalWorkspace
+    @ObservedObject var sshStore: SSHConnectionStore
     let skin: TerminalVisualSkin
     @State private var renameDraft: TerminalShortcutRenameDraft?
     @State private var isEditingJSON = false
+    @State private var deletionCandidate: TerminalShortcut?
+    @State private var shortcutMessage = ""
 
     var body: some View {
-        SidebarSection(title: L10n.string("shortcut.section"), systemImage: "record.circle", skin: skin) {
+        SidebarSection(
+            title: L10n.string("shortcut.section"),
+            systemImage: "record.circle",
+            skin: skin,
+            initiallyExpanded: false,
+            kind: .shortcuts,
+            preferences: workspace.preferences
+        ) {
             HStack(spacing: 6) {
                 Button {
                     if workspace.isRecording {
@@ -23,8 +337,8 @@ struct TerminalShortcutSection: View {
                     )
                     .labelStyle(.iconOnly)
                     .frame(width: 28, height: 26)
-                    .foregroundStyle(workspace.isRecording ? Color.white : Color.red)
-                    .background(workspace.isRecording ? Color.red : Color.red.opacity(0.12))
+                    .foregroundStyle(workspace.isRecording ? Color.white : Self.recordAccent)
+                    .background(workspace.isRecording ? Self.recordAccent : Self.recordAccent.opacity(0.10))
                     .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                 }
                 .buttonStyle(.plain)
@@ -37,9 +351,19 @@ struct TerminalShortcutSection: View {
                         .frame(width: 28, height: 26)
                 }
                 .buttonStyle(.plain)
-                .help(L10n.string("shortcut.edit_json"))
+                .contextMenu {
+                    shortcutJSONContextMenu
+                }
+                .help(L10n.string("shortcut.edit_json.help"))
 
                 Spacer()
+            }
+
+            if !shortcutMessage.isEmpty {
+                Text(shortcutMessage)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             if workspace.shortcuts.isEmpty {
@@ -49,7 +373,7 @@ struct TerminalShortcutSection: View {
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 ForEach(workspace.shortcuts) { shortcut in
-                    shortcutMenu(shortcut)
+                    shortcutRow(shortcut)
                 }
             }
         }
@@ -73,64 +397,207 @@ struct TerminalShortcutSection: View {
                 }
             )
         }
+        .alert(
+            L10n.string("shortcut.delete_confirm.title"),
+            isPresented: Binding(
+                get: { deletionCandidate != nil },
+                set: { if !$0 { deletionCandidate = nil } }
+            ),
+            presenting: deletionCandidate
+        ) { shortcut in
+            Button(L10n.string("shortcut.delete"), role: .destructive) {
+                workspace.deleteShortcut(id: shortcut.id)
+                deletionCandidate = nil
+            }
+            Button(L10n.string("action.cancel"), role: .cancel) {
+                deletionCandidate = nil
+            }
+        } message: { shortcut in
+            Text(L10n.format("shortcut.delete_confirm.message", shortcut.title))
+        }
     }
 
-    private func shortcutMenu(_ shortcut: TerminalShortcut) -> some View {
-        Menu {
-            Button {
-                workspace.playShortcut(shortcut)
-            } label: {
-                Label(L10n.string("shortcut.play"), systemImage: "play.fill")
-            }
-            .disabled(workspace.isRecording)
-
-            Button {
-                renameDraft = TerminalShortcutRenameDraft(shortcut: shortcut)
-            } label: {
-                Label(L10n.string("shortcut.rename"), systemImage: "pencil")
-            }
-
-            Divider()
-
-            Button(role: .destructive) {
-                workspace.deleteShortcut(id: shortcut.id)
-            } label: {
-                Label(L10n.string("shortcut.delete"), systemImage: "trash")
-            }
+    @ViewBuilder
+    private var shortcutJSONContextMenu: some View {
+        Button {
+            openShortcutJSON()
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "play.fill")
-                    .font(.system(size: 8, weight: .bold))
-                Text(shortcut.title)
-                    .font(.caption2.weight(.medium))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                Spacer(minLength: 2)
-                if shortcut.hasProtectedInput {
-                    Image(systemName: "lock.shield")
-                        .font(.system(size: 9))
-                        .foregroundStyle(.secondary)
+            Label(L10n.string("shortcut.open_external.default"), systemImage: "doc.text")
+        }
+
+        let editors = TerminalShortcutExternalEditor.installedEditors
+        if !editors.isEmpty {
+            Divider()
+            ForEach(editors) { editor in
+                Button {
+                    openShortcutJSON(with: editor)
+                } label: {
+                    Label(L10n.format("shortcut.open_external.with", editor.name), systemImage: editor.systemImage)
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(skin.controlFill)
-            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
+    }
+
+    private func openShortcutJSON(with editor: TerminalShortcutExternalEditor? = nil) {
+        TerminalShortcutStore.save(workspace.shortcuts)
+        let editorName = editor?.name ?? L10n.string("shortcut.open_external.default_app")
+        shortcutMessage = L10n.format("shortcut.open_external.opening", editorName)
+        TerminalShortcutExternalEditor.open(fileURL: TerminalShortcutStore.fileURL, with: editor) { success in
+            if success {
+                shortcutMessage = L10n.format("shortcut.open_external.opened", editorName)
+            } else {
+                NSSound.beep()
+                shortcutMessage = L10n.format("shortcut.open_external.failed", editorName)
+            }
+        }
+    }
+
+    private func shortcutRow(_ shortcut: TerminalShortcut) -> some View {
+        HStack(spacing: 4) {
+            Button {
+                playShortcut(shortcut)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 8, weight: .bold))
+                    Text(shortcut.title)
+                        .font(.caption2.weight(.medium))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Spacer(minLength: 2)
+                    if shortcut.requiresUserAuthentication {
+                        Image(systemName: "touchid")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                    } else if shortcut.hasProtectedInput {
+                        Image(systemName: "lock.shield")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                    }
+                    if !shortcut.allowsAutomationPlayback {
+                        Image(systemName: "person.fill.checkmark")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(workspace.isRecording)
+            .help(L10n.string("shortcut.play"))
+
+            Menu {
+                Button {
+                    playShortcut(shortcut)
+                } label: {
+                    Label(L10n.string("shortcut.play"), systemImage: "play.fill")
+                }
+                .disabled(workspace.isRecording)
+
+                Button {
+                    renameDraft = TerminalShortcutRenameDraft(shortcut: shortcut)
+                } label: {
+                    Label(L10n.string("shortcut.rename"), systemImage: "pencil")
+                }
+
+                Divider()
+
+                shortcutAccessToggles(shortcut)
+
+                Divider()
+
+                Button(role: .destructive) {
+                    deletionCandidate = shortcut
+                } label: {
+                    Label(L10n.string("shortcut.delete"), systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 20, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .help(L10n.string("shortcut.actions.help"))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(skin.controlFill)
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         .help(L10n.format("shortcut.tooltip", shortcut.eventCount, max(1, shortcut.durationMilliseconds / 1000)))
+    }
+
+    private func playShortcut(_ shortcut: TerminalShortcut) {
+        workspace.playUserShortcut(shortcut, sshProfiles: sshStore.profiles) { result in
+            if case .failure(let error) = result {
+                NSSound.beep()
+                shortcutMessage = L10n.format("shortcut.context_error", error.localizedDescription)
+            }
+        }
+    }
+
+    private func shortcutAccessToggles(_ shortcut: TerminalShortcut) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(isOn: shortcutFlag(
+                shortcut.requiresUserAuthentication,
+                shortcutID: shortcut.id,
+                update: workspace.setShortcutRequiresUserAuthentication
+            )) {
+                Label(L10n.string("shortcut.auth.require"), systemImage: "touchid")
+                    .font(.caption2)
+            }
+            .toggleStyle(.checkbox)
+            .help(L10n.string("shortcut.auth.require.help"))
+
+            Toggle(isOn: shortcutFlag(
+                shortcut.allowsAutomationPlayback,
+                shortcutID: shortcut.id,
+                update: workspace.setShortcutAllowsAutomationPlayback
+            )) {
+                Label(L10n.string("shortcut.auth.automation"), systemImage: "apple.terminal")
+                    .font(.caption2)
+            }
+            .toggleStyle(.checkbox)
+            .help(L10n.string("shortcut.auth.automation.help"))
+        }
+    }
+
+    private func shortcutFlag(
+        _ value: Bool,
+        shortcutID: UUID,
+        update: @escaping (Bool, UUID) -> Void
+    ) -> Binding<Bool> {
+        Binding(
+            get: { value },
+            set: { update($0, shortcutID) }
+        )
     }
 }
 
 struct SSHProfilesSection: View {
+    private static let maxRecentProfileCount = 5
+
     @ObservedObject var workspace: TerminalWorkspace
     @ObservedObject var store: SSHConnectionStore
     let skin: TerminalVisualSkin
     @State private var editingProfile: SSHConnectionProfile?
+    @State private var diagnosticProfile: SSHConnectionProfile?
+    @State private var configPreviewProfile: SSHConnectionProfile?
+    @State private var importMessage = ""
+    @State private var searchText = ""
+    @State private var selectedTag: String?
+    @State private var collapsedProfileGroups: Set<String> = []
 
     var body: some View {
-        SidebarSection(title: L10n.string("ssh.section"), systemImage: "network", skin: skin) {
+        SidebarSection(
+            title: L10n.string("ssh.section"),
+            systemImage: "network",
+            skin: skin,
+            initiallyExpanded: false,
+            kind: .sshHosts,
+            preferences: workspace.preferences
+        ) {
             HStack(spacing: 6) {
                 Button {
                     editingProfile = SSHConnectionProfile()
@@ -144,7 +611,27 @@ struct SSHProfilesSection: View {
                 .background(skin.controlFill)
                 .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
 
+                Button {
+                    importDefaultOpenSSHConfig()
+                } label: {
+                    Label(L10n.string("ssh.import"), systemImage: "tray.and.arrow.down")
+                        .font(.caption.weight(.medium))
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(skin.controlFill)
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .help(L10n.string("ssh.import.help"))
+
                 Spacer()
+            }
+
+            if !importMessage.isEmpty {
+                Text(importMessage)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             if store.profiles.isEmpty {
@@ -152,9 +639,23 @@ struct SSHProfilesSection: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+            } else if filteredProfiles.isEmpty {
+                searchControls
+                Text(L10n.string("ssh.search.empty"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             } else {
-                ForEach(store.profiles) { profile in
-                    sshProfileRow(profile)
+                searchControls
+                ForEach(groupedProfiles) { group in
+                    if groupedProfiles.count > 1 {
+                        profileGroupHeader(group)
+                    }
+                    if !isProfileGroupCollapsed(group) {
+                        ForEach(group.profiles) { profile in
+                            sshProfileRow(profile)
+                        }
+                    }
                 }
             }
         }
@@ -168,39 +669,386 @@ struct SSHProfilesSection: View {
                 }
             )
         }
+        .sheet(item: $diagnosticProfile) { profile in
+            SSHRouteDiagnosticPlanSheet(
+                profile: profile,
+                workspace: workspace,
+                skin: skin,
+                onClose: { diagnosticProfile = nil }
+            )
+        }
+        .sheet(item: $configPreviewProfile) { profile in
+            SSHConfigPreviewSheet(
+                profile: profile,
+                skin: skin,
+                onClose: { configPreviewProfile = nil }
+            )
+        }
+    }
+
+    private var searchControls: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 5) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                TextField(L10n.string("ssh.search.placeholder"), text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.caption2)
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(L10n.string("action.clear"))
+                }
+                if groupedProfiles.count > 1 {
+                    Button {
+                        expandAllProfileGroups()
+                    } label: {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(L10n.string("ssh.groups.expand_all"))
+
+                    Button {
+                        collapseAllProfileGroups()
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(L10n.string("ssh.groups.collapse_all"))
+                }
+            }
+            .padding(.horizontal, 7)
+            .padding(.vertical, 5)
+            .background(skin.controlFill)
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .help(L10n.string("ssh.search.help"))
+
+            if !availableTags.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 5) {
+                        tagFilterButton(title: L10n.string("ssh.tags.all"), tag: nil)
+                        ForEach(availableTags, id: \.self) { tag in
+                            tagFilterButton(title: "#\(tag)", tag: tag)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func tagFilterButton(title: String, tag: String?) -> some View {
+        let isSelected = selectedTag == tag
+        return Button {
+            selectedTag = tag
+        } label: {
+            Text(title)
+                .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
+                .lineLimit(1)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .foregroundStyle(isSelected ? Color.white : Color.secondary)
+                .background(isSelected ? Color.accentColor : skin.controlFill)
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var filteredProfiles: [SSHConnectionProfile] {
+        store.profiles.filter { $0.matchesSearch(searchText, selectedTag: selectedTag) }
+    }
+
+    // store.profiles 的所有写入路径都存 normalized 值，且 isFavorite/lastConnectedAt/
+    // connectionOpenCount/tags 在 normalized 里本就是透传字段，这里直接读原值，
+    // 避免每次渲染/键入对整个列表做 normalized 深拷贝。
+    private var availableTags: [String] {
+        var seen: Set<String> = []
+        var tags: [String] = []
+        for tag in store.profiles.flatMap(\.tags) {
+            let key = tag.lowercased()
+            guard seen.insert(key).inserted else { continue }
+            tags.append(tag)
+        }
+        return tags.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    private var groupedProfiles: [SSHProfileListGroup] {
+        let favoriteProfiles = sortedProfiles(filteredProfiles.filter(\.isFavorite))
+        let favoriteIDs = Set(favoriteProfiles.map(\.id))
+        let recentProfiles = Array(
+            sortedRecentProfiles(
+                filteredProfiles.filter {
+                    !$0.isFavorite && $0.lastConnectedAt != nil
+                }
+            )
+            .prefix(Self.maxRecentProfileCount)
+        )
+        let recentIDs = Set(recentProfiles.map(\.id))
+        let regularProfiles = filteredProfiles.filter { profile in
+            !favoriteIDs.contains(profile.id) && !recentIDs.contains(profile.id)
+        }
+        let groups = Dictionary(grouping: regularProfiles) { profile in
+            profile.groupDisplayName
+        }
+
+        var result: [SSHProfileListGroup] = []
+        if !favoriteProfiles.isEmpty {
+            result.append(
+                SSHProfileListGroup(
+                    id: "__favorites",
+                    name: L10n.string("ssh.group.favorites"),
+                    profiles: favoriteProfiles
+                )
+            )
+        }
+        if !recentProfiles.isEmpty {
+            result.append(
+                SSHProfileListGroup(
+                    id: "__recent",
+                    name: L10n.string("ssh.group.recent"),
+                    profiles: recentProfiles,
+                    sortMode: .preserveOrder
+                )
+            )
+        }
+
+        result += groups
+            .map { SSHProfileListGroup(name: $0.key, profiles: $0.value) }
+            .sorted { lhs, rhs in
+                if lhs.name == L10n.string("ssh.group.ungrouped") { return false }
+                if rhs.name == L10n.string("ssh.group.ungrouped") { return true }
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
+        return result
+    }
+
+    private func sortedProfiles(_ profiles: [SSHConnectionProfile]) -> [SSHConnectionProfile] {
+        profiles.sorted { lhs, rhs in
+            let nameOrder = lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName)
+            if nameOrder != .orderedSame { return nameOrder == .orderedAscending }
+            let targetOrder = lhs.target.localizedCaseInsensitiveCompare(rhs.target)
+            if targetOrder != .orderedSame { return targetOrder == .orderedAscending }
+            return lhs.id.uuidString < rhs.id.uuidString
+        }
+    }
+
+    private func sortedRecentProfiles(_ profiles: [SSHConnectionProfile]) -> [SSHConnectionProfile] {
+        profiles.sorted { lhs, rhs in
+            let lhsDate = lhs.lastConnectedAt ?? .distantPast
+            let rhsDate = rhs.lastConnectedAt ?? .distantPast
+            if lhsDate != rhsDate { return lhsDate > rhsDate }
+            if lhs.connectionOpenCount != rhs.connectionOpenCount {
+                return lhs.connectionOpenCount > rhs.connectionOpenCount
+            }
+            return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+        }
+    }
+
+    private func profileGroupHeader(_ group: SSHProfileListGroup) -> some View {
+        let isCollapsed = isProfileGroupCollapsed(group)
+        return Button {
+            toggleProfileGroup(group)
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
+                    .font(.system(size: 9, weight: .bold))
+                    .frame(width: 10)
+                    .foregroundStyle(.secondary)
+                Text(group.name)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                Text("\(group.profiles.count)")
+                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(skin.controlFill)
+                    .clipShape(Capsule())
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 3)
+        .help(L10n.format(isCollapsed ? "ssh.group.expand.help" : "ssh.group.collapse.help", group.name))
+    }
+
+    private func isProfileGroupCollapsed(_ group: SSHProfileListGroup) -> Bool {
+        collapsedProfileGroups.contains(group.id)
+    }
+
+    private func toggleProfileGroup(_ group: SSHProfileListGroup) {
+        if collapsedProfileGroups.contains(group.id) {
+            collapsedProfileGroups.remove(group.id)
+        } else {
+            collapsedProfileGroups.insert(group.id)
+        }
+    }
+
+    private func expandAllProfileGroups() {
+        collapsedProfileGroups.removeAll()
+    }
+
+    private func collapseAllProfileGroups() {
+        collapsedProfileGroups = Set(groupedProfiles.map(\.id))
     }
 
     private func sshProfileRow(_ profile: SSHConnectionProfile) -> some View {
-        HStack(spacing: 7) {
+        let health = profile.healthSummary
+        let portForwardSummary = profile.portForwardSummaryText
+        let portForwardAccessEntries = profile.portForwardAccessEntries
+        return HStack(spacing: 7) {
             Button {
-                workspace.openSSH(profile: profile)
+                let openedProfile = store.recordConnection(profile)
+                workspace.openSSH(profile: openedProfile)
             } label: {
                 HStack(spacing: 7) {
                     Image(systemName: profile.jumpHosts.isEmpty ? "network" : "point.3.connected.trianglepath.dotted")
                         .frame(width: 20)
+                    if profile.normalized.isFavorite {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.yellow)
+                            .help(L10n.string("ssh.favorite.status"))
+                    }
+                    if profile.normalized.lastConnectedAt != nil && !profile.normalized.isFavorite {
+                        Image(systemName: "clock")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .help(L10n.string("ssh.recent.status"))
+                    }
                     VStack(alignment: .leading, spacing: 1) {
                         Text(profile.displayName)
                             .font(.caption2.weight(.semibold))
                             .lineLimit(1)
+                            .help(profile.displayName)
                         Text(profile.target)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
+                            .truncationMode(.middle)
+                            .help(profile.target)
+                        if !profile.normalized.tags.isEmpty {
+                            let tagSummary = profile.normalized.tags.map { "#\($0)" }.joined(separator: " ")
+                            Text(tagSummary)
+                                .font(.system(size: 9))
+                                .foregroundStyle(.secondary.opacity(0.8))
+                                .lineLimit(1)
+                                .help(tagSummary)
+                        }
                     }
                     Spacer(minLength: 2)
+                    SSHProfileHealthBadges(summary: health)
+                    SSHProfilePortForwardBadge(
+                        count: profile.usablePortForwards.count,
+                        summary: portForwardSummary
+                    )
+                    EnvironmentBadge(environment: profile.environment)
                 }
                 // 整块名字区域都可点击直接连接，而非仅文字本身。
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help(L10n.string("ssh.connect"))
+            .help(rowHelp(for: profile, health: health))
 
             Menu {
+                Button {
+                    store.toggleFavorite(profile)
+                } label: {
+                    Label(
+                        profile.normalized.isFavorite
+                            ? L10n.string("ssh.favorite.remove")
+                            : L10n.string("ssh.favorite.add"),
+                        systemImage: profile.normalized.isFavorite ? "star.slash" : "star"
+                    )
+                }
+                .help(
+                    profile.normalized.isFavorite
+                        ? L10n.string("ssh.favorite.remove.help")
+                        : L10n.string("ssh.favorite.add.help")
+                )
+                if profile.normalized.lastConnectedAt != nil {
+                    Button {
+                        store.clearRecentConnection(profile)
+                    } label: {
+                        Label(L10n.string("ssh.recent.clear"), systemImage: "xmark.circle")
+                    }
+                    .help(L10n.string("ssh.recent.clear.help"))
+                }
                 Button {
                     editingProfile = profile
                 } label: {
                     Label(L10n.string("ssh.edit"), systemImage: "pencil")
                 }
+                Button {
+                    copyOpenSSHConfigSnippet(for: profile)
+                } label: {
+                    Label(L10n.string("ssh.copy_config"), systemImage: "doc.on.doc")
+                }
+                .help(L10n.string("ssh.copy_config.help"))
+                Button {
+                    copySSHConnectionCommand(for: profile)
+                } label: {
+                    Label(L10n.string("ssh.copy_command"), systemImage: "terminal")
+                }
+                .help(L10n.string("ssh.copy_command.help"))
+                Button {
+                    configPreviewProfile = profile
+                } label: {
+                    Label(L10n.string("ssh.config_preview.open"), systemImage: "doc.plaintext")
+                }
+                .help(L10n.string("ssh.config_preview.open.help"))
+                Button {
+                    copyPortForwardSummary(for: profile)
+                } label: {
+                    Label(L10n.string("ssh.copy_port_forwards"), systemImage: "arrow.left.arrow.right")
+                }
+                .disabled(profile.usablePortForwards.isEmpty)
+                .help(L10n.string("ssh.copy_port_forwards.help"))
+                Menu {
+                    ForEach(portForwardAccessEntries) { entry in
+                        if entry.canOpenInBrowser {
+                            Button {
+                                openPortForwardAccess(entry)
+                            } label: {
+                                Label(
+                                    L10n.format("ssh.open_port_forward_entry", entry.urlString),
+                                    systemImage: "safari"
+                                )
+                            }
+                        } else {
+                            Button {
+                                copyPortForwardAccess(entry)
+                            } label: {
+                                Label(
+                                    L10n.format("ssh.copy_port_forward_entry", entry.urlString),
+                                    systemImage: "doc.on.doc"
+                                )
+                            }
+                        }
+                    }
+                } label: {
+                    Label(L10n.string("ssh.open_port_forward_entries"), systemImage: "link")
+                }
+                .disabled(portForwardAccessEntries.isEmpty)
+                .help(L10n.string("ssh.open_port_forward_entries.help"))
+                Button {
+                    diagnosticProfile = profile
+                } label: {
+                    Label(L10n.string("ssh.diagnostic_plan.open"), systemImage: "checklist")
+                }
+                .help(L10n.string("ssh.diagnostic_plan.open.help"))
                 Divider()
                 Button(role: .destructive) {
                     store.delete(profile)
@@ -219,7 +1067,177 @@ struct SSHProfilesSection: View {
         .padding(.vertical, 6)
         .background(skin.controlFill)
         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-        .help(profile.jumpHosts.isEmpty ? profile.target : L10n.format("ssh.tooltip_with_jumps", profile.target, profile.jumpHosts.count))
+        .help(rowHelp(for: profile, health: health))
+    }
+
+    private func rowHelp(for profile: SSHConnectionProfile, health: SSHProfileHealthSummary) -> String {
+        let base = profile.jumpHosts.isEmpty ? profile.target : L10n.format("ssh.tooltip_route", profile.routeSummary)
+        let capabilities = profile.connectionCapabilityText
+        let portForwards = profile.portForwardClipboardText
+        return [
+            profile.displayName,
+            base,
+            profile.recentConnectionSummary,
+            capabilities.isEmpty ? nil : capabilities,
+            health.hasAttentionItems ? health.tooltip : nil,
+            portForwards.isEmpty ? nil : portForwards
+        ]
+            .compactMap { $0 }
+            .joined(separator: "\n")
+    }
+
+    private func importDefaultOpenSSHConfig() {
+        do {
+            let count = try store.importDefaultOpenSSHConfig()
+            importMessage = count == 0
+                ? L10n.string("ssh.import.none")
+                : L10n.format("ssh.import.success", count)
+        } catch {
+            importMessage = L10n.format("ssh.import.failed", error.localizedDescription)
+        }
+    }
+
+    private func copyOpenSSHConfigSnippet(for profile: SSHConnectionProfile) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(SSHConfigMaterializer.exportSnippet(for: profile), forType: .string)
+        importMessage = L10n.format("ssh.copy_config.copied", profile.displayName)
+    }
+
+    private func copySSHConnectionCommand(for profile: SSHConnectionProfile) {
+        do {
+            let command = try SSHConfigMaterializer.copyableConnectionCommand(for: profile)
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(command, forType: .string)
+            importMessage = L10n.format("ssh.copy_command.copied", profile.displayName)
+        } catch {
+            importMessage = L10n.format("ssh.copy_command.failed", error.localizedDescription)
+        }
+    }
+
+    private func copyPortForwardSummary(for profile: SSHConnectionProfile) {
+        let summary = profile.portForwardClipboardText
+        guard !summary.isEmpty else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(summary, forType: .string)
+        importMessage = L10n.format("ssh.copy_port_forwards.copied", profile.displayName)
+    }
+
+    private func openPortForwardAccess(_ entry: SSHPortForwardAccessEntry) {
+        guard let url = URL(string: entry.urlString) else {
+            NSSound.beep()
+            importMessage = L10n.format("ssh.open_port_forward_entry.failed", entry.urlString)
+            return
+        }
+        if NSWorkspace.shared.open(url) {
+            importMessage = L10n.format("ssh.open_port_forward_entry.opened", entry.urlString)
+        } else {
+            NSSound.beep()
+            importMessage = L10n.format("ssh.open_port_forward_entry.failed", entry.urlString)
+        }
+    }
+
+    private func copyPortForwardAccess(_ entry: SSHPortForwardAccessEntry) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(entry.urlString, forType: .string)
+        importMessage = L10n.format("ssh.copy_port_forward_entry.copied", entry.urlString)
+    }
+}
+
+private struct SSHProfileListGroup: Identifiable {
+    enum SortMode {
+        case alphabetical
+        case preserveOrder
+    }
+
+    let id: String
+    let name: String
+    let profiles: [SSHConnectionProfile]
+
+    init(
+        id: String? = nil,
+        name: String,
+        profiles: [SSHConnectionProfile],
+        sortMode: SortMode = .alphabetical
+    ) {
+        self.id = id ?? "group:\(name)"
+        self.name = name
+        if sortMode == .preserveOrder {
+            self.profiles = profiles
+            return
+        }
+        self.profiles = profiles.sorted { lhs, rhs in
+            let nameOrder = lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName)
+            if nameOrder != .orderedSame { return nameOrder == .orderedAscending }
+            let targetOrder = lhs.target.localizedCaseInsensitiveCompare(rhs.target)
+            if targetOrder != .orderedSame { return targetOrder == .orderedAscending }
+            return lhs.id.uuidString < rhs.id.uuidString
+        }
+    }
+}
+
+private struct SSHProfileHealthBadges: View {
+    let summary: SSHProfileHealthSummary
+
+    var body: some View {
+        HStack(spacing: 4) {
+            if summary.preflightIssueCount > 0 {
+                badge(
+                    count: summary.preflightIssueCount,
+                    systemImage: "checklist.unchecked",
+                    color: .blue,
+                    help: summary.tooltip
+                )
+            }
+            if summary.securityWarningCount > 0 {
+                badge(
+                    count: summary.securityWarningCount,
+                    systemImage: "exclamationmark.triangle.fill",
+                    color: .orange,
+                    help: summary.tooltip
+                )
+            }
+        }
+    }
+
+    private func badge(count: Int, systemImage: String, color: Color, help: String) -> some View {
+        Label {
+            Text("\(count)")
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+        } icon: {
+            Image(systemName: systemImage)
+                .font(.system(size: 9, weight: .semibold))
+        }
+        .labelStyle(.titleAndIcon)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 2)
+        .foregroundStyle(color)
+        .background(color.opacity(0.13))
+        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+        .help(help)
+    }
+}
+
+private struct SSHProfilePortForwardBadge: View {
+    let count: Int
+    let summary: String
+
+    var body: some View {
+        if count > 0 {
+            Label {
+                Text("\(count)")
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+            } icon: {
+                Image(systemName: "arrow.left.arrow.right")
+                    .font(.system(size: 9, weight: .semibold))
+            }
+            .labelStyle(.titleAndIcon)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .foregroundStyle(Color.teal)
+            .background(Color.teal.opacity(0.13))
+            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+            .help(summary)
+        }
     }
 }
 
@@ -228,7 +1246,14 @@ struct FileTransferSection: View {
     let skin: TerminalVisualSkin
 
     var body: some View {
-        SidebarSection(title: L10n.string("file_transfer.section"), systemImage: "arrow.up.arrow.down.square", skin: skin) {
+        SidebarSection(
+            title: L10n.string("file_transfer.section"),
+            systemImage: "arrow.up.arrow.down.square",
+            skin: skin,
+            initiallyExpanded: false,
+            kind: .fileTransfer,
+            preferences: workspace.preferences
+        ) {
             if let selectedTab = workspace.selectedTab {
                 FileTransferControls(workspace: workspace, tab: selectedTab, skin: skin)
             } else {
@@ -278,6 +1303,22 @@ private struct FileTransferControls: View {
                 .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                 .disabled(isTransferActive)
                 .help(L10n.string("file_transfer.download.help"))
+
+                if isTransferActive {
+                    Button {
+                        workspace.cancelFileTransfer()
+                    } label: {
+                        Label(L10n.string("file_transfer.cancel"), systemImage: "xmark.circle.fill")
+                            .font(.caption.weight(.medium))
+                            .labelStyle(.titleAndIcon)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(skin.controlFill)
+                    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .help(L10n.string("file_transfer.cancel.help"))
+                }
             }
 
             if let status = tab.fileTransferStatus {
@@ -355,20 +1396,203 @@ private struct FileTransferControls: View {
     }
 }
 
-private struct SidebarSection<Content: View>: View {
+struct SidebarSection<Content: View>: View {
     let title: String
     let systemImage: String
     let skin: TerminalVisualSkin
-    @ViewBuilder var content: Content
+    /// 有这个身份的分区可以被拖动排序、被隐藏；没有的只是普通折叠区。
+    let kind: SidebarSectionKind?
+    let preferences: TerminalPreferences?
+    @State private var isExpanded: Bool
+    @State private var isHeaderHovering = false
+    @ViewBuilder let content: Content
+
+    init(
+        title: String,
+        systemImage: String,
+        skin: TerminalVisualSkin,
+        initiallyExpanded: Bool = true,
+        kind: SidebarSectionKind? = nil,
+        preferences: TerminalPreferences? = nil,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.title = title
+        self.systemImage = systemImage
+        self.skin = skin
+        self.kind = kind
+        self.preferences = preferences
+        _isExpanded = State(initialValue: initiallyExpanded)
+        self.content = content()
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
-            Label(title, systemImage: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-            content
+            Button {
+                withAnimation(.easeInOut(duration: 0.16)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Label(title, systemImage: systemImage)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 4)
+                    if kind != nil {
+                        sectionHeaderActions
+                            .opacity(isHeaderHovering ? 1 : 0)
+                    }
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.tertiary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .onHover { isHeaderHovering = $0 }
+            .onDrag {
+                guard let kind else { return NSItemProvider() }
+                return NSItemProvider(object: kind.rawValue as NSString)
+            }
+            .onDrop(
+                of: [UTType.plainText],
+                delegate: SidebarSectionDropDelegate(target: kind, preferences: preferences)
+            )
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 7) {
+                    content
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 7)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(skin.controlFill.opacity(isExpanded ? 0.72 : 0.42))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(skin.hairline.opacity(isExpanded ? 0.82 : 0.48), lineWidth: 1)
+        )
+    }
+
+    /// 悬停才出现：拖动排序的把手，和把这个分区藏起来的按钮。
+    @ViewBuilder
+    private var sectionHeaderActions: some View {
+        Image(systemName: "line.3.horizontal")
+            .font(.system(size: 9, weight: .bold))
+            .foregroundStyle(.tertiary)
+            .help(L10n.string("sidebar.section.drag.help"))
+            .accessibilityLabel(L10n.string("sidebar.section.drag.help"))
+        Button {
+            guard let kind else { return }
+            preferences?.setSidebarSection(kind, visible: false)
+        } label: {
+            Image(systemName: "eye.slash")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.tertiary)
+                .frame(width: 14, height: 14)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(L10n.string("sidebar.section.hide.help"))
+        .accessibilityLabel(L10n.string("sidebar.section.hide.help"))
+    }
+}
+
+/// 把拖来的分区插到目标分区的位置。目标没有身份，或拖的不是分区，就不改顺序。
+struct SidebarSectionDropDelegate: DropDelegate {
+    let target: SidebarSectionKind?
+    let preferences: TerminalPreferences?
+    var dropTargetActive: Binding<Bool>? = nil
+
+    func dropEntered(info: DropInfo) {
+        guard target != nil else { return }
+        dropTargetActive?.wrappedValue = true
+    }
+
+    func dropExited(info: DropInfo) {
+        dropTargetActive?.wrappedValue = false
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard let target, let preferences,
+              let provider = info.itemProviders(for: [UTType.plainText]).first else { return false }
+        provider.loadObject(ofClass: NSString.self) { object, _ in
+            guard let rawValue = object as? String,
+                  let dragged = SidebarSectionKind(rawValue: rawValue),
+                  dragged != target else { return }
+            DispatchQueue.main.async {
+                SidebarSectionOrder.applyDrop(of: dragged, onto: target, in: preferences)
+                dropTargetActive?.wrappedValue = false
+            }
+        }
+        return true
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: target == nil ? .forbidden : .move)
+    }
+}
+
+/// 拖放落点只改顺序，显隐不动。抽出来是为了能不靠界面就测它。
+enum SidebarSectionOrder {
+    static func applyDrop(
+        of dragged: SidebarSectionKind,
+        onto target: SidebarSectionKind,
+        in preferences: TerminalPreferences
+    ) {
+        guard dragged != target,
+              let from = preferences.sidebarSectionOrder.firstIndex(of: dragged),
+              let to = preferences.sidebarSectionOrder.firstIndex(of: target) else { return }
+        var reordered = preferences.sidebarSectionOrder
+        reordered.remove(at: from)
+        reordered.insert(dragged, at: to)
+        preferences.sidebarSectionOrder = reordered
+    }
+}
+
+struct EnvironmentBadge: View {
+    private static let productionBackground = Color(red: 0.99, green: 0.84, blue: 0.68).opacity(0.72)
+    private static let productionForeground = Color(red: 0.68, green: 0.30, blue: 0.12)
+
+    let environment: TerminalEnvironmentKind
+
+    var body: some View {
+        Text(environment.shortName)
+            .font(.system(size: 9, weight: .bold, design: .rounded))
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .foregroundStyle(foreground)
+            .background(background)
+            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+            .help(environment.name)
+    }
+
+    private var background: Color {
+        switch environment {
+        case .local:
+            return Color.secondary.opacity(0.14)
+        case .development:
+            return Color.blue.opacity(0.16)
+        case .staging:
+            return Color.orange.opacity(0.20)
+        case .production:
+            return Self.productionBackground
+        }
+    }
+
+    private var foreground: Color {
+        switch environment {
+        case .local:
+            return .secondary
+        case .development:
+            return .blue
+        case .staging:
+            return .orange
+        case .production:
+            return Self.productionForeground
+        }
     }
 }
 
@@ -415,66 +1639,30 @@ private struct TerminalShortcutRenameSheet: View {
     }
 }
 
-private struct TerminalShortcutJSONEditorSheet: View {
-    @State private var text: String
-    @State private var errorMessage = ""
-    let onCancel: () -> Void
-    let onSave: (String) throws -> Void
-
-    init(initialText: String, onCancel: @escaping () -> Void, onSave: @escaping (String) throws -> Void) {
-        _text = State(initialValue: initialText)
-        self.onCancel = onCancel
-        self.onSave = onSave
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.string("shortcut.edit_json"))
-                .font(.headline)
-            TextEditor(text: $text)
-                .font(.system(.caption, design: .monospaced))
-                .frame(width: 620, height: 360)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
-                )
-            if !errorMessage.isEmpty {
-                Text(errorMessage)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            HStack {
-                Text(TerminalShortcutStore.fileURL.path)
-                    .font(.caption2.monospaced())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                Spacer()
-                Button(L10n.string("action.cancel"), action: onCancel)
-                Button(L10n.string("action.save")) {
-                    do {
-                        try onSave(text)
-                    } catch {
-                        errorMessage = error.localizedDescription
-                    }
-                }
-                .keyboardShortcut(.defaultAction)
-            }
-        }
-        .padding(18)
-    }
-}
-
 private struct SSHProfileEditorSheet: View {
     @State private var id: UUID
     @State private var name: String
+    @State private var groupName: String
+    @State private var tagsText: String
     @State private var host: String
     @State private var user: String
     @State private var portText: String
     @State private var identityText: String
     @State private var jumpText: String
+    @State private var portForwardText: String
     @State private var optionText: String
     @State private var startupText: String
+    @State private var keepAliveEnabled: Bool
+    @State private var keepAliveIntervalText: String
+    @State private var keepAliveCountText: String
+    @State private var connectionReuseEnabled: Bool
+    @State private var connectionReusePersistText: String
+    @State private var automaticReconnectEnabled: Bool
+    @State private var automaticReconnectAttemptsText: String
+    @State private var automaticReconnectDelayText: String
+    @State private var remoteShellIntegrationEnabled: Bool
+    @State private var environment: TerminalEnvironmentKind
+    @State private var safetyPolicy: SSHSafetyConfirmationPolicy
     let onCancel: () -> Void
     let onSave: (SSHConnectionProfile) -> Void
 
@@ -482,32 +1670,70 @@ private struct SSHProfileEditorSheet: View {
         let clean = profile.normalized
         _id = State(initialValue: clean.id)
         _name = State(initialValue: clean.name)
+        _groupName = State(initialValue: clean.groupName)
+        _tagsText = State(initialValue: clean.tags.joined(separator: ", "))
         _host = State(initialValue: clean.host)
         _user = State(initialValue: clean.user)
         _portText = State(initialValue: "\(clean.port)")
         _identityText = State(initialValue: clean.identityFiles.joined(separator: "\n"))
         _jumpText = State(initialValue: Self.jumpText(from: clean.jumpHosts))
+        _portForwardText = State(initialValue: Self.portForwardText(from: clean.portForwards))
         _optionText = State(initialValue: clean.extraOptions.joined(separator: "\n"))
         _startupText = State(initialValue: clean.startupCommands.joined(separator: "\n"))
+        _keepAliveEnabled = State(initialValue: clean.keepAliveEnabled)
+        _keepAliveIntervalText = State(initialValue: "\(clean.keepAliveIntervalSeconds)")
+        _keepAliveCountText = State(initialValue: "\(clean.keepAliveCountMax)")
+        _connectionReuseEnabled = State(initialValue: clean.connectionReuseEnabled)
+        _connectionReusePersistText = State(initialValue: "\(clean.connectionReusePersistMinutes)")
+        _automaticReconnectEnabled = State(initialValue: clean.automaticReconnectEnabled)
+        _automaticReconnectAttemptsText = State(initialValue: "\(clean.automaticReconnectAttempts)")
+        _automaticReconnectDelayText = State(initialValue: "\(clean.automaticReconnectDelaySeconds)")
+        _remoteShellIntegrationEnabled = State(initialValue: clean.remoteShellIntegrationEnabled)
+        _environment = State(initialValue: clean.environment)
+        _safetyPolicy = State(initialValue: clean.safetyPolicy)
         self.onCancel = onCancel
         self.onSave = onSave
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 0) {
             Text(L10n.string("ssh.editor.title"))
                 .font(.headline)
-            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
-                textRow("ssh.name", text: $name)
-                textRow("ssh.host", text: $host)
-                textRow("ssh.user", text: $user)
-                textRow("ssh.port", text: $portText)
+                .padding(.bottom, 12)
+
+            Divider()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
+                        textRow("ssh.name", text: $name)
+                        textRow("ssh.group", text: $groupName)
+                        textRow("ssh.tags", text: $tagsText)
+                        textRow("ssh.host", text: $host)
+                        textRow("ssh.user", text: $user)
+                        textRow("ssh.port", text: $portText)
+                        environmentRow
+                        safetyPolicyRow
+                        keepAliveRow
+                        connectionReuseRow
+                        automaticReconnectRow
+                        remoteShellIntegrationRow
+                    }
+
+                    labeledEditor("ssh.identities", help: "ssh.identities.help", text: $identityText, height: 58)
+                    labeledEditor("ssh.jumps", help: "ssh.jumps.help", text: $jumpText, height: 86)
+                    routeSummaryView
+                    labeledEditor("ssh.port_forwards", help: "ssh.port_forwards.help", text: $portForwardText, height: 86)
+                    portForwardPreviewView
+                    preflightIssuesView
+                    labeledEditor("ssh.options", help: "ssh.options.help", text: $optionText, height: 62)
+                    securityWarningsView
+                    labeledEditor("ssh.startup", help: "ssh.startup.help", text: $startupText, height: 62)
+                }
+                .padding(.vertical, 12)
             }
 
-            labeledEditor("ssh.identities", help: "ssh.identities.help", text: $identityText, height: 58)
-            labeledEditor("ssh.jumps", help: "ssh.jumps.help", text: $jumpText, height: 86)
-            labeledEditor("ssh.options", help: "ssh.options.help", text: $optionText, height: 62)
-            labeledEditor("ssh.startup", help: "ssh.startup.help", text: $startupText, height: 62)
+            Divider()
 
             HStack {
                 Spacer()
@@ -518,9 +1744,15 @@ private struct SSHProfileEditorSheet: View {
                 .keyboardShortcut(.defaultAction)
                 .disabled(host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
+            .padding(.top, 12)
         }
         .padding(18)
-        .frame(width: 560)
+        .frame(width: 560, height: sheetHeight)
+    }
+
+    private var sheetHeight: CGFloat {
+        let visibleHeight = NSScreen.main?.visibleFrame.height ?? 760
+        return min(680, max(520, visibleHeight - 160))
     }
 
     private var profile: SSHConnectionProfile {
@@ -532,9 +1764,313 @@ private struct SSHProfileEditorSheet: View {
             port: Int(portText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 22,
             identityFiles: identityText.lines,
             jumpHosts: Self.parseJumpHosts(jumpText),
+            portForwards: Self.parsePortForwards(portForwardText),
             extraOptions: optionText.lines,
-            startupCommands: startupText.lines
+            startupCommands: startupText.lines,
+            keepAliveEnabled: keepAliveEnabled,
+            keepAliveIntervalSeconds: Int(keepAliveIntervalText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 30,
+            keepAliveCountMax: Int(keepAliveCountText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 6,
+            connectionReuseEnabled: connectionReuseEnabled,
+            connectionReusePersistMinutes: Int(connectionReusePersistText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 10,
+            automaticReconnectEnabled: automaticReconnectEnabled,
+            automaticReconnectAttempts: Int(automaticReconnectAttemptsText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 3,
+            automaticReconnectDelaySeconds: Int(automaticReconnectDelayText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 3,
+            remoteShellIntegrationEnabled: remoteShellIntegrationEnabled,
+            environment: environment,
+            safetyPolicy: safetyPolicy,
+            groupName: groupName,
+            tags: Self.parseTags(tagsText)
         )
+    }
+
+    private var keepAliveRow: some View {
+        GridRow {
+            Text(L10n.string("ssh.keep_alive"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 96, alignment: .trailing)
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle(L10n.string("ssh.keep_alive.enabled"), isOn: $keepAliveEnabled)
+                    .toggleStyle(.checkbox)
+                    .font(.caption)
+
+                HStack(spacing: 8) {
+                    Text(L10n.string("ssh.keep_alive.interval"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    TextField("30", text: $keepAliveIntervalText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 56)
+                        .disabled(!keepAliveEnabled)
+                    Text(L10n.string("ssh.keep_alive.count"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    TextField("6", text: $keepAliveCountText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 56)
+                        .disabled(!keepAliveEnabled)
+                }
+
+                Text(L10n.string("ssh.keep_alive.help"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var connectionReuseRow: some View {
+        GridRow {
+            Text(L10n.string("ssh.connection_reuse"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 96, alignment: .trailing)
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle(L10n.string("ssh.connection_reuse.enabled"), isOn: $connectionReuseEnabled)
+                    .toggleStyle(.checkbox)
+                    .font(.caption)
+
+                HStack(spacing: 8) {
+                    Text(L10n.string("ssh.connection_reuse.persist"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    TextField("10", text: $connectionReusePersistText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 56)
+                        .disabled(!connectionReuseEnabled)
+                }
+
+                Text(L10n.string("ssh.connection_reuse.help"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var automaticReconnectRow: some View {
+        GridRow {
+            Text(L10n.string("ssh.reconnect"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 96, alignment: .trailing)
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle(L10n.string("ssh.reconnect.enabled"), isOn: $automaticReconnectEnabled)
+                    .toggleStyle(.checkbox)
+                    .font(.caption)
+
+                HStack(spacing: 8) {
+                    Text(L10n.string("ssh.reconnect.attempts"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    TextField("3", text: $automaticReconnectAttemptsText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 56)
+                        .disabled(!automaticReconnectEnabled)
+                    Text(L10n.string("ssh.reconnect.delay"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    TextField("3", text: $automaticReconnectDelayText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 56)
+                        .disabled(!automaticReconnectEnabled)
+                }
+
+                Text(L10n.string("ssh.reconnect.help"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var remoteShellIntegrationRow: some View {
+        GridRow {
+            Text(L10n.string("ssh.remote_shell_integration"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 96, alignment: .trailing)
+            Toggle(L10n.string("ssh.remote_shell_integration.help"), isOn: $remoteShellIntegrationEnabled)
+                .toggleStyle(.checkbox)
+                .font(.caption)
+        }
+    }
+
+    private var environmentRow: some View {
+        GridRow {
+            Text(L10n.string("ssh.environment"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 96, alignment: .trailing)
+            Picker(L10n.string("ssh.environment"), selection: $environment) {
+                ForEach(TerminalEnvironmentKind.allCases.filter { $0 != .local }) { environment in
+                    Text(environment.name).tag(environment)
+                }
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: environment) { newEnvironment in
+                if newEnvironment == .production, safetyPolicy == .inherit {
+                    safetyPolicy = .forceConfirm
+                }
+            }
+        }
+    }
+
+    private var safetyPolicyRow: some View {
+        GridRow {
+            Text(L10n.string("ssh.safety_policy"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 96, alignment: .trailing)
+            VStack(alignment: .leading, spacing: 4) {
+                Picker(L10n.string("ssh.safety_policy"), selection: $safetyPolicy) {
+                    ForEach(SSHSafetyConfirmationPolicy.allCases) { policy in
+                        Text(policy.name).tag(policy)
+                    }
+                }
+                .pickerStyle(.segmented)
+                Text(safetyPolicy.summary)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var routeSummaryView: some View {
+        let summary = profile.routeSummary
+        if !summary.isEmpty {
+            Label(summary, systemImage: "point.3.connected.trianglepath.dotted")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .help(L10n.string("ssh.route.help"))
+        }
+    }
+
+    @ViewBuilder
+    private var securityWarningsView: some View {
+        let warnings = profile.securityWarningKinds
+        if !warnings.isEmpty {
+            VStack(alignment: .leading, spacing: 5) {
+                ForEach(warnings, id: \.rawValue) { warning in
+                    Label {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(warning.title)
+                                .font(.caption2.weight(.semibold))
+                            Text(warning.summary)
+                                .font(.caption2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                    }
+                    .foregroundStyle(Color.orange)
+                }
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+            .background(Color.orange.opacity(0.10))
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        }
+    }
+
+    @ViewBuilder
+    private var preflightIssuesView: some View {
+        let issues = profile.preflightIssues
+        if !issues.isEmpty {
+            VStack(alignment: .leading, spacing: 5) {
+                ForEach(issues) { issue in
+                    Label {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(issue.kind.title)
+                                .font(.caption2.weight(.semibold))
+                            Text(issue.kind.summary(detail: issue.detail))
+                                .font(.caption2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    } icon: {
+                        Image(systemName: "checklist.unchecked")
+                    }
+                    .foregroundStyle(Color.blue)
+                }
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+            .background(Color.blue.opacity(0.09))
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        }
+    }
+
+    @ViewBuilder
+    private var portForwardPreviewView: some View {
+        let forwards = profile.usablePortForwards
+        let hasInput = !portForwardText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if !forwards.isEmpty {
+            VStack(alignment: .leading, spacing: 7) {
+                Label(L10n.format("ssh.port_forward.preview.title", forwards.count), systemImage: "tablecells")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 5) {
+                    GridRow {
+                        previewHeader("ssh.port_forward.preview.kind")
+                        previewHeader("ssh.port_forward.preview.listen")
+                        previewHeader("ssh.port_forward.preview.target")
+                        previewHeader("ssh.port_forward.preview.access")
+                    }
+                    ForEach(forwards) { forward in
+                        let clean = forward.normalized
+                        GridRow {
+                            Text(clean.kind.displayName)
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(portForwardColor(for: clean.kind))
+                            Text(clean.listenEndpoint)
+                                .font(.caption2.monospaced())
+                                .lineLimit(1)
+                            Text(clean.previewTargetText)
+                                .font(.caption2.monospaced())
+                                .lineLimit(1)
+                            Text(clean.previewAccessText)
+                                .font(.caption2.monospaced())
+                                .foregroundStyle(clean.localAccessURLString == nil ? .secondary : .primary)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+            .background(Color.teal.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        } else if hasInput {
+            Label(L10n.string("ssh.port_forward.preview.empty"), systemImage: "exclamationmark.circle")
+                .font(.caption2)
+                .foregroundStyle(Color.orange)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 7)
+                .background(Color.orange.opacity(0.10))
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        }
+    }
+
+    private func previewHeader(_ key: String) -> some View {
+        Text(L10n.string(key))
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(.secondary)
+    }
+
+    private func portForwardColor(for kind: SSHPortForwardKind) -> Color {
+        switch kind {
+        case .local:
+            return .teal
+        case .remote:
+            return .purple
+        case .dynamic:
+            return .blue
+        }
     }
 
     private func textRow(_ key: String, text: Binding<String>) -> some View {
@@ -575,6 +2111,11 @@ private struct SSHProfileEditorSheet: View {
         .joined(separator: "\n")
     }
 
+    private static func portForwardText(from forwards: [SSHPortForward]) -> String {
+        forwards.map(\.editorLineText)
+        .joined(separator: "\n")
+    }
+
     private static func parseJumpHosts(_ text: String) -> [SSHJumpHost] {
         text.lines.compactMap { line in
             let parts = line.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
@@ -600,6 +2141,15 @@ private struct SSHProfileEditorSheet: View {
                 identityFiles: identityPart.split(separator: ",").map(String.init)
             )
         }
+    }
+
+    private static func parsePortForwards(_ text: String) -> [SSHPortForward] {
+        text.lines.compactMap(SSHPortForward.parseEditorLine)
+    }
+
+    private static func parseTags(_ text: String) -> [String] {
+        text.components(separatedBy: CharacterSet(charactersIn: ",， \n\t"))
+            .cleanedTagList()
     }
 
     private static func parseTarget(_ value: String) -> (user: String, host: String, port: Int) {

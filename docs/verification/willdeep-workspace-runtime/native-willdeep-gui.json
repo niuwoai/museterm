@@ -1,0 +1,39 @@
+{
+  "title": "真实隔离 QTerm 与 WillDeep 图形联合复验",
+  "passed": false,
+  "generatedAt": "2026-10-24T04:06:38+08:00",
+  "attempts": [
+    {
+      "mode": "qa-ui",
+      "passed": false,
+      "failure": "retry and heartbeat: Pending approval duplicated/lost while UI detached",
+      "binarySHA256": "ce8adf707cd3832e83c03c251cdbd528736e20302633028bd027532471297cb8",
+      "qtermBackendSHA256": "9e3fd97f85458fc2230162a39ac0a0fef7f0ad3ee8057c54c001ec1d0f899500",
+      "modelRequests": 2,
+      "attempt": 1
+    },
+    {
+      "mode": "qa-ui",
+      "passed": false,
+      "failure": "approval: Fixture service failed",
+      "binarySHA256": "ce8adf707cd3832e83c03c251cdbd528736e20302633028bd027532471297cb8",
+      "qtermBackendSHA256": "9e3fd97f85458fc2230162a39ac0a0fef7f0ad3ee8057c54c001ec1d0f899500",
+      "modelRequests": 0,
+      "attempt": 2
+    }
+  ],
+  "observed": [
+    "实际 WillDeep 原生 idle/working/blocked 已显示",
+    "真实审批时徽标、项目汇总和待处理数字为 1，列表仅一个相同 ID 的审批事项",
+    "断连提示保留重新连接入口并实际恢复"
+  ],
+  "notProven": [
+    "待审批时正常退出重开后原前台 WillDeep PID 与同一 gate 保持",
+    "从真实 GUI 确认后完成且待处理不重复"
+  ],
+  "remainingDefects": [
+    "间歇 unavailable 后重新连接",
+    "粘贴后真实 Return 输入已入队但 TUI 未提交，原因未定",
+    "待处理弹窗 Escape 可能进入 TUI；复验应直接 Cmd+Q"
+  ]
+}

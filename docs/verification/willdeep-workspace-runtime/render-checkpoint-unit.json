@@ -1,0 +1,14 @@
+{
+  "version": "1.251.0-rc14",
+  "build": 329,
+  "scope": "完整应用单元回归，含真实 PTY 消费边界、持续输出检查点和未做退出保存的恢复；实际 App 强制结束另有独立报告",
+  "resultBundle": "/private/tmp/qterm-render-checkpoint-full-01.xcresult",
+  "summary": {
+    "result": "Passed",
+    "totalTestCount": 599,
+    "passedTests": 599,
+    "failedTests": 0,
+    "skippedTests": 0,
+    "testFailures": []
+  }
+}

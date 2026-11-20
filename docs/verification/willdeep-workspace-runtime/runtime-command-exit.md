@@ -1,0 +1,12 @@
+# 后台命令退出边界
+
+通过：true，检查：4
+
+- final_marker_after_large_output_is_drained_before_unknown_process_completion
+- process_exit_without_shell_end_remains_unknown_even_with_child_exit_zero
+- separate_pty_generations_keep_distinct_command_identity
+- command_events_do_not_contain_command_text
+
+
+
+真实 PTY 退出与尾部标记排空；不包含 GUI 或远端 SSH

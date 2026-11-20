@@ -1,0 +1,15 @@
+# 后台 Agent 工具路由验证
+
+通过：true，检查：7
+
+- agent_tools_feature_negotiated_on_protocol_3
+- status_grant_never_authorizes_ui_or_input_socket
+- status_report_scoped_to_terminal_and_process_generation
+- binding_report_and_inbox_use_same_backend_monitor
+- disconnect_reconnect_queries_fresh_state_without_grant_leak
+- repeated_sequence_rejected_and_completion_unique
+- replacement_invalidates_old_grant_and_events_are_redacted
+
+
+
+实际 Socket/PTY 通用 Agent 操作契约，不代表独立 CLI/MCP 事件等待已完成

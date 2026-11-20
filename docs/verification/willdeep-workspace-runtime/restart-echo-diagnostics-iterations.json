@@ -1,0 +1,20 @@
+{
+  "resultBundle": "/private/tmp/qterm-rc27-context-diagnostics-repeat-01.xcresult",
+  "tests": [
+    {
+      "test": "TerminalRuntimeViewTests/testExitedRuntimeRestartCreatesNewGenerationAndRunsStartupOnce()",
+      "repetitions": 60,
+      "results": {
+        "Passed": 59,
+        "Failed": 1
+      }
+    },
+    {
+      "test": "TerminalRuntimeViewTests/testPreparedInputRejectsChangedRealEchoBeforeWriting()",
+      "repetitions": 60,
+      "results": {
+        "Passed": 60
+      }
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "version": "1.251.0-rc18",
+  "build": 333,
+  "summaries": [
+    {
+      "result": "Passed",
+      "totalTestCount": 3,
+      "passedTests": 3,
+      "failedTests": 0,
+      "skippedTests": 0,
+      "testFailures": [],
+      "resultBundle": "/private/tmp/qterm-capacity-targeted-01.xcresult"
+    },
+    {
+      "result": "Passed",
+      "totalTestCount": 605,
+      "passedTests": 605,
+      "failedTests": 0,
+      "skippedTests": 0,
+      "testFailures": [],
+      "resultBundle": "/private/tmp/qterm-capacity-full-01.xcresult"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-10-24T04:58:17+08:00",
+  "version": "1.251.0-rc4",
+  "build": 319,
+  "passed": true,
+  "passedTests": 541,
+  "failedTests": 0,
+  "skippedTests": 0,
+  "resultBundle": "/private/tmp/qterm-clipboard-full-01.xcresult"
+}

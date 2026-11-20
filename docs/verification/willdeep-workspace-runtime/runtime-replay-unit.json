@@ -1,0 +1,50 @@
+{
+  "version": "1.251.0-rc5",
+  "build": 320,
+  "resultBundle": "/private/tmp/qterm-replay-full-01.xcresult",
+  "bundleID": "im.some.qterm.goaltests.QTerm11",
+  "exitStatus": 0,
+  "summary": {
+    "devicesAndConfigurations": [
+      {
+        "device": {
+          "architecture": "arm64",
+          "deviceId": "00008112-000C103C3AF9401E",
+          "deviceName": "My Mac",
+          "modelName": "MacBook Pro",
+          "osBuildNumber": "26A434",
+          "osVersion": "27.0.1",
+          "platform": "macOS"
+        },
+        "expectedFailures": 0,
+        "failedTests": 0,
+        "passedTests": 546,
+        "skippedTests": 0,
+        "testPlanConfiguration": {
+          "configurationId": "1",
+          "configurationName": "Test Scheme Action"
+        }
+      }
+    ],
+    "environmentDescription": "museterm · Built with macOS 27.0.1",
+    "expectedFailures": 0,
+    "failedTests": 0,
+    "finishTime": 1792790489.663,
+    "passedTests": 546,
+    "result": "Passed",
+    "runtimeWarnings": [],
+    "skippedTests": 0,
+    "startTime": 1792790435.091,
+    "statistics": [],
+    "testFailures": [],
+    "title": "Test - museterm",
+    "topInsights": [
+      {
+        "category": "Longest Test Runs",
+        "impact": "54% of duration",
+        "text": "3 longest test runs with outlier durations exceeding 4.38s (three standard deviations)"
+      }
+    ],
+    "totalTestCount": 546
+  }
+}

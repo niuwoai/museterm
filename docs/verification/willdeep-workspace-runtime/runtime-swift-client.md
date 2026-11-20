@@ -1,0 +1,11 @@
+# Swift 后台连接器验证
+
+通过：true
+失败：无
+
+- actual_swift_client_handshake_version_and_private_capability
+- swift_client_disconnect_reconnect_keeps_same_pid
+- swift_client_real_input_echo_and_output_cursor
+- oversized_request_is_rejected_before_socket_write
+- cross_executor_cancellation_does_not_close_pty
+- capability_symlink_is_rejected

@@ -1,0 +1,37 @@
+{
+  "target": "root@h1.niuwoai.com",
+  "started_at": "2026-08-10T18:03:52Z",
+  "finished_at": "2026-08-10T18:03:54Z",
+  "ok": true,
+  "scope": "direct SSH PTY/ZMODEM transport harness",
+  "qterm_gui": {
+    "status": "stalled",
+    "remote_file_created": false,
+    "app_restarted": false,
+    "reason_not_restarted": "The running app contained active user terminal tabs."
+  },
+  "results": [
+    {
+      "local_exit": 0,
+      "remote_exit": 0,
+      "local_stderr": "",
+      "remote_stderr": "rz waiting to receive.",
+      "name": "rz_upload",
+      "ok": true,
+      "bytes": 262144,
+      "local_sha256": "d2064d452c873f1c64db9d0c7fd5b17c81927c6e14eda152b50a60c3238210f4",
+      "remote_sha256": "d2064d452c873f1c64db9d0c7fd5b17c81927c6e14eda152b50a60c3238210f4"
+    },
+    {
+      "local_exit": 0,
+      "remote_exit": 0,
+      "local_stderr": "rz waiting to receive.",
+      "remote_stderr": "sz: skipped: /tmp/qterm-zmodem-live-c8b66d9217c45528/upload.bin",
+      "name": "sz_download",
+      "ok": true,
+      "bytes": 262144,
+      "remote_sha256": "d2064d452c873f1c64db9d0c7fd5b17c81927c6e14eda152b50a60c3238210f4",
+      "local_sha256": "d2064d452c873f1c64db9d0c7fd5b17c81927c6e14eda152b50a60c3238210f4"
+    }
+  ]
+}

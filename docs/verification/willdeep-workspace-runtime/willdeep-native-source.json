@@ -1,0 +1,24 @@
+{
+  "baseCommit": "208b124cb0452358b079652dbcd6eb1922184c6b",
+  "version": "0.115.0-rc1",
+  "files": [
+    "CHANGELOG.md",
+    "Cargo.lock",
+    "Cargo.toml",
+    "PRODUCT_OVERVIEW.md",
+    "crates/willdeep-cli/src/daemon/headless.rs",
+    "crates/willdeep-cli/src/main.rs",
+    "crates/willdeep-cli/src/tui.rs",
+    "crates/willdeep-cli/src/tui/app_state.rs",
+    "crates/willdeep-cli/src/tui/event_loop.rs",
+    "web/package.json",
+    "crates/willdeep-cli/src/qterm.rs",
+    "crates/willdeep-cli/src/qterm/tests.rs",
+    "crates/willdeep-cli/src/qterm/transport.rs",
+    "crates/willdeep-cli/src/qterm/view.rs"
+  ],
+  "patchSHA256": "6ffbf511d92ec8e2d6f0de3c12ac97216687b4d79e7d247b37d4395480cb9e6b",
+  "cleanBaseIndexApplyCheckPassed": true,
+  "sourceWorktree": "/private/tmp/qterm-willdeep-native",
+  "scope": "Reviewable uncommitted source backup including new files; apply check uses disposable index, no checkout/index/commit/release mutation"
+}

@@ -1,0 +1,32 @@
+{
+  "name": "@niuwoai/museterm",
+  "version": "1.256.0-rc4",
+  "description": "安装 MuseTerm 命令行：读取本机 MuseTerm 的标签、屏幕与命令，并以 MCP 向已配对的 AI 工具提供终端操作。",
+  "license": "LicenseRef-MuseTerm-Proprietary",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/niuwoai/museterm.git",
+    "directory": "npm/museterm"
+  },
+  "homepage": "https://github.com/niuwoai/museterm",
+  "bugs": "https://github.com/niuwoai/museterm/issues",
+  "bin": {
+    "museterm": "bin/museterm.js"
+  },
+  "files": [
+    "README.md",
+    "bin",
+    "lib",
+    "install-manifest.json"
+  ],
+  "scripts": {
+    "postinstall": "node lib/install.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "rc"
+  }
+}

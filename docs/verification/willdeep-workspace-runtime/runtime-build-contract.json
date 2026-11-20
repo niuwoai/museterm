@@ -1,0 +1,22 @@
+{
+  "generatedAt": "2026-10-24T01:11:03+08:00",
+  "passed": true,
+  "results": [
+    {
+      "name": "unsupported_architecture_preserves_existing_artifact",
+      "passed": true,
+      "exitCode": 1
+    },
+    {
+      "name": "cache_root_symlink_is_rejected_before_compilation",
+      "passed": true,
+      "exitCode": 1
+    },
+    {
+      "name": "cache_lock_symlink_cannot_overwrite_another_file",
+      "passed": true,
+      "exitCode": 1
+    }
+  ],
+  "scope": "build script rejection and cache path contracts; does not replace real compilation or release verification"
+}

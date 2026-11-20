@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "expectedVerifierFailure": true,
+  "failure": "Authenticated SSH verification timed out",
+  "ephemeralKeysRemoved": true,
+  "scope": "Deliberate /usr/bin/true helper startup failure; owned SSH fixture cleanup must still complete"
+}

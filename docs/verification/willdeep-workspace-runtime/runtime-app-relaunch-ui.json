@@ -1,0 +1,22 @@
+{
+  "generatedAt": "2026-10-24T02:28:53+08:00",
+  "scope": "完整 App 退出重开 UI 用例未执行：runner 在启用自动化模式时超时；不能作为应用恢复通过证据",
+  "resultBundle": "/private/tmp/qterm-runtime-app-relaunch-ui-01.xcresult",
+  "passed": false,
+  "passedTests": 0,
+  "failedTests": 1,
+  "skippedTests": 0,
+  "totalTests": 1,
+  "result": "Failed",
+  "failures": [
+    {
+      "failureText": "The test runner failed to initialize for UI testing. (Underlying Error: Timed out while enabling automation mode.)",
+      "targetName": "musetermUITests",
+      "testIdentifier": 1,
+      "testIdentifierString": "musetermUITests-Runner (62406) encountered an error",
+      "testName": "musetermUITests-Runner (62406) encountered an error"
+    }
+  ],
+  "testCaseExecuted": false,
+  "failureStage": "runner_initialization"
+}

@@ -1,0 +1,12 @@
+{
+  "generatedAt": "2026-10-24T02:28:53+08:00",
+  "scope": "真实 PTY/SwiftTerm 输入预检、echo 改变拒绝、审批和 ACK 顺序、队列取消、恢复后隐藏输入私有存档，以及 AI 控制/输入分析/隧道/ZMODEM 相关回归；不是完整 UI 端到端",
+  "resultBundle": "/private/tmp/qterm-runtime-input-safety-02.xcresult",
+  "passed": true,
+  "passedTests": 64,
+  "failedTests": 0,
+  "skippedTests": 0,
+  "totalTests": 64,
+  "result": "Passed",
+  "failures": []
+}

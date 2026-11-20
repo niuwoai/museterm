@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-10-24T02:30:58+08:00",
+  "scope": "协议 3 与当前应用完整单元回归，包含输入预检、写前上下文校验、恢复后私有存档、实际工具桥、退出标志、布局和提醒；完整 App 退出重开 UI 用例另有未执行记录",
+  "resultBundle": "/private/tmp/qterm-runtime-input-unit-01.xcresult",
+  "passed": true,
+  "passedTests": 536,
+  "failedTests": 0,
+  "skippedTests": 0,
+  "failures": []
+}

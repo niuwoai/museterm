@@ -1,0 +1,33 @@
+{
+  "generatedAt": "2026-10-24T04:36:07+08:00",
+  "passed": true,
+  "version": "1.251.0-rc3",
+  "build": 318,
+  "scope": "隔离原生 QA 完整/紧凑行右键菜单、项目移动、水平分屏及显式关闭夹具；未验证中英文切换或全部项目操作",
+  "checks": {
+    "projectMenuVisible": true,
+    "movePreservedPIDAndGeneration": true,
+    "sourceMembershipRemoved": true,
+    "movedTerminalAcceptedInput": true,
+    "menuCreatedHorizontalSplit": true,
+    "newLeafReceivedExclusiveInput": true,
+    "compactProjectMenuVisible": true,
+    "explicitFixtureCloseRemovedPTYAndCollapsedTree": true
+  },
+  "movedTerminal": {
+    "id": "2D76DF75-655E-4876-A54E-36D2BE09D505",
+    "pid": 98310,
+    "generation": "99C86E7B-EA1B-4ED8-9097-EF37A41099AF"
+  },
+  "newLeaf": {
+    "id": "DB4EA887-D2D0-4FFB-9078-2693F2598E7F",
+    "pid": 21490,
+    "generation": "89009759-35DB-447F-B155-3F88C01654E6"
+  },
+  "unitTests": {
+    "passed": 20,
+    "failed": 0,
+    "resultBundle": "/private/tmp/qterm-project-menu-01.xcresult"
+  },
+  "qaAppSHA256": "d68c4dd5d8064417b62df72c733636e380ad40e83826ee5e2516bf96ff6a6faa"
+}

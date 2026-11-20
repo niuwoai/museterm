@@ -1,0 +1,156 @@
+import XCTest
+@testable import museterm
+
+final class TerminalSelectionContextTests: XCTestCase {
+    func testBuildsURLContext() throws {
+        let context = try XCTUnwrap(TerminalSelectionContext(selection: "example.com:8080/path"))
+
+        XCTAssertEqual(context.normalizedURL?.absoluteString, "http://example.com:8080/path")
+        XCTAssertEqual(context.port, 8080)
+        XCTAssertEqual(context.escapedPathArgument, "'example.com:8080/path'")
+        XCTAssertFalse(context.isLikelyPath)
+        XCTAssertEqual(context.markdownCodeBlock, "```text\nexample.com:8080/path\n```")
+        XCTAssertTrue(context.aiPrompt.contains("example.com:8080/path"))
+    }
+
+    func testInvalidWebURLDoesNotBecomePathOrSearchContext() throws {
+        let context = try XCTUnwrap(TerminalSelectionContext(selection: "http://localhost:70000"))
+
+        XCTAssertNil(context.normalizedURL)
+        XCTAssertNil(context.port)
+        XCTAssertFalse(context.isLikelyPath)
+        XCTAssertNil(context.searchCommandArgument)
+
+        let valid = try XCTUnwrap(TerminalSelectionContext(selection: "https://localhost:65535"))
+        XCTAssertEqual(valid.normalizedURL?.absoluteString, "https://localhost:65535")
+        XCTAssertEqual(valid.port, 65_535)
+        XCTAssertFalse(valid.isLikelyPath)
+    }
+
+    func testFileLineReferenceDoesNotBecomeURLPortContext() throws {
+        let context = try XCTUnwrap(TerminalSelectionContext(selection: "TerminalSelectionContext.swift:42"))
+
+        XCTAssertNil(context.normalizedURL)
+        XCTAssertNil(context.port)
+        XCTAssertEqual(context.searchCommandArgument, "'TerminalSelectionContext.swift:42'")
+
+        let columnContext = try XCTUnwrap(TerminalSelectionContext(selection: "app/controllers/users_controller.rb:12:8"))
+        XCTAssertNil(columnContext.normalizedURL)
+        XCTAssertNil(columnContext.port)
+
+        let hostPort = try XCTUnwrap(TerminalSelectionContext(selection: "example.com:8080"))
+        XCTAssertEqual(hostPort.normalizedURL?.absoluteString, "http://example.com:8080")
+        XCTAssertEqual(hostPort.port, 8080)
+    }
+
+    func testBuildsPortPIDAndGitContexts() throws {
+        XCTAssertEqual(TerminalSelectionContext(selection: ":3000")?.port, 3000)
+        let hostPort = try XCTUnwrap(TerminalSelectionContext(selection: "localhost:3000"))
+        XCTAssertEqual(hostPort.normalizedURL?.absoluteString, "http://localhost:3000")
+        XCTAssertEqual(hostPort.port, 3000)
+
+        let pid = try XCTUnwrap(TerminalSelectionContext(selection: "12345"))
+        XCTAssertNil(pid.port)
+        XCTAssertEqual(pid.pid, 12_345)
+        XCTAssertEqual(
+            TerminalSelectionContext(selection: "abc1234def5678")?.gitHash,
+            "abc1234def5678"
+        )
+        XCTAssertNil(TerminalSelectionContext(selection: "70000")?.port)
+        XCTAssertNil(TerminalSelectionContext(selection: ":70000")?.port)
+        XCTAssertNil(TerminalSelectionContext(selection: "localhost:70000")?.normalizedURL)
+    }
+
+    func testBuildsPrettyJSONAndTransformContext() throws {
+        let context = try XCTUnwrap(TerminalSelectionContext(selection: #"{"b":2,"a":1}"#))
+
+        XCTAssertEqual(context.prettyJSON, "{\n  \"a\" : 1,\n  \"b\" : 2\n}")
+        XCTAssertEqual(context.markdownCodeBlock, "```json\n{\"b\":2,\"a\":1}\n```")
+        XCTAssertEqual(context.base64EncodedText, "eyJiIjoyLCJhIjoxfQ==")
+        XCTAssertEqual(
+            TerminalSelectionContext(selection: "eyJiIjoyLCJhIjoxfQ==")?.base64DecodedText,
+            #"{"b":2,"a":1}"#
+        )
+        XCTAssertEqual(
+            TerminalSelectionContext(selection: "hello%20world")?.urlDecodedText,
+            "hello world"
+        )
+    }
+
+    func testBase64DecodedTextAvoidsPlainTextFalsePositives() throws {
+        XCTAssertEqual(
+            TerminalSelectionContext(selection: "SGVsbG8gd29ybGQ=")?.base64DecodedText,
+            "Hello world"
+        )
+        XCTAssertEqual(
+            TerminalSelectionContext(selection: "SGVsbG8g\nd29ybGQ=")?.base64DecodedText,
+            "Hello world"
+        )
+        XCTAssertNil(TerminalSelectionContext(selection: "hello")?.base64DecodedText)
+        XCTAssertNil(TerminalSelectionContext(selection: "abcd")?.base64DecodedText)
+        XCTAssertNil(TerminalSelectionContext(selection: "YWJjZA")?.base64DecodedText)
+        XCTAssertNil(TerminalSelectionContext(selection: "YWJjZA==$")?.base64DecodedText)
+        XCTAssertNil(TerminalSelectionContext(selection: "YQ==")?.base64DecodedText)
+    }
+
+    func testBuildsInteractiveRemoveCommand() throws {
+        let context = try XCTUnwrap(TerminalSelectionContext(selection: "my file.txt"))
+
+        XCTAssertEqual(context.interactiveRemoveCommand, "rm -i -- 'my file.txt'")
+    }
+
+    func testSearchCommandArgumentAvoidsStructuredSelections() throws {
+        XCTAssertEqual(
+            TerminalSelectionContext(selection: "permission denied")?.searchCommandArgument,
+            "'permission denied'"
+        )
+        XCTAssertNil(TerminalSelectionContext(selection: "example.com:8080/path")?.searchCommandArgument)
+        XCTAssertNil(TerminalSelectionContext(selection: ":3000")?.searchCommandArgument)
+        XCTAssertNil(TerminalSelectionContext(selection: "12345")?.searchCommandArgument)
+        XCTAssertNil(TerminalSelectionContext(selection: "abc1234def5678")?.searchCommandArgument)
+        XCTAssertNil(TerminalSelectionContext(selection: #"{"error":"missing"}"#)?.searchCommandArgument)
+        XCTAssertNil(TerminalSelectionContext(selection: String(repeating: "a", count: 241))?.searchCommandArgument)
+    }
+
+    func testPathDetectionAvoidsPlainTextAndVersions() throws {
+        XCTAssertEqual(TerminalSelectionContext(selection: "permission denied")?.isLikelyPath, false)
+        XCTAssertEqual(TerminalSelectionContext(selection: "1.2.3")?.isLikelyPath, false)
+        XCTAssertEqual(TerminalSelectionContext(selection: "release notes")?.isLikelyPath, false)
+    }
+
+    func testPathDetectionKeepsFileLikeSelections() throws {
+        XCTAssertEqual(TerminalSelectionContext(selection: "my file.txt")?.isLikelyPath, true)
+        XCTAssertEqual(TerminalSelectionContext(selection: ".env")?.isLikelyPath, true)
+        XCTAssertEqual(TerminalSelectionContext(selection: "./Scripts/build.sh")?.isLikelyPath, true)
+    }
+
+    func testLocalPathCandidateDecodesSimpleShellEscapedPaths() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("museterm-selection-\(UUID().uuidString)", isDirectory: true)
+        let directory = root.appendingPathComponent("Folder With Space", isDirectory: true)
+        let apostropheFile = root.appendingPathComponent("can't.txt")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: apostropheFile.path, contents: Data())
+        defer {
+            try? FileManager.default.removeItem(at: root)
+        }
+
+        let quoted = try XCTUnwrap(TerminalSelectionContext(selection: "'\(directory.path)'"))
+        XCTAssertEqual(quoted.localPathCandidate, directory.path)
+        XCTAssertTrue(quoted.localPathExists)
+        XCTAssertTrue(quoted.isExistingLocalDirectory)
+
+        let escapedPath = directory.path.replacingOccurrences(of: " ", with: "\\ ")
+        let escaped = try XCTUnwrap(TerminalSelectionContext(selection: escapedPath))
+        XCTAssertEqual(escaped.localPathCandidate, directory.path)
+        XCTAssertTrue(escaped.localPathExists)
+        XCTAssertTrue(escaped.isExistingLocalDirectory)
+
+        let literalApostrophe = try XCTUnwrap(TerminalSelectionContext(selection: apostropheFile.path))
+        XCTAssertEqual(literalApostrophe.localPathCandidate, apostropheFile.path)
+        XCTAssertTrue(literalApostrophe.localPathExists)
+
+        XCTAssertNil(TerminalSelectionContext(selection: "'\(directory.path)")?.localPathCandidate)
+        XCTAssertNil(TerminalSelectionContext(selection: "$'\\141'")?.localPathCandidate)
+    }
+}

@@ -1,0 +1,111 @@
+{
+  "version": "1.251.0-rc13",
+  "build": 328,
+  "scope": "完整应用单元回归，含实际配对桥/生成 CLI/MCP、真实 PTY 项目移动和关闭；不是完整 GUI/远端 SSH/发布验收",
+  "resultBundle": "/private/tmp/qterm-project-tool-full-08.xcresult",
+  "summary": {
+    "result": "Passed",
+    "totalTestCount": 597,
+    "passedTests": 597,
+    "failedTests": 0,
+    "skippedTests": 0,
+    "testFailures": []
+  },
+  "priorRuns": [
+    {
+      "resultBundle": "/private/tmp/qterm-project-tool-full-01.xcresult",
+      "summary": {
+        "result": "Failed",
+        "totalTestCount": 592,
+        "passedTests": 591,
+        "failedTests": 1,
+        "skippedTests": 0,
+        "testFailures": [
+          {
+            "failureText": "XCTAssertEqual failed: (\"[\"acknowledge_attention\", \"takeover_tab\", \"read_history\", \"report_agent_state\", \"renew_tab_control\", \"get_agent_state\", \"list_tabs\", \"read_commands\", \"list_session_tunnel_presets\", \"list_session_tunnels\", \"stop_session_tunnel\", \"list_shortcuts\", \"play_shortcut\", \"create_tab\", \"start_session_tunnel\", \"bind_agent\", \"list_attention\", \"project_layout\", \"help\", \"open_ssh_profile\", \"read_session_events\", \"release_tab\", \"send_key\", \"read_screen\", \"wait_session\", \"send_text\"]\") is not equal to (\"[\"acknowledge_attention\", \"release_tab\", \"read_commands\", \"help\", \"read_session_events\", \"list_session_tunnel_presets\", \"list_session_tunnels\", \"wait_session\", \"takeover_tab\", \"create_tab\", \"list_attention\", \"list_tabs\", \"send_key\", \"report_agent_state\", \"read_history\", \"open_ssh_profile\", \"start_session_tunnel\", \"bind_agent\", \"send_text\", \"renew_tab_control\", \"read_screen\", \"stop_session_tunnel\", \"play_shortcut\", \"get_agent_state\", \"list_shortcuts\"]\")",
+            "targetName": "musetermTests",
+            "testIdentifier": 145,
+            "testIdentifierString": "SessionTunnelPresetTests/testMCPToolCatalogExposesTunnelPresetCapabilities()",
+            "testIdentifierURL": "test://com.apple.xcode/museterm/musetermTests/SessionTunnelPresetTests/testMCPToolCatalogExposesTunnelPresetCapabilities",
+            "testName": "testMCPToolCatalogExposesTunnelPresetCapabilities()"
+          }
+        ]
+      }
+    },
+    {
+      "resultBundle": "/private/tmp/qterm-project-tool-full-02.xcresult",
+      "summary": {
+        "result": "Passed",
+        "totalTestCount": 593,
+        "passedTests": 593,
+        "failedTests": 0,
+        "skippedTests": 0,
+        "testFailures": []
+      }
+    },
+    {
+      "resultBundle": "/private/tmp/qterm-project-tool-full-03.xcresult",
+      "summary": {
+        "result": "Passed",
+        "totalTestCount": 594,
+        "passedTests": 594,
+        "failedTests": 0,
+        "skippedTests": 0,
+        "testFailures": []
+      }
+    },
+    {
+      "resultBundle": "/private/tmp/qterm-project-tool-full-04.xcresult",
+      "summary": {
+        "result": "Passed",
+        "totalTestCount": 595,
+        "passedTests": 595,
+        "failedTests": 0,
+        "skippedTests": 0,
+        "testFailures": []
+      }
+    },
+    {
+      "resultBundle": "/private/tmp/qterm-project-tool-full-05.xcresult",
+      "summary": {
+        "result": "Passed",
+        "totalTestCount": 595,
+        "passedTests": 595,
+        "failedTests": 0,
+        "skippedTests": 0,
+        "testFailures": []
+      }
+    },
+    {
+      "resultBundle": "/private/tmp/qterm-project-tool-full-06.xcresult",
+      "summary": {
+        "result": "Passed",
+        "totalTestCount": 595,
+        "passedTests": 595,
+        "failedTests": 0,
+        "skippedTests": 0,
+        "testFailures": []
+      }
+    },
+    {
+      "resultBundle": "/private/tmp/qterm-project-tool-full-07.xcresult",
+      "summary": {
+        "result": "Passed",
+        "totalTestCount": 597,
+        "passedTests": 597,
+        "failedTests": 0,
+        "skippedTests": 0,
+        "testFailures": []
+      }
+    }
+  ],
+  "initialFixture": {
+    "resultBundle": "/private/tmp/qterm-project-tool-targeted-01.xcresult",
+    "note": "未启动会话不等于运行中 PTY，移除错误夹具假设后另用真实 PTY 验证终止确认"
+  },
+  "clockEvidence": {
+    "swiftDarwinCLOCK_MONOTONIC": 1181734.533878,
+    "rubyCLOCK_MONOTONIC": 1181734.652912,
+    "note": "同一主机先后采样；原 ProcessInfo.systemUptime 与 Ruby CLOCK_MONOTONIC 基准不同，最终统一 Darwin CLOCK_MONOTONIC 并验证最大 60 秒有效期"
+  }
+}

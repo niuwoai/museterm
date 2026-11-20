@@ -1,0 +1,13 @@
+{
+  "passed": false,
+  "failure": "Private SSH authentication or command failed",
+  "diagnostics": {
+    "exitCode": 255,
+    "client": "<fixture-user>@127.0.0.1: Permission denied (publickey).\r\n",
+    "server": "debug1: trying public key file <fixture>/authorized_keys\r\nAuthentication refused: bad ownership or modes for directory /private/tmp\r\ndebug3: Ignored authorized keys: bad ownership or modes for directory /private/tmp\r\ndebug3: mm_answer_keyallowed: publickey authentication test: ED25519 key is not allowed\r\n"
+  },
+  "loopbackOnly": true,
+  "normalSSHConfigurationUntouched": true,
+  "ephemeralKeysRemoved": true,
+  "scope": "Private authenticated loopback sshd feasibility only; not QTerm integration or an external remote server"
+}
