@@ -151,6 +151,8 @@ final class TerminalPreferences: ObservableObject {
 
     enum Keys {
         static let skin = "terminal.skin"
+        static let customSkins = "terminal.customSkins"
+        static let activeCustomSkinID = "terminal.activeCustomSkinID"
         static let fontFamily = "terminal.fontFamily"
         // 旧版单回退字体键，仅用于迁移与回滚兼容
         static let fallbackFontFamily = "terminal.fallbackFontFamily"
@@ -259,7 +261,21 @@ final class TerminalPreferences: ObservableObject {
     static let defaultSidebarExpandedWidth = 220.0
     static let maximumSidebarExpandedWidth = 420.0
 
-    @Published var skin: TerminalVisualSkin { didSet { defaults.set(skin.rawValue, forKey: Keys.skin) } }
+    @Published var skin: TerminalVisualSkin {
+        didSet {
+            defaults.set(skin.rawValue, forKey: Keys.skin)
+            synchronizeActiveCustomSkin()
+        }
+    }
+    @Published private(set) var customSkins: [CustomTerminalSkin] {
+        didSet { saveCustomSkins() }
+    }
+    @Published private(set) var activeCustomSkinID: UUID? {
+        didSet {
+            defaults.set(activeCustomSkinID?.uuidString, forKey: Keys.activeCustomSkinID)
+            synchronizeActiveCustomSkin()
+        }
+    }
     @Published var fontFamily: String { didSet { defaults.set(fontFamily, forKey: Keys.fontFamily) } }
     /// 按顺序生效的回退字体；靠前的字体先被 Core Text 级联命中。
     @Published var fallbackFontFamilies: [String] {
@@ -398,6 +414,8 @@ final class TerminalPreferences: ObservableObject {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        customSkins = Self.loadCustomSkins(from: defaults)
+        activeCustomSkinID = defaults.string(forKey: Keys.activeCustomSkinID).flatMap(UUID.init(uuidString:))
         skin = TerminalVisualSkin(rawValue: defaults.string(forKey: Keys.skin) ?? "") ?? .midnight
         fontFamily = defaults.string(forKey: Keys.fontFamily) ?? "SF Mono"
         fallbackFontFamilies = TerminalPreferences.loadFallbackFontFamilies(from: defaults)
@@ -472,6 +490,99 @@ final class TerminalPreferences: ObservableObject {
         appIcon = AppIconChoice(rawValue: defaults.string(forKey: Keys.appIcon) ?? "") ?? .defaultTerminal
         normalizeBuiltInAIProviderDefaults()
         AppIconManager.apply(appIcon)
+        synchronizeActiveCustomSkin()
+    }
+
+    var activeCustomSkin: CustomTerminalSkin? {
+        guard let activeCustomSkinID else { return nil }
+        return customSkins.first { $0.id == activeCustomSkinID }
+    }
+
+    func duplicateCurrentSkin() {
+        if skin == .custom, let activeCustomSkinID {
+            duplicateCustomSkin(id: activeCustomSkinID)
+            return
+        }
+        duplicateBuiltInSkin(skin)
+    }
+
+    func duplicateBuiltInSkin(_ source: TerminalVisualSkin) {
+        guard source != .custom else {
+            duplicateCurrentSkin()
+            return
+        }
+        let duplicate = CustomTerminalSkin(source: source, name: nextCustomSkinName(from: source.name))
+        customSkins.append(duplicate)
+        activeCustomSkinID = duplicate.id
+        skin = .custom
+    }
+
+    func duplicateCustomSkin(id: UUID) {
+        guard let source = customSkins.first(where: { $0.id == id }) else { return }
+        var duplicate = CustomTerminalSkin(source: source.sourceSkin, name: nextCustomSkinName(from: source.name))
+        duplicate.foregroundHex = source.foregroundHex
+        duplicate.backgroundHex = source.backgroundHex
+        duplicate.caretHex = source.caretHex
+        duplicate.ansi = source.normalizedANSI
+        customSkins.append(duplicate)
+        activeCustomSkinID = duplicate.id
+        skin = .custom
+    }
+
+    func selectCustomSkin(id: UUID) {
+        guard customSkins.contains(where: { $0.id == id }) else { return }
+        activeCustomSkinID = id
+        skin = .custom
+    }
+
+    func updateActiveCustomSkin(_ update: (inout CustomTerminalSkin) -> Void) {
+        guard let id = activeCustomSkinID,
+              let index = customSkins.firstIndex(where: { $0.id == id }) else { return }
+        var edited = customSkins[index]
+        update(&edited)
+        edited.name = edited.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if edited.name.isEmpty { edited.name = nextCustomSkinName(from: edited.sourceSkin.name) }
+        customSkins[index] = edited
+        synchronizeActiveCustomSkin()
+    }
+
+    func deleteActiveCustomSkin() {
+        guard let id = activeCustomSkinID else { return }
+        customSkins.removeAll { $0.id == id }
+        activeCustomSkinID = customSkins.last?.id
+        if let activeCustomSkinID {
+            selectCustomSkin(id: activeCustomSkinID)
+        } else {
+            skin = .midnight
+        }
+    }
+
+    private func nextCustomSkinName(from name: String) -> String {
+        let base = L10n.format("settings.skin.copy_name", name)
+        let existing = Set(customSkins.map(\.name))
+        guard !existing.contains(base) else {
+            var suffix = 2
+            while existing.contains(L10n.format("settings.skin.copy_name_number", name, suffix)) {
+                suffix += 1
+            }
+            return L10n.format("settings.skin.copy_name_number", name, suffix)
+        }
+        return base
+    }
+
+    private func synchronizeActiveCustomSkin() {
+        CustomTerminalSkinStore.activate(skin == .custom ? activeCustomSkin : nil)
+    }
+
+    private func saveCustomSkins() {
+        guard let encoded = try? JSONEncoder().encode(customSkins) else { return }
+        defaults.set(encoded, forKey: Keys.customSkins)
+    }
+
+    private static func loadCustomSkins(from defaults: UserDefaults) -> [CustomTerminalSkin] {
+        guard let data = defaults.data(forKey: Keys.customSkins),
+              let decoded = try? JSONDecoder().decode([CustomTerminalSkin].self, from: data) else { return [] }
+        return decoded
     }
 
     static func clampedScrollbackLines(_ value: Int) -> Int {
@@ -576,30 +687,35 @@ final class TerminalPreferences: ObservableObject {
     }
 
     func loadAIAPIKey() -> String {
+        loadAIAPIKey(for: aiProvider)
+    }
+
+    func loadAIAPIKey(for provider: AIProviderKind) -> String {
+        let account = aiAPIKeyAccount(for: provider)
         let current = MuseTermKeychain.load(
-            account: aiAPIKeyAccount,
+            account: account,
             serviceName: Self.aiKeychainServiceName
         )
         guard current.isEmpty else { return current }
 
-        let legacy = MuseTermKeychain.load(account: aiAPIKeyAccount)
+        let legacy = MuseTermKeychain.load(account: account)
         guard !legacy.isEmpty else { return "" }
-        if MuseTermKeychain.save(
+        if (try? MuseTermKeychain.save(
             legacy,
-            account: aiAPIKeyAccount,
+            account: account,
             serviceName: Self.aiKeychainServiceName
-        ) {
-            MuseTermKeychain.delete(account: aiAPIKeyAccount)
+        )) != nil {
+            MuseTermKeychain.delete(account: account)
         }
         return legacy
     }
 
     func saveAIAPIKey(_ apiKey: String) -> Bool {
-        let saved = MuseTermKeychain.save(
+        let saved = (try? MuseTermKeychain.save(
             apiKey,
             account: aiAPIKeyAccount,
             serviceName: Self.aiKeychainServiceName
-        )
+        )) != nil
         objectWillChange.send()
         return saved && !loadAIAPIKey().isEmpty
     }
@@ -614,7 +730,11 @@ final class TerminalPreferences: ObservableObject {
     }
 
     private var aiAPIKeyAccount: String {
-        "ai-provider/\(aiProvider.rawValue)/api-key"
+        aiAPIKeyAccount(for: aiProvider)
+    }
+
+    private func aiAPIKeyAccount(for provider: AIProviderKind) -> String {
+        "ai-provider/\(provider.rawValue)/api-key"
     }
 
     private func normalizeBuiltInAIProviderDefaults() {

@@ -117,6 +117,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private var activeSessionTunnel: SessionTunnelBridge?
     private var activeSessionTunnelID: UUID?
     private let shellIntegrationParser = TerminalShellIntegrationParser()
+    private var galleryObservation: TerminalOscObservation?
     private var pendingShellIntegrationEvents: [(event: TerminalShellIntegrationEvent, commandID: UUID?)] = []
     private var runtimeParsingOffset: UInt64?
     private weak var preferences: TerminalPreferences?
@@ -129,6 +130,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     private var sshReconnectAttemptCount = 0
     private var sshLastStartUptime: TimeInterval = 0
     private var pendingSSHReconnectWorkItem: DispatchWorkItem?
+    private var sshAttemptID = UUID()
+    private var sshFinishedAttemptID: UUID?
+    private var sshExitCleanupPending = false
+    private var pendingManualSSHReconnect = false
     private var isTerminating = false
     // 输出快照节流：fullHistoryText() 会全量扫终端历史 buffer（复杂度 ≈ 历史行数 × 列宽），
     // 若每段输出都扫一遍，长历史下主线程会被打满。普通输出合并到至多每 250ms 一次，
@@ -183,6 +188,20 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         )
         super.init()
         configureViews()
+        observeGallery()
+    }
+
+    /// Watches for the private gallery sequence. The parser swallows an OSC number it does not
+    /// know, so this is the only way the host learns about it, and the bytes never reach the
+    /// screen. The callback arrives on the parser's own queue, after the terminal lock is free.
+    private func observeGallery() {
+        let galleryCode = TerminalGalleryProtocol.oscCode
+        galleryObservation = terminalView.observeOscEvents { [weak self] event in
+            guard event.code == galleryCode else { return }
+            DispatchQueue.main.async {
+                self?.session?.gallery.receive(event.payload)
+            }
+        }
     }
 
     func apply(preferences: TerminalPreferences) {
@@ -378,11 +397,17 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func reconnectSSH() {
-        guard case .ssh = session?.launchConfiguration,
+        guard !isTerminating, case .ssh = session?.launchConfiguration,
               !terminalView.backendIsRunning else {
             return
         }
         guard prepareRuntimeSSHReconnect() else { return }
+        // A dead runtime can still be replaying its final output. The old view
+        // must finish that output and its exit cleanup before starting a new PTY.
+        if sshExitCleanupPending || (runtimeHandle != nil && !runtimeExitWasReported) {
+            pendingManualSSHReconnect = true
+            return
+        }
         pendingSSHReconnectWorkItem?.cancel()
         pendingSSHReconnectWorkItem = nil
         sshReconnectAttemptCount = 0
@@ -665,6 +690,97 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.send(source: terminalView, data: bytes[...])
     }
 
+    /// Sends gallery frames as human input. Approval and recording see only the short description;
+    /// image bytes never enter the recording or command inference.
+    func sendGalleryFrame(_ outgoing: TerminalGalleryProtocol.Outgoing,
+                          onFailure: (() -> Void)? = nil) -> Bool {
+        guard let gallery = session?.gallery, gallery.joined,
+              activeSessionTunnel == nil, activeZModemTransfer == nil else {
+            onFailure?()
+            return false
+        }
+        let validation = Array(outgoing.validationText.utf8)
+        guard let runtimeInputQueue else {
+            for frame in outgoing.frames { terminalView.sendBackend(frame[...]) }
+            return true
+        }
+        return enqueueGalleryFrame(outgoing, at: 0, validation: validation,
+                                   epoch: gallery.connectionEpoch, queue: runtimeInputQueue, onFailure: onFailure)
+    }
+
+    /// Wait for the previous write ACK before queuing another image piece. A large image has more
+    /// pieces than the runtime queue can hold at once.
+    private func enqueueGalleryFrame(_ outgoing: TerminalGalleryProtocol.Outgoing, at index: Int,
+                                     validation: [UInt8], epoch: UUID, queue: TerminalRuntimeInputQueue,
+                                     onFailure: (() -> Void)?) -> Bool {
+        guard session?.gallery.joined == true, session?.gallery.connectionEpoch == epoch,
+              runtimeInputQueue === queue, activeSessionTunnel == nil, activeZModemTransfer == nil else {
+            onFailure?()
+            return false
+        }
+        let frame = outgoing.frames[index]
+        let accepted = queue.enqueue(frame, source: .human, owner: nil, validationBytes: validation,
+                                     placeAheadOfPending: index > 0) { [weak self, weak queue] result in
+            switch result {
+            case .failure:
+                onFailure?()
+            case .success:
+                guard index + 1 < outgoing.frames.count else { return }
+                guard let self, let queue else { onFailure?(); return }
+                _ = self.enqueueGalleryFrame(outgoing, at: index + 1, validation: validation,
+                                             epoch: epoch, queue: queue, onFailure: onFailure)
+            }
+        }
+        if !accepted {
+            session?.runtimeConnectionIssue = TerminalRuntimeInputQueue.rejectedEnqueueIssue(
+                connected: runtimeHandle?.connected == true, byteCount: frame.count)
+            onFailure?()
+        }
+        return accepted
+    }
+
+    /// A picture pasted into a tab whose program asked for the gallery. Text on the pasteboard is
+    /// left for the normal paste, so a paste that also carries text still arrives as text.
+    private func deliverPastedImage() -> Bool {
+        guard let gallery = session?.gallery else { return false }
+        guard TerminalGalleryPasteboard.hasImageCandidate() else {
+            gallery.clearPasteFailure()
+            return false
+        }
+        guard gallery.joined else {
+            gallery.notePasteFailure(.notJoined)
+            return false
+        }
+        switch TerminalGalleryPasteboard.readPNGImage() {
+        case .failure(let failure):
+            gallery.notePasteFailure(failure)
+            return false
+        case .success(let pasted):
+            gallery.clearPasteFailure()
+            let nonce = UUID().uuidString.lowercased()
+            guard let outgoing = TerminalGalleryProtocol.drop(nonce: nonce, png: pasted.png) else {
+                gallery.notePasteFailure(.protocolEncodeFailed)
+                return false
+            }
+            guard gallery.stagePaste(nonce: nonce, image: pasted.image) else {
+                gallery.notePasteFailure(.thumbnailLimit)
+                return false
+            }
+            _ = sendGalleryFrame(outgoing) { [weak gallery] in gallery?.discardPendingPaste(nonce: nonce) }
+            return false
+        }
+    }
+
+    func deleteGalleryItem(_ id: String) {
+        guard let item = session?.gallery.item(id) else { return }
+        if case .rejected = item.state {
+            session?.gallery.receive(Array("v=1;remove;\(id)".utf8))
+            return
+        }
+        guard item.canDelete, let outgoing = TerminalGalleryProtocol.delete(id: id) else { return }
+        _ = sendGalleryFrame(outgoing)
+    }
+
     var isProcessRunning: Bool {
         didStart && terminalView.backendIsRunning
     }
@@ -870,10 +986,49 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     func processTerminated(source: TerminalView, exitCode: Int32?) {
-        guard !terminalView.backendIsRunning else {
-            session?.state = .running
+        guard source === terminalView, !terminalView.backendIsRunning else { return }
+        if let handle = runtimeHandle {
+            // Viewer transport failure/detach is not proof of a process exit.
+            guard let info = handle.info, !info.running,
+                  runtimeOutputIsDrained(handle, info: info) else { return }
+        }
+        guard case .ssh = session?.launchConfiguration else {
+            finishProcessTermination(exitCode: exitCode)
             return
         }
+        guard !isTerminating, !sshExitCleanupPending, sshFinishedAttemptID != sshAttemptID else { return }
+        let attempt = sshAttemptID
+        sshExitCleanupPending = true
+        terminalView.finishSSHSessionAfterPendingOutput(ifCurrent: { [weak self] in
+            guard let self else { return false }
+            return !self.isTerminating && self.sshAttemptID == attempt
+        }) { [weak self] in
+            guard let self else { return }
+            self.sshExitCleanupPending = false
+            self.sshFinishedAttemptID = attempt
+            if let preferences = self.preferences {
+                self.applyCursorStyle(shape: preferences.cursorShape, blink: preferences.cursorBlink)
+                self.requestTerminalRepaint()
+            }
+            self.flushPendingSSHDiagnosticMessage()
+            self.finishProcessTermination(exitCode: exitCode)
+        }
+    }
+
+    private func runtimeOutputIsDrained(_ handle: TerminalRuntimeSessionHandle, info: TerminalRuntimeSessionInfo) -> Bool {
+        guard case .ssh = session?.launchConfiguration else { return true }
+        guard let cursor = handle.renderedCursor else { return false }
+        return cursor.generation == info.generation && cursor.offset >= info.outputOffset
+    }
+
+    private func reportRuntimeExitIfReady(_ handle: TerminalRuntimeSessionHandle) {
+        guard runtimeHandle === handle, !runtimeExitWasReported,
+              let info = handle.info, !info.running, runtimeOutputIsDrained(handle, info: info) else { return }
+        runtimeExitWasReported = true
+        processTerminated(source: terminalView, exitCode: info.exitStatus)
+    }
+
+    private func finishProcessTermination(exitCode: Int32?) {
         session?.releaseAIControl(reason: "process_exited")
         session?.finishActiveCommand(
             exitCode: exitCode,
@@ -897,6 +1052,11 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                     reason: L10n.string("file_transfer.error.process_unavailable")
                 )
             }
+        }
+        if pendingManualSSHReconnect {
+            pendingManualSSHReconnect = false
+            reconnectSSH()
+            return
         }
         if scheduleSSHReconnectIfNeeded(exitCode: exitCode) {
             return
@@ -930,6 +1090,9 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.onNeedsFocus = { [weak self] in
             self?.session?.onPaneFocus?()
             self?.focusTerminal()
+        }
+        terminalView.onPaste = { [weak self] in
+            self?.deliverPastedImage() ?? false
         }
         terminalView.onReadyForProcessStart = { [weak self] in
             self?.schedulePendingProcessStartIfReady()
@@ -1026,16 +1189,16 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             return true
         }
         terminalView.onReceivedProcessData = { [weak self] data in
-            guard let self else { return false }
-            if self.handleProcessOutputForSessionTunnel(data) {
-                return true
-            }
+            guard let self else { return nil }
+            if self.handleProcessOutputForSessionTunnel(data) { return [] }
             self.observeSSHProcessOutput(data)
-            if self.handleProcessOutputForZModem(data) {
-                return true
-            }
+            if self.handleProcessOutputForZModem(data) { return [] }
+            // The frames stay in the bytes the screen parses. The parser swallows this OSC number
+            // and reports it through the observation, which is what fills the column. The shell
+            // integration parser keeps at most its own retained limit, so a frame whose marker
+            // happens to start the same way cannot grow its buffer without bound.
             self.handleProcessOutputForShellIntegration(data)
-            return false
+            return nil
         }
         terminalView.onProcessOutputCommitted = { [weak self] in
             guard let self else { return }
@@ -1044,7 +1207,6 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             } else {
                 self.commitProcessOutputSnapshot()
             }
-            self.flushPendingSSHDiagnosticMessage()
         }
         container.addSubview(terminalView)
 
@@ -1102,9 +1264,22 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     private func flushPendingSSHDiagnosticMessage() {
-        guard let message = pendingSSHDiagnosticMessage else { return }
+        // Only the exit-cleanup completion calls this: an unfinished control
+        // sequence on either screen can otherwise swallow a local diagnostic.
+        guard !sshExitCleanupPending,
+              !terminalView.backendIsRunning,
+              terminalView.terminalInputStateSnapshot()?.isAlternateBuffer != true,
+              let message = pendingSSHDiagnosticMessage else { return }
         pendingSSHDiagnosticMessage = nil
-        terminalView.feed(text: "\n\(message)\n")
+        // Evidence and profile names can contain remote control bytes. Display
+        // them literally so a local notice cannot re-enter OSC/APC/DCS parsing.
+        let text = message.unicodeScalars.map { scalar -> String in
+            if scalar == "\n" || scalar == "\t" || !CharacterSet.controlCharacters.contains(scalar) {
+                return String(scalar)
+            }
+            return String(format: "\\u{%04X}", scalar.value)
+        }.joined()
+        terminalView.feed(text: "\n\(text)\n")
     }
 
     private func handleProcessOutputForZModem(_ data: ArraySlice<UInt8>) -> Bool {
@@ -1575,6 +1750,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                         executable: runtimeLaunchContext?.2 ?? TerminalRuntimeService.executableURL) { [weak self] in self?.drainStartupCommands(startup) }
                     return
                 }
+                beginSSHAttempt()
                 terminalView.startOwnedProcess(
                     executable: descriptor.executable,
                     args: descriptor.args,
@@ -1591,6 +1767,12 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 session?.state = .exited(nil)
             }
         }
+    }
+
+    private func beginSSHAttempt() {
+        sshAttemptID = UUID()
+        sshExitCleanupPending = false
+        pendingManualSSHReconnect = false
     }
 
     private func resetSSHDiagnosticsForNewAttempt() {
@@ -1746,6 +1928,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                       executable: URL = TerminalRuntimeService.executableURL,
                       restarting previous: TerminalRuntimeSessionInfo? = nil, ready: @escaping () -> Void) {
         guard let session else { return }
+        beginSSHAttempt()
         var launch = launch
         if let preferences { launch.reminderPolicy = .init(preferences: preferences) }
         let restarting = previous ?? runtimeRestartExpected
@@ -1779,7 +1962,11 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 throw error
             }
         }
-        handle.onRenderedOutput = { [weak session] in session?.onRuntimeOutputRendered?() }
+        handle.onRenderedOutput = { [weak self, weak handle, weak session] in
+            guard let self, let handle, self.runtimeHandle === handle else { return }
+            session?.onRuntimeOutputRendered?()
+            self.reportRuntimeExitIfReady(handle)
+        }
         session.runtimeConnectionIssue = .connecting
         terminalView.externalIsRunning = { [weak handle] in handle?.info?.running == true }
         // Trusted transport bytes (tunnel/ZMODEM/redraw) retain the old direct
@@ -1806,8 +1993,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             }
             let echo = response.echoEnabled == true
             self.session?.recordInputIfNeeded(data: bytes, echoEnabled: echo)
-            self.session?.observeProcessInput(data: bytes, echoEnabled: echo, historySnapshot: self.fullHistoryText())
-            self.updatePendingSafetyInput(data: bytes, echoEnabled: echo)
+            if source != .human || !TerminalGalleryProtocol.isRedactedValidation(bytes) {
+                self.session?.observeProcessInput(data: bytes, echoEnabled: echo, historySnapshot: self.fullHistoryText())
+                self.updatePendingSafetyInput(data: bytes, echoEnabled: echo)
+            }
             if source == .ai {
                 do { try self.session?.archiveAIInput(bytes, echoEnabled: echo) }
                 catch { NSLog("MuseTerm runtime input archive failed") }
@@ -1884,10 +2073,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 session.runtimeSessionWasReopened = true
             }
             session.applyRuntimeInfo(info)
-            if !info.running && !self.runtimeExitWasReported {
-                self.runtimeExitWasReported = true
-                self.processTerminated(source: self.terminalView, exitCode: info.exitStatus)
-            }
+            self.reportRuntimeExitIfReady(handle)
         }
         var didBecomeReady = false
         handle.onOutput = { [weak self, weak handle] response, historicalBytes, consumed in
@@ -2606,6 +2792,8 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
 
 private struct TerminalPreferenceSignature: Equatable {
     let skin: TerminalVisualSkin
+    /// `.custom` 本身只是一个稳定标记；实际配色变化也要触发终端重新安装颜色。
+    let customSkin: CustomTerminalSkin?
     let fontFamily: String
     let fallbackFontFamilies: [String]
     let fontSize: Double
@@ -2625,6 +2813,7 @@ private struct TerminalPreferenceSignature: Equatable {
 
     init(preferences: TerminalPreferences) {
         skin = preferences.skin
+        customSkin = preferences.activeCustomSkin
         fontFamily = preferences.fontFamily
         fallbackFontFamilies = preferences.fallbackFontFamilies
         fontSize = preferences.fontSize

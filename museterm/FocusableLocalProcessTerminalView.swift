@@ -8,8 +8,16 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     var externalIsRunning: (() -> Bool)?
     var externalSend: (([UInt8], Bool) -> Bool)?
     var externalPaste: ((_ framedBytes: [UInt8], _ textBytes: [UInt8]) -> Bool)?
+    /// Asked before a paste is written. Returning true means the paste was handled, so the text
+    /// paste must not also run.
+    var onPaste: (() -> Bool)?
     var externalBackendSend: (([UInt8]) -> Bool)?
     private var externalFeedCompletion: (() -> Void)?
+    private var pendingOutputDrainActions: [() -> Void] = []
+    // ANSI insert mode updates both buffers; alternate scrolling defaults to on.
+    private static let sshExitModeReset = "\u{1b}[4l"
+        + "\u{1b}[?9;1000;1002;1003;1004;1005;1006;1015;1016;2004;2026;2031;2033;2048;5522;5l"
+        + "\u{1b}[?1007h"
     private(set) var isReplayingHistoricalOutput = false
     private var historicalFeedRanges: [Range<Int>] = []
     private var replayScreenModeUnknown = false
@@ -50,6 +58,38 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     /// 命令面板 / AI 指令输入条等键盘浮层打开期间为 true：此时终端不得自动夺取
     /// 第一响应者，键盘输入应留在浮层里。鼠标点击等显式动作仍走 requestFocus()。
     var suppressesAutomaticFocus = false
+
+    /// Only call after the backend has confirmed process exit. Keep this separate
+    /// from the runtime frame acknowledgement: both must survive a queued flush.
+    func finishSSHSessionAfterPendingOutput(ifCurrent: @escaping () -> Bool, completion: @escaping () -> Void) {
+        let finish = { [weak self] in
+            guard let self, ifCurrent(), !self.backendIsRunning else { return }
+            self.resetEndedSSHSession()
+            completion()
+        }
+        if pendingFeedBytes.isEmpty { finish() }
+        else { pendingOutputDrainActions.append(finish) }
+    }
+
+    private func resetEndedSSHSession() {
+        // Disable replay recovery first: restoring the normal screen must never
+        // erase the viewport that an incomplete historical stream was using.
+        replayScreenModeUnknown = false
+        clearOrphanedReplayScreen = false
+        lastParsedRuntimeByte = nil
+        // A control-byte terminator can commit a partial DCS. Discard the parser
+        // state directly and restore the normal screen's own cursor, without
+        // applying a potentially stale DECSC position from ?47h / ?1047h.
+        prepareForSessionExit()
+        // DECSTR preserves normal cells and scrollback while restoring attributes,
+        // cursor visibility, scrolling margins and application keys.
+        softReset()
+        // DECSTR does not reset these input/presentation modes in SwiftTerm.
+        // Seed DECSC at the restored insertion point: a redundant screen exit
+        // on reconnect must not rewind to DECSTR's default (0, 0) over history.
+        feed(text: Self.sshExitModeReset + "\u{1b}[0 q\u{1b}7")
+        invalidateTerminalEchoCache()
+    }
 
     func beginTruncatedRuntimeReplay() {
         // A truncated VT stream may have lost its alternate-screen entry.
@@ -120,7 +160,9 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     var onPreviewFile: ((URL) -> Void)?
     var onPreviewMarkdown: ((String) -> Void)?
     var onSendToProcess: ((_ data: [UInt8], _ echoEnabled: Bool) -> Bool)?
-    var onReceivedProcessData: ((_ data: ArraySlice<UInt8>) -> Bool)?
+    /// Looks at output before it reaches the screen. `nil` leaves the bytes untouched. An empty
+    /// array consumes them, and any other array is what gets parsed instead.
+    var onReceivedProcessData: ((_ data: ArraySlice<UInt8>) -> [UInt8]?)?
     var onProcessOutputCommitted: (() -> Void)?
     private var terminalDelegateRouter: TerminalDelegateRouter?
     private var pendingResizeWorkItem: DispatchWorkItem?
@@ -677,6 +719,7 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
 
     override func paste(_ sender: Any) {
         onNeedsFocus?()
+        if onPaste?() == true { return }
         guard externalPaste != nil else { super.paste(sender); return }
         _ = sendPaste(NSPasteboard.general.string(forType: .string) ?? "")
     }
@@ -994,7 +1037,9 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
     /// `LocalProcessTerminalView.dataReceived(slice:)` 标成不可用，所以这里改成自己的入口：
     /// 回放历史输出走它，真实进程的输出由我们自己的 `LocalProcess` 回调进来。
     private func acceptOutput(_ slice: ArraySlice<UInt8>) {
-        if !isReplayingHistoricalOutput, onReceivedProcessData?(slice) == true {
+        if !isReplayingHistoricalOutput, let replacement = onReceivedProcessData?(slice) {
+            if replacement.isEmpty { return }
+            acceptOutput(replacement[...])
             return
         }
         if !isReplayingHistoricalOutput, shouldRecordInput?() == true, !isExpectedEcho(slice) {
@@ -1038,8 +1083,11 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
         if !pendingFeedBytes.isEmpty {
             scheduleFeedFlush()
         } else {
+            let drained = pendingOutputDrainActions
+            pendingOutputDrainActions.removeAll()
             let completion = externalFeedCompletion
             externalFeedCompletion = nil
+            drained.forEach { $0() }
             #if DEBUG
             if holdExternalFeedCompletionForTesting {
                 heldExternalFeedCompletion = completion

@@ -174,6 +174,99 @@ final class AIExplainClientTests: XCTestCase {
         XCTAssertEqual(preferences.aiModel, AIProviderKind.ollama.defaultModel)
     }
 
+    func testComposerChoiceOverridesTheSavedProviderAndModel() async throws {
+        let preferences = try isolatedPreferences()
+        preferences.aiProvider = .ollama
+        preferences.aiModel = "llama3.1"
+
+        let configuration = try await AIExplainClient.Configuration.resolving(
+            preferences: preferences,
+            choice: AICommandModelChoice(provider: .magpie, model: "magpie-fast")
+        )
+
+        XCTAssertEqual(configuration.provider, .magpie)
+        XCTAssertEqual(configuration.model, "magpie-fast")
+        XCTAssertEqual(configuration.baseURL, AIProviderKind.magpie.defaultBaseURL)
+        XCTAssertEqual(configuration.apiKey, AIProviderKind.magpieLocalGatewayAPIKey)
+        XCTAssertEqual(preferences.aiProvider, .ollama)
+        XCTAssertEqual(preferences.aiModel, "llama3.1")
+    }
+
+    func testComposerChoiceUsesTheSelectedProviderKey() async throws {
+        MuseTermKeychain._useTestStorage(true)
+        defer { MuseTermKeychain._useTestStorage(false) }
+        let preferences = try isolatedPreferences()
+        preferences.aiProvider = .someIM
+        XCTAssertTrue(preferences.saveAIAPIKey("saved-provider-key"))
+        preferences.aiProvider = .google
+        XCTAssertTrue(preferences.saveAIAPIKey("selected-provider-key"))
+        preferences.aiProvider = .someIM
+
+        let configuration = try await AIExplainClient.Configuration.resolving(
+            preferences: preferences,
+            choice: AICommandModelChoice(provider: .google, model: "gemini-2.5-pro")
+        )
+
+        XCTAssertEqual(configuration.provider, .google)
+        XCTAssertEqual(configuration.apiKey, "selected-provider-key")
+        XCTAssertEqual(preferences.aiProvider, .someIM)
+        XCTAssertEqual(preferences.loadAIAPIKey(), "saved-provider-key")
+    }
+
+    func testComposerChoiceDoesNotBorrowAnotherProvidersKey() async throws {
+        MuseTermKeychain._useTestStorage(true)
+        defer { MuseTermKeychain._useTestStorage(false) }
+        let preferences = try isolatedPreferences()
+        preferences.aiProvider = .someIM
+        XCTAssertTrue(preferences.saveAIAPIKey("saved-provider-key"))
+
+        do {
+            _ = try await AIExplainClient.Configuration.resolving(
+                preferences: preferences,
+                choice: AICommandModelChoice(provider: .anthropic, model: "test-model")
+            )
+            XCTFail("Expected a missing key for the selected provider")
+        } catch let error as AIExplainError {
+            guard case .missingAPIKey = error else {
+                return XCTFail("Expected missingAPIKey, got \(error)")
+            }
+        }
+    }
+
+    func testComposerChoiceKeepsTheSavedBaseURLWhenTheProviderMatches() async throws {
+        let preferences = try isolatedPreferences()
+        preferences.aiProvider = .ollama
+        preferences.aiModel = "llama3.1"
+        preferences.aiBaseURL = "http://127.0.0.1:11435/v1"
+
+        let configuration = try await AIExplainClient.Configuration.resolving(
+            preferences: preferences,
+            choice: AICommandModelChoice(provider: .ollama, model: "qwen2.5")
+        )
+
+        XCTAssertEqual(configuration.provider, .ollama)
+        XCTAssertEqual(configuration.model, "qwen2.5")
+        XCTAssertEqual(configuration.baseURL, "http://127.0.0.1:11435/v1")
+    }
+
+    func testComposerChoiceWithoutAModelFails() async throws {
+        let preferences = try isolatedPreferences()
+        preferences.aiProvider = .ollama
+        preferences.aiModel = "llama3.1"
+
+        do {
+            _ = try await AIExplainClient.Configuration.resolving(
+                preferences: preferences,
+                choice: AICommandModelChoice(provider: .magpie, model: "  ")
+            )
+            XCTFail("Expected a missing model to be rejected")
+        } catch let error as AIExplainError {
+            guard case .missingModel = error else {
+                return XCTFail("Expected missingModel, got \(error)")
+            }
+        }
+    }
+
     private func isolatedPreferences() throws -> TerminalPreferences {
         let suiteName = "museterm.ai-client.tests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))

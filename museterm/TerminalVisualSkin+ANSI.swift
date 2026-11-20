@@ -6,7 +6,7 @@ extension TerminalVisualSkin {
         ansiHexColors.map(Self.swiftTermColor)
     }
 
-    nonisolated private static func swiftTermColor(hex: Int) -> SwiftTerm.Color {
+    nonisolated static func swiftTermColor(hex: Int) -> SwiftTerm.Color {
         SwiftTerm.Color(
             red: UInt16((hex >> 16) & 0xFF) * 257,
             green: UInt16((hex >> 8) & 0xFF) * 257,

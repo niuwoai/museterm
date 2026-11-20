@@ -39,6 +39,7 @@ struct ContentView: View {
                     onCreateSessionTunnel: presentSessionTunnelSheet,
                     onOpenPreview: openPreview
                 )
+                .environmentObject(preferences)
 
                 // 保留原生标题栏热区，让 AppKit 处理拖动和系统设置的双击动作。
                 TerminalPaneView(
@@ -46,6 +47,12 @@ struct ContentView: View {
                     preferences: preferences,
                     aiCommandAssistant: aiCommandAssistant
                 )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .topTrailing) {
+                    if rightPanel != .sessionTunnel, let selectedTab = workspace.selectedTab {
+                        TerminalGalleryPasteNotice(gallery: selectedTab.gallery)
+                    }
+                }
 
                 if rightPanel == .sessionTunnel, let selectedTab = workspace.selectedTab {
                     SessionTunnelInspectorView(
@@ -70,6 +77,16 @@ struct ContentView: View {
                 }
                 if rightPanel == nil {
                     TerminalPreviewSidebar(sourceID: workspace.selectedID)
+                }
+                if rightPanel != .sessionTunnel, let selectedTab = workspace.selectedTab {
+                    TerminalGalleryColumn(
+                        gallery: selectedTab.gallery,
+                        onOpen: { item in
+                            guard let image = item.image else { return }
+                            TerminalPreviewCenter.shared.open(source: selectedTab, image: image, title: item.name)
+                        },
+                        onDelete: { item in selectedTab.controller.deleteGalleryItem(item.id) }
+                    )
                 }
             }
 
@@ -180,7 +197,7 @@ struct ContentView: View {
         }
         rightPanel = nil
         commandPalettePresentation.dismiss()
-        aiCommandAssistant.present(for: selectedTab)
+        aiCommandAssistant.present(for: selectedTab, preferences: preferences)
     }
 
     private func toggleRightPanel(_ panel: TerminalRightPanel) {

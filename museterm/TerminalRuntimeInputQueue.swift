@@ -52,7 +52,7 @@ final class TerminalRuntimeInputQueue {
 
     @discardableResult
     func enqueue(_ bytes: [UInt8], source: TerminalRuntimeInputSource, owner: String?, validationBytes: [UInt8]? = nil,
-                 isMouseEvent: Bool = false,
+                 isMouseEvent: Bool = false, placeAheadOfPending: Bool = false,
                  completion: ((Result<Void, Error>) -> Void)? = nil) -> Bool {
         guard !stopped, handle.connected, let info = handle.info, info.running,
               !bytes.isEmpty, bytes.count <= TerminalRuntimeLimits.maximumOutputBytes,
@@ -60,15 +60,21 @@ final class TerminalRuntimeInputQueue {
               pending.count < Self.maximumRequests, source != .protocolReply else { return false }
         let validation = validationBytes ?? bytes
         guard !validation.isEmpty, validation.count <= bytes.count else { return false }
-        guard validation == bytes || (source == .human && bytes ==
-            EscapeSequences.bracketedPasteStart + validation + EscapeSequences.bracketedPasteEnd) else { return false }
+        guard validation == bytes || (source == .human && (
+            bytes == EscapeSequences.bracketedPasteStart + validation + EscapeSequences.bracketedPasteEnd
+                || TerminalGalleryProtocol.matchesRedactedValidation(bytes, validation: validation)
+        )) else { return false }
+        guard !placeAheadOfPending || (source == .human
+            && TerminalGalleryProtocol.matchesRedactedValidation(bytes, validation: validation)) else { return false }
         // An AI write is checked against the lease at send time, not enqueue
         // time. The assistant takes its lease in the same turn it enqueues, and
         // that acknowledgement has not landed yet, so the epoch pinned here
         // would already be stale by the time the bytes are written.
-        pending.append(.init(bytes: bytes, validationBytes: validation, source: source, owner: owner, generation: info.generation,
+        let item = Pending(bytes: bytes, validationBytes: validation, source: source, owner: owner, generation: info.generation,
             controlEpoch: info.controlEpoch, deferControlEpoch: source == .ai, isMouseEvent: isMouseEvent,
-            completion: completion))
+            completion: completion)
+        if placeAheadOfPending { pending.insert(item, at: active ? 1 : 0) }
+        else { pending.append(item) }
         pendingBytes += bytes.count
         drain()
         return true

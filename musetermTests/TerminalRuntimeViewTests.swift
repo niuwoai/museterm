@@ -380,7 +380,7 @@ final class TerminalRuntimeViewTests: XCTestCase {
         var observed = Data()
         view.onTerminalBell = { bells += 1 }
         view.externalSend = { bytes, _ in replies.append(Data(bytes)); return true }
-        view.onReceivedProcessData = { bytes in observed.append(contentsOf: bytes); return false }
+        view.onReceivedProcessData = { bytes in observed.append(contentsOf: bytes); return nil }
         let history = Data("old\u{7}\u{1b}[5n".utf8)
         let live = Data("new\u{7}\u{1b}[5n".utf8)
         await withCheckedContinuation { continuation in
@@ -461,14 +461,14 @@ final class TerminalRuntimeViewTests: XCTestCase {
     func testFirstAttachSynchronizesActualPTYSizeAfterEarlyLayout() async throws {
         let (root, helper) = try await startService()
         let session = TerminalSession(sequence: 1)
-        attach(session, launch: .init(executable: "/bin/sh", arguments: ["-i"],
+        attach(session, launch: .init(executable: "/bin/sh", arguments: ["-c", Self.echoControlledShell],
             environment: ["PATH": "/usr/bin:/bin", "HOME": root.path, "TERM": "xterm-256color"],
             directory: root.path, columns: 140, rows: 40), root: root, helper: helper)
         let terminal = try XCTUnwrap(session.controller.container.subviews.compactMap { $0 as? FocusableLocalProcessTerminalView }.first)
         try await waitUntil("first PTY size matches final layout") {
             let dimensions = terminal.terminalDimensions
             return session.controller.runtimeHandle?.connected == true && session.runtimeInfo?.columns == dimensions.cols &&
-                session.runtimeInfo?.rows == dimensions.rows
+                session.runtimeInfo?.rows == dimensions.rows && session.controller.visibleScreenText().contains("__MODE_READY")
         }
         let dimensions = terminal.terminalDimensions
         XCTAssertNotEqual(dimensions.cols, 140)
@@ -690,12 +690,81 @@ final class TerminalRuntimeViewTests: XCTestCase {
         XCTAssertTrue(session.controller.visibleScreenText().contains("127.0.0.1"))
     }
 
+    func testSSHExitWaitsForRenderedFinalOutputBeforeManualReconnect() async throws {
+        let (root, helper) = try await startService()
+        let (profile, socket) = try refusedLocalSSHProfile(automaticReconnect: false)
+        defer { Darwin.close(socket) }
+        let original = TerminalSession(sequence: 1, launchConfiguration: .ssh(profile))
+        let launch = TerminalRuntimeLaunch(executable: "/bin/sh", arguments: ["-c",
+            "printf '__SAVED_SHELL__\\r\\n\\033[?1049h\\033[H__EXITED_TUI__\\033[?2004h'; exit 255"], directory: root.path)
+        attach(original, launch: launch, root: root, helper: helper)
+        try await waitUntil("original SSH fixture fully exited") {
+            original.runtimeInfo?.running == false && original.runtimeRenderedCursor?.offset == original.runtimeInfo?.outputOffset
+                && original.controller.visibleScreenText().contains("__SAVED_SHELL__")
+        }
+        let ended = try XCTUnwrap(original.runtimeInfo)
+        original.controller.detachRuntimeViewer()
+
+        // Restore an already-ended PTY to force dead state to arrive before its
+        // historical output has been acknowledged by the renderer.
+        let restored = TerminalSession(sequence: 2, launchConfiguration: .ssh(profile), id: original.id)
+        restored.runtimeGenerationToRestore = ended.generation
+        let view = try XCTUnwrap(restored.controller.container.subviews.compactMap { $0 as? FocusableLocalProcessTerminalView }.first)
+        view.holdExternalFeedCompletionForTesting = true
+        attach(restored, launch: launch, root: root, helper: helper)
+        try await waitUntil("ended runtime output parsed but not acknowledged") {
+            restored.runtimeInfo?.running == false && view.terminalInputStateSnapshot()?.isAlternateBuffer == true
+        }
+        let oldHandle = try XCTUnwrap(restored.controller.runtimeHandle)
+        restored.controller.reconnectSSH()
+        XCTAssertTrue(restored.controller.runtimeHandle === oldHandle)
+        XCTAssertEqual(restored.runtimeInfo?.generation, ended.generation)
+        XCTAssertTrue(view.terminalInputStateSnapshot()?.bracketedPasteMode == true)
+
+        view.holdExternalFeedCompletionForTesting = false
+        try await waitUntil("manual reconnect waits for old output and cleanup") {
+            restored.runtimeInfo?.generation != ended.generation && restored.runtimeInfo?.running == false
+        }
+        XCTAssertTrue(view.terminalInputStateSnapshot()?.isAlternateBuffer == false)
+        XCTAssertTrue(view.terminalInputStateSnapshot()?.bracketedPasteMode == false)
+        XCTAssertTrue(String(decoding: view.getBufferAsData(kind: .normal), as: UTF8.self).contains("__SAVED_SHELL__"))
+        XCTAssertFalse(restored.controller.visibleScreenText().contains("__EXITED_TUI__"))
+    }
+
+    func testSSHViewerDetachAndTransportFailureNeverResetLiveBackend() async throws {
+        let (root, helper) = try await startService()
+        let profile = SSHConnectionProfile(name: "live-viewer-guard", host: "invalid.test", automaticReconnectEnabled: false)
+        let session = TerminalSession(sequence: 1, launchConfiguration: .ssh(profile))
+        attach(session, launch: .init(executable: "/bin/sh", arguments: ["-c",
+            "printf '\\033[?1049h\\033[H__LIVE_TUI__\\033[?2004h'; sleep 20"], directory: root.path), root: root, helper: helper)
+        let view = try XCTUnwrap(session.controller.container.subviews.compactMap { $0 as? FocusableLocalProcessTerminalView }.first)
+        try await waitUntil("live SSH fixture entered alternate screen") {
+            session.runtimeInfo?.running == true && view.terminalInputStateSnapshot()?.isAlternateBuffer == true
+        }
+        let original = try XCTUnwrap(session.runtimeInfo)
+        let handle = try XCTUnwrap(session.controller.runtimeHandle)
+        handle.onFailure?(TerminalRuntimeConnectionError.unavailable)
+        session.controller.reconnectSSH()
+        session.controller.processTerminated(source: view, exitCode: nil)
+        session.controller.detachRuntimeViewer()
+        XCTAssertTrue(session.controller.runtimeHandle === handle)
+        XCTAssertEqual(session.runtimeInfo?.generation, original.generation)
+        XCTAssertTrue(view.terminalInputStateSnapshot()?.isAlternateBuffer == true)
+        XCTAssertTrue(view.terminalInputStateSnapshot()?.bracketedPasteMode == true)
+        let connection = try TerminalRuntimeConnection(root: root)
+        defer { connection.close() }
+        let backend = try XCTUnwrap(connection.request(.init(action: .list)).sessions?.first { $0.id == session.id })
+        XCTAssertTrue(backend.running)
+        XCTAssertEqual(backend.pid, original.pid)
+    }
+
     func testAutomaticSSHReconnectCreatesNewGenerationWithinAttemptLimit() async throws {
         let (root, helper) = try await startService()
         let (profile, socket) = try refusedLocalSSHProfile(automaticReconnect: true)
         defer { Darwin.close(socket) }
         let session = TerminalSession(sequence: 1, launchConfiguration: .ssh(profile))
-        attach(session, launch: .init(executable: "/bin/sh", arguments: ["-c", "exit 255"],
+        attach(session, launch: .init(executable: "/bin/sh", arguments: ["-c",
+            "printf '__AUTO_MAIN__\\r\\n\\033[?1049h\\033[H__AUTO_TUI__'; exit 255"],
             directory: root.path), root: root, helper: helper)
         try await waitUntil("automatic reconnect source exited") { session.runtimeInfo?.running == false }
         let original = try XCTUnwrap(session.runtimeInfo)
@@ -707,6 +776,10 @@ final class TerminalRuntimeViewTests: XCTestCase {
         XCTAssertEqual(session.runtimeInfo?.generation, replacement.generation, "One allowed retry must not loop forever")
         XCTAssertEqual(replacement.id, original.id)
         XCTAssertEqual(replacement.exitStatus, 255)
+        let view = try XCTUnwrap(session.controller.container.subviews.compactMap { $0 as? FocusableLocalProcessTerminalView }.first)
+        XCTAssertTrue(view.terminalInputStateSnapshot()?.isAlternateBuffer == false)
+        XCTAssertTrue(String(decoding: view.getBufferAsData(kind: .normal), as: UTF8.self).contains("__AUTO_MAIN__"))
+        XCTAssertFalse(session.controller.visibleScreenText().contains("__AUTO_TUI__"))
     }
 
     func testMissingRecoveryRecordDiscoversAndAttachesSameRealPTYWithoutStartup() async throws {
@@ -878,9 +951,13 @@ final class TerminalRuntimeViewTests: XCTestCase {
         let (root, helper) = try await startService()
         let original = TerminalWorkspace(automaticallyStartProcesses: false, profileStore: nil)
         let session = try XCTUnwrap(original.selectedTab)
-        attach(session, launch: .init(executable: "/bin/sh", arguments: ["-i"],
+        // Wait for the fixture's stable echo mode before validating save failure;
+        // an interactive shell can change echo between input preflight and write.
+        attach(session, launch: .init(executable: "/bin/sh", arguments: ["-c", Self.echoControlledShell],
             environment: ["PATH": "/usr/bin:/bin", "HOME": root.path, "TERM": "xterm-256color"], directory: root.path), root: root, helper: helper)
-        try await waitUntil("save failure original viewer") { session.controller.runtimeHandle?.connected == true }
+        try await waitUntil("save failure original viewer") {
+            session.controller.runtimeHandle?.connected == true && session.controller.visibleScreenText().contains("__MODE_READY")
+        }
         let invalidRoot = root.appendingPathComponent("invalid-store")
         try FileManager.default.createDirectory(at: invalidRoot, withIntermediateDirectories: false)
         try FileManager.default.createSymbolicLink(at: invalidRoot.appendingPathComponent("workspaces"), withDestinationURL: root)
@@ -1036,6 +1113,93 @@ final class TerminalRuntimeViewTests: XCTestCase {
         XCTAssertEqual(approvals.first, String(decoding: deniedText, as: UTF8.self))
         XCTAssertEqual(handle.info?.nextInputSequence, sequence + 1, "Denied paste must not send even its opening frame")
         XCTAssertFalse(session.controller.visibleScreenText().contains("__APPROVAL_DENIED"))
+
+        let deletion = try XCTUnwrap(TerminalGalleryProtocol.delete(id: "abc123"))
+        let frame = try XCTUnwrap(deletion.frames.first)
+        let validation = Array(deletion.validationText.utf8)
+        let galleryACK = expectation(description: "Gallery deletion sent without exposing its frame to approval")
+        XCTAssertFalse(queue.enqueue(frame, source: .human, owner: nil, validationBytes: Array("harmless".utf8)))
+        XCTAssertTrue(queue.enqueue(frame, source: .human, owner: nil, validationBytes: validation) { result in
+            if case .failure(let error) = result { XCTFail("Gallery deletion failed: \(error)") }
+            galleryACK.fulfill()
+        })
+        await fulfillment(of: [galleryACK], timeout: 5)
+        XCTAssertEqual(approvals.last, deletion.validationText)
+        XCTAssertEqual(committed, 2)
+        XCTAssertEqual(handle.info?.nextInputSequence, sequence + 2)
+    }
+
+    func testGalleryContinuationPrecedesInputQueuedDuringTransfer() async throws {
+        let (root, helper) = try await startService()
+        let session = TerminalSession(sequence: 1)
+        attach(session, launch: .init(executable: "/bin/sh",
+            arguments: ["-c", "stty raw -echo; printf '__GALLERY_QUEUE_READY__'; cat >/dev/null"],
+            environment: ["PATH": "/usr/bin:/bin", "HOME": root.path, "TERM": "xterm-256color"],
+            directory: root.path), root: root, helper: helper)
+        try await waitUntil("gallery queue fixture ready") {
+            session.controller.runtimeHandle?.connected == true
+                && session.controller.visibleScreenText().contains("__GALLERY_QUEUE_READY__")
+        }
+        let handle = try XCTUnwrap(session.controller.runtimeHandle)
+        let sequence = try XCTUnwrap(handle.info).nextInputSequence
+        let first = try XCTUnwrap(TerminalGalleryProtocol.delete(id: "first"))
+        let second = try XCTUnwrap(TerminalGalleryProtocol.delete(id: "second"))
+        let firstFrame = try XCTUnwrap(first.frames.first)
+        let secondFrame = try XCTUnwrap(second.frames.first)
+        let text = Array("after-image\n".utf8)
+        var written: [String] = []
+        let queue = TerminalRuntimeInputQueue(handle: handle, approve: { _, _, _, _ in true },
+            committed: { bytes, _, _ in written.append(String(decoding: bytes, as: UTF8.self)) },
+            failed: { error in XCTFail("Gallery input failed: \(error)") })
+        defer { queue.cancel() }
+        let firstACK = expectation(description: "First gallery frame written")
+        let nextACK = expectation(description: "Gallery continuation written")
+        let textACK = expectation(description: "Following text written")
+        XCTAssertFalse(queue.enqueue(text, source: .human, owner: nil, placeAheadOfPending: true))
+        XCTAssertTrue(queue.enqueue(firstFrame, source: .human, owner: nil,
+                                    validationBytes: Array(first.validationText.utf8)) { result in
+            if case .failure(let error) = result { XCTFail("First frame: \(error)") }
+            XCTAssertTrue(queue.enqueue(secondFrame, source: .human, owner: nil,
+                                        validationBytes: Array(second.validationText.utf8),
+                                        placeAheadOfPending: true) { _ in nextACK.fulfill() })
+            firstACK.fulfill()
+        })
+        XCTAssertTrue(queue.enqueue(text, source: .human, owner: nil) { _ in textACK.fulfill() })
+        await fulfillment(of: [firstACK, nextACK, textACK], timeout: 5)
+        XCTAssertEqual(written, [first.validationText, second.validationText, "after-image\n"])
+        XCTAssertEqual(handle.info?.nextInputSequence, sequence + 3)
+    }
+
+    func testGalleryDeleteAndMultiFramePasteReachRuntimeInOrder() async throws {
+        let (root, helper) = try await startService()
+        let session = TerminalSession(sequence: 1)
+        attach(session, launch: .init(executable: "/bin/sh",
+            arguments: ["-c", "stty raw -echo; printf '__GALLERY_READY__'; cat >/dev/null"],
+            environment: ["PATH": "/usr/bin:/bin", "HOME": root.path, "TERM": "xterm-256color"],
+            directory: root.path), root: root, helper: helper)
+        try await waitUntil("gallery runtime ready") {
+            session.controller.runtimeHandle?.connected == true
+                && session.controller.visibleScreenText().contains("__GALLERY_READY__")
+        }
+        let handle = try XCTUnwrap(session.controller.runtimeHandle)
+        let sequence = try XCTUnwrap(handle.info).nextInputSequence
+        session.gallery.receive(Array("v=1;hello;willdeep 0.1".utf8))
+        session.gallery.receive(Array("v=1;list;[{\"id\":\"abc123\",\"name\":\"draft.png\",\"mutable\":true}]".utf8))
+
+        session.controller.deleteGalleryItem("abc123")
+        try await waitUntil("gallery delete write") { handle.info?.nextInputSequence == sequence + 1 }
+        XCTAssertNotNil(session.gallery.item("abc123"), "Delete must await the peer's remove confirmation")
+        session.gallery.receive(Array("v=1;remove;abc123".utf8))
+        XCTAssertNil(session.gallery.item("abc123"))
+
+        let outgoing = try XCTUnwrap(TerminalGalleryProtocol.drop(
+            nonce: "largepaste", png: Data(repeating: 0x5a, count: 90_000)))
+        XCTAssertGreaterThan(outgoing.frames.count, 2, "The queue cannot hold this many frames simultaneously")
+        XCTAssertTrue(session.controller.sendGalleryFrame(outgoing))
+        try await waitUntil("all gallery image pieces written") {
+            handle.info?.nextInputSequence == sequence + 1 + UInt64(outgoing.frames.count)
+        }
+        XCTAssertNil(session.runtimeConnectionIssue)
     }
 
     func testBracketedPasteIntoCleanInteractiveZshExecutesOnlyAfterReturn() async throws {
@@ -1210,7 +1374,7 @@ final class TerminalRuntimeViewTests: XCTestCase {
         try await waitUntil("tool bridge viewer subscription") { session.controller.runtimeHandle?.connected == true }
         MuseTermKeychain._useTestStorage(true)
         defer { MuseTermKeychain._useTestStorage(false) }
-        XCTAssertTrue(MuseTermKeychain.save("fixture-only-token", account: "runtime-fixture", serviceName: TerminalToolAccess.keychainServiceName))
+        XCTAssertNoThrow(try MuseTermKeychain.save("fixture-only-token", account: "runtime-fixture", serviceName: TerminalToolAccess.keychainServiceName))
         let toolRoot = root.appendingPathComponent("bridge")
         let bridge = TerminalToolBridge(rootDirectory: toolRoot)
         bridge.attach(workspace: workspace)
@@ -1263,7 +1427,7 @@ final class TerminalRuntimeViewTests: XCTestCase {
         try await waitUntil("Agent tool runtime attached") { session.controller.runtimeHandle?.connected == true }
         MuseTermKeychain._useTestStorage(true)
         defer { MuseTermKeychain._useTestStorage(false) }
-        XCTAssertTrue(MuseTermKeychain.save("agent-fixture-token", account: "agent-runtime-fixture", serviceName: TerminalToolAccess.keychainServiceName))
+        XCTAssertNoThrow(try MuseTermKeychain.save("agent-fixture-token", account: "agent-runtime-fixture", serviceName: TerminalToolAccess.keychainServiceName))
         let toolRoot = root.appendingPathComponent("agent-bridge")
         let bridge = TerminalToolBridge(rootDirectory: toolRoot)
         bridge.attach(workspace: workspace)

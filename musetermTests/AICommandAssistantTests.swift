@@ -4,13 +4,113 @@ import XCTest
 
 final class AICommandAssistantTests: XCTestCase {
     func testComposerInputExpandsToAtMostFiveLines() {
+        XCTAssertEqual(AICommandComposerLayout.minimumInputLines, 2)
         XCTAssertEqual(AICommandComposerLayout.maximumInputLines, 5)
+        XCTAssertEqual(AICommandComposerLayout.minimumInputHeight, 44)
         XCTAssertEqual(AICommandComposerLayout.minimumBarHeight, 46)
+    }
+
+    func testProviderMenuItemKeepsItsClickAction() throws {
+        let item = NSMenuItem(title: "Google Gemini", action: nil, keyEquivalent: "")
+        var picked = false
+        installAICommandMenuPick(item) { picked = true }
+
+        XCTAssertTrue(item.isEnabled)
+        XCTAssertIdentical(item.target as AnyObject, item.representedObject as AnyObject)
+        XCTAssertNotNil(item.action)
+        XCTAssertTrue(NSApp.sendAction(try XCTUnwrap(item.action), to: item.target, from: item))
+        XCTAssertTrue(picked)
     }
 
     func testComposerUsesCompactSpacingForContextRow() {
         XCTAssertEqual(AICommandComposerLayout.contextRowSpacing, 4)
         XCTAssertEqual(AICommandComposerLayout.bottomRowSpacing, 10)
+    }
+
+    func testModelListFollowsTheSelectedProvider() {
+        let ollama = AICommandModelChoice(provider: .ollama, model: "llama3.1")
+        XCTAssertEqual(ollama.models(discovered: ["qwen2.5", "llama3.1"]), ["qwen2.5", "llama3.1"])
+
+        let switched = ollama.switching(to: .magpie)
+        XCTAssertEqual(switched.provider, .magpie)
+        XCTAssertEqual(switched.model, "")
+        XCTAssertEqual(switched.models(discovered: ["magpie-fast"]), ["magpie-fast"])
+        XCTAssertFalse(switched.models(discovered: ["magpie-fast"]).contains("llama3.1"))
+    }
+
+    func testModelListKeepsTheCurrentChoiceAheadOfDiscovery() {
+        let choice = AICommandModelChoice(provider: .openAI, model: "gpt-4.1")
+        XCTAssertEqual(choice.models(discovered: []), ["gpt-4.1"])
+        XCTAssertEqual(choice.models(discovered: ["gpt-4.1", "gpt-4.1-mini"]), ["gpt-4.1", "gpt-4.1-mini"])
+    }
+
+    func testPreferredChoiceFollowsSavedSettings() throws {
+        let suiteName = "museterm.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let preferences = TerminalPreferences(defaults: defaults)
+        preferences.aiProvider = .ollama
+        preferences.aiModel = "qwen2.5"
+
+        let choice = AICommandModelChoice.preferred(preferences: preferences)
+        XCTAssertEqual(choice.provider, .ollama)
+        XCTAssertEqual(choice.model, "qwen2.5")
+    }
+
+    @MainActor
+    func testSelectingProviderInTheComposerSwapsTheModelList() {
+        let model = AICommandAssistantModel()
+        model.modelChoice = AICommandModelChoice(provider: .ollama, model: "llama3.1")
+
+        let suiteName = "museterm.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let preferences = TerminalPreferences(defaults: defaults)
+
+        model.selectProvider(.magpie, preferences: preferences)
+        XCTAssertEqual(model.modelChoice.provider, .magpie)
+        XCTAssertNotEqual(model.modelChoice.model, "llama3.1")
+        XCTAssertTrue(model.discoveredModels.isEmpty)
+
+        model.selectModel("magpie-fast")
+        XCTAssertEqual(model.modelChoice.model, "magpie-fast")
+
+        model.selectProvider(.magpie, preferences: preferences)
+        XCTAssertEqual(model.modelChoice.model, "magpie-fast")
+    }
+
+    @MainActor
+    func testSwitchingBackToSavedCustomProviderRestoresItsModel() throws {
+        let suiteName = "museterm.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let preferences = TerminalPreferences(defaults: defaults)
+        preferences.aiProvider = .custom
+        preferences.aiModel = "saved-custom-model"
+
+        let model = AICommandAssistantModel()
+        model.modelChoice = AICommandModelChoice.preferred(preferences: preferences)
+        model.selectProvider(.google, preferences: preferences)
+        model.selectProvider(.custom, preferences: preferences)
+
+        XCTAssertEqual(model.modelChoice.model, "saved-custom-model")
+        XCTAssertEqual(model.modelChoice.models(discovered: []), ["saved-custom-model"])
+    }
+
+    @MainActor
+    func testSwitchingBackToAzureRestoresTheModelSelectedThisRound() throws {
+        let suiteName = "museterm.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let preferences = TerminalPreferences(defaults: defaults)
+        let model = AICommandAssistantModel()
+        model.modelChoice = AICommandModelChoice(provider: .azureOpenAI, model: "deployment-one")
+
+        model.selectProvider(.google, preferences: preferences)
+        model.selectProvider(.azureOpenAI, preferences: preferences)
+
+        XCTAssertEqual(model.modelChoice.model, "deployment-one")
     }
 
     func testComposerKeyboardActionsDistinguishSubmitAndNewline() {

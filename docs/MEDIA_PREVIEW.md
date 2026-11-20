@@ -17,7 +17,7 @@ museterm preview --tab UUID --stdin < report.md
 museterm preview --tab UUID --close
 ```
 
-MCP 工具 `preview` 接受 `tab` 和 `path`、`markdown`、`close:true` 三选一。来源 UUID 必填，UI 在线且请求未过期才接受；成功响应表示已接收，实际加载状态和错误在预览区展示。对后台标签的请求不会切换当前标签，也不获取输入控制租约。SSH 标签只接受 Markdown 正文，不把远程文件路径误作本机路径。
+MCP 工具 `preview` 接受 `tab` 和 `path`、`markdown`、`image`、`close:true` 四选一。`image` 是 base64 图片字节，解码后不超过 20 MiB，可带一个不含路径的短标题；图片不必先落成本机文件。来源 UUID 必填，UI 在线且请求未过期才接受；成功响应表示已接收，实际加载状态和错误在预览区展示。对后台标签的请求不会切换当前标签，也不获取输入控制租约。SSH 标签接受 Markdown 正文和 `image` 字节，不把远程文件路径误作本机路径。
 
 ## 资源边界
 

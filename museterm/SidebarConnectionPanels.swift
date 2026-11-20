@@ -1403,7 +1403,8 @@ struct SidebarSection<Content: View>: View {
     /// 有这个身份的分区可以被拖动排序、被隐藏；没有的只是普通折叠区。
     let kind: SidebarSectionKind?
     let preferences: TerminalPreferences?
-    @State private var isExpanded: Bool
+    @EnvironmentObject private var sectionPreferences: TerminalPreferences
+    @State private var locallyExpanded: Bool
     @State private var isHeaderHovering = false
     @ViewBuilder let content: Content
 
@@ -1421,9 +1422,22 @@ struct SidebarSection<Content: View>: View {
         self.skin = skin
         self.kind = kind
         self.preferences = preferences
-        let restored = kind.flatMap { preferences?.isSidebarSectionExpanded($0) }
-        _isExpanded = State(initialValue: restored ?? initiallyExpanded)
+        _locallyExpanded = State(initialValue: initiallyExpanded)
         self.content = content()
+    }
+
+    private var isExpanded: Bool {
+        get {
+            guard let kind else { return locallyExpanded }
+            return sectionPreferences.isSidebarSectionExpanded(kind)
+        }
+        nonmutating set {
+            if let kind {
+                sectionPreferences.setSidebarSection(kind, expanded: newValue)
+            } else {
+                locallyExpanded = newValue
+            }
+        }
     }
 
     var body: some View {
@@ -1431,9 +1445,6 @@ struct SidebarSection<Content: View>: View {
             Button {
                 withAnimation(.easeInOut(duration: 0.16)) {
                     isExpanded.toggle()
-                }
-                if let kind {
-                    preferences?.setSidebarSection(kind, expanded: isExpanded)
                 }
             } label: {
                 HStack(spacing: 6) {
@@ -1505,9 +1516,19 @@ struct SidebarSection<Content: View>: View {
 }
 
 /// 把拖来的分区插到目标分区的位置。目标没有身份，或拖的不是分区，就不改顺序。
-private struct SidebarSectionDropDelegate: DropDelegate {
+struct SidebarSectionDropDelegate: DropDelegate {
     let target: SidebarSectionKind?
     let preferences: TerminalPreferences?
+    var dropTargetActive: Binding<Bool>? = nil
+
+    func dropEntered(info: DropInfo) {
+        guard target != nil else { return }
+        dropTargetActive?.wrappedValue = true
+    }
+
+    func dropExited(info: DropInfo) {
+        dropTargetActive?.wrappedValue = false
+    }
 
     func performDrop(info: DropInfo) -> Bool {
         guard let target, let preferences,
@@ -1518,6 +1539,7 @@ private struct SidebarSectionDropDelegate: DropDelegate {
                   dragged != target else { return }
             DispatchQueue.main.async {
                 SidebarSectionOrder.applyDrop(of: dragged, onto: target, in: preferences)
+                dropTargetActive?.wrappedValue = false
             }
         }
         return true

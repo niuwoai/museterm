@@ -102,6 +102,40 @@ final class TerminalAttentionStoreTests: XCTestCase {
         XCTAssertEqual(session.commandBlocks.count, 1)
     }
 
+    func testAIControlSuppressesCompletionNotificationButKeepsFailureAndQuestions() throws {
+        let workspace = TerminalWorkspace(automaticallyStartProcesses: false, profileStore: nil)
+        let session = try XCTUnwrap(workspace.selectedTab)
+        let grant = try session.bindAgent(kind: .codex)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("museterm-ai-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try session.takeAIControl(owner: "agent", archiveDirectory: directory)
+        defer { session.releaseAIControl(reason: "test_finished") }
+
+        try report(session, grant, 1, .idle, result: .completed)
+        let completed = try XCTUnwrap(workspace.sessionRegistry.attention.activeItems.first)
+        XCTAssertEqual(completed.kind, .completed)
+        XCTAssertFalse(TerminalNotificationPolicy.shouldDeliverAgentNotification(completed, session: session, appIsActive: false))
+
+        try report(session, grant, 2, .working)
+        try report(session, grant, 3, .idle, result: .failed)
+        let failed = try XCTUnwrap(workspace.sessionRegistry.attention.activeItems.first)
+        XCTAssertEqual(failed.kind, .failed)
+        XCTAssertTrue(TerminalNotificationPolicy.shouldDeliverAgentNotification(failed, session: session, appIsActive: false))
+
+        try report(session, grant, 4, .blocked, block: .question)
+        let question = try XCTUnwrap(workspace.sessionRegistry.attention.activeItems.first)
+        XCTAssertEqual(question.kind, .question)
+        XCTAssertTrue(TerminalNotificationPolicy.shouldDeliverAgentNotification(question, session: session, appIsActive: false))
+
+        session.releaseAIControl(reason: "human_unlock")
+        try report(session, grant, 5, .working)
+        try report(session, grant, 6, .idle, result: .completed)
+        let afterUnlock = try XCTUnwrap(workspace.sessionRegistry.attention.activeItems.first)
+        XCTAssertEqual(afterUnlock.kind, .completed)
+        XCTAssertTrue(TerminalNotificationPolicy.shouldDeliverAgentNotification(afterUnlock, session: session, appIsActive: false))
+        XCTAssertFalse(TerminalNotificationPolicy.shouldDeliverAgentNotification(afterUnlock, session: session, appIsActive: true))
+    }
+
     func testNotificationPreferenceDoesNotControlItemCreation() throws {
         let name = "attention-test-\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: name))

@@ -1,0 +1,20 @@
+{
+  "generatedAt": "2026-11-20T06:25:27Z",
+  "scope": "Actual isolated macOS application; AppleScript tab operations and screen reads, Runtime input under an owned AI control lease",
+  "success": true,
+  "applicationVersion": "1.261.0-rc3",
+  "terminalInputVerified": true,
+  "screenContainsExecutedMarker": true,
+  "localScreenshot": "native-terminal.png",
+  "privateBackendCleanup": true,
+  "checks": [
+    "实际 QA 应用启动并显示终端标签",
+    "通过 AppleScript 创建独立测试标签",
+    "取得仅属于本次 QA 的 AI 控制租约",
+    "按当前 generation、控制 epoch 与前台进程校验发送终端命令",
+    "从实际 App 屏幕读到命令执行结果，排除仅命令回显",
+    "通过 Runtime 正常释放本次控制租约",
+    "关闭本次创建的测试标签并确认已从实际 App 状态移除"
+  ],
+  "screenshotPublication": "Local only; excluded from Git because terminal prompts can identify the local user and host."
+}

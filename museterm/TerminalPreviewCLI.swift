@@ -8,9 +8,15 @@ def preview_tool(args)
   seconds = Float(args.fetch("timeout", 5))
   raise "Preview timeout must be between 0.1 and 60 seconds." unless seconds.finite? && (0.1..60).cover?(seconds)
   metadata = read_private_runtime_json(File.join(ROOT, "runtime.json"), RUNTIME_METADATA_MAX_BYTES)
-  fields = args.select { |key, _| %w[path markdown close].include?(key) }
-  raise "Provide exactly one of path, markdown or close:true." unless fields.length == 1 && (!fields.key?("close") || fields["close"] == true)
+  chosen = args.select { |key, _| %w[path markdown close image].include?(key) }
+  raise "Provide exactly one of path, markdown, image or close:true." unless chosen.length == 1 && (!chosen.key?("close") || chosen["close"] == true)
+  fields = chosen
+  fields["title"] = args["title"] if chosen.key?("image") && args.key?("title")
   raise "Markdown exceeds 2 MiB." if fields["markdown"] && (!fields["markdown"].is_a?(String) || fields["markdown"].bytesize > 2 * 1024 * 1024)
+  if fields["image"]
+    raise "Image must be base64." unless fields["image"].is_a?(String) && fields["image"].bytesize <= 28 * 1024 * 1024
+    fields.delete("title") unless fields["title"].is_a?(String) && fields["title"].bytesize <= 360
+  end
   fields["uiEpoch"] = explicit_agent_tab(metadata["appEpoch"])
   fields["deadlineMonotonic"] = Process.clock_gettime(Process::CLOCK_MONOTONIC) + seconds
   response = send_request(action: "preview", tab: tab, preview_request: fields, timeout_seconds: seconds)
@@ -44,10 +50,12 @@ end
 
 def preview_mcp_tools
   [{"name" => "preview",
-    "description" => "Show a local image/Markdown file or supplied Markdown in MuseTerm's source-bound preview panel. Exact source terminal UUID, pairing and enabled writes required. Does not select a tab, send terminal input or take control. UI must be online; ok acknowledges acceptance, not rendering completion. For SSH use markdown text, not a remote path. Remote images load only on explicit human action.",
+    "description" => "Show a local image/Markdown file, supplied Markdown, or a base64 image in MuseTerm's source-bound preview panel. Exact source terminal UUID, pairing and enabled writes required. Does not select a tab, send terminal input or take control. UI must be online; ok acknowledges acceptance, not rendering completion. For SSH use markdown text or image bytes, not a remote path. Remote images load only on explicit human action.",
     "inputSchema" => {"type" => "object", "required" => ["tab"], "additionalProperties" => false,
       "properties" => {"tab" => {"type" => "string"}, "path" => {"type" => "string", "description" => "Absolute local image or Markdown file path"},
-        "markdown" => {"type" => "string"}, "close" => {"type" => "boolean"}, "timeout" => {"type" => "number"}}}}]
+        "markdown" => {"type" => "string"}, "image" => {"type" => "string", "description" => "Base64 image bytes, up to 20 MiB decoded. Use this when the picture is not a file on this Mac."},
+        "title" => {"type" => "string", "description" => "Short label for an image, without a path"},
+        "close" => {"type" => "boolean"}, "timeout" => {"type" => "number"}}}}]
 end
 """#
 }

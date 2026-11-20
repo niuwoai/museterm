@@ -63,6 +63,31 @@ final class TerminalVisualSkinTests: XCTestCase {
         }
     }
 
+    func testCustomSkinDuplicatesEditsAndRestores() throws {
+        let suiteName = "TerminalVisualSkinTests.custom.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let preferences = TerminalPreferences(defaults: defaults)
+        preferences.skin = .midnight
+        preferences.duplicateCurrentSkin()
+
+        let duplicate = try XCTUnwrap(preferences.activeCustomSkin)
+        XCTAssertEqual(preferences.skin, .custom)
+        XCTAssertEqual(duplicate.sourceSkin, .midnight)
+        XCTAssertEqual(duplicate.ansi.count, 16)
+
+        preferences.updateActiveCustomSkin {
+            $0.name = "我的午夜"
+            $0.backgroundHex = 0x102030
+            $0.ansi[1] = 0xABCDEF
+        }
+        let restored = TerminalPreferences(defaults: defaults)
+        XCTAssertEqual(restored.skin, .custom)
+        XCTAssertEqual(restored.activeCustomSkin?.name, "我的午夜")
+        XCTAssertEqual(restored.activeCustomSkin?.backgroundHex, 0x102030)
+        XCTAssertEqual(restored.activeCustomSkin?.normalizedANSI[1], 0xABCDEF)
+    }
+
     private func contrastRatio(foreground: NSColor, background: NSColor) throws -> CGFloat {
         let foregroundLuminance = try relativeLuminance(foreground)
         let backgroundLuminance = try relativeLuminance(background)

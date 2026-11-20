@@ -114,6 +114,44 @@ final class musetermUITests: XCTestCase {
     }
 
     @MainActor
+    func testAICommandComposerMenusAndTwoLineInput() throws {
+        let app = configuredApplication(extraArguments: [
+            "-ui-testing-ai-command-composer",
+            "-ai.provider", "someIM",
+            "-ai.model", "ui-test-custom-model"
+        ])
+        app.launch()
+        app.activate()
+
+        XCTAssertTrue(app.buttons["New tab"].waitForExistence(timeout: 10), app.debugDescription)
+        app.menuBars.menuBarItems["Tab"].click()
+        app.menuItems["AI Assistant"].click()
+
+        let query = app.descendants(matching: .any)["aiCommandQuery"].firstMatch
+        XCTAssertTrue(query.waitForExistence(timeout: 5))
+        XCTAssertGreaterThanOrEqual(query.frame.height, 30)
+        XCTAssertGreaterThanOrEqual(
+            app.staticTexts["Provider"].frame.minY - query.frame.minY,
+            44
+        )
+
+        let model = app.popUpButtons["Model"]
+        XCTAssertTrue(model.waitForExistence(timeout: 5))
+        XCTAssertEqual(model.value as? String, "ui-test-custom-model")
+        model.click()
+        app.menuItems["someim-auto-flash"].click()
+        XCTAssertEqual(model.value as? String, "someim-auto-flash")
+
+        let provider = app.popUpButtons["Provider"]
+        XCTAssertTrue(provider.waitForExistence(timeout: 5))
+        provider.click()
+        app.menuItems["Google Gemini"].click()
+        XCTAssertEqual(provider.value as? String, "Google Gemini")
+        XCTAssertEqual(model.value as? String, "gemini-2.5-pro")
+        attachScreenshot(app, named: "ai-command-composer")
+    }
+
+    @MainActor
     func testDarkAppearanceScreenshot() throws {
         let app = configuredApplication(skin: "midnight")
         app.launch()

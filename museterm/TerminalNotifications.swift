@@ -23,6 +23,8 @@ struct TerminalNotificationPolicyInput {
     var event: TerminalAttentionEventKind
     var appIsActive: Bool
     var tabIsSelected: Bool
+    /// 标签正被 AI 接管。接管期间后台的任务完成不发系统通知，人在处理时才发。
+    var aiControlled: Bool = false
     var notificationsEnabled: Bool
     var showInactiveTabBadges: Bool
     var notifyBells: Bool
@@ -37,12 +39,32 @@ enum TerminalNotificationPolicy {
     static func delivery(for input: TerminalNotificationPolicyInput) -> TerminalNotificationDelivery {
         guard input.notificationsEnabled, isEligible(input) else { return .none }
 
+        // AI 接管的标签，后台完成任务不打扰人；人在处理时才需要完成通知。
+        if input.aiControlled, !input.appIsActive, isCompletion(input.event) { return .none }
+
         if input.appIsActive {
             guard !input.tabIsSelected else { return .none }
             return input.showInactiveTabBadges ? .tabBadge : .none
         }
 
         return .systemNotification(markTabBadge: input.showInactiveTabBadges && !input.tabIsSelected)
+    }
+
+    /// AI 接管期间，后台的任务完成不发系统通知；人在处理时才发。失败和需要回答的事项不受影响。
+    static func shouldDeliverAgentNotification(_ item: TerminalAttentionItem, session: TerminalSession,
+                                               appIsActive: Bool) -> Bool {
+        if appIsActive { return false }
+        return !(item.kind == .completed && session.aiLease != nil)
+    }
+
+    /// 任务完成：普通终端里正常结束的命令。失败、响铃和进程退出不是完成。
+    static func isCompletion(_ event: TerminalAttentionEventKind) -> Bool {
+        switch event {
+        case .commandFinished(let block):
+            return block.endedAt != nil && block.commandLifecycleState == .succeeded
+        case .bell, .processExited:
+            return false
+        }
     }
 
     static func isEligible(_ input: TerminalNotificationPolicyInput) -> Bool {
@@ -226,7 +248,9 @@ final class TerminalNotificationCoordinator: NSObject, ObservableObject, Termina
               preferences.notifyAgentAttention, workspace.sessionRegistry.sessions[item.tabID] != nil else { return }
         if item.kind == .completed && !preferences.notifyLongCommandCompletion { return }
         if item.kind == .failed && !preferences.notifyCommandFailures { return }
-        if NSApplication.shared.isActive { return }
+        guard let session = workspace.sessionRegistry.sessions[item.tabID],
+              TerminalNotificationPolicy.shouldDeliverAgentNotification(item, session: session,
+                  appIsActive: NSApplication.shared.isActive) else { return }
         guard isAuthorizedForSystemNotifications else { return }
         let key = "\(item.tabID):agent-\(item.kind.rawValue)"
         let now = Date()
@@ -243,8 +267,10 @@ final class TerminalNotificationCoordinator: NSObject, ObservableObject, Termina
     }
 
     private func deliverRuntimeTerminalAttention(_ item: TerminalAttentionItem) {
-        guard let preferences, preferences.notificationsEnabled, !NSApplication.shared.isActive,
+        guard let preferences, let workspace, preferences.notificationsEnabled, !NSApplication.shared.isActive,
               isAuthorizedForSystemNotifications else { return }
+        if item.kind == .commandCompleted,
+           workspace.sessionRegistry.sessions[item.tabID]?.aiLease != nil { return }
         let key = "\(item.tabID):terminal-\(item.kind.rawValue)", now = Date()
         if let last = lastDeliveryDates[key], now.timeIntervalSince(last) < preferences.notificationCooldownSeconds { return }
         lastDeliveryDates[key] = now
@@ -298,6 +324,7 @@ final class TerminalNotificationCoordinator: NSObject, ObservableObject, Termina
             event: event,
             appIsActive: NSApplication.shared.isActive,
             tabIsSelected: workspace.selectedID == session.id,
+            aiControlled: session.aiLease != nil,
             notificationsEnabled: preferences.notificationsEnabled,
             showInactiveTabBadges: preferences.showInactiveTabNotificationBadges,
             notifyBells: preferences.notifyTerminalBell,

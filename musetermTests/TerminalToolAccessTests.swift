@@ -13,13 +13,11 @@ final class TerminalToolAccessTests: XCTestCase {
     }
 
     func testClientTokenMustMatchKeychainGrant() {
-        XCTAssertTrue(
-            MuseTermKeychain.save(
-                "expected-token",
-                account: "test-client",
-                serviceName: TerminalToolAccess.keychainServiceName
-            )
-        )
+        XCTAssertNoThrow(try MuseTermKeychain.save(
+            "expected-token",
+            account: "test-client",
+            serviceName: TerminalToolAccess.keychainServiceName
+        ))
 
         XCTAssertTrue(
             TerminalToolAccess.authorizes(
@@ -41,8 +39,9 @@ final class TerminalToolAccessTests: XCTestCase {
         )
     }
 
-    func testRevokingClientRemovesGrant() {
-        XCTAssertTrue(TerminalToolAccess.pair(clientID: "test-client"))
+    func testRevokingClientRemovesGrant() throws {
+        let token = try TerminalToolAccess.pair(clientID: "test-client")
+        XCTAssertEqual(token.count, 64)
         XCTAssertTrue(TerminalToolAccess.isPaired(clientID: "test-client"))
 
         TerminalToolAccess.revoke(clientID: "test-client")
@@ -52,7 +51,7 @@ final class TerminalToolAccessTests: XCTestCase {
 
     func testRenamedClientCanUseExistingGrantUntilRevoked() {
         let legacy = MuseTermLegacyCompatibility.legacyClientID
-        XCTAssertTrue(MuseTermKeychain.save("legacy-test-token", account: legacy,
+        XCTAssertNoThrow(try MuseTermKeychain.save("legacy-test-token", account: legacy,
             serviceName: TerminalToolAccess.keychainServiceName))
         XCTAssertTrue(TerminalToolAccess.isPaired())
         XCTAssertTrue(TerminalToolAccess.authorizes(clientID: TerminalToolAccess.builtInClientID,
@@ -62,15 +61,26 @@ final class TerminalToolAccessTests: XCTestCase {
         XCTAssertFalse(TerminalToolAccess.authorizes(clientID: legacy, token: "legacy-test-token"))
     }
 
-    func testPairingRenamedClientInvalidatesLegacyGrant() {
+    func testPairingRenamedClientInvalidatesLegacyGrant() throws {
         let legacy = MuseTermLegacyCompatibility.legacyClientID
-        XCTAssertTrue(MuseTermKeychain.save("legacy-test-token", account: legacy,
+        XCTAssertNoThrow(try MuseTermKeychain.save("legacy-test-token", account: legacy,
             serviceName: TerminalToolAccess.keychainServiceName))
-        XCTAssertTrue(TerminalToolAccess.pair())
+        XCTAssertNoThrow(try TerminalToolAccess.pair())
         XCTAssertTrue(TerminalToolAccess.isPaired())
         XCTAssertFalse(TerminalToolAccess.authorizes(clientID: TerminalToolAccess.builtInClientID,
             token: "legacy-test-token"))
         XCTAssertFalse(TerminalToolAccess.authorizes(clientID: legacy, token: "legacy-test-token"))
+    }
+
+    func testPairingFailureKeepsTheKeychainStatus() {
+        MuseTermKeychain._failNextTestSave(MuseTermKeychainError(status: errSecMissingEntitlement))
+
+        XCTAssertThrowsError(try TerminalToolAccess.pair()) { error in
+            let keychainError = error as? MuseTermKeychainError
+            XCTAssertEqual(keychainError?.status, errSecMissingEntitlement)
+            XCTAssertFalse(keychainError?.localizedDescription.isEmpty ?? true)
+        }
+        XCTAssertFalse(TerminalToolAccess.isPaired())
     }
 
     @MainActor
