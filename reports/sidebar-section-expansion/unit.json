@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-20T07:29:09Z",
+  "version": "1.262.0-rc1",
+  "build": 386,
+  "scope": "Native unit and integration tests, including real SwiftUI sidebar hosts; isolated QA application and build directory.",
+  "onlyTesting": [
+    "musetermTests"
+  ],
+  "success": true,
+  "exitStatus": 0,
+  "durationSeconds": 202.607,
+  "passedTests": 771,
+  "failedTests": 0,
+  "skippedTests": 0,
+  "failures": [],
+  "resultBundle": ".derivedData/ssh-terminal-cleanup/20261120T072546.xcresult",
+  "buildLog": ".derivedData/ssh-terminal-cleanup/20261120T072546.log",
+  "summaryError": null
+}

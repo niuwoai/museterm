@@ -21,6 +21,14 @@ enum SidebarSectionKind: String, CaseIterable, Identifiable, Codable {
         .sshHosts
     ]
 
+    /// 没有保存过展开状态时的默认值，与这个功能上线前侧栏打开时的样子一致。
+    static func defaultExpanded(_ kind: SidebarSectionKind) -> Bool {
+        switch kind {
+        case .quickPaths, .learnedCommands: return true
+        case .shortcuts, .fileTransfer, .profiles, .sshHosts: return false
+        }
+    }
+
     var titleKey: String {
         switch self {
         case .quickPaths: return "quick_path.section"

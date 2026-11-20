@@ -176,6 +176,7 @@ final class TerminalPreferences: ObservableObject {
         static let sidebarExpandedWidth = "terminal.sidebarExpandedWidth"
         static let sidebarSectionOrder = "sidebar.sectionOrder"
         static let hiddenSidebarSections = "sidebar.hiddenSections"
+        static let sidebarSectionExpansionOverrides = "sidebar.sectionExpansionOverrides"
         static let cursorShape = "terminal.cursorShape"
         static let cursorBlink = "terminal.cursorBlink"
         static let appShortcuts = "terminal.shortcuts.app"
@@ -227,6 +228,21 @@ final class TerminalPreferences: ObservableObject {
             hiddenSidebarSections.remove(kind)
         } else {
             hiddenSidebarSections.insert(kind)
+        }
+    }
+
+    /// 分区当前是否展开。没有保存过的分区用上线前的默认展开状态。
+    func isSidebarSectionExpanded(_ kind: SidebarSectionKind) -> Bool {
+        sidebarSectionExpansionOverrides.contains(kind) != SidebarSectionKind.defaultExpanded(kind)
+    }
+
+    /// 记住一次手动展开或收起。结果与默认一致时不再保存，避免无谓写入。
+    func setSidebarSection(_ kind: SidebarSectionKind, expanded: Bool) {
+        let overridden = expanded != SidebarSectionKind.defaultExpanded(kind)
+        if overridden {
+            sidebarSectionExpansionOverrides.insert(kind)
+        } else {
+            sidebarSectionExpansionOverrides.remove(kind)
         }
     }
 
@@ -327,6 +343,12 @@ final class TerminalPreferences: ObservableObject {
             defaults.set(hiddenSidebarSections.map(\.rawValue).sorted(), forKey: Keys.hiddenSidebarSections)
         }
     }
+    /// 和默认展开状态不同的分区。默认展开的被收起、默认收起的被展开，都记在这里；没动过的分区不写入。
+    @Published var sidebarSectionExpansionOverrides: Set<SidebarSectionKind> {
+        didSet {
+            defaults.set(sidebarSectionExpansionOverrides.map(\.rawValue).sorted(), forKey: Keys.sidebarSectionExpansionOverrides)
+        }
+    }
     @Published var sidebarExpandedWidth: Double {
         didSet {
             let normalized = Self.clampedSidebarExpandedWidth(sidebarExpandedWidth)
@@ -422,6 +444,10 @@ final class TerminalPreferences: ObservableObject {
         )
         hiddenSidebarSections = Set(
             (defaults.stringArray(forKey: Keys.hiddenSidebarSections) ?? [])
+                .compactMap(SidebarSectionKind.init(rawValue:))
+        )
+        sidebarSectionExpansionOverrides = Set(
+            (defaults.stringArray(forKey: Keys.sidebarSectionExpansionOverrides) ?? [])
                 .compactMap(SidebarSectionKind.init(rawValue:))
         )
         sidebarExpandedWidth = Self.clampedSidebarExpandedWidth(

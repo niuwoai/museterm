@@ -39,6 +39,7 @@ struct ContentView: View {
                     onCreateSessionTunnel: presentSessionTunnelSheet,
                     onOpenPreview: openPreview
                 )
+                .environmentObject(preferences)
 
                 // 保留原生标题栏热区，让 AppKit 处理拖动和系统设置的双击动作。
                 TerminalPaneView(
