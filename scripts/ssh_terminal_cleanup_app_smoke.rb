@@ -20,7 +20,7 @@ qa = Dir.mktmpdir("museterm-native-qa-", "/private/tmp")
 tools = File.join(qa, "Tools")
 FileUtils.mkdir_p(tools, mode: 0700)
 backend = "/private/tmp/qrt-ui-#{Process.uid}-#{Digest::SHA256.hexdigest(tools)[0, 20]}"
-report_directory = File.join(repository, "reports/ssh-terminal-cleanup/native-runtime-gui")
+report_directory = ENV.fetch("MUSETERM_QA_REPORT_DIRECTORY", File.join(repository, "reports/ssh-terminal-cleanup/native-runtime-gui"))
 FileUtils.mkdir_p(report_directory)
 log = File.open(File.join(repository, ".derivedData/native-runtime-smoke.log"), "w")
 pid = nil
@@ -104,7 +104,8 @@ begin
   checked(client.request("releaseControl", target(info).merge("owner" => owner)))
   checks << "通过 Runtime 正常释放本次控制租约"
 
-  window_source = 'import CoreGraphics; import Foundation; let pid = Int(CommandLine.arguments[1])!; let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []; if let window = list.first(where: { ($0[kCGWindowOwnerPID as String] as? Int) == pid && ($0[kCGWindowLayer as String] as? Int) == 0 }), let id = window[kCGWindowNumber as String] as? Int { print(id) }'
+  apple_script(app, "activate")
+  window_source = 'import CoreGraphics; import Foundation; let pid = Int(CommandLine.arguments[1])!; let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []; let windows = list.filter { window in guard (window[kCGWindowOwnerPID as String] as? Int) == pid, (window[kCGWindowLayer as String] as? Int) == 0, let bounds = window[kCGWindowBounds as String] as? [String: Double] else { return false }; return (bounds["Width"] ?? 0) > 100 && (bounds["Height"] ?? 0) > 100 }; if let id = windows.first?[kCGWindowNumber as String] as? Int { print(id) }'
   window, window_error, window_status = Open3.capture3("xcrun", "swift", "-e", window_source, pid.to_s)
   if window_status.success? && window.strip.match?(/\A\d+\z/)
     screenshot = File.join(report_directory, "native-terminal.png")
@@ -157,7 +158,8 @@ ensure
   report.transform_values! { |value| value.is_a?(String) ? value.gsub(repository, ".").gsub(Dir.home, "$HOME") : value }
   report[:screenshotPublication] = "Local only; excluded from Git because terminal prompts can identify the local user and host."
   File.write(File.join(report_directory, "app-smoke.json"), JSON.pretty_generate(report) + "\n")
-  text = ["# 原生应用隔离交互验证", "", "- 版本：#{report[:applicationVersion] || '未读取'}", "- 结果：#{report[:success] ? 'PASS' : 'FAIL'}", "- 范围：实际 QA App；AppleScript 创建标签与读取屏幕，Runtime 租约内输入。", "- SSH 异常退出恢复另由专项原生回归覆盖；用例和结果见 focused.json / focused.md。", "- 旧 AppleScript 输入冒烟的失败记录保留于相邻 native-gui 目录。", "- 截图仅保留本地并由 Git 忽略，上传前必须脱敏终端中的用户及主机标识。", "- 复用建议：可通过 /run-skill-generator 固化隔离启动和租约驱动。", ""]
+  text = ["# 原生应用隔离交互验证", "", "- 版本：#{report[:applicationVersion] || '未读取'}", "- 结果：#{report[:success] ? 'PASS' : 'FAIL'}", "- 范围：实际 QA App；AppleScript 创建标签与读取屏幕，Runtime 租约内输入。", "- 侧栏视图、终端异常退出及其他回归另由原生测试覆盖；本次范围仅为实际 App 的标签和终端交互。", "- 截图仅保留本地并由 Git 忽略，上传前必须脱敏终端中的用户及主机标识。", "- 复用建议：可通过 /run-skill-generator 固化隔离启动和租约驱动。", ""]
+  text << "- 窗口截图：#{report[:localScreenshot] ? '已抓取，仅本地保留' : report[:screenshotError] || '未生成'}"
   text.concat(checks.map { |check| "- #{check}" })
   text.concat(["", report[:error].to_s, report[:cleanupError].to_s, ""])
   File.write(File.join(report_directory, "app-smoke.md"), text.join("\n").rstrip + "\n")
