@@ -366,6 +366,13 @@ struct SettingsView: View {
             scrollbackLinesRow
             primaryShortcutSection
             lineNavigationShortcutSection
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle(L10n.string("settings.ssh_command_tracking"), isOn: $preferences.sshRemoteCommandTrackingEnabled)
+                Text(L10n.string("settings.ssh_command_tracking.help"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             Toggle(L10n.string("settings.confirm_multiline_paste"), isOn: $preferences.confirmMultilinePaste)
             Toggle(L10n.string("settings.confirm_dangerous_commands"), isOn: $preferences.confirmDangerousCommands)
             VStack(alignment: .leading, spacing: 6) {

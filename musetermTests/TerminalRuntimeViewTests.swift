@@ -479,6 +479,43 @@ final class TerminalRuntimeViewTests: XCTestCase {
         }
     }
 
+    func testReactivatedTabSynchronizesDeferredLayoutAndSignalsForegroundProcess() async throws {
+        let (root, helper) = try await startService()
+        let session = TerminalSession(sequence: 1)
+        attach(session, launch: .init(executable: "/bin/sh", arguments: ["-c", Self.echoControlledShell],
+            environment: ["PATH": "/usr/bin:/bin", "HOME": root.path, "TERM": "xterm-256color"],
+            directory: root.path), root: root, helper: helper)
+        let controller = session.controller
+        let terminal = try XCTUnwrap(controller.container.subviews.compactMap { $0 as? FocusableLocalProcessTerminalView }.first)
+        controller.setActive(true)
+        try await waitUntil("initial tab dimensions") {
+            let dimensions = terminal.terminalDimensions
+            return controller.visibleScreenText().contains("__MODE_READY") &&
+                session.runtimeInfo?.columns == dimensions.cols && session.runtimeInfo?.rows == dimensions.rows
+        }
+        controller.sendProcessInput(bytes: Array(
+            "trap 'printf \"\\n__WINCH_SIZE__ \"; stty size' WINCH; printf '\\n__WINCH_HANDLER_READY__\\n'\n".utf8
+        ))
+        try await waitUntil("foreground WINCH handler ready") {
+            controller.visibleScreenText().components(separatedBy: "\n").contains("__WINCH_HANDLER_READY__")
+        }
+        let original = terminal.terminalDimensions
+        controller.setActive(false)
+        // Model a hidden tab whose child layout was deferred while its container changed size.
+        controller.container.autoresizesSubviews = false
+        controller.container.setFrameSize(NSSize(width: 650, height: 400))
+        XCTAssertEqual(terminal.terminalDimensions.cols, original.cols)
+        XCTAssertEqual(terminal.terminalDimensions.rows, original.rows)
+        controller.setActive(true)
+        try await waitUntil("reactivated PTY matches new layout and child receives WINCH") {
+            let dimensions = terminal.terminalDimensions
+            let expected = "__WINCH_SIZE__ \(dimensions.rows) \(dimensions.cols)"
+            return dimensions.cols != original.cols && dimensions.rows != original.rows &&
+                session.runtimeInfo?.columns == dimensions.cols && session.runtimeInfo?.rows == dimensions.rows &&
+                controller.visibleScreenText().components(separatedBy: "\n").contains(expected)
+        }
+    }
+
     func testExitedRuntimeRestartCreatesNewGenerationAndRunsStartupOnce() async throws {
         let (root, helper) = try await startService()
         let session = TerminalSession(sequence: 1)
@@ -1086,7 +1123,7 @@ final class TerminalRuntimeViewTests: XCTestCase {
         let handle = try XCTUnwrap(session.controller.runtimeHandle)
         var approvals: [String] = []
         var committed = 0
-        let queue = TerminalRuntimeInputQueue(handle: handle, approve: { bytes, echo, source, _ in
+        let queue = TerminalRuntimeInputQueue(handle: handle, approve: { bytes, echo, source, _, _ in
             XCTAssertTrue(echo); XCTAssertEqual(source, .human)
             let text = String(decoding: bytes, as: UTF8.self)
             approvals.append(text)
@@ -1129,6 +1166,39 @@ final class TerminalRuntimeViewTests: XCTestCase {
         XCTAssertEqual(handle.info?.nextInputSequence, sequence + 2)
     }
 
+    func testInputQueuePreservesBuiltInTrackingOriginWithoutTrustingMatchingUserInput() async throws {
+        let (root, helper) = try await startService()
+        let session = TerminalSession(sequence: 1)
+        attach(session, launch: .init(executable: "/bin/sh", arguments: ["-c", Self.echoControlledShell],
+            environment: ["PATH": "/usr/bin:/bin", "HOME": root.path, "TERM": "xterm-256color"], directory: root.path), root: root, helper: helper)
+        try await waitUntil("tracking input queue viewer") { session.controller.visibleScreenText().contains("__MODE_READY") }
+        let handle = try XCTUnwrap(session.controller.runtimeHandle)
+        var origins: [Bool] = []
+        var committed = 0
+        let queue = TerminalRuntimeInputQueue(handle: handle, approve: { _, _, source, _, builtInHook in
+            XCTAssertEqual(source, .human)
+            origins.append(builtInHook)
+            return builtInHook
+        }, committed: { _, _, _ in committed += 1 }, failed: { error in
+            XCTAssertTrue(error is TerminalAIControlError)
+        })
+        defer { queue.cancel() }
+        let text = Array("printf '\\n__TRACKING_ORIGIN\\n'\n".utf8)
+        let internalACK = expectation(description: "Internal tracking write acknowledged")
+        let userRejected = expectation(description: "Identical user input still requires approval")
+        XCTAssertTrue(queue.enqueue(text, source: .human, owner: nil, isBuiltInSSHTrackingHook: true) { result in
+            if case .failure(let error) = result { XCTFail("Internal write failed: \(error)") }
+            internalACK.fulfill()
+        })
+        XCTAssertTrue(queue.enqueue(text, source: .human, owner: nil) { result in
+            if case .success = result { XCTFail("User input inherited internal tracking origin") }
+            userRejected.fulfill()
+        })
+        await fulfillment(of: [internalACK, userRejected], timeout: 5)
+        XCTAssertEqual(origins, [true, false])
+        XCTAssertEqual(committed, 1)
+    }
+
     func testGalleryContinuationPrecedesInputQueuedDuringTransfer() async throws {
         let (root, helper) = try await startService()
         let session = TerminalSession(sequence: 1)
@@ -1148,7 +1218,7 @@ final class TerminalRuntimeViewTests: XCTestCase {
         let secondFrame = try XCTUnwrap(second.frames.first)
         let text = Array("after-image\n".utf8)
         var written: [String] = []
-        let queue = TerminalRuntimeInputQueue(handle: handle, approve: { _, _, _, _ in true },
+        let queue = TerminalRuntimeInputQueue(handle: handle, approve: { _, _, _, _, _ in true },
             committed: { bytes, _, _ in written.append(String(decoding: bytes, as: UTF8.self)) },
             failed: { error in XCTFail("Gallery input failed: \(error)") })
         defer { queue.cancel() }
@@ -1264,7 +1334,7 @@ final class TerminalRuntimeViewTests: XCTestCase {
         try await waitUntil("cancelled input viewer") { session.controller.runtimeHandle?.connected == true }
         let handle = try XCTUnwrap(session.controller.runtimeHandle)
         let before = try await prepare(handle)
-        let queue = TerminalRuntimeInputQueue(handle: handle, approve: { _, _, _, _ in XCTFail("Cancelled input reached approval"); return true },
+        let queue = TerminalRuntimeInputQueue(handle: handle, approve: { _, _, _, _, _ in XCTFail("Cancelled input reached approval"); return true },
             committed: { _, _, _ in XCTFail("Cancelled bytes were written") }, failed: { _ in })
         let cancelled = expectation(description: "Cancelled callback exactly once")
         cancelled.assertForOverFulfill = true

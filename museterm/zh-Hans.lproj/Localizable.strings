@@ -709,6 +709,8 @@
 "settings.shortcuts.unassigned" = "未设置";
 "settings.shortcuts.record_help" = "点击后录入快捷键；按 Delete 清除，按 Esc 取消。";
 "settings.shortcuts.record_accessibility" = "录入快捷键";
+"settings.ssh_command_tracking" = "启用 SSH 命令追踪";
+"settings.ssh_command_tracking.help" = "在新建或重连的 SSH 会话中自动启用命令状态追踪，也需开启连接的 Shell 钩子。临时脚本不会写入远端启动文件。关闭后不再注入；已有会话需重连后生效。此设置独立于多行粘贴确认。";
 "settings.confirm_multiline_paste" = "多行粘贴前确认";
 "settings.confirm_dangerous_commands" = "高危命令前确认";
 "settings.custom_dangerous_rules" = "自定义高危规则";
