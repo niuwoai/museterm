@@ -308,6 +308,12 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
         }
     }
 
+    func synchronizeTerminalSizeWithBackend() {
+        super.setFrameSize(frame.size)
+        let dimensions = terminalDimensions
+        terminalDidResize(newCols: dimensions.cols, newRows: dimensions.rows)
+    }
+
     func requestFocus() {
         guard let window else { return }
         window.makeFirstResponder(self)

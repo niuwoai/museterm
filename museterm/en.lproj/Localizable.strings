@@ -709,6 +709,8 @@
 "settings.shortcuts.unassigned" = "Not Set";
 "settings.shortcuts.record_help" = "Click to record a shortcut; press Delete to clear or Esc to cancel.";
 "settings.shortcuts.record_accessibility" = "Record shortcut";
+"settings.ssh_command_tracking" = "Enable SSH command tracking";
+"settings.ssh_command_tracking.help" = "Automatically track command status in new or reconnected SSH sessions when the connection’s Shell hook is also enabled. The temporary script does not write to remote startup files. Turning this off prevents injection; reconnect existing sessions to apply the change. This setting is independent of multi-line paste confirmation.";
 "settings.confirm_multiline_paste" = "Confirm multi-line paste";
 "settings.confirm_dangerous_commands" = "Confirm dangerous commands";
 "settings.custom_dangerous_rules" = "Custom dangerous rules";

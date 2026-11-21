@@ -17,10 +17,11 @@ final class TerminalRuntimeInputQueue {
         /// enqueue is the one from before the lease acknowledgement landed.
         let deferControlEpoch: Bool
         let isMouseEvent: Bool
+        let isBuiltInSSHTrackingHook: Bool
         let completion: ((Result<Void, Error>) -> Void)?
     }
     private let handle: TerminalRuntimeSessionHandle
-    private let approve: ([UInt8], Bool, TerminalRuntimeInputSource, String?) -> Bool
+    private let approve: ([UInt8], Bool, TerminalRuntimeInputSource, String?, Bool) -> Bool
     private let committed: ([UInt8], TerminalRuntimeInputSource, TerminalRuntimeResponse) -> Void
     private let approveMouseEvent: ((String?) -> Bool)?
     private let committedMouseEvent: ((TerminalRuntimeResponse) -> Void)?
@@ -37,7 +38,7 @@ final class TerminalRuntimeInputQueue {
     }
 
     init(handle: TerminalRuntimeSessionHandle,
-         approve: @escaping ([UInt8], Bool, TerminalRuntimeInputSource, String?) -> Bool,
+         approve: @escaping ([UInt8], Bool, TerminalRuntimeInputSource, String?, Bool) -> Bool,
          committed: @escaping ([UInt8], TerminalRuntimeInputSource, TerminalRuntimeResponse) -> Void,
          failed: @escaping (Error) -> Void,
          approveMouseEvent: ((String?) -> Bool)? = nil,
@@ -52,7 +53,7 @@ final class TerminalRuntimeInputQueue {
 
     @discardableResult
     func enqueue(_ bytes: [UInt8], source: TerminalRuntimeInputSource, owner: String?, validationBytes: [UInt8]? = nil,
-                 isMouseEvent: Bool = false, placeAheadOfPending: Bool = false,
+                 isMouseEvent: Bool = false, placeAheadOfPending: Bool = false, isBuiltInSSHTrackingHook: Bool = false,
                  completion: ((Result<Void, Error>) -> Void)? = nil) -> Bool {
         guard !stopped, handle.connected, let info = handle.info, info.running,
               !bytes.isEmpty, bytes.count <= TerminalRuntimeLimits.maximumOutputBytes,
@@ -72,6 +73,7 @@ final class TerminalRuntimeInputQueue {
         // would already be stale by the time the bytes are written.
         let item = Pending(bytes: bytes, validationBytes: validation, source: source, owner: owner, generation: info.generation,
             controlEpoch: info.controlEpoch, deferControlEpoch: source == .ai, isMouseEvent: isMouseEvent,
+            isBuiltInSSHTrackingHook: isBuiltInSSHTrackingHook,
             completion: completion)
         if placeAheadOfPending { pending.insert(item, at: active ? 1 : 0) }
         else { pending.append(item) }
@@ -107,7 +109,7 @@ final class TerminalRuntimeInputQueue {
         }
         let isApproved = item.isMouseEvent
             ? (approveMouseEvent?(item.owner) ?? false)
-            : approve(item.validationBytes, preparation.echoEnabled, item.source, item.owner)
+            : approve(item.validationBytes, preparation.echoEnabled, item.source, item.owner, item.isBuiltInSSHTrackingHook)
         guard isApproved else {
             finish(item, result: .failure(TerminalAIControlError.inputRejected)); return
         }

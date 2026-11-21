@@ -456,7 +456,20 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         container.isHidden = !isActive
         terminalView.isHidden = !isActive
         terminalView.layer?.isHidden = !isActive
+        if didBecomeActive {
+            synchronizeActiveTerminalSize()
+            DispatchQueue.main.async { [weak self] in
+                self?.synchronizeActiveTerminalSize()
+            }
+        }
         return didBecomeActive
+    }
+
+    private func synchronizeActiveTerminalSize() {
+        guard !container.isHidden else { return }
+        layoutTerminalViews()
+        guard canStartProcess, terminalView.backendIsRunning else { return }
+        terminalView.synchronizeTerminalSizeWithBackend()
     }
 
     func invalidateDisplay() {
@@ -549,6 +562,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
     }
 
     private var isSendingToolInput = false
+    private var isSendingBuiltInSSHTrackingHook = false
     private var toolInputOwner: String?
     private var pendingRuntimeToolInputObserver: ((Result<Void, Error>) -> Void)?
 
@@ -1141,15 +1155,17 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         terminalView.onSendToProcess = { [weak self] data, echoEnabled in
             guard let self else { return true }
             let fromTool = self.isSendingToolInput
+            let fromBuiltInSSHTrackingHook = self.isSendingBuiltInSSHTrackingHook
             let owner = self.toolInputOwner
             // Consume before entering any modal safety confirmation, which can run
             // a nested event loop and receive unrelated human input.
             self.isSendingToolInput = false
+            self.isSendingBuiltInSSHTrackingHook = false
             self.toolInputOwner = nil
             self.session?.expireAIControlIfNeeded()
             guard fromTool || self.session?.aiLease == nil else { return false }
             guard self.activeSessionTunnel == nil else { return false }
-            guard self.approveProcessInputIfNeeded(data: data, echoEnabled: echoEnabled) else {
+            guard fromBuiltInSSHTrackingHook || self.approveProcessInputIfNeeded(data: data, echoEnabled: echoEnabled) else {
                 return false
             }
             if fromTool {
@@ -1740,14 +1756,15 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 let descriptor = try SSHConfigMaterializer.descriptor(for: profile)
                 session?.beginProcessRun()
                 if TerminalRuntimeService.isEnabled || runtimeHandle != nil {
-                    let startup = [RemoteShellIntegration.shellProbeCommand] + RemoteShellIntegration.startupCommands(for: profile) + descriptor.startupCommands
                     startRuntime(.init(executable: descriptor.executable, arguments: descriptor.args,
                         environment: Self.runtimeEnvironment(Self.environmentArray(shellPath: nil)),
                         directory: FileManager.default.homeDirectoryForCurrentUser.path,
                         columns: canStartProcess ? max(1, terminalColumns) : TerminalRuntimeLimits.defaultColumns,
                         rows: canStartProcess ? max(1, terminalRows) : TerminalRuntimeLimits.defaultRows),
                         root: runtimeLaunchContext?.1 ?? TerminalRuntimeService.rootDirectory,
-                        executable: runtimeLaunchContext?.2 ?? TerminalRuntimeService.executableURL) { [weak self] in self?.drainStartupCommands(startup) }
+                        executable: runtimeLaunchContext?.2 ?? TerminalRuntimeService.executableURL) { [weak self] in
+                            self?.drainSSHStartupCommands(for: profile, commands: descriptor.startupCommands)
+                        }
                     return
                 }
                 beginSSHAttempt()
@@ -1758,10 +1775,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                     currentDirectory: FileManager.default.homeDirectoryForCurrentUser.path
                 )
                 session?.state = .running
-                let startupCommands = [RemoteShellIntegration.shellProbeCommand]
-                    + RemoteShellIntegration.startupCommands(for: profile)
-                    + descriptor.startupCommands
-                drainStartupCommands(startupCommands)
+                drainSSHStartupCommands(for: profile, commands: descriptor.startupCommands)
             } catch {
                 terminalView.feed(text: L10n.format("ssh.error.launch_failed", error.localizedDescription) + "\n")
                 session?.state = .exited(nil)
@@ -1852,16 +1866,29 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         return !reason.allowsAutomaticReconnect
     }
 
-    private func drainStartupCommands(_ commands: [String]) {
+    private func drainSSHStartupCommands(for profile: SSHConnectionProfile, commands: [String]) {
+        let tracking = RemoteShellIntegration.startupCommands(
+            for: profile,
+            globalEnabled: preferences?.sshRemoteCommandTrackingEnabled ?? true
+        )
+        drainStartupCommands(
+            [RemoteShellIntegration.shellProbeCommand] + tracking + commands,
+            builtInTrackingCommandIndices: Set(tracking.indices.map { $0 + 1 })
+        )
+    }
+
+    private func drainStartupCommands(_ commands: [String], builtInTrackingCommandIndices: Set<Int> = []) {
         guard !commands.isEmpty else {
             session?.markStartupCommandsFinished()
             return
         }
         Task { [weak self] in
-            for command in commands {
+            for (index, command) in commands.enumerated() {
                 try? await Task.sleep(nanoseconds: 450_000_000)
                 await MainActor.run {
                     guard let self, self.terminalView.backendIsRunning else { return }
+                    self.isSendingBuiltInSSHTrackingHook = builtInTrackingCommandIndices.contains(index)
+                    defer { self.isSendingBuiltInSSHTrackingHook = false }
                     self.terminalView.send(source: self.terminalView, data: Array((command + "\n").utf8)[...])
                 }
             }
@@ -1979,11 +2006,16 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 if case .failure(let error) = result { self.runtimeInputFailed(error) }
             }
         }
-        runtimeInputQueue = TerminalRuntimeInputQueue(handle: handle, approve: { [weak self, weak handle] bytes, echo, source, owner in
+        runtimeInputQueue = TerminalRuntimeInputQueue(handle: handle, approve: { [weak self, weak handle] bytes, echo, source, owner, builtInTrackingHook in
             guard let self, let handle, self.runtimeHandle === handle else { return false }
             self.isSendingToolInput = source == .ai
+            self.isSendingBuiltInSSHTrackingHook = builtInTrackingHook
             self.toolInputOwner = owner
-            defer { self.isSendingToolInput = false; self.toolInputOwner = nil }
+            defer {
+                self.isSendingToolInput = false
+                self.isSendingBuiltInSSHTrackingHook = false
+                self.toolInputOwner = nil
+            }
             return self.terminalView.onSendToProcess?(bytes, echo) ?? false
         }, committed: { [weak self, weak handle] bytes, source, response in
             guard let self, let handle, self.runtimeHandle === handle else { return }
@@ -2032,7 +2064,11 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
                 guard TerminalRuntimeReplyPolicy.allows(data) else { return false }
                 return handle.send(data, source: .protocolReply)
             }
-            let accepted = self.runtimeInputQueue?.enqueue(bytes, source: .human, owner: nil) == true
+            let builtInTrackingHook = self.isSendingBuiltInSSHTrackingHook
+            self.isSendingBuiltInSSHTrackingHook = false
+            let accepted = self.runtimeInputQueue?.enqueue(
+                bytes, source: .human, owner: nil, isBuiltInSSHTrackingHook: builtInTrackingHook
+            ) == true
             if !accepted, !handle.reconnecting {
                 self.session?.runtimeConnectionIssue = TerminalRuntimeInputQueue.rejectedEnqueueIssue(
                     connected: handle.connected, byteCount: bytes.count)

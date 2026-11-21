@@ -244,6 +244,32 @@ final class AppPolicyTests: XCTestCase {
         XCTAssertEqual(preferences.lineEndShortcut, "command+right")
     }
 
+    func testSSHTrackingPreferencesPersistIndependentlyOfPasteConfirmation() throws {
+        let suiteName = "museterm.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let preferences = TerminalPreferences(defaults: defaults)
+        XCTAssertTrue(preferences.sshRemoteCommandTrackingEnabled)
+        XCTAssertTrue(preferences.confirmMultilinePaste)
+        for trackingEnabled in [false, true] {
+            for confirmPaste in [false, true] {
+                preferences.sshRemoteCommandTrackingEnabled = trackingEnabled
+                preferences.confirmMultilinePaste = confirmPaste
+                let reloaded = TerminalPreferences(defaults: defaults)
+                XCTAssertEqual(reloaded.sshRemoteCommandTrackingEnabled, trackingEnabled)
+                XCTAssertEqual(reloaded.confirmMultilinePaste, confirmPaste)
+                let profile = SSHConnectionProfile(host: "example.test")
+                XCTAssertEqual(
+                    RemoteShellIntegration.startupCommands(
+                        for: profile, globalEnabled: reloaded.sshRemoteCommandTrackingEnabled
+                    ).isEmpty,
+                    !trackingEnabled
+                )
+            }
+        }
+    }
+
     func testTransparencyPreferencesPersistIndependently() throws {
         let suiteName = "museterm.tests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))

@@ -114,9 +114,24 @@ final class TerminalSafetyInputAnalyzerTests: XCTestCase {
         XCTAssertTrue(message.contains("\n\n"))
     }
 
+    func testRemoteTrackingRequiresBothGlobalAndConnectionSwitches() {
+        for globalEnabled in [false, true] {
+            for connectionEnabled in [false, true] {
+                let profile = SSHConnectionProfile(
+                    host: "example.test", remoteShellIntegrationEnabled: connectionEnabled
+                )
+                let commands = RemoteShellIntegration.startupCommands(for: profile, globalEnabled: globalEnabled)
+                XCTAssertEqual(commands.isEmpty, !(globalEnabled && connectionEnabled))
+                if let script = commands.first {
+                    XCTAssertTrue(SafetyInputAnalyzer.isMultilinePaste(script))
+                }
+            }
+        }
+    }
+
     func testMuseTermRemoteIntegrationPasteUsesSpecificConfirmationCopy() throws {
         let script = try XCTUnwrap(
-            RemoteShellIntegration.startupCommands(for: SSHConnectionProfile(host: "example.test")).first
+            RemoteShellIntegration.startupCommands(for: SSHConnectionProfile(host: "example.test"), globalEnabled: true).first
         )
 
         XCTAssertTrue(SafetyInputAnalyzer.isMuseTermRemoteShellIntegrationBootstrap(script))
