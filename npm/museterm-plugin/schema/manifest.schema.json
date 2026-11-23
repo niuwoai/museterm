@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/niuwoai/museterm/npm/museterm-plugin/schema/manifest.schema.json",
+  "title": "MuseTerm plugin manifest",
+  "description": "The museterm field of a plugin package.json. Schema version 1. The host does not load any other shape.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "engines",
+    "entry",
+    "displayName",
+    "permissions",
+    "commands"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "engines": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["museterm"],
+      "properties": {
+        "museterm": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        }
+      }
+    },
+    "entry": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "displayName": {
+      "$ref": "#/$defs/localizedText"
+    },
+    "permissions": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 4,
+      "items": {
+        "enum": ["palette", "terminal.fill", "ai.suggest", "recording.observe"]
+      }
+    },
+    "commands": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 24,
+      "items": {
+        "$ref": "#/$defs/command"
+      }
+    },
+    "preferences": {
+      "type": "array",
+      "maxItems": 24,
+      "items": {
+        "$ref": "#/$defs/preference"
+      }
+    },
+    "ai": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["suggest"],
+      "properties": {
+        "suggest": {
+          "$ref": "#/$defs/exportName"
+        }
+      }
+    },
+    "recording": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["onFinished"],
+      "properties": {
+        "onFinished": {
+          "$ref": "#/$defs/exportName"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "localizedText": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["en", "zh-Hans"],
+      "properties": {
+        "en": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "zh-Hans": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        }
+      }
+    },
+    "exportName": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9]{0,62}$"
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "export"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]{0,30}(?:-[a-z0-9]{1,31}){0,3}$"
+        },
+        "title": {
+          "$ref": "#/$defs/localizedText"
+        },
+        "subtitle": {
+          "$ref": "#/$defs/localizedText"
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 380
+        },
+        "export": {
+          "$ref": "#/$defs/exportName"
+        }
+      }
+    },
+    "preference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type", "title"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]{0,30}(?:-[a-z0-9]{1,31}){0,3}$"
+        },
+        "type": {
+          "enum": ["text", "boolean", "dropdown"]
+        },
+        "title": {
+          "$ref": "#/$defs/localizedText"
+        },
+        "description": {
+          "$ref": "#/$defs/localizedText"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "default": true,
+        "data": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["title", "value"],
+            "properties": {
+              "title": {
+                "$ref": "#/$defs/localizedText"
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "boolean" } },
+            "required": ["type"]
+          },
+          "then": {
+            "properties": {
+              "default": { "type": "boolean" },
+              "data": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "text" } },
+            "required": ["type"]
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "data": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "dropdown" } },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["data"],
+            "properties": {
+              "default": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

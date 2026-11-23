@@ -1,5 +1,12 @@
 # Changelog
 
+## 插件 SDK：@niuwoai/museterm-plugin [0.1.0-rc1] - 2026-11-23
+
+### Added
+- 新增 `npm/museterm-plugin`：插件清单的 TypeScript 类型、JSON Schema 和校验。能拒绝缺字段、缺 `en` 或 `zh-Hans`、四项之外的权限、不是 1 的 `schemaVersion`，以及生命周期脚本和 `file:`、`link:`、git 依赖。
+- 版本范围只接受精确版本、`*` 和 `>=`。正式版比同号 rc 新，所以 `>=1.262.0` 不覆盖 `1.262.0-rc2`。
+- 此版本只属于 SDK，尚未发布，不变更 MuseTerm 应用版本。应用不生成插件进程，也不读插件目录。
+
 ## [1.262.0-rc2] - 2026-11-21
 
 ### Added
