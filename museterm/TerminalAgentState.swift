@@ -32,11 +32,12 @@ nonisolated struct TerminalAgentReportedContext: Codable, Equatable {
     let sessionID: UUID
     var taskID: String? = nil
     var gateID: String? = nil
+    var title: String? = nil
 
     var isValid: Bool {
-        [taskID, gateID].allSatisfy { value in
-            value == nil || (!value!.isEmpty && value!.utf8.count <= 128
-                && value!.unicodeScalars.allSatisfy { CharacterSet.alphanumerics.contains($0) || "-_:./".unicodeScalars.contains($0) })
+        [taskID, gateID, title].allSatisfy { value in
+            value == nil || (!value!.isEmpty && value!.utf8.count <= 256
+                && value!.unicodeScalars.allSatisfy { CharacterSet.alphanumerics.contains($0) || "-_:./ ".unicodeScalars.contains($0) })
         }
     }
 }
