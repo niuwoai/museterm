@@ -1,0 +1,46 @@
+{
+  "name": "@niuwoai/museterm-plugin",
+  "version": "0.1.0-rc1",
+  "description": "MuseTerm 插件 SDK：清单类型、JSON Schema 和校验。不连接应用，不下载命令行，不执行插件。",
+  "license": "LicenseRef-MuseTerm-Proprietary",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/niuwoai/museterm.git",
+    "directory": "npm/museterm-plugin"
+  },
+  "homepage": "https://github.com/niuwoai/museterm",
+  "bugs": "https://github.com/niuwoai/museterm/issues",
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "README.md",
+    "dist",
+    "schema"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schema": "./schema/manifest.schema.json"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "tsc -p tsconfig.json && node --test test/manifest.test.mjs"
+  },
+  "dependencies": {
+    "ajv": "8.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "7.0.2"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "rc"
+  }
+}

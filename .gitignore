@@ -8,3 +8,5 @@ xcuserdata/
 .DS_Store
 museterm/GeneratedAssets/
 .qssh-fixture-*/
+node_modules/
+npm/museterm-plugin/dist/
