@@ -11,7 +11,7 @@
 
 ### Changed
 - 功能版本从 **1.262.0-rc2** 提升为 **1.263.0-rc1**，构建号从 **387** 递增为 **388**。
-- 插件索引不在应用仓库。新插件向 `~/Sites/museterm-plugins-manifest/` 提拉请求。
+- 插件索引不在应用仓库。新插件向 <https://github.com/niuwoai/museterm-plugins-manifest> 提拉请求。应用安装时读本机的 `~/Sites/museterm-plugins-manifest/`。
 
 ## 插件 SDK：@niuwoai/museterm-plugin [0.1.0-rc1] - 2026-11-23
 

@@ -3,7 +3,7 @@
 > 状态：P0 至 P4 的宿主已在 `1.263.0-rc1` 的工作树里，未提交，也还没有在应用界面里装上三个示例插件走一遍。SDK `0.1.0-rc1` 仍未发布。
 > 基线：应用 `1.263.0-rc1`（`AppVersion.value`，构建号 388）。
 > 语言：插件以 TypeScript 编写、以编译后的 JavaScript 运行。
-> 索引：`~/Sites/museterm-plugins-manifest/`，与应用仓库分开。新插件向那个仓库提拉请求。
+> 索引：<https://github.com/niuwoai/museterm-plugins-manifest>，与应用仓库分开。新插件向那个仓库提拉请求。本机检出仍是 `~/Sites/museterm-plugins-manifest/`，应用按这个本地目录安装。
 
 ## 结论
 
@@ -235,7 +235,7 @@ v1 只有 `text`、`boolean`、`dropdown`。值由应用存，按插件隔离，
 
 P0 的校验已经能拒绝：缺字段、缺 `en` 或 `zh-Hans`、四项之外的权限、不是 1 的 `schemaVersion`、空命令、优先级超过 380、重复的命令和偏好、下拉框默认值不在选项里、`preinstall` / `install` / `postinstall` / `prepare`，以及 `file:`、`link:` 和 git 依赖。版本范围只接受精确版本、`*` 和 `>=`；`>=1.262.0` 不覆盖 `1.262.0-rc2`，因为正式版比同号 rc 新。
 
-示例插件不进应用仓库。索引仓库是 `~/Sites/museterm-plugins-manifest/`：根目录 `index.json` 列出 `name`、`version`、`description`，源码在 `plugins/<包名>/`。三个包各自初始化，`engines.museterm` 都是 `>=1.263.0-rc1`：
+示例插件不进应用仓库。索引仓库是 <https://github.com/niuwoai/museterm-plugins-manifest>：根目录 `index.json` 列出 `name`、`version`、`description` 和 `repository`，编译结果在 `plugins/<包名>/`。三个示例各自还有独立仓库，`engines.museterm` 都是 `>=1.263.0-rc1`：
 
 | 包 | 权限 | 做什么 |
 | --- | --- | --- |
