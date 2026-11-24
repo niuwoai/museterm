@@ -158,17 +158,24 @@ struct AICommandSuggestion: Identifiable, Equatable {
     let command: String
     let explanation: String
     let riskProfile: TerminalCommandRiskProfile
+    /// Set only for a candidate that came from a plugin. Built-in candidates leave it nil.
+    let pluginID: String?
+    let pluginName: String?
 
     init(
         id: UUID = UUID(),
         command: String,
         explanation: String,
-        riskProfile: TerminalCommandRiskProfile? = nil
+        riskProfile: TerminalCommandRiskProfile? = nil,
+        pluginID: String? = nil,
+        pluginName: String? = nil
     ) {
         self.id = id
         self.command = command
         self.explanation = explanation
         self.riskProfile = riskProfile ?? TerminalCommandRiskAnalyzer.profile(for: command)
+        self.pluginID = pluginID
+        self.pluginName = pluginName
     }
 }
 
@@ -248,6 +255,7 @@ final class AICommandAssistantModel: ObservableObject {
     @Published var query = ""
     @Published private(set) var context: AICommandContext?
     @Published private(set) var candidates: [AICommandSuggestion] = []
+    @Published private(set) var pluginCandidates: [AICommandSuggestion] = []
     @Published var selectedCandidateID: AICommandSuggestion.ID?
     @Published private(set) var errorMessage = ""
     @Published private(set) var notice: AICommandAssistantNotice?
@@ -265,7 +273,8 @@ final class AICommandAssistantModel: ObservableObject {
     var isActive: Bool { phase != .hidden }
 
     var selectedCandidate: AICommandSuggestion? {
-        candidates.first { $0.id == selectedCandidateID } ?? candidates.first
+        let all = candidates + pluginCandidates
+        return all.first { $0.id == selectedCandidateID } ?? candidates.first
     }
 
     func present(for tab: TerminalSession, preferences: TerminalPreferences = TerminalPreferences()) {
@@ -343,6 +352,7 @@ final class AICommandAssistantModel: ObservableObject {
 
         generationTask?.cancel()
         candidates = []
+        pluginCandidates = []
         selectedCandidateID = nil
         errorMessage = ""
         phase = .generating
@@ -362,6 +372,7 @@ final class AICommandAssistantModel: ObservableObject {
                 let parsed = try AICommandResponseParser.parse(response)
                 guard self.phase == .generating, self.context == context else { return }
                 self.candidates = parsed
+                self.pluginCandidates = TerminalPluginSuggestions.collect(request: request, context: context)
                 self.selectedCandidateID = parsed.first?.id
                 self.phase = .review
             } catch is CancellationError {
@@ -392,6 +403,7 @@ final class AICommandAssistantModel: ObservableObject {
     func askAgain() {
         generationTask?.cancel()
         candidates = []
+        pluginCandidates = []
         selectedCandidateID = nil
         errorMessage = ""
         phase = .composing
@@ -404,6 +416,10 @@ final class AICommandAssistantModel: ObservableObject {
     }
 
     func fillSelectedCommand(in workspace: TerminalWorkspace) {
+        if let candidate = selectedCandidate, candidate.pluginID != nil {
+            fillPluginCandidate(candidate, in: workspace)
+            return
+        }
         guard let command = selectedCandidate?.command,
               let context,
               workspace.selectedTab?.id == context.tabID,
@@ -434,6 +450,30 @@ final class AICommandAssistantModel: ObservableObject {
             if phase != .filling {
                 finish(with: .filled(isProduction: production))
             }
+        } catch {
+            errorMessage = error.localizedDescription
+            phase = .failed
+        }
+    }
+
+    /// A plugin candidate is confirmed before it is written. The built-in path above is unchanged.
+    private func fillPluginCandidate(_ candidate: AICommandSuggestion, in workspace: TerminalWorkspace) {
+        guard let pluginID = candidate.pluginID,
+              let plugin = TerminalPluginStore.shared.plugins.first(where: { $0.id == pluginID }),
+              let context else {
+            errorMessage = AICommandAssistantError.targetChanged.localizedDescription
+            phase = .failed
+            return
+        }
+        do {
+            try TerminalPluginFill.apply(
+                candidate.command,
+                plugin: plugin,
+                in: workspace,
+                selectedID: context.tabID,
+                environment: context.environment
+            )
+            finish(with: .filled(isProduction: context.environment == .production))
         } catch {
             errorMessage = error.localizedDescription
             phase = .failed
@@ -1074,6 +1114,49 @@ private struct AICommandFloatingPanel: View {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .stroke(preferences.skin.hairline, lineWidth: 1)
             )
+
+            if !model.pluginCandidates.isEmpty {
+                Text(L10n.string("plugin.ai.section"))
+                    .font(.caption.weight(.semibold))
+                VStack(spacing: 0) {
+                    ForEach(model.pluginCandidates) { candidate in
+                        Button {
+                            model.select(candidate)
+                        } label: {
+                            HStack(alignment: .top, spacing: 9) {
+                                Image(systemName: model.selectedCandidate?.id == candidate.id
+                                    ? "largecircle.fill.circle"
+                                    : "circle")
+                                    .foregroundStyle(preferences.skin.accent)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(candidate.command)
+                                        .font(.caption.monospaced())
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(3)
+                                    Text(L10n.format("plugin.ai.source", candidate.pluginName ?? ""))
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                AICommandRiskBadge(profile: candidate.riskProfile)
+                            }
+                            .padding(10)
+                            .background(
+                                model.selectedCandidate?.id == candidate.id
+                                    ? preferences.skin.accent.opacity(0.10)
+                                    : Color.clear
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        if candidate.id != model.pluginCandidates.last?.id { Divider() }
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(preferences.skin.hairline, lineWidth: 1)
+                )
+            }
 
             if let candidate = model.selectedCandidate {
                 Text(L10n.string("ai_command.explanation"))

@@ -1,9 +1,9 @@
 # MuseTerm 插件体系
 
-> 状态：P0 已完成。SDK `0.1.0-rc1` 在 `npm/museterm-plugin`，尚未发布。P1 及之后未实现。
-> 基线：应用 `1.262.0-rc2`（`AppVersion.value`）。应用版本未因本 SDK 改变。
+> 状态：P0 至 P4 的宿主已在 `1.263.0-rc1` 的工作树里，未提交，也还没有在应用界面里装上三个示例插件走一遍。SDK `0.1.0-rc1` 仍未发布。
+> 基线：应用 `1.263.0-rc1`（`AppVersion.value`，构建号 388）。
 > 语言：插件以 TypeScript 编写、以编译后的 JavaScript 运行。
-> 这份文档只定义产品行为和接口，不是已经上线的功能。
+> 索引：`~/Sites/museterm-plugins-manifest/`，与应用仓库分开。新插件向那个仓库提拉请求。
 
 ## 结论
 
@@ -80,7 +80,7 @@ flowchart LR
 
 没有长驻宿主，也不用登录项拉起 Node。命令面板打开、每次按键、空查询，都不生成进程。进程只在三种时候出现：用户执行一条插件命令、一次 AI 生成要问插件要候选、一次录制已经保存完成。超时就杀掉：命令 5 秒，AI 候选 2 秒，录制回调 1 秒。杀掉之后内置功能照常可用。
 
-Node 不从 `PATH` 里找。`PATH` 上的 `node` 可以被换掉。运行时由应用自己管理，版本钉死，放在应用的支持目录里。P1 可以先要求用户本机已有 Node 22 或更高版本，但必须是用户在设置里指定的绝对路径，不能是搜路径搜到的第一个。公开源一键安装要等应用自带运行时之后。
+Node 不从 `PATH` 里找。`PATH` 上的 `node` 可以被换掉。运行时由应用自己管理，版本钉死，放在应用的支持目录里。P1 要求用户在设置里填 Node 22 或更高版本的绝对路径，键是 `plugin.node.path`，不从 `PATH` 搜。公开源一键安装要等应用自带运行时之后。
 
 Seatbelt 配置在第一个插件进程之前就要有，不是后续阶段。v1 的配置拒绝：
 
@@ -235,7 +235,15 @@ v1 只有 `text`、`boolean`、`dropdown`。值由应用存，按插件隔离，
 
 P0 的校验已经能拒绝：缺字段、缺 `en` 或 `zh-Hans`、四项之外的权限、不是 1 的 `schemaVersion`、空命令、优先级超过 380、重复的命令和偏好、下拉框默认值不在选项里、`preinstall` / `install` / `postinstall` / `prepare`，以及 `file:`、`link:` 和 git 依赖。版本范围只接受精确版本、`*` 和 `>=`；`>=1.262.0` 不覆盖 `1.262.0-rc2`，因为正式版比同号 rc 新。
 
-示例插件与 SDK 分开发布，不进应用仓库的产品代码。第一个示例只返回 `message`，用来证明安装、清单和沙箱，不写终端。
+示例插件不进应用仓库。索引仓库是 `~/Sites/museterm-plugins-manifest/`：根目录 `index.json` 列出 `name`、`version`、`description`，源码在 `plugins/<包名>/`。三个包各自初始化，`engines.museterm` 都是 `>=1.263.0-rc1`：
+
+| 包 | 权限 | 做什么 |
+| --- | --- | --- |
+| `@example/museterm-repo-daily` | `palette`、`terminal.fill` | 填入 `git status --short`、`git log -5 --oneline`、`git branch --show-current` |
+| `@example/museterm-troubleshoot` | `palette`、`ai.suggest` | 按请求文本匹配本地排查短语，不读目录，不联网；命令面板只报短语数量 |
+| `@example/museterm-recording-ledger` | `palette`、`recording.observe` | 录制保存后把白名单字段写进自己的临时目录，命令面板显示最近一条 |
+
+`ai.suggest` 不能单独出现：清单有命令就必须有 `palette`。排查插件的命令只返回 `message`，候选仍然只来自 `ai.suggest`。
 
 ## 安装
 
@@ -253,15 +261,15 @@ P0 的校验已经能拒绝：缺字段、缺 `en` 或 `zh-Hans`、四项之外�
 
 每一期都能单独交付。前一期没有完成标准，不开后一期。
 
-**P0，只有类型。已完成，尚未发布。** SDK 和 JSON Schema 在 `npm/museterm-plugin`，版本 `0.1.0-rc1`。应用不生成进程，不读插件目录。完成标准：示例清单能被校验拒绝掉缺字段、缺中文、非法权限和错误的 `schemaVersion`。`npm test` 已覆盖这四项。
+**P0，只有类型。已完成，尚未发布。** SDK 和 JSON Schema 在 `npm/museterm-plugin`，版本 `0.1.0-rc1`。完成标准：示例清单能被校验拒绝掉缺字段、缺中文、非法权限和错误的 `schemaVersion`。`npm test` 已覆盖这四项。
 
-**P1，静态命令。** 设置里可以从 npm 包名或本地目录安装，默认关闭。命令面板显示静态行。执行只允许 `message`。Seatbelt 验收通过。安装器拒绝生命周期脚本。
+**P1，静态命令。宿主已写入，测试通过。** 设置里按索引里的包名或本地目录安装，默认关闭。命令面板显示静态行。执行可以返回 `message`。安装器拒绝生命周期脚本和 `file:`、`link:`、git 依赖。Seatbelt 验收已通过：插件自己的文件可读，家目录下的保险箱文件、工具桥目录和同级文件不可读，钥匙串查询失败，对外连接失败。
 
-**P2，填入。** `terminal.fill` 权限。确认框、标签未变、不写回车。用 `echo`、`cat` 和一条危险命令各做一次：没有确认就不写，确认后终端里能看见命令且没有被执行。
+**P2，填入。宿主已写入。** `terminal.fill` 权限。每次非空填入都先确认，包括 `echo` 这类只读命令。确认时选中标签必须没变，写入不带回车。正式环境或危险命令会再确认一次。应用界面里用 `echo`、`cat` 和一条危险命令各走一遍还没做。
 
-**P3，AI 候选。** 插件候选独立成区并标来源。插件超时时内置两条仍然出现。填入走 P2 的确认，不走内置 AI 的直接写入。
+**P3，AI 候选。宿主已写入。** 插件候选独立成区并标来源。每个插件最多两条，同时最多四个插件。插件超时时内置两条仍然出现。插件候选的填入走 P2 的确认，不走内置 AI 的直接写入。
 
-**P4，录制观察。** 保存之后发元数据。协议编码用字段白名单，多余字段丢掉。回放、Touch ID 和自动化开关的现有测试仍然通过。
+**P4，录制观察。宿主已写入。** 只在保存完成之后发元数据。请求只带白名单字段：`id`、`title`、`eventCount`、`durationMilliseconds`、`hasProtectedInput`、`requiresUserAuthentication`、`allowsAutomationPlayback`。测试确认载荷没有 `events` 和 `protectedBytesReference`。回放、Touch ID 和自动化开关的既有测试这次没有重跑。
 
 以后才考虑：按查询动态出行、读屏幕、网络、密码偏好、带哈希确认的项目级插件、插件视图、商店。插件不注册 MCP 工具。外部代理仍走现有工具桥；以后若要让宿主模型调用插件命令，也是宿主去调，不把工具桥令牌交给插件。
 

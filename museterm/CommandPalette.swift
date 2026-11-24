@@ -79,6 +79,7 @@ struct CommandPaletteView: View {
     @ObservedObject var workspace: TerminalWorkspace
     @ObservedObject var sshStore: SSHConnectionStore
     @ObservedObject var preferences: TerminalPreferences
+    @ObservedObject private var pluginStore = TerminalPluginStore.shared
 
     @State private var query = ""
     @State private var selectedIndex = 0
@@ -324,6 +325,19 @@ struct CommandPaletteView: View {
                 action: .ssh(profile.id)
             )
         }
+        items += pluginStore.enabledPlugins(with: "palette").flatMap { plugin in
+            plugin.commands.map { command in
+                CommandPaletteItem(
+                    id: "plugin:\(TerminalPluginStore.directoryName(for: plugin.id)):\(command.id)",
+                    title: command.title,
+                    subtitle: command.subtitle.isEmpty ? plugin.displayName : "\(plugin.displayName) · \(command.subtitle)",
+                    kindTitle: L10n.string("plugin.kind"),
+                    systemImage: command.symbol,
+                    priority: min(command.priority, TerminalPluginCommand.maximumPriority),
+                    action: .plugin(pluginID: plugin.id, commandID: command.id)
+                )
+            }
+        }
         items += workspace.tabs.map { tab in
             CommandPaletteItem(
                 id: "tab:\(tab.id.uuidString)",
@@ -451,10 +465,59 @@ struct CommandPaletteView: View {
                 guard let record = workspace.learnedCommands.first(where: { $0.id == id }) else { return }
                 guard confirmIfNeeded(record) else { return }
                 try workspace.executeLearnedCommand(record, sshProfiles: sshStore.profiles)
+            case let .plugin(pluginID, commandID):
+                try runPlugin(pluginID: pluginID, commandID: commandID)
             }
             close()
         } catch {
             showError(error)
+        }
+    }
+
+    private func runPlugin(pluginID: String, commandID: String) throws {
+        guard let plugin = pluginStore.plugins.first(where: { $0.id == pluginID }) else {
+            throw TerminalPluginError.notInstalled(pluginID)
+        }
+        guard let command = plugin.commands.first(where: { $0.id == commandID }) else {
+            throw TerminalPluginError.missingExport(commandID)
+        }
+        guard plugin.permissions.contains("palette") else {
+            throw TerminalPluginError.missingPermission("palette")
+        }
+        let tab = workspace.selectedTab
+        let context = TerminalPluginTabContext(
+            id: tab?.id.uuidString ?? "",
+            targetKind: tab?.executionContext.targetKind.rawValue ?? "local",
+            environment: tab?.environment.rawValue ?? "local",
+            targetName: "",
+            user: nil,
+            host: nil,
+            workingDirectory: nil,
+            shell: nil
+        )
+        let selectedID = tab?.id
+        let node = URL(fileURLWithPath: UserDefaults.standard.string(forKey: TerminalPluginSettings.nodePathKey) ?? "")
+        let result = try TerminalPluginRunner.run(
+            .command(plugin: plugin, exportName: command.exportName, commandID: command.id, tab: context),
+            nodeExecutable: node
+        )
+        switch result {
+        case let .message(title, body):
+            let alert = NSAlert()
+            alert.messageText = title
+            alert.informativeText = body ?? ""
+            alert.addButton(withTitle: L10n.string("action.ok"))
+            alert.runModal()
+        case let .fill(commandText):
+            try TerminalPluginFill.apply(
+                commandText,
+                plugin: plugin,
+                in: workspace,
+                selectedID: selectedID,
+                environment: tab?.environment
+            )
+        case .suggestions:
+            throw TerminalPluginError.invalidResponse(L10n.string("plugin.error.empty_response"))
         }
     }
 
@@ -532,6 +595,7 @@ private struct CommandPaletteItem: Identifiable {
         case ssh(UUID)
         case shortcut(UUID)
         case learned(String)
+        case plugin(pluginID: String, commandID: String)
     }
 }
 

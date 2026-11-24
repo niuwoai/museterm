@@ -1969,6 +1969,7 @@ final class TerminalWorkspace: ObservableObject {
             return
         }
         upsertShortcut(shortcut)
+        TerminalPluginRecording.notify(shortcut)
         objectWillChange.send()
     }
 
