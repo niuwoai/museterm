@@ -1183,7 +1183,9 @@ struct SettingsView: View {
         alert.alertStyle = .warning
         alert.addButton(withTitle: L10n.string("plugin.enable"))
         alert.addButton(withTitle: L10n.string("action.cancel"))
-        if alert.runModal() == .alertFirstButtonReturn {
+        guard let window = NSApp.keyWindow ?? NSApp.mainWindow else { return }
+        alert.beginSheetModal(for: window) { response in
+            guard response == .alertFirstButtonReturn else { return }
             pluginStore.setEnabled(true, id: plugin.id)
         }
     }
