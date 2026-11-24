@@ -35,6 +35,10 @@ struct SettingsView: View {
     @State private var skinEditorScrollRequest = 0
     @State private var cliInstallMessage = ""
     @State private var toolBridgeAccessMessage = ""
+    @ObservedObject private var pluginStore = TerminalPluginStore.shared
+    @State private var pluginPackageName = ""
+    @State private var pluginStatusMessage = ""
+    @State private var pluginNodePath = UserDefaults.standard.string(forKey: TerminalPluginSettings.nodePathKey) ?? ""
     @State private var isBuiltInToolClientPaired = TerminalToolAccess.isPaired()
     @State private var editingProfile: TerminalProfile?
     @State private var sidebarSectionDropTarget: SidebarSectionKind?
@@ -112,6 +116,8 @@ struct SettingsView: View {
             aiSection
         case .tools:
             toolsSection
+        case .plugins:
+            pluginsSection
         }
     }
 
@@ -1069,6 +1075,157 @@ struct SettingsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
     }
 
+    private var pluginsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L10n.string("plugin.section"))
+                .font(.headline)
+            Text(L10n.string("plugin.install.summary"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            TextField(L10n.string("plugin.node.path"), text: $pluginNodePath)
+                .textFieldStyle(.roundedBorder)
+                .font(.caption.monospaced())
+                .onChange(of: pluginNodePath) { value in
+                    UserDefaults.standard.set(value, forKey: TerminalPluginSettings.nodePathKey)
+                }
+
+            HStack(spacing: 8) {
+                TextField(L10n.string("plugin.install.package"), text: $pluginPackageName)
+                    .textFieldStyle(.roundedBorder)
+                Button(L10n.string("plugin.install")) {
+                    installCatalogPlugin()
+                }
+                .disabled(pluginPackageName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                Button(L10n.string("plugin.install.choose")) {
+                    chooseLocalPlugin()
+                }
+            }
+
+            if pluginStore.plugins.isEmpty {
+                Text(L10n.string("plugin.empty"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(pluginStore.plugins) { plugin in
+                    pluginRow(plugin)
+                }
+            }
+
+            if !pluginStatusMessage.isEmpty {
+                Text(pluginStatusMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
+        }
+    }
+
+    private func pluginRow(_ plugin: TerminalPlugin) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(plugin.displayName)
+                        .font(.subheadline.weight(.semibold))
+                    Text("\(plugin.id) · \(plugin.version) · \(pluginSourceTitle(plugin))")
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Toggle(L10n.string(plugin.enabled ? "plugin.disable" : "plugin.enable"), isOn: Binding(
+                    get: { plugin.enabled },
+                    set: { requested in
+                        if requested {
+                            confirmEnable(plugin)
+                        } else {
+                            pluginStore.setEnabled(false, id: plugin.id)
+                        }
+                    }
+                ))
+                .toggleStyle(.switch)
+                Button(role: .destructive) {
+                    pluginStore.remove(id: plugin.id)
+                } label: {
+                    Text(L10n.string("plugin.remove"))
+                }
+            }
+            Text(plugin.permissions.map(permissionDescription).joined(separator: "\n"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(10)
+        .background(preferences.skin.controlFill.opacity(0.6))
+        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+    }
+
+    private func pluginSourceTitle(_ plugin: TerminalPlugin) -> String {
+        plugin.source == "local"
+            ? L10n.string("plugin.source.local")
+            : L10n.string("plugin.source.catalog")
+    }
+
+    private func permissionDescription(_ permission: String) -> String {
+        switch permission {
+        case "palette": return L10n.string("plugin.permission.palette")
+        case "terminal.fill": return L10n.string("plugin.permission.terminal_fill")
+        case "ai.suggest": return L10n.string("plugin.permission.ai_suggest")
+        case "recording.observe": return L10n.string("plugin.permission.recording_observe")
+        default: return L10n.string("plugin.permission.unknown")
+        }
+    }
+
+    private func confirmEnable(_ plugin: TerminalPlugin) {
+        let alert = NSAlert()
+        alert.messageText = L10n.format("plugin.enable.confirm.title", plugin.displayName)
+        alert.informativeText = plugin.permissions.map(permissionDescription).joined(separator: "\n")
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: L10n.string("plugin.enable"))
+        alert.addButton(withTitle: L10n.string("action.cancel"))
+        if alert.runModal() == .alertFirstButtonReturn {
+            pluginStore.setEnabled(true, id: plugin.id)
+        }
+    }
+
+    private func chooseLocalPlugin() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = L10n.string("plugin.install.choose")
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try pluginStore.installLocal(from: url)
+            pluginStatusMessage = L10n.string("plugin.install.done")
+        } catch {
+            pluginStatusMessage = error.localizedDescription
+        }
+    }
+
+    private func installCatalogPlugin() {
+        let name = pluginPackageName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let node = pluginNodePath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        do {
+            let catalog = TerminalPluginCatalog.load()
+            guard let entry = catalog.plugins.first(where: { $0.name == name }) else {
+                pluginStatusMessage = L10n.format("plugin.error.not_in_catalog", name)
+                return
+            }
+            try pluginStore.installFromCatalog(
+                packageName: entry.name,
+                version: entry.version,
+                catalogDirectory: catalog.directory,
+                nodeExecutable: URL(fileURLWithPath: node)
+            )
+            pluginPackageName = ""
+            pluginStatusMessage = L10n.string("plugin.install.done")
+        } catch {
+            pluginStatusMessage = error.localizedDescription
+        }
+    }
+
     private func settingsProfileSubtitle(_ profile: TerminalProfile) -> String {
         let shell = L10n.string(profile.shell.titleKey)
         let prompt = L10n.string(profile.promptStyle.titleKey)
@@ -1108,6 +1265,7 @@ private enum SettingsTab: CaseIterable, Identifiable {
     case notifications
     case ai
     case tools
+    case plugins
 
     var id: Self { self }
 
@@ -1124,6 +1282,7 @@ private enum SettingsTab: CaseIterable, Identifiable {
         case .notifications: return "settings.tab.notifications"
         case .ai: return "settings.tab.ai"
         case .tools: return "settings.tab.tools"
+        case .plugins: return "settings.tab.plugins"
         }
     }
 
@@ -1140,6 +1299,7 @@ private enum SettingsTab: CaseIterable, Identifiable {
         case .notifications: return "bell.badge"
         case .ai: return "sparkles"
         case .tools: return "hammer"
+        case .plugins: return "puzzlepiece.extension"
         }
     }
 }
@@ -1178,7 +1338,7 @@ private enum SettingsGroup: CaseIterable, Identifiable {
         case .intelligence:
             return [.ai]
         case .automation:
-            return [.tools]
+            return [.tools, .plugins]
         }
     }
 

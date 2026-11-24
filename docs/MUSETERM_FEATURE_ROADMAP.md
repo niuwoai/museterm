@@ -4,7 +4,7 @@
 > 当前版本基线：v1.242.0-rc1
 > 文档状态：概念规划、可行性评估与落地状态跟踪。
 >
-> 插件体系（命令面板、AI 命令、录制）见 [PLUGIN_SYSTEM.md](PLUGIN_SYSTEM.md)。那是规划，不是已经落地的功能。
+> 插件体系（命令面板、AI 命令、录制）见 [PLUGIN_SYSTEM.md](PLUGIN_SYSTEM.md)。索引在 <https://github.com/niuwoai/museterm-plugins-manifest>，三个示例插件各有自己的仓库。
 
 ## 目标
 
