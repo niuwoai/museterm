@@ -186,6 +186,7 @@ final class TerminalPreferences: ObservableObject {
         static let confirmMultilinePaste = "terminal.confirmMultilinePaste"
         static let confirmDangerousCommands = "terminal.confirmDangerousCommands"
         static let sshRemoteCommandTrackingEnabled = "ssh.remoteCommandTrackingEnabled"
+        static let performanceReportsEnabled = "diagnostics.performanceReportsEnabled"
         static let customDangerousCommandRules = "terminal.customDangerousCommandRules"
         static let notificationsEnabled = "notifications.enabled"
         static let showInactiveTabNotificationBadges = "notifications.showInactiveTabBadges"
@@ -373,6 +374,9 @@ final class TerminalPreferences: ObservableObject {
     @Published var confirmMultilinePaste: Bool { didSet { defaults.set(confirmMultilinePaste, forKey: Keys.confirmMultilinePaste) } }
     @Published var confirmDangerousCommands: Bool { didSet { defaults.set(confirmDangerousCommands, forKey: Keys.confirmDangerousCommands) } }
     @Published var sshRemoteCommandTrackingEnabled: Bool { didSet { defaults.set(sshRemoteCommandTrackingEnabled, forKey: Keys.sshRemoteCommandTrackingEnabled) } }
+    @Published var performanceReportsEnabled: Bool {
+        didSet { defaults.set(performanceReportsEnabled, forKey: Keys.performanceReportsEnabled) }
+    }
     @Published var customDangerousCommandRules: String { didSet { defaults.set(customDangerousCommandRules, forKey: Keys.customDangerousCommandRules) } }
     @Published var notificationsEnabled: Bool { didSet { defaults.set(notificationsEnabled, forKey: Keys.notificationsEnabled) } }
     @Published var agentMonitoringEnabled: Bool { didSet { defaults.set(agentMonitoringEnabled, forKey: "agent.monitoringEnabled") } }
@@ -469,6 +473,7 @@ final class TerminalPreferences: ObservableObject {
         confirmMultilinePaste = defaults.object(forKey: Keys.confirmMultilinePaste) as? Bool ?? true
         confirmDangerousCommands = defaults.object(forKey: Keys.confirmDangerousCommands) as? Bool ?? true
         sshRemoteCommandTrackingEnabled = defaults.object(forKey: Keys.sshRemoteCommandTrackingEnabled) as? Bool ?? true
+        performanceReportsEnabled = defaults.object(forKey: Keys.performanceReportsEnabled) as? Bool ?? true
         customDangerousCommandRules = defaults.string(forKey: Keys.customDangerousCommandRules) ?? ""
         notificationsEnabled = defaults.object(forKey: Keys.notificationsEnabled) as? Bool ?? true
         agentMonitoringEnabled = defaults.object(forKey: "agent.monitoringEnabled") as? Bool ?? true

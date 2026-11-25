@@ -717,6 +717,12 @@
 "settings.custom_dangerous_rules.help" = "每行一条规则。普通文本按包含匹配；以 regex: 开头时按正则匹配；# 开头的行会被忽略。";
 "settings.cursor_shape" = "光标样式";
 "settings.cursor_blink" = "光标闪烁";
+"settings.performance_reports" = "共享性能报告";
+"settings.performance_reports.help" = "MuseTerm 持续占用较高 CPU 时，向 some.im 发送 CPU 用量、内存占用、脱敏调用栈、应用和系统版本、架构、界面语言及前后台状态。报告使用随机安装标识，不包含终端内容或命令。";
+"settings.performance_reports.delete" = "删除已共享的报告…";
+"settings.performance_reports.delete.help" = "关闭共享并删除这次安装已发送到 some.im 的性能报告？";
+"settings.performance_reports.delete.success" = "some.im 已处理删除请求。";
+"settings.performance_reports.delete.failure" = "未能删除共享的报告。共享已关闭，可重试删除。";
 "settings.notifications" = "通知";
 "settings.notifications.summary" = "MuseTerm 会尽量安静：当前标签不打扰，App 前台时非当前标签只显示小圆点，系统通知只在 App 不活跃时出现。";
 "settings.notifications.enabled" = "启用终端事件提醒";
