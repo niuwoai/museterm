@@ -9,6 +9,18 @@ import AppKit
 import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        PerformanceWatchdog.shared.start(isActive: NSApp.isActive)
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        PerformanceWatchdog.shared.setActive(true)
+    }
+
+    func applicationDidResignActive(_ notification: Notification) {
+        PerformanceWatchdog.shared.setActive(false)
+    }
+
     // 用户明确关闭所有窗口后退出 App；Cmd+W 在终端窗口内只关闭当前标签。
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
@@ -28,6 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        PerformanceWatchdog.shared.stop()
         // Closing a floating window during teardown must still detach its PTY.
         TerminalWindowCloseState.isAppTerminating = true
     }
@@ -45,6 +58,7 @@ struct musetermApp: App {
         #endif
         _preferences = StateObject(wrappedValue: preferences)
         SomeIMUpdateController.shared.start()
+        PerformanceWatchdog.shared.observe(preferences)
     }
 
     var body: some Scene {

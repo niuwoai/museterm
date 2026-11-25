@@ -717,6 +717,12 @@
 "settings.custom_dangerous_rules.help" = "One rule per line. Plain text uses contains matching; prefix with regex: for regular expressions; lines starting with # are ignored.";
 "settings.cursor_shape" = "Cursor style";
 "settings.cursor_blink" = "Blink cursor";
+"settings.performance_reports" = "Share performance reports";
+"settings.performance_reports.help" = "When MuseTerm uses sustained high CPU, share CPU usage, memory footprint, redacted call stacks, app and system version, architecture, app language, and foreground or background state with some.im. Reports use a random installation ID and do not include terminal content or commands.";
+"settings.performance_reports.delete" = "Delete shared reports…";
+"settings.performance_reports.delete.help" = "Turn off sharing and delete the performance reports this installation has sent to some.im?";
+"settings.performance_reports.delete.success" = "Some.im processed the deletion request.";
+"settings.performance_reports.delete.failure" = "Could not delete shared reports. Sharing is off. Try deleting again.";
 "settings.notifications" = "Notifications";
 "settings.notifications.summary" = "MuseTerm keeps alerts quiet while you are working: active tabs stay silent, inactive tabs get a dot, and system notifications are reserved for when the app is not active.";
 "settings.notifications.enabled" = "Enable terminal event alerts";

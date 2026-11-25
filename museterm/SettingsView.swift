@@ -417,6 +417,8 @@ struct SettingsView: View {
             Toggle(L10n.string("settings.cursor_blink"), isOn: $preferences.cursorBlink)
 
             Divider().padding(.vertical, 4)
+            PerformanceReportSettings(preferences: preferences)
+            Divider().padding(.vertical, 4)
             RecommendationBlacklistManagerView(skin: preferences.skin)
         }
     }
