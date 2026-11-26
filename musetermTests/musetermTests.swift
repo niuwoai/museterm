@@ -1322,6 +1322,26 @@ final class musetermTests: XCTestCase {
         XCTAssertTrue(kinds.contains(.stackTrace))
     }
 
+    func testOutputInsightAnalyzerKeepsUnicodeAndASCIICandidateSemantics() throws {
+        let noise = String(repeating: "性能测试 👩‍💻 123456\n", count: 1_000)
+        XCTAssertNil(TerminalOutputInsightAnalyzer.outputSummary(in: noise))
+
+        let output = noise + "AT\u{00A0}Frame\u{2028}See https://example.com/构建\u{0085}/目录/文件.swift:12\r\nſha abcdefa"
+        let summary = try XCTUnwrap(TerminalOutputInsightAnalyzer.outputSummary(in: output))
+        XCTAssertEqual(summary.stackTraceLine, "AT\u{00A0}Frame")
+        XCTAssertEqual(summary.url, "https://example.com/构建")
+        XCTAssertEqual(summary.filePath, "/example.com/构建")
+        XCTAssertEqual(summary.commitHash, "abcdefa")
+        XCTAssertTrue(TerminalOutputInsightAnalyzer.insights(in: output).contains {
+            $0.kind == .filePath && $0.value == "/目录/文件.swift:12"
+        })
+
+        let yaml = "# heading\nname: test\n" + String(repeating: "plain\n", count: 10) + "enabled: true"
+        XCTAssertTrue(TerminalOutputInsightAnalyzer.insights(in: yaml).contains { $0.kind == .yaml })
+        let yamlPastLimit = yaml.replacingOccurrences(of: "enabled: true", with: "plain\nenabled: true")
+        XCTAssertFalse(TerminalOutputInsightAnalyzer.insights(in: yamlPastLimit).contains { $0.kind == .yaml })
+    }
+
     func testOutputInsightAnalyzerFormatsJSONSummary() throws {
         let output = #"{"z":2,"a":{"ok":true}}"#
 

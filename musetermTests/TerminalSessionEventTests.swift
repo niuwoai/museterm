@@ -81,6 +81,40 @@ final class TerminalSessionEventTests: XCTestCase {
         XCTAssertNil(unused.eventStore)
     }
 
+    func testCommandOutputSummaryReusesIdenticalWindowAndRefreshesChangedOutput() throws {
+        let session = TerminalSession(sequence: 1)
+        let history = "prompt\n"
+        session.startShellIntegratedCommand(command: "build", historySnapshot: history)
+
+        let first = "ERROR old\n"
+        session.observeProcessOutput(historySnapshot: history + first)
+        let initial = try XCTUnwrap(session.commandBlocks.last)
+        session.observeProcessOutput(historySnapshot: history + first)
+        XCTAssertEqual(session.commandBlocks.last?.outputSummary, initial.outputSummary)
+        XCTAssertEqual(session.commandBlocks.last?.outputTail, first)
+
+        let replacement = "ERROR new\n"
+        XCTAssertEqual(replacement.count, first.count)
+        session.observeProcessOutput(historySnapshot: history + replacement)
+        XCTAssertEqual(session.commandBlocks.last?.outputSummary?.errorLine, "ERROR new")
+
+        let rolled = String(repeating: "普通输出\n", count: 14_000)
+        session.observeProcessOutput(historySnapshot: history + replacement + rolled)
+        XCTAssertNil(session.commandBlocks.last?.outputSummary)
+        XCTAssertEqual(session.commandBlocks.last?.outputCharacterCount, replacement.count + rolled.count)
+        var completion: TerminalCommandBlock?
+        session.commandCompletionHandler = { _, block in completion = block }
+        let final = "warning: final"
+        session.finishActiveCommand(exitCode: 0, completionSource: .shellIntegration,
+                                    historySnapshot: history + rolled + final)
+        XCTAssertEqual(completion?.outputSummary?.warningLine, final)
+        XCTAssertEqual(completion?.exitCode, 0)
+
+        session.startShellIntegratedCommand(command: "next", historySnapshot: history)
+        session.observeProcessOutput(historySnapshot: history + rolled + final)
+        XCTAssertEqual(session.commandBlocks.last?.outputSummary?.warningLine, final)
+    }
+
     func testCommandsAndProcessExitProduceMetadataEvents() throws {
         let registry = TerminalSessionRegistry()
         let session = TerminalSession(sequence: 1)
