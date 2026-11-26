@@ -109,6 +109,47 @@ enum TerminalOutputInsightAnalyzer {
     nonisolated private static let yamlKeyValueRegex = compiledRegex(#"^[A-Za-z0-9_.-]+\s*:\s*.+"#)
     nonisolated private static let yamlListItemRegex = compiledRegex(#"^-\s+[A-Za-z0-9_.-]+\s*:\s*.+"#)
 
+    nonisolated private struct KeywordCandidates: OptionSet {
+        let rawValue: UInt8
+
+        static let error = Self(rawValue: 1 << 0)
+        static let warning = Self(rawValue: 1 << 1)
+        static let stackKeyword = Self(rawValue: 1 << 2)
+        static let stackFrame = Self(rawValue: 1 << 3)
+        static let all: Self = [.error, .warning, .stackKeyword, .stackFrame]
+
+        init(rawValue: UInt8) {
+            self.rawValue = rawValue
+        }
+
+        init(in lowercasedLine: String) {
+            // These ASCII prefixes have no non-ASCII canonical equivalents. Only
+            // reject impossible matches here; Foundation still checks the full text.
+            var candidates: Self = []
+            var previous: UInt8 = 0
+            for byte in lowercasedLine.utf8 {
+                switch (previous, byte) {
+                case (UInt8(ascii: "e"), UInt8(ascii: "r")),
+                     (UInt8(ascii: "e"), UInt8(ascii: "x")),
+                     (UInt8(ascii: "f"), UInt8(ascii: "a")):
+                    candidates.insert(.error)
+                case (UInt8(ascii: "w"), UInt8(ascii: "a")):
+                    candidates.insert(.warning)
+                case (UInt8(ascii: "t"), UInt8(ascii: "r")),
+                     (UInt8(ascii: "s"), UInt8(ascii: "t")):
+                    candidates.insert(.stackKeyword)
+                case (UInt8(ascii: "a"), UInt8(ascii: "t")):
+                    candidates.insert(.stackFrame)
+                default:
+                    break
+                }
+                if candidates == .all { break }
+                previous = byte
+            }
+            self = candidates
+        }
+    }
+
     nonisolated private static func compiledRegex(_ pattern: String) -> NSRegularExpression? {
         try? NSRegularExpression(pattern: pattern)
     }
@@ -148,19 +189,18 @@ enum TerminalOutputInsightAnalyzer {
             let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !line.isEmpty else { continue }
             let lowercased = line.lowercased()
+            let candidates = KeywordCandidates(in: lowercased)
 
-            if lowercased.contains("error")
-                || lowercased.contains("exception")
-                || lowercased.contains("failed")
-                || lowercased.contains("fatal") {
+            if candidates.contains(.error),
+               lowercased.contains("error") || lowercased.contains("exception")
+                || lowercased.contains("failed") || lowercased.contains("fatal") {
                 append(.error, value: keyPhrase(from: line), line: line)
             }
-            if lowercased.contains("warning") || lowercased.contains("warn:") {
+            if candidates.contains(.warning), lowercased.contains("warning") || lowercased.contains("warn:") {
                 append(.warning, value: keyPhrase(from: line), line: line)
             }
-            if lowercased.contains("traceback")
-                || lowercased.contains("stack trace")
-                || (lowercased.utf8.contains(UInt8(ascii: "a")) && hasMatch(stackFrameRegex, in: lowercased)) {
+            if (candidates.contains(.stackKeyword) && (lowercased.contains("traceback") || lowercased.contains("stack trace")))
+                || (candidates.contains(.stackFrame) && hasMatch(stackFrameRegex, in: lowercased)) {
                 append(.stackTrace, value: keyPhrase(from: line), line: line)
             }
 
