@@ -575,6 +575,7 @@ final class TerminalSession: ObservableObject, Identifiable {
     private var pendingCommandBytes: [UInt8] = []
     private var activeCommandBlockID: UUID?
     private var activeCommandOutputStartIndex = 0
+    private var lastOutputSummarySource: String?
     private let maxCommandBlocks = 200
     private let maxCommandOutputTailCharacters = 12_000
     private let maxOutputSummaryScanCharacters = 65_536
@@ -783,13 +784,20 @@ final class TerminalSession: ObservableObject, Identifiable {
         }
 
         let output = historySuffix(from: activeCommandOutputStartIndex, in: historySnapshot)
-        commandBlocks[index].outputCharacterCount = output.count
-        commandBlocks[index].outputTail = String(output.suffix(maxCommandOutputTailCharacters))
-        // 摘要只扫输出尾部窗口：诊断信号几乎都在结尾，避免长输出命令每个输出块都全量重扫。
-        let summarySource = output.count > maxOutputSummaryScanCharacters
+        let characterCount = output.count
+        var block = commandBlocks[index]
+        block.outputCharacterCount = characterCount
+        block.outputTail = String(output.suffix(maxCommandOutputTailCharacters))
+        // The summary follows the current tail window, including when old lines roll out.
+        let summarySource = characterCount > maxOutputSummaryScanCharacters
             ? String(output.suffix(maxOutputSummaryScanCharacters))
             : output
-        commandBlocks[index].outputSummary = TerminalOutputInsightAnalyzer.outputSummary(in: summarySource)
+        // Regexes can distinguish canonically equivalent Swift strings. Compare the actual bytes.
+        if lastOutputSummarySource?.utf8.elementsEqual(summarySource.utf8) != true {
+            block.outputSummary = TerminalOutputInsightAnalyzer.outputSummary(in: summarySource)
+            lastOutputSummarySource = summarySource
+        }
+        commandBlocks[index] = block
     }
 
     func updateShellName(_ rawShellName: String?) {
@@ -943,6 +951,7 @@ final class TerminalSession: ObservableObject, Identifiable {
         eventStore?.publish(tabID: id, kind: .commandFinished, commandID: finishedBlock.id,
                             commandState: finishedBlock.commandLifecycleState)
         self.activeCommandBlockID = nil
+        lastOutputSummarySource = nil
         activeCommandOutputStartIndex = historySnapshot.count
         attentionReporter?.terminalSession(self, didProduceAttentionEvent: .commandFinished(finishedBlock))
         commandCompletionHandler?(self, finishedBlock)

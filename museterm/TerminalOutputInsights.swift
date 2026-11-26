@@ -160,20 +160,24 @@ enum TerminalOutputInsightAnalyzer {
             }
             if lowercased.contains("traceback")
                 || lowercased.contains("stack trace")
-                || hasMatch(stackFrameRegex, in: lowercased) {
+                || (lowercased.utf8.contains(UInt8(ascii: "a")) && hasMatch(stackFrameRegex, in: lowercased)) {
                 append(.stackTrace, value: keyPhrase(from: line), line: line)
             }
 
-            for url in matches(in: line, regex: urlRegex) {
-                append(.url, value: url, line: line)
+            // A URL or path match always contains a literal slash. Avoid running
+            // their regexes over ordinary log lines that cannot produce a match.
+            if line.utf8.contains(UInt8(ascii: "/")) {
+                for url in matches(in: line, regex: urlRegex) {
+                    append(.url, value: url, line: line)
+                }
+                for path in matches(in: line, regex: absolutePathRegex) {
+                    append(.filePath, value: path, line: line)
+                }
+                for relativePath in matches(in: line, regex: relativePathRegex) {
+                    append(.filePath, value: relativePath, line: line)
+                }
             }
-            for path in matches(in: line, regex: absolutePathRegex) {
-                append(.filePath, value: path, line: line)
-            }
-            for relativePath in matches(in: line, regex: relativePathRegex) {
-                append(.filePath, value: relativePath, line: line)
-            }
-            if hasMatch(commitContextRegex, in: line) {
+            if hasCommitHashCandidate(in: line), hasMatch(commitContextRegex, in: line) {
                 for hash in matches(in: line, regex: commitHashRegex) {
                     append(.commitHash, value: hash, line: line)
                 }
@@ -248,14 +252,32 @@ enum TerminalOutputInsightAnalyzer {
     }
 
     nonisolated private static func looksLikeYAML(_ text: String) -> Bool {
-        let lines = text.components(separatedBy: .newlines)
+        // Both YAML patterns require a literal colon.
+        guard text.utf8.contains(UInt8(ascii: ":")) else { return false }
+        let lines = text.components(separatedBy: .newlines).lazy
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty && !$0.hasPrefix("#") }
-        guard lines.count >= 2 else { return false }
         let yamlLikeCount = lines.prefix(12).filter { line in
             hasMatch(yamlKeyValueRegex, in: line) || hasMatch(yamlListItemRegex, in: line)
         }.count
         return yamlLikeCount >= 2
+    }
+
+    nonisolated private static func hasCommitHashCandidate(in line: String) -> Bool {
+        // The case-sensitive hash regex needs at least seven contiguous lowercase hex bytes.
+        let digits = UInt8(ascii: "0")...UInt8(ascii: "9")
+        let letters = UInt8(ascii: "a")...UInt8(ascii: "f")
+        let minimumHashLength = 7
+        var runLength = 0
+        for byte in line.utf8 {
+            if digits.contains(byte) || letters.contains(byte) {
+                runLength += 1
+                if runLength == minimumHashLength { return true }
+            } else {
+                runLength = 0
+            }
+        }
+        return false
     }
 
     nonisolated private static func firstNonEmptyLine(in text: String) -> String {
