@@ -1342,6 +1342,33 @@ final class musetermTests: XCTestCase {
         XCTAssertFalse(TerminalOutputInsightAnalyzer.insights(in: yamlPastLimit).contains { $0.kind == .yaml })
     }
 
+    func testOutputInsightKeywordPrefilterPreservesFoundationMatching() throws {
+        let stackFrame = try NSRegularExpression(pattern: #"^\s*at\s+\S+"#)
+        let keywords = ["ERROR", "exception", "FAILED", "Fatal", "Warning", "WaRn:", "TRACEBACK", "stack trace"]
+        let fixtures = keywords.flatMap { keyword in
+            [keyword, "编译 \(keyword) 👩‍💻", "\(keyword)\u{0301}", "\(keyword)\u{200D}",
+             "\u{0301}\(keyword)", String(keyword.prefix(1)) + "\u{034F}" + keyword.dropFirst()]
+        } + ["stacK trace", "ſtack trace", "ＳＴＡＣＫ ＴＲＡＣＥ", "AT\u{00A0}frame", "atoll",
+             "prefix at frame", "extract warm start traffic", "错误 e\u{0301} 👩‍💻", "fatal warning stack trace"]
+
+        for fixture in fixtures {
+            let lowered = fixture.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let range = NSRange(lowered.startIndex..<lowered.endIndex, in: lowered)
+            var expected: [TerminalOutputInsightKind] = []
+            if ["error", "exception", "failed", "fatal"].contains(where: { lowered.contains($0) }) {
+                expected.append(.error)
+            }
+            if lowered.contains("warning") || lowered.contains("warn:") {
+                expected.append(.warning)
+            }
+            if lowered.contains("traceback") || lowered.contains("stack trace")
+                || stackFrame.firstMatch(in: lowered, range: range) != nil {
+                expected.append(.stackTrace)
+            }
+            XCTAssertEqual(TerminalOutputInsightAnalyzer.insights(in: fixture).map(\.kind), expected, fixture.debugDescription)
+        }
+    }
+
     func testOutputInsightAnalyzerFormatsJSONSummary() throws {
         let output = #"{"z":2,"a":{"ok":true}}"#
 
