@@ -121,6 +121,21 @@ public final class BufferLine: CustomDebugStringConvertible {
     // The page owns only packed cells. Its arena is shared by all lines in the
     // same terminal.
     private var storage: CellStoragePage
+#if !SWIFTTERM_EMBEDDED
+    // One encoded row per retained line. Access follows the terminal's normal
+    // synchronization rules, just like reads from its cell storage.
+    private var historyUTF8: (generation: UInt64, bytes: Data)?
+
+    func historyUTF8Bytes(makeText: () -> String) -> Data {
+        if let historyUTF8, historyUTF8.generation == generation {
+            return historyUTF8.bytes
+        }
+        var bytes = Data(makeText().utf8)
+        bytes.append(0x0A)
+        historyUTF8 = (generation, bytes)
+        return bytes
+    }
+#endif
 
     /// Upper bound on the cells that can contain data other than a blank cell
     /// with ``tailBlankCell``.

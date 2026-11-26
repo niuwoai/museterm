@@ -76,7 +76,8 @@ struct PerformanceReportTests {
               86 start  (in dyld) + 6652  [0x187b40d7c]
                 86 runLoop  (in Foundation) + 8  [0x177b40d08]
                 86 redraw  (in MuseTerm) + 18 (private.swift:20) [0x10436c674]
-                  86 private_plugin_symbol  (in secret-addon) + 8  [0x199bcf008]
+                  82 exportHistory  (in MuseTerm) + 48  [0x10436c688]  /Users/private owner/[0x199bcf008]/Host.swift:1409
+                    82 private_plugin_symbol  (in secret-addon) + 8  [0x199bcf008]  Plugin.swift:42
                   86 evil/path  (in dyld) + 5  [0x187b40d77]
 
         Total number in stack (recursive counted multiple, when >=5):
@@ -92,13 +93,74 @@ struct PerformanceReportTests {
         ))
         for kept in ["928K", "944K", "Thread_45106520", "start  (in dyld)", "redraw  (in MuseTerm)",
                      "runLoop  (in com.apple.Foundation)",
-                     "[0x199bcf008]", "84EDE66A-D6E7-36ED-A512-3FDBDE7D9265"] {
+                     "exportHistory  (in MuseTerm)  [0x10436c688]",
+                     "???  [0x199bcf008]", "84EDE66A-D6E7-36ED-A512-3FDBDE7D9265"] {
             #expect(clean.contains(kept))
         }
         for removed in ["private", "evil/path", "secret", "/Users/", "/usr/lib/", "/Volumes/", "F2BCEB9A"] {
             #expect(!clean.contains(removed))
         }
         #expect(PerformanceStackRedactor.redact("empty or unexpected sample format", executableURL: nil) == nil)
+    }
+
+    @Test func matchesRedactedApplicationImagePathsByTheirLiveLoadAddresses() throws {
+        let text = """
+        Call graph:
+            86 Thread_1
+              86 exportedBuffer  (in MuseTerm.debug.dylib) + 32  [0x10436c674]  TerminalHostView.swift:1409
+                86 pluginEntry  (in MuseTerm.debug.dylib) + 8  [0x199bcf008]  Plugin.swift:42
+
+        Binary Images:
+        0x10436c000 - 0x10436c757 +MuseTerm.debug.dylib (0) <84EDE66A-D6E7-36ED-A512-3FDBDE7D9265> /tmp/*/MuseTerm.app/Contents/MacOS/MuseTerm.debug.dylib
+        0x199bcf000 - 0x199c0da5b +MuseTerm.debug.dylib (0) <F2BCEB9A-0FEC-3C92-B6EA-8E37157050E8> /tmp/*/MuseTerm.app/Contents/MacOS/MuseTerm.debug.dylib
+        """
+        let executable = URL(fileURLWithPath: "/private/tmp/isolated/MuseTerm.app/Contents/MacOS/MuseTerm")
+        let clean = try #require(PerformanceStackRedactor.redact(
+            text, executableURL: executable, applicationImageAddresses: [0x10436c000]
+        ))
+        #expect(clean.contains("exportedBuffer  (in MuseTerm.debug.dylib)  [0x10436c674]"))
+        #expect(clean.contains("84EDE66A-D6E7-36ED-A512-3FDBDE7D9265"))
+        #expect(clean.contains("???  [0x199bcf008]"))
+        for removed in ["F2BCEB9A-0FEC-3C92-B6EA-8E37157050E8", "pluginEntry", "TerminalHostView.swift", "Plugin.swift", "/tmp/", ":1409"] {
+            #expect(!clean.contains(removed))
+        }
+    }
+
+    @Test func preservesLaterThreadsInAReportLargerThanTheOldGraphLimit() throws {
+        let text = longSample(frameCount: 6_000)
+        let clean = try #require(PerformanceStackRedactor.redact(text, executableURL: nil))
+        #expect(clean.utf8.count > 512 * 1024)
+        #expect(clean.contains("endOfFirstThread"))
+        #expect(clean.contains("Thread_2\n"))
+        #expect(clean.contains("workerMain"))
+        #expect(!clean.contains("Call graph truncated"))
+        #expect(!clean.contains("private-queue"))
+    }
+
+    @Test func oversizedGraphKeepsEveryThreadAndMarksOmittedFrames() throws {
+        let text = longSample(frameCount: 12_000)
+        let clean = try #require(PerformanceStackRedactor.redact(text, executableURL: nil))
+        #expect(clean.utf8.count <= 1024 * 1024)
+        #expect(clean.contains("Call graph truncated"))
+        #expect(clean.contains("Thread_1\n"))
+        #expect(clean.contains("mainThreadEntry"))
+        #expect(!clean.contains("endOfFirstThread"))
+        #expect(clean.contains("Thread_2\n"))
+        #expect(clean.contains("workerMain"))
+        #expect(clean.contains("workerLeaf"))
+        #expect(clean.contains("D8104ED6-185E-3A2F-AD71-B91EDDBE2598"))
+    }
+
+    private func longSample(frameCount: Int) -> String {
+        let largeSymbol = "longSymbol" + String(repeating: "X", count: 90)
+        let frames = String(repeating: "    +   1 \(largeSymbol)  (in dyld) + 4 [0x187b40d7c]\n", count: frameCount)
+        return "Call graph:\n    1 Thread_1   DispatchQueue_1: private-queue\n"
+            + "    + 1 mainThreadEntry  (in dyld) + 4 [0x187b40d7c]\n" + frames
+            + "    +   1 endOfFirstThread  (in dyld) + 4 [0x187b40d7c]\n\n"
+            + "    1 Thread_2\n    + 1 workerMain  (in dyld) + 4 [0x187b40d7c]\n"
+            + "    +   1 workerLeaf  (in dyld) + 4 [0x187b40d7c]\n\n"
+            + "Total number in stack (recursive counted multiple, when >=5):\n\nBinary Images:\n"
+            + "0x187b0f000 - 0x187bcec83  dyld (1.0) <D8104ED6-185E-3A2F-AD71-B91EDDBE2598> /usr/lib/dyld\n"
     }
 
     @Test(.timeLimit(.minutes(1))) func capturesAndRedactsARealMacOSSample() async throws {
