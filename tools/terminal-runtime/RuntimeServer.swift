@@ -169,7 +169,7 @@ final class RuntimeServer {
         var response = TerminalRuntimeResponse(serviceEpoch: epoch, id: request.id, action: request.action)
         response.features = [TerminalRuntimeLimits.restartExitedFeature, TerminalRuntimeLimits.agentToolsFeature,
                              TerminalRuntimeLimits.eventWaitFeature, TerminalRuntimeLimits.commandLifecycleFeature,
-                             TerminalRuntimeLimits.terminalAttentionFeature]
+                             TerminalRuntimeLimits.terminalAttentionFeature, TerminalRuntimeLimits.outputGridFeature]
         do {
             guard request.protocolVersion == TerminalRuntimeLimits.protocolVersion else {
                 response.ok = false; response.error = "incompatible_protocol"; return response
@@ -242,7 +242,8 @@ final class RuntimeServer {
                     guard session.running, echo >= 0, foreground > 0 else { throw RuntimeFailure.unavailable }
                     response.echoEnabled = echo == 1
                     response.foregroundPID = foreground
-                case .read, .subscribe: try fillOutput(&response, session: session, after: request.after)
+                case .read, .subscribe:
+                    try fillOutput(&response, session: session, after: request.after, includingGrid: request.includeOutputGrid == true)
                 case .input: response.echoEnabled = try session.input(request)
                 case .resize: try session.resize(request)
                 case .acquireControl, .renewControl, .releaseControl: try session.updateControl(request)
@@ -292,10 +293,14 @@ final class RuntimeServer {
     }
 
     private func fillOutput(_ response: inout TerminalRuntimeResponse, session: RuntimeSession,
-                            after: TerminalRuntimeOutputCursor?) throws {
-        let batch = try session.journal.read(after: after, limit: TerminalRuntimeLimits.maximumOutputBytes)
+                            after: TerminalRuntimeOutputCursor?, includingGrid: Bool) throws {
+        let batch = try session.journal.read(after: after, limit: TerminalRuntimeLimits.maximumOutputBytes, includingGrid: includingGrid)
         response.data = batch.data; response.cursor = batch.cursor
         response.hasGap = batch.hasGap; response.latestOffset = batch.latestOffset
+        response.outputGrid = batch.grid
+        if includingGrid, !session.running, session.fd < 0, batch.cursor == session.journal.head(includingGrid: true) {
+            response.outputFinished = true
+        }
         response.attention = attention.activeItems.filter { $0.tabID == session.id }
         response.eventHead = events.cursor
         if session.fd >= 0 { response.foregroundPID = tcgetpgrp(session.fd) }
@@ -310,14 +315,15 @@ final class RuntimeServer {
                 enqueue(response, on: client); client.subscription = nil; continue
             }
             let currentAttention = attention.activeItems.filter { $0.tabID == session.id }
-            guard session.journal.cursor != client.subscriptionCursor || session.running != client.subscriptionRunning
+            let includingGrid = request.includeOutputGrid == true
+            guard session.journal.head(includingGrid: includingGrid) != client.subscriptionCursor || session.running != client.subscriptionRunning
                 || !TerminalAgentSnapshot.sameEvidence(session.agentMonitor.snapshot, client.subscriptionAgent)
                 || session.controlEpoch != client.subscriptionControlEpoch
                 || session.leaseExpiresAt != client.subscriptionControlExpiresAt
                 || ProcessInfo.processInfo.systemUptime - client.subscriptionPublishedAt >= TerminalRuntimeLimits.subscriptionHeartbeat
                 || currentAttention != client.subscriptionAttention else { continue }
             do {
-                try fillOutput(&response, session: session, after: client.subscriptionCursor)
+                try fillOutput(&response, session: session, after: client.subscriptionCursor, includingGrid: includingGrid)
                 response.session = session.info
                 enqueue(response, on: client)
                 client.subscriptionCursor = response.cursor

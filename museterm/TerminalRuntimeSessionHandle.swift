@@ -69,9 +69,7 @@ final class TerminalRuntimeSessionHandle {
                 self.eventCursor = response.eventHead
                 if let info = response.session { self.accept(info, receivedOutput: true) }
                 let rendered = { [weak self] in
-                    if let self, let cursor = response.cursor, self.renderedCursor != cursor,
-                       self.renderedCursor == nil || self.renderedCursor?.generation != cursor.generation
-                        || self.renderedCursor!.offset < cursor.offset {
+                    if let self, let cursor = response.cursor, cursor.advances(self.renderedCursor) {
                         self.renderedCursor = cursor
                         self.onRenderedOutput?()
                     }
@@ -428,6 +426,7 @@ nonisolated private final class TerminalRuntimeSessionIO: @unchecked Sendable {
                     if superseded { connection.cancel(); return }
                     var request = TerminalRuntimeRequest(action: .subscribe)
                     request.sessionID = id; request.generation = initialInfo.generation; request.after = outputCursor
+                    request.includeOutputGrid = true
                     var response = try connection.request(request)
                     while !isStopped, isCurrentReader(generation) {
                         guard response.serviceEpoch == expectedEpoch, response.session?.generation == initialInfo.generation else {

@@ -9,6 +9,7 @@ nonisolated enum TerminalRuntimeLimits {
     static let eventWaitFeature = "event_wait_v1"
     static let commandLifecycleFeature = "command_lifecycle_v1"
     static let terminalAttentionFeature = "terminal_attention_v1"
+    static let outputGridFeature = "output_grid_v1"
     static let maximumFrameBytes = 131_072
     // Requests stay small; 64 session projections include bounded command,
     // Agent and escaped path metadata, independently of PTY output chunks.
@@ -78,6 +79,7 @@ nonisolated struct TerminalRuntimeSessionInfo: Codable {
     var outputRevision: Int? = nil
     var commands: [TerminalRuntimeCommandInfo]? = nil
     var reminderPolicy: TerminalReminderPolicy? = nil
+    var outputGridSequence: UInt64? = nil
 }
 
 nonisolated struct TerminalRuntimeRequest: Codable {
@@ -90,6 +92,7 @@ nonisolated struct TerminalRuntimeRequest: Codable {
     var controlEpoch: UUID? = nil
     var launch: TerminalRuntimeLaunch? = nil
     var after: TerminalRuntimeOutputCursor? = nil
+    var includeOutputGrid: Bool? = nil
     var data: Data? = nil
     var columns: Int? = nil
     var rows: Int? = nil
@@ -121,6 +124,8 @@ nonisolated struct TerminalRuntimeResponse: Codable {
     var data: Data? = nil
     var cursor: TerminalRuntimeOutputCursor? = nil
     var latestOffset: UInt64? = nil
+    var outputGrid: TerminalRuntimeGrid? = nil
+    var outputFinished: Bool? = nil
     var hasGap: Bool? = nil
     var echoEnabled: Bool? = nil
     var foregroundPID: Int32? = nil

@@ -310,8 +310,21 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
 
     func synchronizeTerminalSizeWithBackend() {
         super.setFrameSize(frame.size)
-        let dimensions = terminalDimensions
-        terminalDidResize(newCols: dimensions.cols, newRows: dimensions.rows)
+        if onLayoutGridChange == nil {
+            let dimensions = terminalDimensions
+            terminalDidResize(newCols: dimensions.cols, newRows: dimensions.rows)
+        }
+    }
+
+    func setRuntimeGridControl(ordered: Bool, holdingInitialReplay: Bool = false) {
+        pendingResizeWorkItem?.cancel()
+        if holdingInitialReplay {
+            onLayoutGridChange = { _, _ in }
+        } else if ordered {
+            onLayoutGridChange = { [weak self] cols, rows in self?.terminalDidResize(newCols: cols, newRows: rows) }
+        } else {
+            onLayoutGridChange = nil
+        }
     }
 
     func requestFocus() {
@@ -813,7 +826,14 @@ final class FocusableLocalProcessTerminalView: LocalProcessTerminalView {
         guard backendIsRunning else { return }
         let workItem = DispatchWorkItem { [weak self] in
             guard let self, self.backendIsRunning else { return }
-            let dimensions = self.terminalDimensions
+            let dimensions: (cols: Int, rows: Int)
+            if self.onLayoutGridChange != nil {
+                guard let layout = self.layoutGridDimensions else { return }
+                dimensions = layout
+            } else {
+                let current = self.terminalDimensions
+                dimensions = (current.cols, current.rows)
+            }
             guard dimensions.cols == newCols, dimensions.rows == newRows else {
                 self.terminalDidResize(newCols: dimensions.cols, newRows: dimensions.rows)
                 return

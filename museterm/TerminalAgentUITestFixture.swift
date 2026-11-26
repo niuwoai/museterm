@@ -16,9 +16,18 @@ enum TerminalAgentUITestFixture {
             return
         }
         do {
-            let grant = try tab.bindAgent(kind: .codex)
-            try tab.reportAgent(TerminalAgentReport(instanceID: grant.instanceID, runID: grant.runID,
-                token: grant.token, sequence: 1, activity: .blocked, blockReason: .question))
+            let agentTab: TerminalSession
+            if ProcessInfo.processInfo.arguments.contains("-ui-testing-sidebar-title") {
+                let directory = TerminalToolPaths.rootDirectory.appendingPathComponent("muchtoken", isDirectory: true)
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                agentTab = workspace.newTab(startDirectory: directory.path, profile: TerminalProfile(shell: .bash))
+            } else {
+                agentTab = tab
+            }
+            let grant = try agentTab.bindAgent(kind: .codex)
+            try agentTab.reportAgent(TerminalAgentReport(instanceID: grant.instanceID, runID: grant.runID,
+                token: grant.token, sequence: 1, activity: .blocked, blockReason: .question,
+                context: TerminalAgentReportedContext(sessionID: agentTab.id, title: "Fixture task")))
             if ProcessInfo.processInfo.arguments.contains("-ui-testing-agent-detached"), let preferences = workspace.preferences {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     DetachedTerminalPanelManager.shared.detach(tab, workspace: workspace, preferences: preferences)

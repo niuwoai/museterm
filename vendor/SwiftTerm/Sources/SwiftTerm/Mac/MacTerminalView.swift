@@ -482,6 +482,18 @@ open class TerminalView: NSView, NSUserInterfaceValidations, TerminalDelegate {
 
 #endif
 
+    /// Lets a PTY host serialize layout requests with its incoming output.
+    public var onLayoutGridChange: ((_ cols: Int, _ rows: Int) -> Void)? {
+        didSet {
+            guard onLayoutGridChange != nil else { return }
+#if canImport(MetalKit)
+            withRenderLoopSuspended { renderOwner.mailbox.discardQueuedSize() }
+#else
+            renderOwner.mailbox.discardQueuedSize()
+#endif
+        }
+    }
+
     var cellDimension: CellDimension!
     /// The backing scale `cellDimension` was snapped to; see `computeFontDimensions`.
     var cellDimensionBackingScale: CGFloat = 1

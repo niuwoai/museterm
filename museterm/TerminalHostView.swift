@@ -1925,6 +1925,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
         applyScrollbackLines(preferences?.scrollbackLines ?? TerminalPreferences.defaultScrollbackLines)
         guard terminalView.backendIsRunning else { return }
         if let runtimeHandle {
+            guard !isTerminating, canStartProcess, newCols > 0, newRows > 0 else { return }
             runtimeHandle.resize(columns: newCols, rows: newRows)
             noteStartupOutputActivity()
             return
@@ -2084,17 +2085,35 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             }
             return accepted
         }
+        var didConfigureGrid = false
+        var initialReplayThrough: TerminalRuntimeOutputCursor?
         var didSynchronizeInitialSize = false
         handle.onState = { [weak self, weak handle] info in
             guard let self, let handle, self.runtimeHandle === handle, let session = self.session else { return }
-            let dimensions = self.terminalView.terminalDimensions
-            if !didSynchronizeInitialSize, self.canStartProcess, info.running,
-               dimensions.cols > 0, dimensions.rows > 0 {
-                // Layout may have completed before a backend existed, when the
-                // resize callback intentionally skipped the unavailable PTY.
+            if !didConfigureGrid {
+                didConfigureGrid = true
+                let ordered = handle.features.contains(TerminalRuntimeLimits.outputGridFeature)
+                if restoring, !handle.createdNewPTY, info.outputOffset > 0 || (info.outputGridSequence ?? 0) > 0 {
+                    // Intermediate window sizes during restoration must not resize
+                    // the original PTY while its screen is being reconstructed.
+                    initialReplayThrough = .init(generation: info.generation, offset: info.outputOffset,
+                                                 gridSequence: info.outputGridSequence)
+                    if !ordered {
+                        self.terminalView.applyGridSize(cols: info.columns, rows: info.rows)
+                    }
+                }
+                self.terminalView.setRuntimeGridControl(ordered: ordered, holdingInitialReplay: initialReplayThrough != nil)
+            }
+            if !didSynchronizeInitialSize, initialReplayThrough == nil, self.canStartProcess, info.running,
+               let dimensions = self.terminalView.layoutGridDimensions, dimensions.cols > 0, dimensions.rows > 0 {
+                // Layout may have completed before the backend became available.
                 didSynchronizeInitialSize = true
-                if info.columns != dimensions.cols || info.rows != dimensions.rows {
-                    handle.resize(columns: dimensions.cols, rows: dimensions.rows)
+                if handle.createdNewPTY {
+                    if info.columns != dimensions.cols || info.rows != dimensions.rows {
+                        handle.resize(columns: dimensions.cols, rows: dimensions.rows)
+                    }
+                } else {
+                    self.terminalView.synchronizeTerminalSizeWithBackend()
                 }
             }
             if !handle.createdNewPTY { self.finishStartupPromptDeduplication() }
@@ -2112,6 +2131,7 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             self.reportRuntimeExitIfReady(handle)
         }
         var didBecomeReady = false
+        var appliedGrid: TerminalRuntimeGrid?
         handle.onOutput = { [weak self, weak handle] response, historicalBytes, consumed in
             guard let self, let handle, self.runtimeHandle === handle, let session = self.session else { consumed(); return }
             self.runtimeForegroundPID = response.foregroundPID
@@ -2122,6 +2142,10 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             if session.runtimeOwnsAgent || session.runtimeOwnsTerminalAttention {
                 session.attentionStore?.adoptAgentItems(response.attention ?? [], tabID: session.id, cursor: response.eventHead)
             }
+            if let grid = response.outputGrid, appliedGrid != grid {
+                self.terminalView.applyGridSize(cols: grid.columns, rows: grid.rows)
+                appliedGrid = grid
+            }
             if response.hasGap == true {
                 self.terminalView.beginTruncatedRuntimeReplay()
                 self.terminalView.feed(text: "\u{1b}[0m\u{1b}[2J\u{1b}[H")
@@ -2130,7 +2154,22 @@ final class TerminalHostController: NSObject, LocalProcessTerminalViewDelegate {
             if let end = response.cursor?.offset, end >= UInt64(data.count) {
                 self.runtimeParsingOffset = end - UInt64(data.count) + UInt64(min(data.count, max(0, historicalBytes)))
             }
-            self.terminalView.receiveExternal(data, historicalBytes: historicalBytes, completion: consumed)
+            self.terminalView.receiveExternal(data, historicalBytes: historicalBytes) { [weak self, weak handle] in
+                let initialReplayFinished = initialReplayThrough.map { end in
+                    response.cursor.map { !end.advances($0) } ?? false
+                } ?? false
+                if let self, let handle, self.runtimeHandle === handle, self.terminalView.onLayoutGridChange != nil,
+                   initialReplayFinished || response.outputFinished == true {
+                    initialReplayThrough = nil
+                    let ordered = response.outputFinished != true && handle.features.contains(TerminalRuntimeLimits.outputGridFeature)
+                    self.terminalView.setRuntimeGridControl(ordered: ordered)
+                    if self.canStartProcess {
+                        didSynchronizeInitialSize = true
+                        self.terminalView.synchronizeTerminalSizeWithBackend()
+                    }
+                }
+                consumed()
+            }
             self.runtimeParsingOffset = nil
             if !didBecomeReady {
                 didBecomeReady = true

@@ -548,14 +548,6 @@ struct TabRowView: View {
     let detachAction: () -> Void
     var contextMenuContent: AnyView? = nil
     @State private var isHovering = false
-    @State private var isTitleHovering = false
-
-    private var displayTitle: String {
-        if let title = tab.agentStatus?.context?.title, !title.isEmpty {
-            return title
-        }
-        return tab.tabTitle
-    }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -575,11 +567,11 @@ struct TabRowView: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 5) {
-                    TabTitleScroller(
-                        title: displayTitle,
-                        isHovering: isTitleHovering,
-                        font: .caption.weight(.semibold)
-                    )
+                    Text(tab.tabTitle)
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .help(tab.tabTitle)
                     if let shortcutNumber {
                         Text(verbatim: "⌘\(shortcutNumber)")
                             .font(.caption2.monospacedDigit())
@@ -773,81 +765,6 @@ private struct ShellBadge: View {
             .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
             .fixedSize(horizontal: true, vertical: false)
             .help(L10n.format("tab.shell.help", shellName))
-    }
-}
-
-private struct TabTitleScroller: View {
-    let title: String
-    let isHovering: Bool
-    let font: Font
-    @State private var offset: CGFloat = 0
-    @State private var textWidth: CGFloat = 0
-    @State private var containerWidth: CGFloat = 0
-    @State private var animationTask: Task<Void, Never>?
-
-    private var needsScroll: Bool {
-        textWidth > containerWidth && containerWidth > 0
-    }
-
-    var body: some View {
-        Text(title)
-            .font(font)
-            .lineLimit(1)
-            .fixedSize(horizontal: true, vertical: false)
-            .background(
-                GeometryReader { geo in
-                    Color.clear.onAppear { textWidth = geo.size.width }
-                }
-            )
-            .frame(maxWidth: containerWidth, alignment: .leading)
-            .offset(x: needsScroll && isHovering ? offset : 0)
-            .clipped()
-            .background(
-                GeometryReader { geo in
-                    Color.clear.onAppear { containerWidth = geo.size.width }
-                }
-            )
-            .help(title)
-            .onChange(of: isHovering) { hovering in
-                if hovering && needsScroll {
-                    startScrollAnimation()
-                } else {
-                    stopScrollAnimation()
-                }
-            }
-            .onChange(of: textWidth) { _ in
-                if isHovering && needsScroll {
-                    startScrollAnimation()
-                }
-            }
-    }
-
-    private func startScrollAnimation() {
-        stopScrollAnimation()
-        guard needsScroll else { return }
-        let scrollDistance = textWidth - containerWidth
-        animationTask = Task {
-            while !Task.isCancelled {
-                withAnimation(.linear(duration: Double(scrollDistance) / 30)) {
-                    offset = -scrollDistance
-                }
-                try? await Task.sleep(nanoseconds: UInt64(scrollDistance / 30 * 1_000_000_000))
-                if Task.isCancelled { break }
-                try? await Task.sleep(nanoseconds: 500_000_000)
-                withAnimation(.linear(duration: Double(scrollDistance) / 30)) {
-                    offset = 0
-                }
-                try? await Task.sleep(nanoseconds: UInt64(scrollDistance / 30 * 1_000_000_000))
-                if Task.isCancelled { break }
-                try? await Task.sleep(nanoseconds: 500_000_000)
-            }
-        }
-    }
-
-    private func stopScrollAnimation() {
-        animationTask?.cancel()
-        animationTask = nil
-        offset = 0
     }
 }
 

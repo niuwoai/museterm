@@ -48,6 +48,10 @@ final class TerminalRenderMailbox: Sendable {
         }
     }
 
+    func discardQueuedSize () {
+        state.withLock { $0.pendingSize = nil }
+    }
+
     func setAccessibilityNotification (_ shouldNotify: Bool) {
         state.withLock { $0.suppressAccessibility = !shouldNotify }
     }
