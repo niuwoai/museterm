@@ -35,6 +35,20 @@ final class TerminalRuntimeViewTests: XCTestCase {
         XCTAssertEqual(unchanged.data, response.data)
     }
 
+    func testReconnectDropsOnlyAlreadyRenderedResizeFrames() {
+        let generation = UUID()
+        let rendered = TerminalRuntimeOutputCursor(generation: generation, offset: 110, gridSequence: 2)
+        var response = TerminalRuntimeResponse(serviceEpoch: UUID(), id: UUID(), action: .subscribe)
+        response.data = Data()
+        response.outputGrid = .init(columns: 80, rows: 35)
+        response.cursor = .init(generation: generation, offset: 110, gridSequence: 1)
+        let (stale, _) = TerminalRuntimeReplayBoundary.removingRenderedOverlap(from: response, renderedThrough: rendered, historicalBytes: 0)
+        XCTAssertNil(stale.outputGrid)
+        response.cursor = .init(generation: generation, offset: 110, gridSequence: 3)
+        let (next, _) = TerminalRuntimeReplayBoundary.removingRenderedOverlap(from: response, renderedThrough: rendered, historicalBytes: 0)
+        XCTAssertEqual(next.outputGrid, response.outputGrid)
+    }
+
     func testDetachCancelsScheduledSubscriptionRetry() async throws {
         let (root, helper) = try await startService()
         let handle = TerminalRuntimeSessionHandle(id: UUID(), root: root, executable: helper)
@@ -418,10 +432,98 @@ final class TerminalRuntimeViewTests: XCTestCase {
         XCTAssertGreaterThan(try XCTUnwrap(restored.runtimeRenderedCursor).offset, cursor.offset)
     }
 
+    func testReopenedViewerKeepsOnlyTheCurrentStatusAfterTerminalGrows() async throws {
+        let (root, helper) = try await startService()
+        let original = TerminalSession(sequence: 1)
+        // The first frame writes and erases a footer using two equivalent ways
+        // to reach the old bottom row. The next frame uses the new PTY height.
+        let script = """
+        stty raw -echo
+        printf '__FOOTER_READY__'
+        read_byte() { dd bs=1 count=1 of=/dev/null 2>/dev/null; }
+        read_byte
+        set -- $(stty size)
+        printf '\\033[2J\\033[H__BODY__\\033[%s;1H__STATUS_OLD__\\033[999;1H\\033[2K\\033[H' "$1"
+        printf '__FIRST_FRAME__'
+        read_byte
+        set -- $(stty size)
+        printf '\\033[%s;1H__STATUS_CURRENT__\\033[H' "$1"
+        read_byte
+        """
+        let launch = TerminalRuntimeLaunch(executable: "/bin/sh", arguments: ["-c", script],
+            environment: ["PATH": "/usr/bin:/bin", "HOME": root.path, "TERM": "xterm-256color"], directory: root.path)
+        let smallerSize = NSSize(width: 900, height: 450)
+        attach(original, launch: launch, root: root, helper: helper, size: smallerSize)
+        let controller = original.controller
+        let terminal = try XCTUnwrap(controller.container.subviews.compactMap { $0 as? FocusableLocalProcessTerminalView }.first)
+        controller.setActive(true)
+        try await waitUntil("old PTY grid is stable") {
+            original.runtimeInfo?.rows == terminal.terminalDimensions.rows &&
+                controller.visibleScreenText().contains("__FOOTER_READY__")
+        }
+        let initial = try XCTUnwrap(original.runtimeInfo)
+        controller.sendProcessInput(bytes: [0x31])
+        try await waitUntil("original grid rendered the first frame") {
+            controller.visibleScreenText().contains("__FIRST_FRAME__")
+        }
+        XCTAssertFalse(controller.visibleScreenText().contains("__STATUS_OLD__"))
+        let largerSize = NSSize(width: 900, height: 600)
+        controller.container.setFrameSize(largerSize)
+        try await waitUntil("PTY has the new height") {
+            terminal.terminalDimensions.rows > initial.rows && original.runtimeInfo?.rows == terminal.terminalDimensions.rows
+        }
+        controller.sendProcessInput(bytes: [0x32])
+        try await waitUntil("original grid rendered the current footer") {
+            controller.visibleScreenText().contains("__STATUS_CURRENT__")
+        }
+        let before = controller.visibleScreenText().components(separatedBy: "\n")
+        XCTAssertEqual(before.last, "__STATUS_CURRENT__")
+        XCTAssertFalse(before.contains("__STATUS_OLD__"))
+        let cursor = try XCTUnwrap(original.runtimeRenderedCursor)
+        controller.detachRuntimeViewer()
+
+        let restored = TerminalSession(sequence: 2, id: original.id)
+        restored.runtimeGenerationToRestore = initial.generation
+        restored.runtimeRenderedCursorToRestore = cursor
+        attach(restored, launch: .init(executable: "/museterm-must-not-launch", directory: root.path),
+               root: root, helper: helper, size: smallerSize)
+        let restoredHandle = try XCTUnwrap(restored.controller.runtimeHandle)
+        // Hold the first frame while the window is at its default size. Keep
+        // that layout in place past the usual resize debounce before restoring
+        // the saved size and allowing the stream to proceed.
+        let onOutput = try XCTUnwrap(restoredHandle.onOutput)
+        var releaseFirstFrame: (() -> Void)?
+        restoredHandle.onOutput = { response, historicalBytes, completion in
+            releaseFirstFrame = { onOutput(response, historicalBytes, completion) }
+        }
+        try await waitUntil("first frame waiting behind the default layout") { releaseFirstFrame != nil }
+        try await Task.sleep(for: .milliseconds(300))
+        let connection = try TerminalRuntimeConnection(root: root)
+        defer { connection.close() }
+        var request = TerminalRuntimeRequest(action: .read)
+        request.sessionID = original.id
+        request.generation = initial.generation
+        request.after = cursor
+        request.includeOutputGrid = true
+        XCTAssertEqual(try connection.request(request).cursor, cursor, "Transient layout must not resize the original PTY")
+        restored.controller.container.setFrameSize(largerSize)
+        restoredHandle.onOutput = onOutput
+        releaseFirstFrame?()
+        try await waitUntil("new viewer replayed the original PTY output") {
+            restoredHandle.renderedCursor == cursor && restored.controller.visibleScreenText().contains("__STATUS_CURRENT__")
+        }
+        XCTAssertEqual(restored.runtimeInfo?.pid, initial.pid)
+        XCTAssertEqual(restored.runtimeInfo?.generation, initial.generation)
+        let after = restored.controller.visibleScreenText().components(separatedBy: "\n")
+        XCTAssertEqual(after.last, "__STATUS_CURRENT__")
+        XCTAssertEqual(after.filter { $0.contains("__STATUS_") }, ["__STATUS_CURRENT__"])
+        XCTAssertTrue(after.contains("__FIRST_FRAME__"))
+    }
+
     private func attach(_ session: TerminalSession, launch: TerminalRuntimeLaunch, root: URL, helper: URL,
-                        ready: @escaping () -> Void = {}) {
+                        size: NSSize = NSSize(width: 900, height: 600), ready: @escaping () -> Void = {}) {
         let controller = session.controller
-        let window = NSWindow(contentRect: NSRect(x: -2_000, y: -2_000, width: 900, height: 600),
+        let window = NSWindow(contentRect: NSRect(origin: NSPoint(x: -2_000, y: -2_000), size: size),
                               styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.contentView = controller.container
@@ -465,10 +567,12 @@ final class TerminalRuntimeViewTests: XCTestCase {
             environment: ["PATH": "/usr/bin:/bin", "HOME": root.path, "TERM": "xterm-256color"],
             directory: root.path, columns: 140, rows: 40), root: root, helper: helper)
         let terminal = try XCTUnwrap(session.controller.container.subviews.compactMap { $0 as? FocusableLocalProcessTerminalView }.first)
+        let layout = try XCTUnwrap(terminal.layoutGridDimensions)
         try await waitUntil("first PTY size matches final layout") {
             let dimensions = terminal.terminalDimensions
-            return session.controller.runtimeHandle?.connected == true && session.runtimeInfo?.columns == dimensions.cols &&
-                session.runtimeInfo?.rows == dimensions.rows && session.controller.visibleScreenText().contains("__MODE_READY")
+            return dimensions.cols == layout.cols && dimensions.rows == layout.rows &&
+                session.controller.runtimeHandle?.connected == true && session.runtimeInfo?.columns == layout.cols &&
+                session.runtimeInfo?.rows == layout.rows && session.controller.visibleScreenText().contains("__MODE_READY")
         }
         let dimensions = terminal.terminalDimensions
         XCTAssertNotEqual(dimensions.cols, 140)
@@ -488,10 +592,12 @@ final class TerminalRuntimeViewTests: XCTestCase {
         let controller = session.controller
         let terminal = try XCTUnwrap(controller.container.subviews.compactMap { $0 as? FocusableLocalProcessTerminalView }.first)
         controller.setActive(true)
+        let layout = try XCTUnwrap(terminal.layoutGridDimensions)
         try await waitUntil("initial tab dimensions") {
             let dimensions = terminal.terminalDimensions
-            return controller.visibleScreenText().contains("__MODE_READY") &&
-                session.runtimeInfo?.columns == dimensions.cols && session.runtimeInfo?.rows == dimensions.rows
+            return dimensions.cols == layout.cols && dimensions.rows == layout.rows &&
+                controller.visibleScreenText().contains("__MODE_READY") &&
+                session.runtimeInfo?.columns == layout.cols && session.runtimeInfo?.rows == layout.rows
         }
         controller.sendProcessInput(bytes: Array(
             "trap 'printf \"\\n__WINCH_SIZE__ \"; stty size' WINCH; printf '\\n__WINCH_HANDLER_READY__\\n'\n".utf8

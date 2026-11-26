@@ -40,7 +40,7 @@ final class RuntimeSession {
         self.attention = attention
         reminderPolicy = launch.reminderPolicy ?? TerminalReminderPolicy()
         guard reminderPolicy.isValid else { throw RuntimeFailure.invalidRequest }
-        journal = try TerminalRuntimeOutputJournal()
+        journal = try TerminalRuntimeOutputJournal(initialGrid: .init(columns: launch.columns, rows: launch.rows))
         let strings = [launch.executable, launch.directory, launch.executableName ?? ""]
             + launch.arguments + launch.environment.map { "\($0.key)=\($0.value)" }
         guard launch.executable.hasPrefix("/"), launch.directory.hasPrefix("/"),
@@ -89,7 +89,7 @@ final class RuntimeSession {
               agent: agentMonitor.snapshot,
             controlExpiresAt: leaseExpiresAt, outputRevision: outputRevision,
             commands: Array(commandLedger.commands.suffix(TerminalRuntimeCommandLedger.maximumProjectedCommands)),
-            reminderPolicy: reminderPolicy)
+            reminderPolicy: reminderPolicy, outputGridSequence: journal.head(includingGrid: true).gridSequence)
     }
 
     func refresh() {
@@ -247,9 +247,16 @@ final class RuntimeSession {
     func resize(_ request: TerminalRuntimeRequest) throws {
         try validate(request)
         guard let columns = request.columns, let rows = request.rows,
-              running, fd >= 0, museterm_pty_resize(fd, Int32(clamping: columns), Int32(clamping: rows)) == 0 else {
+              (1...1000).contains(columns), (1...1000).contains(rows), running, fd >= 0 else {
             throw RuntimeFailure.resizeFailed
         }
+        guard columns != self.columns || rows != self.rows else { return }
+        // Journal pending output before the ioctl can wake the child with SIGWINCH.
+        try readOutput()
+        guard fd >= 0, museterm_pty_resize(fd, Int32(columns), Int32(rows)) == 0 else {
+            throw RuntimeFailure.resizeFailed
+        }
+        journal.recordResize(.init(columns: columns, rows: rows))
         self.columns = columns; self.rows = rows
         revision += 1
     }

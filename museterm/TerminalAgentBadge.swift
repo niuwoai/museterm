@@ -25,7 +25,11 @@ struct TerminalAgentBadge: View {
     }
 
     private var detail: String {
-        L10n.format("agent.identity.detail", TerminalAgentSurface.cli.label, status.detail)
+        let identity = L10n.format("agent.identity.detail", TerminalAgentSurface.cli.label, status.detail)
+        guard let title = status.context?.title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty else {
+            return identity
+        }
+        return "\(identity)\n\(title)"
     }
 
     private var symbol: String {

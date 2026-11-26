@@ -49,23 +49,40 @@ final class TerminalAgentUITests: XCTestCase {
         app.launchEnvironment["MUSETERM_AGENT_TEST_TOOL_ROOT"] = tools.path
         defer { try? FileManager.default.removeItem(at: tools) }
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US",
-            "-terminal.showsTabList", "YES", "-agent.monitoringEnabled", "YES", "-notifications.enabled", "NO", "-ui-testing-agent-state"]
+            "-terminal.showsTabList", "YES", "-terminal.sidebarExpandedWidth", "220",
+            "-agent.monitoringEnabled", "YES", "-notifications.enabled", "NO",
+            "-SUEnableAutomaticChecks", "NO", "-ui-testing-agent-state", "-ui-testing-sidebar-title"]
         app.launch()
         defer { app.terminate() }
-        let badge = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "agent-state-")).firstMatch
+        let rowPrefix = "project-tab-"
+        let badge = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@ AND label CONTAINS %@", rowPrefix, "Fixture task")
+        ).firstMatch
         XCTAssertTrue(badge.waitForExistence(timeout: 10))
         XCTAssertTrue(badge.label.contains("Codex"))
         XCTAssertTrue(badge.label.contains("Needs attention"))
         XCTAssertTrue(badge.label.contains("Integration report"))
-        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        let directoryTitle = "muchtoken"
+        let paneTitle = app.buttons.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ AND label == %@", "pane-focus-", directoryTitle
+        )).firstMatch
+        XCTAssertTrue(paneTitle.waitForExistence(timeout: 5))
+        let sidebarTitle = app.staticTexts.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ AND (value == %@ OR label == %@)", rowPrefix, directoryTitle, directoryTitle
+        )).firstMatch
+        XCTAssertTrue(sidebarTitle.waitForExistence(timeout: 5))
+        XCTAssertGreaterThan(sidebarTitle.frame.width, 0)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "agent-state-expanded"
         screenshot.lifetime = .keepAlways
         add(screenshot)
         app.buttons["Hide tab list"].click()
         XCTAssertTrue(badge.waitForExistence(timeout: 5))
         XCTAssertTrue(badge.label.contains("Codex"))
+        XCTAssertTrue(sidebarTitle.exists)
+        XCTAssertGreaterThan(sidebarTitle.frame.width, 0)
         XCTAssertFalse(app.buttons["Unlock and take control"].exists)
-        let compact = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        let compact = XCTAttachment(screenshot: app.screenshot())
         compact.name = "agent-state-compact"
         compact.lifetime = .keepAlways
         add(compact)

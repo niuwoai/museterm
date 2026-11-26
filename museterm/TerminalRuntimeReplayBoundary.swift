@@ -11,6 +11,15 @@ nonisolated enum TerminalRuntimeReplayBoundary {
               let data = response.data, cursor.offset >= UInt64(data.count) else {
             return (response, historicalBytes)
         }
+        // A superseded subscription can deliver a resize-only frame after a
+        // newer frame has rendered. Never apply that older grid to the view.
+        if cursor.gridSequence != nil, boundary.gridSequence != nil, !cursor.advances(boundary) {
+            var duplicate = response
+            duplicate.data = Data()
+            duplicate.outputGrid = nil
+            duplicate.hasGap = false
+            return (duplicate, 0)
+        }
         let start = cursor.offset - UInt64(data.count)
         let overlap = Int(min(UInt64(data.count), boundary.offset > start ? boundary.offset - start : 0))
         guard overlap > 0 else { return (response, historicalBytes) }

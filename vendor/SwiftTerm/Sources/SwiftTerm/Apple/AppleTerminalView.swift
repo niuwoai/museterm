@@ -1977,14 +1977,25 @@ extension TerminalView {
     /// main-thread stall p99 went from 16–28 ms to 133–205 ms. MacTerminal is
     /// the host in question and the pattern is entirely ordinary.
     func queueSizeChange (newSize: CGSize) {
-        if newSize.width == 0 && newSize.height == 0 {
+        guard let size = layoutGrid(for: newSize) else { return }
+#if os(macOS)
+        if let onLayoutGridChange {
+            onLayoutGridChange(size.cols, size.rows)
             return
         }
-        let newRows = Int (newSize.height / cellDimension.height)
-        let newCols = Int (getEffectiveWidth (size: newSize) / cellDimension.width)
-
-        renderOwner.mailbox.queueSize(cols: newCols, rows: newRows)
+#endif
+        renderOwner.mailbox.queueSize(cols: size.cols, rows: size.rows)
         frameDriver?.markDirty()
+    }
+
+    public var layoutGridDimensions: (cols: Int, rows: Int)? { layoutGrid(for: frame.size) }
+
+    private func layoutGrid(for size: CGSize) -> (cols: Int, rows: Int)? {
+#if os(macOS)
+        guard cellDimension != nil else { return nil }
+#endif
+        guard size.width > 0, size.height > 0 else { return nil }
+        return (Int(getEffectiveWidth(size: size) / cellDimension.width), Int(size.height / cellDimension.height))
     }
 
     /// Resizes the terminal immediately.
@@ -1995,11 +2006,21 @@ extension TerminalView {
     /// `queueSizeChange` instead.
     @discardableResult
     func processSizeChange (newSize: CGSize) -> Bool {
-        if newSize.width == 0 && newSize.height == 0 {
+        guard let size = layoutGrid(for: newSize) else { return false }
+#if os(macOS)
+        if let onLayoutGridChange {
+            onLayoutGridChange(size.cols, size.rows)
             return false
         }
-        let newRows = Int (newSize.height / cellDimension.height)
-        let newCols = Int (getEffectiveWidth (size: newSize) / cellDimension.width)
+#endif
+        let didResize = applyGridSize(cols: size.cols, rows: size.rows)
+        if didResize { terminalDelegate?.sizeChanged(source: self, newCols: size.cols, newRows: size.rows) }
+        return didResize
+    }
+
+    /// Applies a host's grid checkpoint without a reset or a new PTY resize request.
+    @discardableResult
+    public func applyGridSize(cols newCols: Int, rows newRows: Int) -> Bool {
         let cellPixels = currentCellPixelSize()
         
         var didResize = false
@@ -2021,11 +2042,10 @@ extension TerminalView {
         }
         if didResize {
             accessibility.invalidate ()
-            terminalDelegate?.sizeChanged (source: self, newCols: newCols, newRows: newRows)
             updateScroller()
-            return true
+            frameDriver?.markDirty()
         }
-        return false
+        return didResize
     }
 
     func refreshCachedViewState ()

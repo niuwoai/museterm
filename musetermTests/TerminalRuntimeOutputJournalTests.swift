@@ -48,6 +48,66 @@ final class TerminalRuntimeOutputJournalTests: XCTestCase {
         XCTAssertEqual(try journal.read(after: journal.cursor, limit: 16).data, Data())
     }
 
+    func testGridAwarePagingPreservesConsecutiveResizesAtTheSameByteOffset() throws {
+        let initial = TerminalRuntimeGrid(columns: 80, rows: 24)
+        let narrow = TerminalRuntimeGrid(columns: 40, rows: 24)
+        let tall = TerminalRuntimeGrid(columns: 80, rows: 35)
+        var journal = try TerminalRuntimeOutputJournal(capacity: 16, initialGrid: initial)
+        try journal.append(Data("before".utf8))
+        journal.recordResize(narrow)
+        journal.recordResize(tall)
+        try journal.append(Data("after".utf8))
+
+        let first = try journal.read(after: nil, limit: 16, includingGrid: true)
+        XCTAssertEqual(first.data, Data("before".utf8))
+        XCTAssertEqual(first.grid, initial)
+        let next = try journal.read(after: first.cursor, limit: 16, includingGrid: true)
+        XCTAssertEqual(next.data, Data())
+        XCTAssertEqual(next.grid, narrow)
+        XCTAssertEqual(next.cursor.offset, first.cursor.offset)
+        XCTAssertTrue(next.cursor.advances(first.cursor))
+        let last = try journal.read(after: next.cursor, limit: 16, includingGrid: true)
+        XCTAssertEqual(last.data, Data("after".utf8))
+        XCTAssertEqual(last.grid, tall)
+        XCTAssertEqual(last.cursor, journal.head(includingGrid: true))
+        XCTAssertFalse(last.hasGap)
+        XCTAssertEqual(try journal.read(after: nil, limit: 16).data, Data("beforeafter".utf8))
+    }
+
+    func testTruncationKeepsGridOfFirstRetainedByteAndLeavesByteOnlyReadsIntact() throws {
+        let initial = TerminalRuntimeGrid(columns: 80, rows: 24)
+        let narrow = TerminalRuntimeGrid(columns: 40, rows: 24)
+        let tall = TerminalRuntimeGrid(columns: 80, rows: 35)
+        var journal = try TerminalRuntimeOutputJournal(capacity: 6, initialGrid: initial)
+        try journal.append(Data("old".utf8))
+        journal.recordResize(narrow)
+        try journal.append(Data("123456".utf8))
+        journal.recordResize(tall)
+        try journal.append(Data("end".utf8))
+        let first = try journal.read(after: nil, limit: 6, includingGrid: true)
+        XCTAssertTrue(first.hasGap)
+        XCTAssertEqual(first.grid, narrow)
+        XCTAssertEqual(first.data, Data("456".utf8))
+        let last = try journal.read(after: first.cursor, limit: 6, includingGrid: true)
+        XCTAssertEqual(last.grid, tall)
+        XCTAssertEqual(last.data, Data("end".utf8))
+        XCTAssertFalse(last.hasGap)
+
+        var compacted = try TerminalRuntimeOutputJournal(capacity: 16, initialGrid: initial)
+        try compacted.append(Data("old".utf8))
+        for index in 0...TerminalRuntimeOutputJournal.maximumGridChanges {
+            compacted.recordResize(index.isMultiple(of: 2) ? narrow : tall)
+        }
+        try compacted.append(Data("new".utf8))
+        let restart = try compacted.read(after: nil, limit: 16, includingGrid: true)
+        XCTAssertTrue(restart.hasGap)
+        XCTAssertEqual(restart.cursor.offset, 3)
+        XCTAssertEqual(restart.grid, tall)
+        let byteOnly = try compacted.read(after: nil, limit: 16)
+        XCTAssertFalse(byteOnly.hasGap)
+        XCTAssertEqual(byteOnly.data, Data("oldnew".utf8))
+    }
+
     func testCapacityAndRequestLimitsStayBounded() throws {
         XCTAssertThrowsError(try TerminalRuntimeOutputJournal(capacity: 0))
         XCTAssertThrowsError(try TerminalRuntimeOutputJournal(capacity: .max))

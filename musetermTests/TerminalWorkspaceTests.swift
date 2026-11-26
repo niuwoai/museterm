@@ -596,6 +596,10 @@ final class TerminalWorkspaceTests: XCTestCase {
         XCTAssertNotEqual(tab.tabTitle, tab.title)
         XCTAssertEqual(tab.tabTitle, FileManager.default.homeDirectoryForCurrentUser.lastPathComponent)
         XCTAssertNil(tab.tabSubtitle)
+
+        tab.currentDirectory = "file:///tmp/muchtoken"
+        XCTAssertEqual(tab.tabTitle, "muchtoken")
+        XCTAssertNil(tab.tabSubtitle)
     }
 
     func testTabTitleKeepsRemoteUserHostTitle() {
