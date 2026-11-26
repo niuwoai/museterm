@@ -9480,8 +9480,17 @@ open class Terminal {
     public func getBufferAsData (kind: BufferKind = .active, encoding: String.Encoding = .utf8) -> Data
     {
         var result = Data()
-        
         let b = bufferFromKind(kind: kind)
+        if encoding == .utf8 {
+            let lines = b.lines
+            for row in 0..<lines.count {
+                result.append(lines[row].historyUTF8Bytes {
+                    translateBufferLineToString(buffer: b, line: row, start: 0, end: -1)
+                })
+            }
+            return result
+        }
+
         let newLine = Data([10])
         for row in 0..<b.lines.count {
             let str = translateBufferLineToString (buffer: b, line: row, start: 0, end: -1)
