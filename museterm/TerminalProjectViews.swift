@@ -206,13 +206,13 @@ struct TerminalProjectsSidebar: View {
         let shortcut = workspace.tabs.firstIndex(where: { $0.id == tab.id }).flatMap { $0 < 9 ? $0 + 1 : nil }
         VStack(alignment: .leading, spacing: 2) {
             if compact {
-                CompactTabRowView(tab: tab, isSelected: selected,
+                CompactTabRowView(tab: tab.sidebarRow, isSelected: selected,
                     showsUnreadBadge: preferences.notificationsEnabled && preferences.showInactiveTabNotificationBadges,
                     shortcutNumber: shortcut, skin: preferences.skin,
                     closeAction: { workspace.closeLayoutTab(layoutTab.id) }, detachAction: { onDetach(tab) },
                     contextMenuContent: AnyView(projectTabMenu(tab, layoutTab: layoutTab)))
             } else {
-                TabRowView(tab: tab, isSelected: selected,
+                TabRowView(tab: tab.sidebarRow, isSelected: selected,
                     showsUnreadBadge: preferences.notificationsEnabled && preferences.showInactiveTabNotificationBadges,
                     shortcutNumber: shortcut, skin: preferences.skin,
                     closeAction: { workspace.closeLayoutTab(layoutTab.id) }, detachAction: { onDetach(tab) },

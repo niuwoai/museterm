@@ -296,11 +296,18 @@ final class TerminalSession: ObservableObject, Identifiable {
     let createdAt = Date()
     let launchConfiguration: TerminalLaunchConfiguration
 
-    @Published var title: String
-    @Published var currentDirectory: String?
-    @Published private(set) var shellName: String?
+    @Published var title: String {
+        didSet { if title != oldValue { updateSidebarLabels() } }
+    }
+    @Published var currentDirectory: String? {
+        didSet { if currentDirectory != oldValue { updateSidebarLabels() } }
+    }
+    @Published private(set) var shellName: String? {
+        didSet { sidebarRow.update(\.shellName, to: shellName) }
+    }
     @Published var state: State = .running {
         didSet {
+            sidebarRow.update(\.isRunning, to: sidebarShowsRunning)
             if case .exited = state {
                 if !runtimeOwnsAgent { updateAgent { $0.exit(now: Date()) } }
                 if case .running = oldValue { eventStore?.publish(tabID: id, kind: .processExited) }
@@ -310,13 +317,17 @@ final class TerminalSession: ObservableObject, Identifiable {
     @Published private(set) var activeRecordingStartedAt: Date?
     @Published private(set) var isPlayingShortcut = false
     @Published private(set) var fileTransferStatus: TerminalFileTransferStatus?
-    @Published private(set) var sessionTunnelStatus: SessionTunnelStatus?
+    @Published private(set) var sessionTunnelStatus: SessionTunnelStatus? {
+        didSet { sidebarRow.update(\.hasActiveTunnel, to: sessionTunnelStatus?.occupiesTerminal == true) }
+    }
     /// The narrow image column for this tab. It stays empty, and takes no width, until a program
     /// inside the tab announces that it speaks the gallery protocol.
     let gallery = TerminalGalleryState()
     @Published private(set) var commandBlocks: [TerminalCommandBlock] = []
     @Published private(set) var historySearchSnapshot = ""
-    @Published private(set) var hasUnreadAttention = false
+    @Published private(set) var hasUnreadAttention = false {
+        didSet { sidebarRow.update(\.hasUnreadAttention, to: hasUnreadAttention) }
+    }
     private(set) var processRunID = UUID()
     weak var attentionStore: TerminalAttentionStore?
     let nativeAgentContext = TerminalNativeAgentContext()
@@ -366,8 +377,16 @@ final class TerminalSession: ObservableObject, Identifiable {
     }
     var onPaneFocus: (() -> Void)?
     @Published private(set) var executionContext: TerminalExecutionContext
-    @Published private(set) var aiLease: TerminalAILease?
-    @Published private(set) var agentStatus: TerminalAgentSnapshot?
+    @Published private(set) var aiLease: TerminalAILease? {
+        didSet { sidebarRow.update(\.isAIControlled, to: aiLease != nil) }
+    }
+    @Published private(set) var agentStatus: TerminalAgentSnapshot? {
+        didSet {
+            if agentStatus != oldValue {
+                sidebarRow.update(\.agent, to: agentStatus.map(TerminalAgentBadge.Presentation.init))
+            }
+        }
+    }
     private var agentMonitor = TerminalAgentMonitor()
     weak var eventStore: TerminalSessionEventStore?
     var onSessionClosed: ((UUID) -> Void)?
@@ -955,6 +974,33 @@ final class TerminalSession: ObservableObject, Identifiable {
         activeCommandOutputStartIndex = historySnapshot.count
         attentionReporter?.terminalSession(self, didProduceAttentionEvent: .commandFinished(finishedBlock))
         commandCompletionHandler?(self, finishedBlock)
+    }
+
+    private(set) lazy var sidebarRow = TerminalSidebarRowState(
+        id: id,
+        environment: environment,
+        value: .init(
+            labels: sidebarLabels,
+            shellName: shellName,
+            agent: agentStatus.map(TerminalAgentBadge.Presentation.init),
+            isRunning: sidebarShowsRunning,
+            hasUnreadAttention: hasUnreadAttention,
+            hasActiveTunnel: sessionTunnelStatus?.occupiesTerminal == true,
+            isAIControlled: aiLease != nil
+        )
+    )
+
+    private var sidebarLabels: TerminalSidebarRowState.Labels {
+        .init(title: tabTitle, subtitle: tabSubtitle)
+    }
+
+    private func updateSidebarLabels() {
+        sidebarRow.update(\.labels, to: sidebarLabels)
+    }
+
+    private var sidebarShowsRunning: Bool {
+        if case .running = state { return true }
+        return false
     }
 
     var displayTitle: String {

@@ -1,6 +1,25 @@
 import SwiftUI
 
 struct TerminalAgentBadge: View {
+    struct Presentation: Equatable {
+        let status: TerminalAgentSnapshot
+
+        private var contextTitle: String? {
+            let title = status.context?.title?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return title?.isEmpty == false ? title : nil
+        }
+
+        static func == (lhs: Self, rhs: Self) -> Bool {
+            lhs.status.instanceID == rhs.status.instanceID &&
+            lhs.status.kind == rhs.status.kind &&
+            lhs.status.activity == rhs.status.activity &&
+            lhs.status.source == rhs.status.source &&
+            lhs.status.confidence == rhs.status.confidence &&
+            lhs.status.reason == rhs.status.reason &&
+            lhs.contextTitle == rhs.contextTitle
+        }
+    }
+
     let status: TerminalAgentSnapshot
     var compact = false
 

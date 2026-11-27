@@ -539,7 +539,7 @@ extension Notification.Name {
 }
 
 struct TabRowView: View {
-    @ObservedObject var tab: TerminalSession
+    @ObservedObject var tab: TerminalSidebarRowState
     let isSelected: Bool
     let showsUnreadBadge: Bool
     let shortcutNumber: Int?
@@ -555,7 +555,7 @@ struct TabRowView: View {
                 .fill(statusColor)
                 .frame(width: 7, height: 7)
                 .overlay(alignment: .topTrailing) {
-                    if showsUnreadBadge && tab.hasUnreadAttention && !isSelected {
+                    if showsUnreadBadge && tab.value.hasUnreadAttention && !isSelected {
                         Circle()
                             .fill(Color.red)
                             .frame(width: 5, height: 5)
@@ -567,11 +567,11 @@ struct TabRowView: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 5) {
-                    Text(tab.tabTitle)
+                    Text(tab.value.labels.title)
                         .font(.caption.weight(.semibold))
                         .lineLimit(1)
                         .truncationMode(.tail)
-                        .help(tab.tabTitle)
+                        .help(tab.value.labels.title)
                     if let shortcutNumber {
                         Text(verbatim: "⌘\(shortcutNumber)")
                             .font(.caption2.monospacedDigit())
@@ -581,15 +581,15 @@ struct TabRowView: View {
                             .layoutPriority(2)
                     }
                 }
-                if tab.tabSubtitle != nil || tab.shellName != nil || tab.agentStatus != nil {
+                if tab.value.labels.subtitle != nil || tab.value.shellName != nil || tab.value.agent?.status != nil {
                     HStack(spacing: 5) {
-                        if let shellName = tab.shellName {
+                        if let shellName = tab.value.shellName {
                             ShellBadge(shellName: shellName, skin: skin)
                         }
-                        if let status = tab.agentStatus {
+                        if let status = tab.value.agent?.status {
                             TerminalAgentBadge(status: status).layoutPriority(1)
                         }
-                        if let subtitle = tab.tabSubtitle {
+                        if let subtitle = tab.value.labels.subtitle {
                             Text(subtitle)
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
@@ -602,7 +602,7 @@ struct TabRowView: View {
 
             Spacer(minLength: 4)
 
-            if tab.sessionTunnelStatus?.occupiesTerminal == true {
+            if tab.value.hasActiveTunnel {
                 Image(systemName: "link")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.green)
@@ -610,7 +610,7 @@ struct TabRowView: View {
                     .accessibilityLabel(L10n.string("session_tunnel.phase.running"))
             }
 
-            if tab.aiLease != nil {
+            if tab.value.isAIControlled {
                 Image(systemName: "sparkles")
                     .foregroundStyle(skin.accent)
                     .help(L10n.string("ai_control.locked"))
@@ -659,15 +659,12 @@ struct TabRowView: View {
     }
 
     private var statusColor: Color {
-        switch tab.state {
-        case .running: return skin.accent
-        case .exited: return .secondary.opacity(0.55)
-        }
+        tab.value.isRunning ? skin.accent : .secondary.opacity(0.55)
     }
 }
 
 struct CompactTabRowView: View {
-    @ObservedObject var tab: TerminalSession
+    @ObservedObject var tab: TerminalSidebarRowState
     let isSelected: Bool
     let showsUnreadBadge: Bool
     let shortcutNumber: Int?
@@ -678,8 +675,8 @@ struct CompactTabRowView: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            if let status = tab.agentStatus { TerminalAgentBadge(status: status, compact: true) }
-            if tab.aiLease != nil {
+            if let status = tab.value.agent?.status { TerminalAgentBadge(status: status, compact: true) }
+            if tab.value.isAIControlled {
                 Image(systemName: "sparkles")
                     .foregroundStyle(skin.accent)
                     .help(L10n.string("ai_control.locked"))
@@ -689,7 +686,7 @@ struct CompactTabRowView: View {
                 .fill(statusColor)
                 .frame(width: 6, height: 6)
                 .overlay(alignment: .topTrailing) {
-                    if showsUnreadBadge && tab.hasUnreadAttention && !isSelected {
+                    if showsUnreadBadge && tab.value.hasUnreadAttention && !isSelected {
                         Circle()
                             .fill(Color.red)
                             .frame(width: 4, height: 4)
@@ -699,14 +696,14 @@ struct CompactTabRowView: View {
                     }
                 }
 
-            Text(tab.tabTitle)
+            Text(tab.value.labels.title)
                 .font(.caption2.weight(.semibold))
                 .lineLimit(1)
                 .truncationMode(.tail)
 
             Spacer(minLength: 0)
 
-            if tab.sessionTunnelStatus?.occupiesTerminal == true {
+            if tab.value.hasActiveTunnel {
                 Image(systemName: "link")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.green)
@@ -738,15 +735,12 @@ struct CompactTabRowView: View {
     }
 
     private var helpText: String {
-        guard let shortcutNumber else { return tab.tabTitle }
-        return "\(tab.tabTitle) ⌘\(shortcutNumber)"
+        guard let shortcutNumber else { return tab.value.labels.title }
+        return "\(tab.value.labels.title) ⌘\(shortcutNumber)"
     }
 
     private var statusColor: Color {
-        switch tab.state {
-        case .running: return skin.accent
-        case .exited: return .secondary.opacity(0.55)
-        }
+        tab.value.isRunning ? skin.accent : .secondary.opacity(0.55)
     }
 }
 
